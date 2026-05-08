@@ -1,3 +1,5 @@
 library;
 
-const String packageName = 'exploration_flutter';
+export 'src/binding/exploration_binding.dart'
+    show ExplorationBinding, kExplorationExtensionPrefix;
+export 'src/contract/exploration_plugin.dart' show ExplorationPlugin;
