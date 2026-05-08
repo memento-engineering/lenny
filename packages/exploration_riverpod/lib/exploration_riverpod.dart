@@ -1,3 +1,5 @@
+/// Reference Riverpod plugin for the Flutter Exploration Agent.
 library;
 
-const String packageName = 'exploration_riverpod';
+export 'src/internals.dart' show ExplorationProviderObserver;
+export 'src/plugin.dart' show RiverpodExplorationPlugin;
