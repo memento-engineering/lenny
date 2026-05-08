@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../contract/exploration_plugin.dart';
+import '../semantics/semantics_capture.dart';
 
 /// Reserved prefix. Format:
 /// `ext.flutter.exploration.<core_or_plugin_namespace>.<suffix>`.
@@ -13,6 +15,7 @@ class ExplorationBinding extends WidgetsFlutterBinding {
 
   static ExplorationBinding? _instance;
   final List<ExplorationPlugin> _plugins;
+  final SemanticsCapture _semanticsCapture = SemanticsCapture();
 
   /// User-supplied list, registration order preserved. cx6.3 reads it.
   List<ExplorationPlugin> get plugins => List.unmodifiable(_plugins);
@@ -52,6 +55,18 @@ class ExplorationBinding extends WidgetsFlutterBinding {
           '"bindingType":"ExplorationBinding",'
           '"flutterMode":"${kDebugMode ? 'debug' : 'profile'}",'
           '"pluginCount":${_plugins.length}}',
+        );
+      },
+    );
+    developer.registerExtension(
+      '$kExplorationExtensionPrefix.core.get_semantics',
+      (method, parameters) async {
+        final List<Map<String, Object>> recs = _semanticsCapture.capture();
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object>{
+            'semantics': recs,
+            'count': recs.length,
+          }),
         );
       },
     );
