@@ -99,8 +99,8 @@ void main() {
       final summary = TurnRow.describeDiff(const {
         'core': <String, dynamic>{},
         'plugins': {
-          'router': {'route_changes': []},
-          'dio': {'requests': []},
+          'router': {'route_changes': <Object?>[]},
+          'dio': {'requests': <Object?>[]},
         },
       });
       expect(summary, contains('router: changed'));
