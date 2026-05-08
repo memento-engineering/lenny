@@ -9,9 +9,12 @@ environment:
 
 dependencies:
   devtools_extensions: ^0.4.0
+  dtd: ^4.0.0
   exploration_agent: any
   flutter:
     sdk: flutter
+  json_rpc_2: ^3.0.2
+  vm_service: ^14.2.0
 
 dev_dependencies:
   flutter_test:

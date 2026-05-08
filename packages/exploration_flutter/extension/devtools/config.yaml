@@ -1,0 +1,5 @@
+name: exploration
+issueTracker: https://github.com/nicholasspencer/lenny/issues
+version: 0.0.1
+materialIconCodePoint: 0xe1bd
+requiresConnection: true
