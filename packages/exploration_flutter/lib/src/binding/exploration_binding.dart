@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../contract/plugin.dart';
+import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
 
@@ -73,6 +74,27 @@ class ExplorationBinding extends WidgetsFlutterBinding
         );
       },
     );
+    if (kDebugMode || kProfileMode) {
+      developer.registerExtension(
+        '$kExplorationExtensionPrefix.core.screenshot',
+        (String method, Map<String, String> params) async {
+          try {
+            final ScreenshotResult result = await captureScreenshot(this);
+            return developer.ServiceExtensionResponse.result(
+              jsonEncode(<String, dynamic>{'result': result.toJson()}),
+            );
+          } on ScreenshotUnavailable catch (e) {
+            return developer.ServiceExtensionResponse.error(
+              developer.ServiceExtensionResponse.extensionError,
+              jsonEncode(<String, dynamic>{
+                'code': 1,
+                'message': e.reason,
+              }),
+            );
+          }
+        },
+      );
+    }
   }
 
   @visibleForTesting
