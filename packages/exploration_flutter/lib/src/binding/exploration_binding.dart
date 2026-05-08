@@ -6,9 +6,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../contract/plugin.dart';
 import '../contract/registry.dart';
+import '../contract/types.dart';
 import '../diagnostics/interactive_semantics_auditor.dart';
 import '../diagnostics/interactive_semantics_warning.dart';
 import '../errors/error_ring_buffer.dart';
+import '../observation/budgeted_json.dart';
+import '../observation/core_fragment.dart';
+import '../observation/observation_request.dart';
+import '../observation/policy_loop.dart';
+import '../observation/stability_metadata.dart';
 import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
@@ -60,6 +66,18 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// Test-only override of the widget-tree root used by the diagnostics
   /// walker. When null, falls back to `WidgetsBinding.instance.rootElement`.
   DiagnosticsRootProvider? _diagnosticsRootProviderForTesting;
+
+  /// Test-only override of [PolicyLoop]'s frame-wait function. When
+  /// `null`, the loop awaits `SchedulerBinding.instance.endOfFrame`.
+  /// Tests that run as plain `test()` (no widget pumping) inject
+  /// `() async {}` here so the loop yields without scheduling a frame
+  /// the host won't drive.
+  Future<void> Function()? _waitForFrameForTesting;
+
+  /// Test-only override of [PolicyLoop]'s wall-clock fn. When `null`,
+  /// the loop uses `Stopwatch().elapsedMilliseconds` started at the
+  /// loop entry point.
+  int Function()? _nowMsForTesting;
 
   /// Wired in [ensureInitialized]; owns plugin lifecycle dispatch and the
   /// per-plugin error-handler chain.
@@ -246,6 +264,29 @@ class ExplorationBinding extends WidgetsFlutterBinding
         ));
       },
     );
+    if (kDebugMode) {
+      _registerExtension(
+        '$kExplorationExtensionPrefix.core.get_stable_observation',
+        (String method, Map<String, String> parameters) async {
+          try {
+            final ObservationRequest req = _decodeObservationRequest(parameters);
+            final Map<String, Object?> obs =
+                await getStableObservation(req);
+            return developer.ServiceExtensionResponse.result(jsonEncode(
+              <String, Object?>{'type': 'Observation', 'value': obs},
+            ));
+          } on FormatException catch (e) {
+            return developer.ServiceExtensionResponse.error(
+              developer.ServiceExtensionResponse.invalidParams,
+              jsonEncode(<String, Object?>{
+                'code': 2,
+                'message': e.message,
+              }),
+            );
+          }
+        },
+      );
+    }
     if (kDebugMode || kProfileMode) {
       developer.registerExtension(
         '$kExplorationExtensionPrefix.core.screenshot',
@@ -308,6 +349,152 @@ class ExplorationBinding extends WidgetsFlutterBinding
     ).audit(root);
   }
 
+  /// Decode the VM-extension parameter map into an [ObservationRequest].
+  ///
+  /// `developer.registerExtension` hands us a flat
+  /// `Map<String, String>`; nested JSON arrives as a JSON-encoded
+  /// string under known keys. We only round-trip `pluginBudgets` here
+  /// because every other field is a scalar.
+  ObservationRequest _decodeObservationRequest(Map<String, String> params) {
+    final Map<String, dynamic> j = <String, dynamic>{};
+    for (final MapEntry<String, String> e in params.entries) {
+      switch (e.key) {
+        case 'pluginBudgets':
+          // pluginBudgets: '{"a":256,"b":512}' (JSON-encoded).
+          j[e.key] = jsonDecode(e.value);
+          break;
+        case 'includeScreenshot':
+          j[e.key] = e.value == 'true';
+          break;
+        case 'actionRelativeBudgetMs':
+        case 'quietFrameN':
+        case 'boundedStabilityBudgetMs':
+        case 'errorCursor':
+          j[e.key] = int.tryParse(e.value) ?? e.value;
+          break;
+        default:
+          j[e.key] = e.value;
+      }
+    }
+    return ObservationRequest.fromJson(j);
+  }
+
+  /// Hash of the live route stack (best-effort Navigator 1.0 names).
+  /// Used by [PolicyLoop] to detect route changes during the
+  /// `action-relative` policy. Stable across invocations for the same
+  /// list contents.
+  int _routeStackHash() => Object.hashAll(bestEffortRouteStack());
+
+  /// Hash of the current semantics tree. Cheap proxy for "did the tree
+  /// change?": we hash the count plus each record's `id`/`role`/`rect`.
+  /// Walk skipped under release.
+  int _semanticsTreeHash() {
+    final List<Map<String, Object>> recs = _semanticsCapture.capture();
+    final List<int> tokens = <int>[recs.length];
+    for (final Map<String, Object> r in recs) {
+      tokens.add(r['id'].hashCode);
+      tokens.add(r['role'].hashCode);
+      tokens.add(Object.hashAll((r['rect'] as List<Object?>)));
+    }
+    return Object.hashAll(tokens);
+  }
+
+  /// Compose the stable-observation bundle for the current turn.
+  ///
+  /// Polls cx6.4's framework signals + every plugin's `busyState()`
+  /// until [req]'s policy terminates, then captures the merged JSON
+  /// observation: core fragment + per-plugin fragments under
+  /// `plugins.<namespace>`.
+  ///
+  /// kDebugMode-gated: callers in release/profile receive a stub empty
+  /// observation. The VM extension is not registered in those modes,
+  /// so this surface is reachable only via tests.
+  Future<Map<String, Object?>> getStableObservation(
+      ObservationRequest req) async {
+    final PolicyLoop loop = PolicyLoop(
+      snapshot: frameworkBusySnapshot,
+      pollBusyStates: () async => _pluginRegistry.busyStateAll(),
+      semanticsHash: _semanticsTreeHash,
+      routeHash: _routeStackHash,
+      waitForFrame: _waitForFrameForTesting,
+      nowMs: _nowMsForTesting,
+    );
+    final PolicyTick tick = await loop.run(req);
+    final StabilityMetadata stability = StabilityMetadata(
+      policy: req.policy,
+      terminatedBy: tick.reason,
+      durationMs: tick.durationMs,
+      frameworkBusy: frameworkBusySnapshot().toJson(),
+      pluginsBusy: tick.pluginsBusy,
+    );
+
+    Future<String?> screenshotCaptureOrNull() async {
+      try {
+        final ScreenshotResult sr = await captureScreenshot(this);
+        return sr.pngBase64;
+      } on ScreenshotUnavailable {
+        return null;
+      }
+    }
+
+    final Map<String, Object?> core = await buildCoreFragment(
+      captureSemantics: () async => _semanticsCapture.capture(),
+      errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
+      stability: stability,
+      includeScreenshot: req.includeScreenshot,
+      captureScreenshot:
+          req.includeScreenshot ? screenshotCaptureOrNull : null,
+      errorCursor: req.errorCursor,
+    );
+
+    // Enforce the 4KB core budget: on overrun, replace with the
+    // truncation marker (still as a JSON object) and warn.
+    final BudgetedJson coreEnc = encodeWithBudget(core, kCoreBudgetBytes);
+    Map<String, Object?> coreOut;
+    if (coreEnc.truncated) {
+      developer.log(
+        'core fragment truncated (${coreEnc.bytes} bytes after marker)',
+        name: 'exploration',
+      );
+      coreOut = jsonDecode(coreEnc.json) as Map<String, Object?>;
+    } else {
+      coreOut = core;
+    }
+
+    final List<String> namespaces = _pluginRegistry.namespaces;
+    final Map<String, int> budgets =
+        distributePluginBudgets(req.pluginBudgets, namespaces);
+    final ObservationContext ctx = ObservationContext(
+      turn: 0,
+      sinceLastAction: Duration(milliseconds: tick.durationMs),
+    );
+    final Map<String, Map<String, Object?>> rawFragments =
+        await _pluginRegistry.observeAll(ctx);
+
+    final Map<String, Object?> pluginsOut = <String, Object?>{};
+    for (final String ns in namespaces) {
+      final Map<String, Object?>? frag = rawFragments[ns];
+      if (frag == null) continue;
+      final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
+      if (enc.truncated) {
+        developer.log(
+          'plugin $ns fragment truncated '
+          '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
+          'budget ${budgets[ns]})',
+          name: 'exploration',
+        );
+        pluginsOut[ns] = jsonDecode(enc.json);
+      } else {
+        pluginsOut[ns] = frag;
+      }
+    }
+
+    return <String, Object?>{
+      ...coreOut,
+      'plugins': pluginsOut,
+    };
+  }
+
   /// Registers [callback] both with `dart:developer` and in our local
   /// registry so [invokeServiceExtension] can dispatch without going
   /// through the VM service.
@@ -337,6 +524,18 @@ class ExplorationBinding extends WidgetsFlutterBinding
       DiagnosticsRootProvider? provider) {
     _diagnosticsRootProviderForTesting = provider;
     _cachedDiagnostics = null;
+  }
+
+  /// Test-only: install overrides for the [PolicyLoop]'s frame-wait and
+  /// wall-clock so tests running outside a pumped widget tester never
+  /// block on `SchedulerBinding.endOfFrame`.
+  @visibleForTesting
+  void debugSetPolicyLoopSeamsForTesting({
+    Future<void> Function()? waitForFrame,
+    int Function()? nowMs,
+  }) {
+    _waitForFrameForTesting = waitForFrame;
+    _nowMsForTesting = nowMs;
   }
 
   /// Test-only: returns true iff the named extension was registered with

@@ -55,6 +55,15 @@ class PluginRegistry {
   bool _finalized = false;
   static final RegExp _nsRe = RegExp(r'^[a-z][a-z0-9_]*$');
 
+  /// Plugin namespaces in registration order (post de-duplication).
+  ///
+  /// Read by cx6.8's stable-observation primitive to map per-plugin
+  /// observation fragments back to their owning plugin and to enforce
+  /// per-plugin budget overrides.
+  List<String> get namespaces => List<String>.unmodifiable(<String>[
+        for (final _Entry e in _entries) e.plugin.namespace,
+      ]);
+
   /// Register [p]. Order is preserved across every dispatch.
   ///
   /// Throws [StateError] if [mergedTools]/[finalize] has already run.
