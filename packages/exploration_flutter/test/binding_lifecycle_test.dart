@@ -1,11 +1,24 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 
 class _StubPlugin extends ExplorationPlugin {
   const _StubPlugin(this.namespace);
   @override
   final String namespace;
+  @override
+  List<ExplorationTool> get tools => const [];
+  @override
+  Future<void> initialize(PluginContext ctx) async {}
+  @override
+  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
+  @override
+  Future<BusyState> busyState() async => BusyState.idle;
+  @override
+  Future<void> onActionExecuted(ExecutedAction action) async {}
+  @override
+  Future<void> dispose() async {}
 }
 
 void main() {

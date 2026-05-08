@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import '../contract/exploration_plugin.dart';
+import '../contract/plugin.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
 
