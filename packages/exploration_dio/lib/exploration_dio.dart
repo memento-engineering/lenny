@@ -1,3 +1,3 @@
 library;
 
-const String packageName = 'exploration_dio';
+export 'src/exploration_dio_plugin.dart' show ExplorationDioPlugin;
