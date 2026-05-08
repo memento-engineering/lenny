@@ -542,6 +542,8 @@ Not a section of the host, but a deliverable: a guide for writing a plugin. Incl
 - Anti-patterns: subclassing the binding, hogging frame callbacks, returning unbounded observation fragments, swallowing exceptions.
 - A template package generator (`exploration_plugin create my_plugin`).
 
+See: [Plugin Authoring Guide](./plugin_authoring_guide.md).
+
 ## 20. Wrapping existing tools as plugins
 
 The plugin contract is general enough to wrap existing tools, with one caveat: any existing tool that owns its own `WidgetsBinding` can't be wrapped via composition.
