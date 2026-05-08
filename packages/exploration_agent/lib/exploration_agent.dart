@@ -2,6 +2,7 @@
 library;
 
 export 'src/errors.dart' show BindingNotInitializedError;
+export 'src/provider/provider.dart';
 export 'src/session.dart' show ExplorationSession;
 export 'src/types.dart'
     show
