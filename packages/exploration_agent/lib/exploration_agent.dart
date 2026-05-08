@@ -51,6 +51,13 @@ export 'src/prompt/prompt_assembler.dart' show PromptAssembler;
 export 'src/provider/provider.dart';
 export 'src/session.dart' show ExplorationSession;
 export 'src/session/observation_puller.dart' show StabilityPolicy;
+export 'src/session/turn_event.dart'
+    show
+        TurnActionDecided,
+        TurnComplete,
+        TurnEvent,
+        TurnThinking,
+        TurnValidation;
 export 'src/validation/action_validator.dart'
     show ActionValidator, ValidatorAction;
 export 'src/validation/result.dart'

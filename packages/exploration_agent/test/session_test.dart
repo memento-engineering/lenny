@@ -196,6 +196,40 @@ void main() {
     });
   });
 
+  group('ExplorationSession.turnEvents', () {
+    test('turnEvents broadcasts and closes', () async {
+      final session = ExplorationSession.forTest(_handshakeOnlyClient());
+      await session.start('g', const ExplorationConfig());
+      final got = <TurnEvent>[];
+      final sub = session.turnEvents.listen(got.add);
+
+      session.emitTurnEvent(
+        const TurnActionDecided(1, 'core.tap', <String, dynamic>{
+          'node_id': 7,
+        }),
+      );
+      session.emitTurnEvent(const TurnValidation(1, true, null));
+
+      await Future<void>.delayed(Duration.zero);
+      await session.end();
+      await sub.cancel();
+
+      expect(got, hasLength(2));
+      expect(got.first, isA<TurnActionDecided>());
+      expect((got.first as TurnActionDecided).toolName, equals('core.tap'));
+      expect(got.last, isA<TurnValidation>());
+    });
+
+    test('emitTurnEvent after end is a no-op', () async {
+      final session = ExplorationSession.forTest(_handshakeOnlyClient());
+      await session.start('g', const ExplorationConfig());
+      await session.end();
+
+      // Must not throw.
+      session.emitTurnEvent(const TurnComplete(0));
+    });
+  });
+
   group('ExplorationSession.end', () {
     test('end emits SessionEnded and disposes the client', () async {
       final fake = _FakeVmService(

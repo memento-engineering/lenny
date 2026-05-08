@@ -29,6 +29,7 @@ import '../prompt/prompt_assembler.dart';
 import '../provider/types.dart';
 import '../provider/action_schema.dart';
 import '../provider/model_provider.dart';
+import '../session/turn_event.dart';
 import '../trajectory/records.dart';
 import '../trajectory/writer.dart';
 import '../validation/action_validator.dart';
@@ -70,6 +71,7 @@ class LoopDriver {
     Duration sessionBudget = _kDefaultSessionBudget,
     int maxTurns = _kDefaultMaxTurns,
     Clock? clock,
+    void Function(TurnEvent)? onTurnEvent,
   })  : _host = host,
         _provider = provider,
         _assembler = assembler,
@@ -80,7 +82,8 @@ class LoopDriver {
         _turnBudget = turnBudget,
         _sessionBudget = sessionBudget,
         _maxTurns = maxTurns,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _onTurnEvent = onTurnEvent;
 
   final LoopHost _host;
   final ModelProvider _provider;
@@ -93,6 +96,11 @@ class LoopDriver {
   final Duration _sessionBudget;
   final int _maxTurns;
   final Clock _clock;
+
+  /// Optional sink for [TurnEvent]s — wired by `ExplorationSession.run`
+  /// to forward thinking deltas, action+validation outcomes, and turn
+  /// boundaries to `ExplorationSession.turnEvents`.
+  final void Function(TurnEvent)? _onTurnEvent;
 
   Observation _prev = Observation.empty();
   int _turnIndex = 0;
@@ -131,6 +139,8 @@ class LoopDriver {
       return r;
     } on TurnTimeoutError catch (_) {
       await _writeFailedTurn(idx, reason: 'turn_timeout');
+      _emitTurnEvent(TurnValidation(idx, false, 'turn_timeout'));
+      _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
       throw TurnFailure(idx, 'turn_timeout');
@@ -140,6 +150,10 @@ class LoopDriver {
         reason: 'invalid_action_exhausted',
         rejections: e.rejections,
       );
+      _emitTurnEvent(
+        TurnValidation(idx, false, 'invalid_action_exhausted'),
+      );
+      _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
       throw TurnFailure(idx, 'invalid_action_exhausted', e);
@@ -149,6 +163,8 @@ class LoopDriver {
         reason: 'schema_exhausted',
         schemaError: e.cause.validationError,
       );
+      _emitTurnEvent(TurnValidation(idx, false, 'schema_exhausted'));
+      _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
       throw TurnFailure(idx, 'schema_exhausted', e);
@@ -177,15 +193,39 @@ class LoopDriver {
     );
     final ActionSchema schema = ActionSchema.fromToolList(mergedTools);
 
-    // steps 6+7: decide + validate (with retry budgets).
-    final ValidationLoopResult v = await decideAndValidate(
-      provider: _provider,
-      basePrompt: prompt,
-      schema: schema,
-      validator: _validator,
-      observation: curr,
-      mergedTools: mergedTools,
-    );
+    // Forward provider thinking deltas to the session's turnEvents
+    // stream while step 6 (decide) is in flight. The subscription is
+    // bounded by the surrounding `_runTurnInner` future via cancel() in
+    // the finally block.
+    StreamSubscription<ThinkingDelta>? thinkingSub;
+    if (_onTurnEvent != null) {
+      thinkingSub = _provider.thinking().listen((d) {
+        _onTurnEvent(TurnThinking(idx, d));
+      });
+    }
+
+    final ValidationLoopResult v;
+    try {
+      // steps 6+7: decide + validate (with retry budgets).
+      v = await decideAndValidate(
+        provider: _provider,
+        basePrompt: prompt,
+        schema: schema,
+        validator: _validator,
+        observation: curr,
+        mergedTools: mergedTools,
+      );
+    } finally {
+      await thinkingSub?.cancel();
+    }
+
+    // After validate: emit the chosen action + validation outcome.
+    _emitTurnEvent(TurnActionDecided(
+      idx,
+      v.decision.action.tool,
+      v.decision.action.args,
+    ));
+    _emitTurnEvent(TurnValidation(idx, true, null));
 
     // step 8: act.
     final Map<String, dynamic> exec = await _host.executeAction(
@@ -245,7 +285,15 @@ class LoopDriver {
     }
     _actions.push(_actionLine(v.decision.action.tool, exec));
     _prev = curr;
+
+    // step 10 (cont.): turn boundary marker for downstream consumers.
+    _emitTurnEvent(TurnComplete(idx));
     return rec;
+  }
+
+  void _emitTurnEvent(TurnEvent e) {
+    final cb = _onTurnEvent;
+    if (cb != null) cb(e);
   }
 
   Future<void> _writeFailedTurn(
