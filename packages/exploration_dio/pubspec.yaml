@@ -1,13 +1,14 @@
 name: exploration_dio
-description: Reference plugin (exploration_dio) for the Flutter Exploration Agent.
+description: Reference plugin (dio) for the Flutter Exploration Agent.
 publish_to: none
 resolution: workspace
 
 environment:
-  flutter: ">=3.41.0"
   sdk: ^3.11.0
+  flutter: ">=3.41.0"
 
 dependencies:
+  dio: ^5.7.0
   exploration_flutter: any
   flutter:
     sdk: flutter
