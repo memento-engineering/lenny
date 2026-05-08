@@ -2,5 +2,9 @@
 library;
 
 export 'action_schema.dart';
+export 'anthropic/anthropic_provider.dart';
+export 'frontier/frontier_defaults.dart';
+export 'frontier/tool_helpers.dart';
+export 'frontier/vision_image.dart';
 export 'model_provider.dart';
 export 'types.dart';
