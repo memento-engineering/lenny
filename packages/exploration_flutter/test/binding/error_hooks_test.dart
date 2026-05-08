@@ -168,7 +168,21 @@ void main() {
     expect(binding.pluginRegistry, isNotNull);
     final Map<String, ExplorationTool> merged =
         binding.pluginRegistry.mergedTools();
-    expect(merged, isEmpty,
-        reason: 'recording plugins expose no tools');
+    // The host-installed CorePlugin contributes the 10 `core.*` tools
+    // even when no user plugins are supplied. Recording plugins from
+    // this test fixture expose none of their own.
+    final List<String> coreKeys = const <String>[
+      'core.tap',
+      'core.long_press',
+      'core.enter_text',
+      'core.scroll',
+      'core.scroll_until_visible',
+      'core.gesture',
+      'core.system_back',
+      'core.wait',
+      'core.inspect_widget',
+      'core.done',
+    ];
+    expect(merged.keys.toSet(), coreKeys.toSet());
   });
 }

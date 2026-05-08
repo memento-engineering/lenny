@@ -6,6 +6,8 @@ export 'src/binding/exploration_binding.dart'
         kDefaultErrorBufferCapacity,
         kExplorationExtensionPrefix;
 export 'src/contract/plugin.dart' show ExplorationPlugin;
+export 'src/core_tools/core_plugin.dart'
+    show CorePlugin, CoreToolError, CoreToolErrorCode;
 export 'src/errors/error_ring_buffer.dart' show ErrorEntry;
 export 'src/screenshot_config.dart' show ScreenshotConfig;
 export 'src/screenshot_extension.dart'

@@ -1,5 +1,6 @@
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -93,6 +94,35 @@ void main() {
         .capture()
         .firstWhere((Map<String, Object> r) => r['label'] == 'Go');
     expect(b['id'], a['id']);
+    cap.dispose();
+    h.dispose();
+  });
+
+  testWidgets('lookup returns live SemanticsNode for emitted stable id',
+      (WidgetTester tester) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ElevatedButton(
+            onPressed: () {},
+            child: const Text('Go'),
+          ),
+        ),
+      ),
+    );
+    final SemanticsCapture cap = SemanticsCapture();
+    final List<Map<String, Object>> recs = cap.capture();
+    final Map<String, Object> btn =
+        recs.firstWhere((Map<String, Object> r) => r['label'] == 'Go');
+    final int stable = btn['id']! as int;
+    final SemanticsNode? node = cap.lookup(stable);
+    expect(node, isNotNull);
+    expect(node!.getSemanticsData().label, 'Go');
+
+    // Unknown stable id → null.
+    expect(cap.lookup(999999), isNull);
+
     cap.dispose();
     h.dispose();
   });
