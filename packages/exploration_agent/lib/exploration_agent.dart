@@ -2,6 +2,7 @@
 library;
 
 export 'src/errors.dart' show BindingNotInitializedError;
+export 'src/loop_driver/default_loop_host.dart' show DefaultLoopHost;
 export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;
 export 'src/loop_driver/plugin_failure_tracker.dart'
