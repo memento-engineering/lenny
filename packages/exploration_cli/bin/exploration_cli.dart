@@ -1,5 +1,12 @@
 import 'dart:io';
 
-void main(List<String> arguments) {
-  stdout.writeln('exploration_cli v0 — scaffold');
+import 'package:exploration_cli/src/run.dart';
+
+Future<void> main(List<String> args) async {
+  exitCode = await runCli(
+    args,
+    stdin: stdin,
+    stdout: stdout,
+    stderr: stderr,
+  );
 }

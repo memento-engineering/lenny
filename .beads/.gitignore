@@ -1,4 +1,8 @@
 # Dolt database (managed by Dolt, not git)
+# Match both the directory and any symlink/file named `dolt` — a worktree-
+# local symlink at .beads/dolt (absolute path into the main repo) was
+# committed once by accident; bare `dolt` here prevents reintroducing it.
+dolt
 dolt/
 embeddeddolt/
 
