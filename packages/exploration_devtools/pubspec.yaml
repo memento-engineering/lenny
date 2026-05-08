@@ -1,0 +1,19 @@
+name: exploration_devtools
+description: DevTools extension for the Flutter Exploration Agent.
+publish_to: none
+resolution: workspace
+
+environment:
+  flutter: ">=3.41.0"
+  sdk: ^3.11.0
+
+dependencies:
+  devtools_extensions: ^0.4.0
+  exploration_agent: any
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.1.0

@@ -13,3 +13,13 @@
 *.db
 .beads-credential-key
 /.worktrees/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+**/.idea/
+**/*.iml
