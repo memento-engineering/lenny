@@ -1,0 +1,13 @@
+name: no-dart-io
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check-no-dart-io:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get -C packages/exploration_agent
+      - run: dart run packages/exploration_agent/tool/check_no_dart_io.dart
