@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import '../contract/plugin.dart';
 import '../contract/registry.dart';
 import '../contract/types.dart';
+import '../core_tools/core_plugin.dart';
 import '../diagnostics/interactive_semantics_auditor.dart';
 import '../diagnostics/interactive_semantics_warning.dart';
 import '../errors/error_ring_buffer.dart';
@@ -83,6 +84,12 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// per-plugin error-handler chain.
   late final PluginRegistry _pluginRegistry;
 
+  /// Host-owned plugin that contributes the 10 `core.*` action tools
+  /// (PRD §12.1). Registered first by [ensureInitialized] so the
+  /// registry's existing duplicate-namespace check reserves `core` for
+  /// the host before any user plugin is registered.
+  late final CorePlugin _corePlugin;
+
   /// Bounded ring buffer of recent runtime errors (cx6.9).
   late final ErrorRingBuffer _errors;
 
@@ -150,6 +157,12 @@ class ExplorationBinding extends WidgetsFlutterBinding
       sessionClock: binding._sessionClock,
     );
     binding._pluginRegistry = PluginRegistry(scheduler: binding);
+    // Host-install CorePlugin FIRST so namespace `core` is reserved
+    // before user plugins are registered. The registry's existing
+    // duplicate-namespace check then rejects any user plugin claiming
+    // `core` (PRD §12.1, AC #2 of cx6.6).
+    binding._corePlugin = CorePlugin(semantics: binding._semanticsCapture);
+    binding._pluginRegistry.register(binding._corePlugin);
     // Register each unique plugin namespace into the registry. The
     // legacy `plugins` getter preserves the verbatim list (including
     // duplicates) per cx6.2's contract, but the registry enforces

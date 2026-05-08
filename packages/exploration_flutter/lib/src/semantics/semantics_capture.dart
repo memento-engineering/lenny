@@ -83,6 +83,41 @@ class SemanticsCapture {
     _semanticsHandle?.dispose();
     _semanticsHandle = null;
   }
+
+  /// Returns the live [SemanticsNode] whose stable id was previously
+  /// emitted by [capture] as [stableId], or `null` if no such node was
+  /// captured this session OR the node was disposed since capture.
+  ///
+  /// Re-walks the live semantics tree on every call (no caching beyond
+  /// the existing stable-id map). Cheap relative to capture itself.
+  SemanticsNode? lookup(int stableId) {
+    int? fwkId;
+    for (final MapEntry<int, int> e in _stableIds.entries) {
+      if (e.value == stableId) {
+        fwkId = e.key;
+        break;
+      }
+    }
+    if (fwkId == null) return null;
+    final SemanticsNode? root = _findRootSemanticsNode();
+    if (root == null) return null;
+    return _findById(root, fwkId);
+  }
+
+  SemanticsNode? _findById(SemanticsNode start, int fwkId) {
+    if (start.id == fwkId) return start;
+    SemanticsNode? out;
+    start.visitChildren((SemanticsNode c) {
+      if (out != null) return false;
+      final SemanticsNode? hit = _findById(c, fwkId);
+      if (hit != null) {
+        out = hit;
+        return false;
+      }
+      return true;
+    });
+    return out;
+  }
 }
 
 /// Internal record that pairs an emitted JSON map with a `dropped` flag so
