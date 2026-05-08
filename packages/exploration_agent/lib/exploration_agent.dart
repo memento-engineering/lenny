@@ -33,6 +33,10 @@ export 'src/prompt/prompt_assembler.dart' show PromptAssembler;
 export 'src/provider/provider.dart';
 export 'src/session.dart' show ExplorationSession;
 export 'src/session/observation_puller.dart' show StabilityPolicy;
+export 'src/validation/action_validator.dart'
+    show ActionValidator, ValidatorAction;
+export 'src/validation/result.dart'
+    show ValidationOk, ValidationReject, ValidationResult;
 export 'src/types.dart'
     show
         ExplorationConfig,
