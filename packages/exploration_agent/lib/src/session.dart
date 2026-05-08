@@ -9,11 +9,21 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
+import 'loop_driver/loop_driver.dart';
+import 'loop_driver/loop_host.dart';
+import 'loop_driver/types.dart';
+import 'memory/action_ring.dart';
+import 'memory/running_summary.dart';
+import 'memory/token_counter.dart';
 import 'observation/diff_models.dart';
 import 'observation/models.dart';
 import 'observation/observation_differ.dart';
+import 'prompt/prompt_assembler.dart';
+import 'provider/model_provider.dart';
 import 'session/observation_puller.dart';
+import 'trajectory/writer.dart';
 import 'types.dart';
+import 'validation/action_validator.dart';
 import 'vm_service_client.dart';
 
 /// Owns the run lifecycle: connect, start, observe, act, end.
@@ -162,6 +172,41 @@ class ExplorationSession {
     }
     await _progress.close();
     await _client.dispose();
+  }
+
+  /// Drive a full perception-action session via [LoopDriver].
+  ///
+  /// `start()` must have completed first. The caller supplies the host
+  /// adapter (which exposes the merged tool list, AGENTS.md, the goal,
+  /// and translates session/client calls), the model provider, and the
+  /// trajectory writer. This convenience method constructs a
+  /// [LoopDriver] with sensible defaults for the memory artifacts and
+  /// the prompt assembler, runs the session, and returns the resulting
+  /// [SessionTermination].
+  ///
+  /// Note: end() is *not* called automatically — callers typically end()
+  /// after persisting the trajectory footer (which the driver writes
+  /// before returning).
+  Future<SessionTermination> run({
+    required LoopHost host,
+    required ModelProvider provider,
+    required TrajectoryWriter writer,
+    PromptAssembler? assembler,
+    ActionValidator? validator,
+    RunningSummary? summary,
+    ActionRing? actions,
+  }) async {
+    _ensureStarted('run');
+    final driver = LoopDriver(
+      host: host,
+      provider: provider,
+      assembler: assembler ?? const PromptAssembler(),
+      validator: validator ?? const ActionValidator(),
+      writer: writer,
+      summary: summary ?? RunningSummary(counter: WhitespaceTokenCounter()),
+      actions: actions ?? ActionRing(),
+    );
+    return driver.runSession();
   }
 
   void _ensureStarted(String op) {
