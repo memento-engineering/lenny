@@ -1,16 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../contract/exploration_plugin.dart';
 import '../semantics/semantics_capture.dart';
+import '../stability/frame_stability_tracker.dart';
 
 /// Reserved prefix. Format:
 /// `ext.flutter.exploration.<core_or_plugin_namespace>.<suffix>`.
 /// `core` is reserved for host-owned extensions.
 const String kExplorationExtensionPrefix = 'ext.flutter.exploration';
 
-class ExplorationBinding extends WidgetsFlutterBinding {
+class ExplorationBinding extends WidgetsFlutterBinding
+    with FrameStabilityTracker {
   ExplorationBinding._(this._plugins);
 
   static ExplorationBinding? _instance;
@@ -74,4 +77,20 @@ class ExplorationBinding extends WidgetsFlutterBinding {
 
   @visibleForTesting
   static void debugReset() => _instance = null;
+
+  /// Returns a `ZoneSpecification` that intercepts microtask scheduling so
+  /// the binding's `pendingMicrotasks` edge signal flips immediately when
+  /// the user-mode app schedules a microtask. Wrap the user `runApp` (or
+  /// app entrypoint) with `runZoned(..., zoneSpecification: spec)` to
+  /// install — currently consumed by integration tests; cx6.7's
+  /// `installAndRun` will install it for production.
+  static ZoneSpecification stabilityZoneSpec(ExplorationBinding binding) {
+    return ZoneSpecification(
+      scheduleMicrotask: (Zone self, ZoneDelegate parent, Zone zone,
+          void Function() f) {
+        binding.markMicrotaskScheduled();
+        parent.scheduleMicrotask(zone, f);
+      },
+    );
+  }
 }
