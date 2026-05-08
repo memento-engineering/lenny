@@ -21,6 +21,7 @@ import 'observation/observation_differ.dart';
 import 'prompt/prompt_assembler.dart';
 import 'provider/model_provider.dart';
 import 'session/observation_puller.dart';
+import 'session/turn_event.dart';
 import 'trajectory/writer.dart';
 import 'types.dart';
 import 'validation/action_validator.dart';
@@ -57,6 +58,8 @@ class ExplorationSession {
   final ObservationPuller _puller;
   final StreamController<SessionProgressEvent> _progress =
       StreamController<SessionProgressEvent>.broadcast();
+  final StreamController<TurnEvent> _turnEvents =
+      StreamController<TurnEvent>.broadcast();
   final Set<String> _disabled = <String>{};
   HandshakeResult? _handshake;
   bool _started = false;
@@ -66,6 +69,21 @@ class ExplorationSession {
   /// Live progress events for the DevTools thinking panel and the CLI's
   /// transcript renderer.
   Stream<SessionProgressEvent> get progress => _progress.stream;
+
+  /// Per-turn event stream consumed by the DevTools Thinking and Timeline
+  /// panels (PRD §6.3). Events are forwarded by the loop driver via
+  /// [emitTurnEvent].
+  Stream<TurnEvent> get turnEvents => _turnEvents.stream;
+
+  /// Internal: forward a per-turn event to [turnEvents]. The loop driver
+  /// (cx6.18) calls this at PRD §10 step boundaries; ordinary callers
+  /// should not invoke it directly.
+  @internal
+  void emitTurnEvent(TurnEvent e) {
+    if (!_turnEvents.isClosed) {
+      _turnEvents.add(e);
+    }
+  }
 
   /// Plugins that have been auto-disabled this session (via
   /// [disablePlugin]). Returned as an unmodifiable view.
@@ -171,6 +189,7 @@ class ExplorationSession {
       _emit(const SessionEnded());
     }
     await _progress.close();
+    await _turnEvents.close();
     await _client.dispose();
   }
 
@@ -205,6 +224,7 @@ class ExplorationSession {
       writer: writer,
       summary: summary ?? RunningSummary(counter: WhitespaceTokenCounter()),
       actions: actions ?? ActionRing(),
+      onTurnEvent: emitTurnEvent,
     );
     return driver.runSession();
   }
