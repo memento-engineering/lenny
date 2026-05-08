@@ -14,6 +14,7 @@ export 'src/types.dart'
         SessionProgressEvent,
         SessionStarted,
         TurnBegan;
+export 'src/trajectory/reader.dart' show TrajectoryReader;
 export 'src/trajectory/records.dart'
     show
         PluginDisabledEvent,
@@ -21,7 +22,9 @@ export 'src/trajectory/records.dart'
         SessionFooter,
         SessionHeader,
         SessionOutcome,
-        TurnRecord;
+        TrajectoryRecord,
+        TurnRecord,
+        UnknownTrajectoryRecord;
 export 'src/trajectory/sink.dart' show TrajectorySink;
 export 'src/trajectory/writer.dart' show TrajectoryWriter;
 export 'src/vm_service_client.dart' show VmServiceClient;

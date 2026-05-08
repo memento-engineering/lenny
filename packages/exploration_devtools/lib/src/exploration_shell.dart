@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'panel_host.dart';
 import 'panels/prompt_placeholder.dart';
 import 'panels/thinking_placeholder.dart';
-import 'panels/timeline_placeholder.dart';
+import 'panels/timeline_panel_mount.dart';
 
 /// The visible content of the extension: panel host + tabbed Scaffold.
 ///
@@ -36,7 +36,7 @@ class ExplorationShell extends StatelessWidget {
               children: [
                 PromptPlaceholder(),
                 ThinkingPlaceholder(),
-                TimelinePlaceholder(),
+                TimelinePanelMount(),
               ],
             ),
           ),
