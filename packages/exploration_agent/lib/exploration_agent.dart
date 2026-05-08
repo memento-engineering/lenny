@@ -2,6 +2,24 @@
 library;
 
 export 'src/errors.dart' show BindingNotInitializedError;
+export 'src/loop_driver/loop_driver.dart' show LoopDriver;
+export 'src/loop_driver/loop_host.dart' show LoopHost;
+export 'src/loop_driver/plugin_failure_tracker.dart'
+    show PluginFailureTracker;
+export 'src/loop_driver/validation_retry.dart'
+    show
+        InvalidActionExhausted,
+        SchemaExhausted,
+        ValidationLoopResult,
+        decideAndValidate;
+export 'src/loop_driver/types.dart'
+    show
+        HarnessError,
+        HarnessErrorWire,
+        SessionTermination,
+        TurnFailure,
+        TurnTimeoutError,
+        VmServiceConnectionLost;
 export 'src/memory/action_ring.dart' show ActionRing;
 export 'src/memory/running_summary.dart'
     show RunningSummary, SummaryOversizeError;
