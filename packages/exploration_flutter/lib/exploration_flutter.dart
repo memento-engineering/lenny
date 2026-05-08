@@ -2,7 +2,7 @@ library;
 
 export 'src/binding/exploration_binding.dart'
     show ExplorationBinding, kExplorationExtensionPrefix;
-export 'src/contract/exploration_plugin.dart' show ExplorationPlugin;
+export 'src/contract/plugin.dart' show ExplorationPlugin;
 export 'src/semantics/semantics_capture.dart' show SemanticsCapture;
 // FrameStabilityTracker (mixin) is intentionally NOT exported — its
 // public surface is the binding's `frameworkBusySnapshot()` method and
