@@ -9,6 +9,10 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
+import 'observation/diff_models.dart';
+import 'observation/models.dart';
+import 'observation/observation_differ.dart';
+import 'session/observation_puller.dart';
 import 'types.dart';
 import 'vm_service_client.dart';
 
@@ -23,7 +27,7 @@ import 'vm_service_client.dart';
 /// `disablePlugin(...)` is callable any time after construction (used by
 /// the auto-disable policy in .18) and emits [PluginAutoDisabled].
 class ExplorationSession {
-  ExplorationSession._(this._client);
+  ExplorationSession._(this._client) : _puller = ObservationPuller(_client);
 
   /// Test-only constructor that takes an already-built [VmServiceClient]
   /// (typically [VmServiceClient.forTest] wrapping a fake VmService).
@@ -40,12 +44,14 @@ class ExplorationSession {
   }
 
   final VmServiceClient _client;
+  final ObservationPuller _puller;
   final StreamController<SessionProgressEvent> _progress =
       StreamController<SessionProgressEvent>.broadcast();
   final Set<String> _disabled = <String>{};
   HandshakeResult? _handshake;
   bool _started = false;
   bool _ended = false;
+  Observation _prevObservation = Observation.empty();
 
   /// Live progress events for the DevTools thinking panel and the CLI's
   /// transcript renderer.
@@ -87,6 +93,25 @@ class ExplorationSession {
   Future<Map<String, dynamic>> observe() async {
     _ensureStarted('observe');
     return _client.getStableObservation(const <String, dynamic>{});
+  }
+
+  /// Pull a stable observation through the typed [ObservationPuller] and
+  /// compute the per-turn structural diff against the previously stored
+  /// observation. The first call diffs against [Observation.empty()]
+  /// (PRD §11.3 first-turn behaviour: all-added).
+  ///
+  /// The returned diff is harness-authored and consumed verbatim by the
+  /// next-prompt assembler (cx6.13) and the trajectory writer (cx6.19);
+  /// validators (cx6.17) consume the typed `observation` field.
+  Future<({Observation observation, ObservationDiff diff})> observeWithDiff({
+    StabilityPolicy policy = StabilityPolicy.actionRelative,
+  }) async {
+    _ensureStarted('observeWithDiff');
+    final Observation curr = await _puller.pull(policy: policy);
+    final ObservationDiff diff =
+        ObservationDiffer.diff(_prevObservation, curr);
+    _prevObservation = curr;
+    return (observation: curr, diff: diff);
   }
 
   /// Execute a tool action. The [action] map must contain `name`
