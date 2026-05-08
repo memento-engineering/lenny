@@ -1,0 +1,12 @@
+name: lenny_workspace
+publish_to: none
+environment:
+  sdk: ^3.11.0
+workspace:
+  - packages/exploration_flutter
+  - packages/exploration_agent
+  - packages/exploration_cli
+  - packages/exploration_devtools
+  - packages/exploration_router
+  - packages/exploration_riverpod
+  - packages/exploration_dio

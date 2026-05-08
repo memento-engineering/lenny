@@ -1,0 +1,24 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      - run: dart pub get
+      - run: dart analyze
+      - run: ./tool/check_no_dart_io.sh
+      - run: dart test packages/exploration_agent
+      - run: dart test packages/exploration_cli
+      - run: flutter test packages/exploration_flutter
+      - run: flutter test packages/exploration_devtools
+      - run: flutter test packages/exploration_router
+      - run: flutter test packages/exploration_riverpod
+      - run: flutter test packages/exploration_dio

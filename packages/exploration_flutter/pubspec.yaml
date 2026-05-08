@@ -1,0 +1,19 @@
+name: exploration_flutter
+description: Host WidgetsBinding for the Flutter Exploration Agent.
+publish_to: none
+resolution: workspace
+
+environment:
+  flutter: ">=3.41.0"
+  sdk: ^3.11.0
+
+dependencies:
+  exploration_agent: any
+  flutter:
+    sdk: flutter
+  meta: ^1.16.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.1.0
