@@ -1,3 +1,3 @@
 library;
 
-const String packageName = 'exploration_router';
+export 'src/router_plugin.dart' show RouterPlugin;

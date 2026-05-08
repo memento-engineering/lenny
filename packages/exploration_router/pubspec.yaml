@@ -1,16 +1,17 @@
 name: exploration_router
-description: Reference plugin (exploration_router) for the Flutter Exploration Agent.
+description: "Reference plugin: Router/Navigator observation and navigate tool."
 publish_to: none
 resolution: workspace
 
 environment:
-  flutter: ">=3.41.0"
   sdk: ^3.11.0
+  flutter: ">=3.41.0"
 
 dependencies:
   exploration_flutter: any
   flutter:
     sdk: flutter
+  meta: ^1.16.0
 
 dev_dependencies:
   flutter_test:
