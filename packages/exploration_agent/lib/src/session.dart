@@ -123,6 +123,25 @@ class ExplorationSession {
     return _client.getStableObservation(const <String, dynamic>{});
   }
 
+  /// Internal accessor for the underlying [VmServiceClient]. Used by
+  /// `DefaultLoopHost` to forward action execution from
+  /// [LoopHost.executeAction]. Not part of the public API.
+  @internal
+  VmServiceClient get client => _client;
+
+  /// Internal observation pull that runs through the session's
+  /// [ObservationPuller] without mutating the per-session
+  /// `_prevObservation` (the loop driver owns its own diff baseline).
+  ///
+  /// Used by `DefaultLoopHost.observe()` to back [LoopHost.observe].
+  @internal
+  Future<Observation> pullObservation({
+    StabilityPolicy policy = StabilityPolicy.actionRelative,
+  }) {
+    _ensureStarted('pullObservation');
+    return _puller.pull(policy: policy);
+  }
+
   /// Pull a stable observation through the typed [ObservationPuller] and
   /// compute the per-turn structural diff against the previously stored
   /// observation. The first call diffs against [Observation.empty()]
