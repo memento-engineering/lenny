@@ -12,8 +12,8 @@ void main() {
     expect(find.text('Prompt'), findsOneWidget);
     expect(find.text('Thinking'), findsOneWidget);
     expect(find.text('Timeline'), findsOneWidget);
-    // The Prompt tab is selected by default, so its placeholder body is
-    // mounted (the others are off-screen in the TabBarView).
-    expect(find.textContaining('lenny-cx6.22'), findsOneWidget);
+    // The Prompt tab is selected by default — its real PromptPanel
+    // (cx6.22) is mounted, so its goal field is visible.
+    expect(find.byKey(const Key('prompt.goal')), findsOneWidget);
   });
 }
