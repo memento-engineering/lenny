@@ -1,0 +1,107 @@
+/// Tests for the `--plugins`-to-`pluginTools` projection that the CLI
+/// hands to [DefaultLoopHost.fromSession]. Pure-Dart, no `dart:io`.
+library;
+
+import 'package:exploration_agent/exploration_agent.dart';
+import 'package:exploration_cli/src/plugin_tools.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('buildPluginTools', () {
+    test('empty --plugins → empty map', () {
+      final out = buildPluginTools(
+        requested: const <String>[],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(namespace: 'router', tools: <String>['router.go']),
+        ],
+      );
+      expect(out, isEmpty);
+    });
+
+    test('intersects requested with handshake; descriptors per tool name',
+        () {
+      final out = buildPluginTools(
+        requested: const <String>['router', 'riverpod', 'dio'],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(
+            namespace: 'router',
+            tools: <String>['router.navigate'],
+          ),
+          PluginManifestEntry(
+            namespace: 'riverpod',
+            tools: <String>['riverpod.invalidate_provider'],
+          ),
+          // No `dio` entry — handshake says it isn't loaded.
+        ],
+      );
+      expect(out.keys, containsAll(<String>['router', 'riverpod']));
+      expect(out.containsKey('dio'), isFalse,
+          reason: 'unknown ns is dropped, not invented');
+      expect(out['router'], hasLength(1));
+      expect(out['router']!.single.name, 'router.navigate');
+      expect(out['riverpod']!.single.name, 'riverpod.invalidate_provider');
+      // Permissive object schema so the model can call the tool;
+      // binding-side ActionValidator (cx6.17) is the authoritative check.
+      expect(out['router']!.single.inputSchema['type'], 'object');
+    });
+
+    test('non-empty --plugins yields non-empty pluginTools reaching host '
+        '(regression: the prior build wired const {} through)', () {
+      final Map<String, List<ToolDescriptor>> out = buildPluginTools(
+        requested: const <String>['router'],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(
+            namespace: 'router',
+            tools: <String>['router.go', 'router.back'],
+          ),
+        ],
+      );
+      expect(out, isNotEmpty,
+          reason: 'a non-empty --plugins must produce a non-empty map');
+      expect(out['router'], hasLength(2));
+      expect(
+        out['router']!.map((t) => t.name).toList(),
+        <String>['router.go', 'router.back'],
+      );
+    });
+
+    test('handshake namespace not in --plugins is excluded', () {
+      final out = buildPluginTools(
+        requested: const <String>['router'],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(
+            namespace: 'router',
+            tools: <String>['router.go'],
+          ),
+          PluginManifestEntry(
+            namespace: 'dio',
+            tools: <String>['dio.cancel_in_flight'],
+          ),
+        ],
+      );
+      expect(out.keys, <String>['router']);
+    });
+  });
+
+  group('unknownPluginNamespaces', () {
+    test('returns names requested but absent from handshake', () {
+      final unknown = unknownPluginNamespaces(
+        requested: const <String>['router', 'typo', 'dio'],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(namespace: 'router', tools: <String>[]),
+        ],
+      );
+      expect(unknown, <String>['typo', 'dio']);
+    });
+
+    test('returns [] when every requested namespace is present', () {
+      final unknown = unknownPluginNamespaces(
+        requested: const <String>['router'],
+        handshake: const <PluginManifestEntry>[
+          PluginManifestEntry(namespace: 'router', tools: <String>[]),
+        ],
+      );
+      expect(unknown, isEmpty);
+    });
+  });
+}
