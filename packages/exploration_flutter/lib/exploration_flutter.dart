@@ -12,3 +12,7 @@ export 'src/semantics/semantics_capture.dart' show SemanticsCapture;
 // the `isAnyFrameworkSignalBusy` getter, plus this value type.
 export 'src/stability/framework_busy_snapshot.dart'
     show FrameworkBusySnapshot;
+export 'src/diagnostics/interactive_semantics_auditor.dart'
+    show InteractiveSemanticsAuditor;
+export 'src/diagnostics/interactive_semantics_warning.dart'
+    show InteractiveSemanticsWarning, kPluginGuideFixPointer;
