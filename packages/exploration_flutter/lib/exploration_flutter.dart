@@ -1,8 +1,12 @@
 library;
 
 export 'src/binding/exploration_binding.dart'
-    show ExplorationBinding, kExplorationExtensionPrefix;
+    show
+        ExplorationBinding,
+        kDefaultErrorBufferCapacity,
+        kExplorationExtensionPrefix;
 export 'src/contract/plugin.dart' show ExplorationPlugin;
+export 'src/errors/error_ring_buffer.dart' show ErrorEntry;
 export 'src/screenshot_config.dart' show ScreenshotConfig;
 export 'src/screenshot_extension.dart'
     show ScreenshotResult, ScreenshotUnavailable, captureScreenshot;
