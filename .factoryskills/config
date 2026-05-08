@@ -1,2 +1,2 @@
 # factoryskills project configuration
-merge_strategy=pr
+merge_strategy=direct
