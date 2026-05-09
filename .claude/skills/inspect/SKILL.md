@@ -1,10 +1,10 @@
 ---
-name: review
+name: inspect
 description: >
   Code review and integration validation skill. Reviews completed work against
   the original plan, checks code quality, architecture alignment, and test
   coverage. Creates PR on approval. Gates the merge. Use when a bead is in
-  pending_review, user says "review this", "check the PR", or before merging
+  code_review, user says "review this", "check the PR", or before merging
   to main.
 ---
 

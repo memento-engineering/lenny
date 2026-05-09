@@ -125,7 +125,7 @@ Load this reference when reviewing code changes for production readiness.
 1. **Status display order**
    - File: internal/commands/status.go:15-30
    - Issue: Statuses listed alphabetically, not by lifecycle progression
-   - Impact: Minor UX — users expect draft → planned → ready flow
+   - Impact: Minor UX — users expect draft → spec_review → ready flow
 
 ### Recommendations
 - Add input validation tests for edge cases (empty, whitespace, special chars)

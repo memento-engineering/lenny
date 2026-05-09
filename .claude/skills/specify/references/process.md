@@ -112,7 +112,7 @@ If either limit is exceeded, the work is too large for a single bead. Tell the h
 fs specify <id>
 ```
 
-This validates that acceptance criteria and design fields are populated (including `## Implementation Plan` and `## Validation Plan` sections in the design), then transitions the bead from draft to planned. If it fails, the fields need more work.
+This validates that acceptance criteria and design fields are populated (including `## Implementation Plan` and `## Validation Plan` sections in the design), then transitions the bead from draft to spec_review. If it fails, the fields need more work.
 
 ### 6. Lint
 
@@ -147,7 +147,7 @@ Load on-demand during specification:
 ## What You Don't Do Here
 
 - Redesign the approach (that was the discover skill).
-- Write code (that's the build skill).
+- Write code (that's the forge skill).
 - Run `fs ready` — ever. That is the human's review gate.
 - Write Implementation Plan or Validation Plan to the `description` field — they belong in `design`.
 - Leave any section vague or incomplete.

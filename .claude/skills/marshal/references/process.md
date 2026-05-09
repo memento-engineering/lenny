@@ -13,7 +13,7 @@ Each invocation runs one supervisor cycle. Cycles are idempotent — safe to re-
 3. STALE             -> flag stuck in_progress beads
 4. DISPATCH BUILD    -> spawn build agents (parallel when independent)
 5. MONITOR BUILD     -> collect build agent results
-5b. DISPATCH REVIEW  -> spawn review agents on pending_review beads
+5b. DISPATCH REVIEW  -> spawn review agents on code_review beads
 5c. NOTIFY           -> PushNotification for human-needed events
 6. REPORT            -> summarize cycle (single-shot only; suppressed in /loop)
 ```
@@ -25,7 +25,7 @@ fs ready --auto
 ```
 
 This prints, one ID per line, every bead that is currently buildable —
-either already in `ready` (human-promoted) or in `planned` with all
+either already in `ready` (human-promoted) or in `spec_review` with all
 `blocks`-type dependencies closed (auto-dispatch). No state is mutated;
 the picked beads only transition to `in_progress` when the build agent
 claims them.
@@ -51,7 +51,7 @@ fs lint <id>
 If lint fails, reject the bead and remove it from the dispatch list:
 
 ```bash
-bd comments add <id> "REJECTED: <lint output>. Fix the spec before this can be dispatched." --actor supervisor
+bd comments add <id> "marshal: UNFIT. <lint output>. Fix the spec before this can be dispatched." --actor marshal
 bd update <id> --status needs_work
 ```
 
@@ -90,7 +90,7 @@ For each validated bead, run `fs dispatch <id> --skill build` and parse the JSON
 
 **Dependent beads:** dispatch upstream first; wait for the envelope; then dispatch downstream.
 
-Beads listed by `fs ready --auto` may be in `planned` rather than `ready`. Both `fs build <id>` and `fs agent` accept this via the auto-dispatch lifecycle edge.
+Beads listed by `fs ready --auto` may be in `spec_review` rather than `ready`. Both `fs forge <id>` and `fs agent` accept this via the auto-dispatch lifecycle edge.
 
 ## 5. Monitor
 
@@ -100,10 +100,10 @@ For each result, determine the outcome and record it:
 
 ### COMPLETE
 
-The agent ran `fs done` — bead is now `pending_review`.
+The agent ran `fs done` — bead is now `code_review`.
 
 ```bash
-bd comments add <id> "Dispatched and completed. Pending review." --actor supervisor
+bd comments add <id> "marshal: APPROVED. Dispatched and completed. Pending review." --actor marshal
 ```
 
 ### BLOCKED
@@ -112,7 +112,7 @@ The agent couldn't proceed. It should have already set the bead to
 `needs_work` or `blocked` and added a comment.
 
 ```bash
-bd comments add <id> "Agent blocked during implementation. Escalating." --actor supervisor
+bd comments add <id> "marshal: ESCALATED. Agent blocked during implementation." --actor marshal
 ```
 
 Flag for human attention in the report.
@@ -120,21 +120,22 @@ Flag for human attention in the report.
 ### REJECTED
 
 The agent found the spec was unbuildable (missing sections, contradictions).
-It should have already called `fs reject`.
+It should have already called `fs block --category dependency` (or, if a
+review-level verdict, `fs verdict <id> respec|unfit`).
 
 ```bash
-bd comments add <id> "Agent rejected bead. Spec needs rework." --actor supervisor
+bd comments add <id> "marshal: UNFIT. Agent rejected bead. Spec needs rework." --actor marshal
 ```
 
 ## 5b. Dispatch Review
 
-Scan for pending_review beads after collecting build results:
+Scan for code_review beads after collecting build results:
 
 ```bash
-bd list --status=pending_review --json
+bd list --status=code_review --json
 ```
 
-For each pending_review bead, run `fs dispatch <id> --skill review` and parse the JSON line on stdout. Branch on `via`:
+For each code_review bead, run `fs dispatch <id> --skill review` and parse the JSON line on stdout. Branch on `via`:
 
 - `via=fs_agent`, `ok=true`: worker ran; refetch `bd show <id>` for state.
 - `via=fs_agent`, `ok=false`: worker failed; record `error` and continue with the next bead.
@@ -145,7 +146,7 @@ For each pending_review bead, run `fs dispatch <id> --skill review` and parse th
 
 ### Outcomes
 
-The review-worker returns one of four results:
+The inspector returns one of four results:
 
 | Outcome | Bead state after | Next action |
 |---|---|---|
@@ -156,9 +157,9 @@ The review-worker returns one of four results:
 
 ### Circuit breaker
 
-Before dispatching, check the bead's review history. If the bead has cycled through pending_review -> needs_work -> ready -> pending_review three or more times, do NOT dispatch a fourth review. Mark as escalated and notify (Step 5c).
+Before dispatching, check the bead's review history. If the bead has cycled through code_review -> needs_work -> ready -> code_review three or more times, do NOT dispatch a fourth review. Mark as escalated and notify (Step 5c).
 
-Detection: count comments by `--actor review` mentioning CHANGES_REQUESTED or REJECTED. If >= 3, escalate.
+Detection: count comments by `--actor inspector` (or legacy `--actor review`) whose body begins with `inspector: RESPEC.`, `inspector: REBUILD.`, `inspector: DECOMPOSE.`, or `inspector: UNFIT.` (or, on legacy beads, `Review: CHANGES REQUESTED.` / `Review: REJECTED.` — recognised during the deprecation window). If >= 3, escalate.
 
 ## 5c. Notify
 
@@ -178,7 +179,7 @@ Pipe to Claude Code's PushNotification tool: `PushNotification "$(fs notify ...)
 
 ### Silent (no notification)
 
-- Build COMPLETE -> bead is now pending_review; next cycle's Step 5b picks it up.
+- Build COMPLETE -> bead is now code_review; next cycle's Step 5b picks it up.
 - Review dispatched -> the supervisor is still working; loop continues.
 
 ## 6. Report
@@ -194,7 +195,7 @@ Cycle summary format (single-shot only):
 Supervisor cycle complete.
   Dispatched build: 2 (bead-xxx, bead-yyy)
   Dispatched review: 1 (bead-zzz)
-  Build complete:    1 (bead-xxx -> pending_review)
+  Build complete:    1 (bead-xxx -> code_review)
   Review approved:   1 (bead-zzz -> closed, PR #42)
   Review changes:    0
   Build blocked:     1 (bead-yyy -- missing API dependency)
@@ -206,5 +207,5 @@ If nothing happened, report that too:
 
 ```
 Supervisor cycle complete. Nothing to do.
-  Ready: 0 | In Progress: 0 | Pending Review: 0 | Blocked: 0 | Stale: 0
+  Ready: 0 | In Progress: 0 | Code Review: 0 | Blocked: 0 | Stale: 0
 ```

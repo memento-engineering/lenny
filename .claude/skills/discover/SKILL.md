@@ -101,7 +101,7 @@ Load on-demand during discovery:
 ## What You Don't Do Here
 
 - Write acceptance criteria or implementation plans (that's the specify skill).
-- Write code (that's the build skill).
+- Write code (that's the forge skill).
 - Run `fs specify` yourself unless the human signals they want to continue.
 - Skip discovery because "this is too simple" — discover anyway.
 - Ask multiple questions at once — one at a time.

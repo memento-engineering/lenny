@@ -1,5 +1,5 @@
 ---
-name: build
+name: forge
 description: >
   Portable implementation skill for coding agents. Claims a bead, validates
   readiness, executes the implementation plan step by step, runs the validation
