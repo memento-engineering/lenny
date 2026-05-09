@@ -6,15 +6,15 @@ Claim a bead. Build it. Ship it. Signal done.
 ## Flow
 
 ```
-1. CLAIM     → fs build <id>
+1. CLAIM     → fs forge <id>
 2. VALIDATE  → check required sections exist
-3. REJECT    → if invalid: fs reject, exit
+3. BLOCK     → if invalid: fs block <id> --category dependency "...", exit
 4. EXECUTE   → follow implementation plan step by step
 5. VERIFY    → run validation plan
 6. COMPLETE  → git push, fs done <id>
 ```
 
-See [references/bead-contract.md](references/bead-contract.md) for the full claim, validate, reject, and completion protocol.
+See [references/bead-contract.md](references/bead-contract.md) for the full claim, validate, block, and completion protocol.
 
 ## Startup Assertion
 
@@ -24,7 +24,7 @@ See [references/bead-contract.md](references/bead-contract.md) for the full clai
 CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
   # Wrong branch — should be in a worktree on a feature branch
-  fs reject <id> "On $CURRENT_BRANCH, not a feature branch — worktree may not be set up"
+  fs block <id> --category ergonomic "On $CURRENT_BRANCH, not a feature branch — worktree may not be set up"
   # EXIT IMMEDIATELY
 fi
 ```
@@ -38,15 +38,15 @@ fi
 fs status
 
 # Claim a specific bead (sets up worktree + feature branch)
-fs build <id>
+fs forge <id>
 
 # Or claim the next ready bead
-fs build
+fs forge
 ```
 
-`fs build` creates `.worktrees/<bead-id>/` with a feature branch `fs/<id>/<title>` and sets the bead to `in_progress`. The worktree is your isolated workspace.
+`fs forge` creates `.worktrees/<bead-id>/` with a feature branch `fs/<id>/<title>` and sets the bead to `in_progress`. The worktree is your isolated workspace.
 
-**Note:** If `fs agent` launched you, the worktree and claim are already done — `fs build` will report the bead is already `in_progress`. Verify with `git branch --show-current` and proceed to validation.
+**Note:** If `fs agent` launched you, the worktree and claim are already done — `fs forge` will report the bead is already `in_progress`. Verify with `git branch --show-current` and proceed to validation.
 
 ## Readiness Validation
 
@@ -66,7 +66,7 @@ Verify the bead has the required sections:
 
 ```bash
 # Spec is incomplete — can't proceed
-fs reject <id> "Missing <section>. Cannot build without it."
+fs block <id> --category dependency "Missing <section>. Cannot build without it."
 # EXIT — do not attempt implementation
 ```
 
@@ -103,10 +103,10 @@ See [references/test-driven-development.md](references/test-driven-development.m
 
 ```bash
 # Comment with details for the human
-bd comments add <id> "BLOCKED: <specific description>" --actor build
+bd comments add <id> "bitsmith: BLOCKED/<category>. <specific description>" --actor bitsmith
 
-# Reject with blocked reason
-fs reject <id> "Blocked: <description>"
+# Block with categorised reason (transient | dependency | ergonomic)
+fs block <id> --category <category> "<description>"
 ```
 
 ## Handling Review Feedback
@@ -119,7 +119,7 @@ When re-dispatched after a review rejection, the bead will have a review comment
    ```bash
    bd comments list <id>
    ```
-   Look for the latest comment from the `review` actor starting with "Review: CHANGES REQUESTED".
+   Look for the latest comment from the `inspector` actor starting with `inspector: REBUILD.`, `inspector: RESPEC.`, or `inspector: DECOMPOSE.` (or, on legacy beads, the `review` actor with `Review: CHANGES REQUESTED.` — recognised during the deprecation window).
 
 2. **Parse the findings** — review comments include file/line references, severity (Critical, Important, Suggestion), and recommendations.
 
@@ -154,11 +154,11 @@ When all validation passes:
 # Push the working branch
 git push -u origin <branch>
 
-# Signal done — verifies push, transitions to pending_review
+# Signal done — verifies push, transitions to code_review
 fs done <id>
 ```
 
-Agent does **not** create PRs, merge, or close beads. `fs done` transitions to `pending_review` and adds a completion comment.
+Agent does **not** create PRs, merge, or close beads. `fs done` transitions to `code_review` and adds a completion comment.
 
 ## Craft Methodology References
 
@@ -193,19 +193,19 @@ When implementation reveals code that needs refactoring:
 4. If the refactor **blocks** current work, link it and report blocked:
    ```bash
    bd dep add <current-bead-id> <refactor-bead-id>
-   bd comments add <current-bead-id> "BLOCKED: need refactor <refactor-bead-id> first" --actor build
+   bd comments add <current-bead-id> "bitsmith: BLOCKED/dependency. need refactor <refactor-bead-id> first" --actor bitsmith
    ```
 
 ## Actor Identity
 
-Every direct `bd` command uses `--actor build` for audit trail:
+Every direct `bd` command uses `--actor bitsmith` for audit trail:
 
 ```bash
-bd comments add <id> "BLOCKED: ..." --actor build
-bd comments add <id> "Implementation complete. ..." --actor build
+bd comments add <id> "bitsmith: BLOCKED/<category>. ..." --actor bitsmith
+bd comments add <id> "bitsmith: <SIGNAL>. Implementation complete. ..." --actor bitsmith
 ```
 
-`fs` commands (like `fs done`, `fs reject`) already tag as `"fs"`.
+`fs` commands (like `fs done`, `fs block`) already tag as `"bitsmith"`.
 
 ## What You Don't Do
 
@@ -213,5 +213,5 @@ bd comments add <id> "Implementation complete. ..." --actor build
 - **Spawn sub-agents** — you are the worker
 - **Make architectural decisions** — if the plan is ambiguous, reject or block
 - **Skip validation** — if tests fail and can't be fixed, report blocked
-- **Review code** — that's the review skill
+- **Review code** — that's the inspect skill
 - **Merge to main** — that's `fs merge`

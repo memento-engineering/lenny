@@ -1,9 +1,9 @@
 ---
-name: supervise
+name: marshal
 description: >
   Factory floor supervisor. Scans for ready beads, validates them, dispatches
   build agents in parallel, monitors completion, dispatches review agents on
-  pending_review beads, and emits push notifications for human-needed events
+  code_review beads, and emits push notifications for human-needed events
   (blocked builds, review feedback, PRs ready to merge, escalations).
   Human-triggered or autonomous via /loop. Use when user says "supervise",
   "dispatch work", "check the floor", or "what needs building".
@@ -53,7 +53,7 @@ The parent session's mode wins for subagents:
 | Parent mode | Subagent behavior |
 |---|---|
 | `auto` | Subagent inherits `auto`; `permissionMode` in the agent definition is ignored. Use the `allow` list above. |
-| `default` | Subagent's own `permissionMode` applies — the bundled `build-worker` agent declares `bypassPermissions` and needs no allow list. |
+| `default` | Subagent's own `permissionMode` applies — the bundled `bitsmith` agent declares `bypassPermissions` and needs no allow list. |
 | `acceptEdits` / `bypassPermissions` | Parent wins. Subagent inherits the mode. |
 
 If your session is in `auto` mode and subagents still get denied, the missing rule is almost always `Write(//**/.worktrees/**)` or the project-specific build `Bash` command.
@@ -61,7 +61,7 @@ If your session is in `auto` mode and subagents still get denied, the missing ru
 ## Running a Cycle
 
 Each invocation runs one supervisor cycle. Load and follow
-`skills/supervise/references/process.md` step by step.
+`skills/marshal/references/process.md` step by step.
 
 ## Autonomous Loop
 
@@ -74,8 +74,8 @@ cycle are the only output. See `references/process.md` Step 6 for details.
 
 ## What You Don't Do
 
-- **Write code** — you dispatch build-workers
-- **Write reviews** — you dispatch review-workers
+- **Write code** — you dispatch bitsmiths
+- **Write reviews** — you dispatch inspectors
 - **Fix specs** — reject invalid beads back to the human
 - **Make architectural decisions** — escalate via PushNotification
 - **Merge** — that's `fs merge` after a human ack on the "PR ready" notification

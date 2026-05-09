@@ -8,10 +8,10 @@ How to claim, validate, execute, and signal completion on beads.
 ## Claim Protocol
 
 ```bash
-fs build <id>
+fs forge <id>
 ```
 
-`fs build` is atomic: creates worktree, sets up feature branch, transitions to `in_progress`. If the bead is already claimed or not in `ready` status, it fails. This prevents double-dispatch.
+`fs forge` is atomic: creates worktree, sets up feature branch, transitions to `in_progress`. If the bead is already claimed or not in `ready` status, it fails. This prevents double-dispatch.
 
 If claim fails: exit cleanly. Another agent has this work or the bead isn't ready.
 
@@ -35,24 +35,24 @@ For each required section:
   2. Check content between this header and the next H2 (or end of body)
   3. Verify at least one matching item exists
 
-If ANY section is missing or empty → REJECT
+If ANY section is missing or empty → BLOCK
 ```
 
-## Rejection Protocol
+## Block Protocol (invalid spec)
 
 When validation fails:
 
 ```bash
-# Reject with specific reason
-fs reject <id> "Missing Validation Plan section. Cannot verify implementation."
+# Block with a specific dependency-category reason
+fs block <id> --category dependency "Missing Validation Plan section. Cannot verify implementation."
 
 # EXIT — do not attempt any implementation
 ```
 
 **Rules:**
 - Always state exactly which section is missing or empty
-- Never attempt implementation on a rejected bead
-- One rejection per issue — if multiple sections are missing, list them all
+- Never attempt implementation on a blocked bead
+- One block per issue — if multiple sections are missing, list them all
 
 ## Execution Protocol
 
@@ -76,8 +76,8 @@ If a step is unclear:
 - Report blocked with the specific question
 
 ```bash
-bd comments add <id> "BLOCKED: Step 3 says 'implement the handler' but doesn't specify which protocol or method signature." --actor build
-fs reject <id> "Blocked: ambiguous step 3"
+bd comments add <id> "bitsmith: BLOCKED/dependency. Step 3 says 'implement the handler' but doesn't specify which protocol or method signature." --actor bitsmith
+fs block <id> --category dependency "ambiguous step 3 — needs spec clarification"
 ```
 
 ## Completion Protocol
@@ -88,7 +88,7 @@ After all implementation and validation passes:
 # Push the working branch
 git push -u origin <branch>
 
-# Signal done — transitions to pending_review
+# Signal done — transitions to code_review
 fs done <id>
 ```
 
@@ -103,10 +103,10 @@ When hitting an unresolvable issue during implementation:
 
 ```bash
 # Comment with details
-bd comments add <id> "BLOCKED: <specific description of what's blocking and why>" --actor build
+bd comments add <id> "bitsmith: BLOCKED/<category>. <specific description of what's blocking and why>" --actor bitsmith
 
-# Reject with reason
-fs reject <id> "Blocked: <description>"
+# Block with categorised reason (transient | dependency | ergonomic)
+fs block <id> --category <category> "<description>"
 
 # Do NOT close the bead
 # Do NOT continue with other steps
@@ -120,9 +120,9 @@ fs reject <id> "Blocked: <description>"
 | Claim succeeds | Continue to validation | No |
 | Claim fails (not ready / already claimed) | Exit cleanly | Yes |
 | Validation passes | Continue to execution | No |
-| Validation fails | Reject with comment | Yes |
+| Validation fails | Block with categorised reason | Yes |
 | Execution completes | Continue to verification | No |
-| Execution blocked | Report blocked, reject | Yes |
+| Execution blocked | Report blocked via `fs block` | Yes |
 | Verification passes | Push branch, `fs done` | Yes |
 | Verification fails (fixable) | Fix and re-verify | No |
 | Verification fails (not fixable) | Report blocked | Yes |

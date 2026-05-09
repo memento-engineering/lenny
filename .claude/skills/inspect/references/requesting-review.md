@@ -10,7 +10,7 @@ How to set up and request a review of completed work.
 ## When to Request Review
 
 **Mandatory:**
-- After completing a bead (`fs done` transitions to `pending_review`)
+- After completing a bead (`fs done` transitions to `code_review`)
 - Before merge to main
 
 **Optional but valuable:**

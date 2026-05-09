@@ -37,7 +37,7 @@ Present exactly these options:
 ```
 Implementation complete. What would you like to do?
 
-1. Push and signal done (fs done <id>) — transitions to pending_review
+1. Push and signal done (fs done <id>) — transitions to code_review
 2. Push and create a Pull Request
 3. Keep the branch as-is (I'll handle it later)
 4. Discard this work
@@ -52,7 +52,7 @@ git push -u origin <branch>
 fs done <id>
 ```
 
-`fs done` verifies the push, adds a completion comment, and transitions to `pending_review`.
+`fs done` verifies the push, adds a completion comment, and transitions to `code_review`.
 
 #### Option 2: Push and Create PR
 
@@ -126,4 +126,4 @@ Note: `fs merge` (v0.2) will handle worktree cleanup automatically on merge.
 ## Integration
 
 **Pairs with:**
-- **[using-git-worktrees.md](using-git-worktrees.md)** — cleans up worktree created by `fs build`
+- **[using-git-worktrees.md](using-git-worktrees.md)** — cleans up worktree created by `fs forge`

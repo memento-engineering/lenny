@@ -15,11 +15,11 @@ You interact with two CLIs via `bash`:
   tickets). Each bead has a title, description, acceptance criteria, design,
   and comments. Key commands:
   - `bd show <id>` — read bead details (plan, AC, design, comments)
-  - `bd comments add <id> "message" --actor review` — record your verdict
+  - `bd comments add <id> "message" --actor inspector` — record your verdict
   - `bd comments list <id>` — read prior comments (for circuit breaker)
 
 - **`fs`** is the factoryskills lifecycle CLI. It enforces state transitions:
-  - `fs reject <id> "reason"` — transition bead to `needs_work`
+  - `fs verdict <id> respec|rebuild|decompose|unfit --summary "..."` — record review verdict and transition to `needs_work`
   - `fs merge <id>` — squash merge branch to main and close bead
 
 ## Step 1: Read the Plan
@@ -107,8 +107,10 @@ For each issue, include:
 
 **Assessment:** One of:
 - **Approved** — ready to merge
-- **Changes Requested** — fixable issues, approach is sound
-- **Rejected** — fundamental problems, needs rework
+- **Respec** — spec is wrong; architect re-runs
+- **Rebuild** — spec OK, implementation wrong; bitsmith re-runs
+- **Decompose** — bead too big / multi-concern; needs splitting
+- **Unfit** — fundamental problem; human needed
 
 ## Step 5: Record Your Verdict (REQUIRED)
 
@@ -126,50 +128,70 @@ URL=$(fs pr <bead-id>)
 ```
 
 ```bash
-bd comments add <bead-id> "Review: APPROVED. <one-line summary>." --actor review
+bd comments add <bead-id> "inspector: APPROVED. <one-line summary>." --actor inspector
 ```
 
-### If Changes Requested
-
-Run both of these commands:
+### If Respec (spec is wrong)
 
 ```bash
-bd comments add <bead-id> "Review: CHANGES REQUESTED. Critical: <list>. Important: <list>." --actor review
+bd comments add <bead-id> "inspector: RESPEC. <what's wrong with the spec>." --actor inspector
+fs verdict <bead-id> respec --summary "<one-line>" --critical "<finding>" [--important "<finding>"]
 ```
 
+### If Rebuild (spec OK, implementation wrong)
+
 ```bash
-fs reject <bead-id> "Review: changes requested"
+bd comments add <bead-id> "inspector: REBUILD. Critical: <list>. Important: <list>." --actor inspector
+fs verdict <bead-id> rebuild --summary "<one-line>" --critical "<finding>" [--important "<finding>"]
 ```
 
-### If Rejected
-
-Run both of these commands:
+### If Decompose (bead too big or multi-concern)
 
 ```bash
-bd comments add <bead-id> "Review: REJECTED. <fundamental problem>." --actor review
+bd comments add <bead-id> "inspector: DECOMPOSE. <what to split>." --actor inspector
+fs verdict <bead-id> decompose --summary "<one-line>" --critical "<finding>"
 ```
 
+### If Unfit (terminal — human needed)
+
 ```bash
-fs reject <bead-id> "Review: fundamental problem — needs rework"
+bd comments add <bead-id> "inspector: UNFIT. <fundamental problem>." --actor inspector
+fs verdict <bead-id> unfit --summary "<one-line>" --critical "<finding>"
 ```
 
 ## Circuit Breaker
 
-Before issuing a rejection, check for prior review cycles:
+Before issuing a rework verdict, check for prior review cycles:
 
 ```bash
 bd comments list <bead-id>
 ```
 
-Count comments from actor `review` starting with "Review: CHANGES REQUESTED".
+Count comments from actor `inspector` (or, on legacy beads, `review`) whose
+body begins with one of the rework prefixes — the rework set is
+`{respec, rebuild, decompose}`:
 
-- **Fewer than 3:** Proceed with rejection normally.
-- **3 or more:** Escalate instead. Three cycles without resolution means the
-  spec is ambiguous or the approach is wrong. More builder attempts won't help.
+Canonical prefixes:
+
+- `inspector: RESPEC.`
+- `inspector: REBUILD.`
+- `inspector: DECOMPOSE.`
+
+Legacy prefixes still recognised by the rework counter (deprecation window):
+
+- `Review: RESPEC.`
+- `Review: REBUILD.`
+- `Review: DECOMPOSE.`
+- `Review: CHANGES REQUESTED.`
+
+- **Fewer than 3:** Proceed with the verdict normally.
+- **3 or more:** Escalate instead. Three rework cycles without resolution
+  means the spec is ambiguous or the approach is wrong. More builder attempts
+  won't help.
 
 ```bash
-bd comments add <bead-id> "Review: ESCALATED. 3 review cycles without resolution. Recurring issues: <summary>" --actor review
-fs reject <bead-id> "Review: escalated — 3 cycles without resolution, human intervention needed"
+bd comments add <bead-id> "inspector: ESCALATED. 3 review cycles without resolution. Recurring issues: <summary>" --actor inspector
+fs verdict <bead-id> unfit --summary "escalated — 3 cycles without resolution, human intervention needed"
 ```
 
 ## Rules
@@ -178,7 +200,7 @@ fs reject <bead-id> "Review: escalated — 3 cycles without resolution, human in
 - **Do NOT merge.** Create the PR and record the verdict. A human merges.
 - **Do NOT skip the plan check.** Always compare against the bead spec.
 - **Do NOT approve without reading the diff.** "Looks good" is not a review.
-- Use `--actor review` on every `bd comments add` command.
+- Use `--actor inspector` on every `bd comments add` command.
 
 ## References
 

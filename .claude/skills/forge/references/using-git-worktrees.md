@@ -1,5 +1,5 @@
 name: using-git-worktrees
-description: Use when starting feature work in a worktree or troubleshooting worktree issues — covers how fs build creates worktrees and how to work within them
+description: Use when starting feature work in a worktree or troubleshooting worktree issues — covers how fs forge creates worktrees and how to work within them
 
 # Using Git Worktrees
 
@@ -7,12 +7,12 @@ description: Use when starting feature work in a worktree or troubleshooting wor
 
 Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
 
-**In factoryskills**, `fs build <id>` handles worktree creation automatically. This reference covers working within worktrees and troubleshooting.
+**In factoryskills**, `fs forge <id>` handles worktree creation automatically. This reference covers working within worktrees and troubleshooting.
 
-## How fs build Creates Worktrees
+## How fs forge Creates Worktrees
 
 ```bash
-fs build <id>
+fs forge <id>
 ```
 
 This creates:
@@ -20,11 +20,11 @@ This creates:
 - **Branch:** `fs/<id>/<sanitized-title>` (kebab-case, max 40 chars)
 - **Status:** Bead transitions to `in_progress`
 
-You don't need to create worktrees manually. `fs build` handles it.
+You don't need to create worktrees manually. `fs forge` handles it.
 
 ## Working in a Worktree
 
-After `fs build`, change to the worktree directory:
+After `fs forge`, change to the worktree directory:
 
 ```bash
 cd .worktrees/<bead-id>/
@@ -95,7 +95,7 @@ If tests fail before you've changed anything, the base branch has issues. Report
 ### Working in the wrong directory
 
 - **Problem:** Running commands from the repo root instead of the worktree
-- **Fix:** Always `cd .worktrees/<bead-id>/` after `fs build`
+- **Fix:** Always `cd .worktrees/<bead-id>/` after `fs forge`
 
 ### Committing to main
 
