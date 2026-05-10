@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_config.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_controller.dart';
+import 'package:exploration_devtools/src/panels/provider_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeSession implements ExplorationSession {
@@ -91,4 +92,102 @@ void main() {
 
     await c.dispose();
   });
+
+  test('providerFactory receives ProviderConfig + modelId', () async {
+    final fake = _FakeSession();
+    ProviderConfig? capturedCfg;
+    String? capturedModel;
+    String? capturedSession;
+    final c = PromptPanelController(
+      vmServiceUri: Uri.parse('ws://x'),
+      factory: (_) async => fake,
+      providerFactory: (cfg, modelId, sessionId) {
+        capturedCfg = cfg;
+        capturedModel = modelId;
+        capturedSession = sessionId;
+        return _DummyProvider();
+      },
+    );
+
+    final providerCfg = AnthropicUiConfig(apiKey: 'k');
+    await c.start(_cfg, providerCfg: providerCfg);
+
+    expect(capturedCfg, same(providerCfg));
+    expect(capturedModel, 'm');
+    expect(capturedSession, isNotEmpty);
+    expect(c.activeProvider, isA<_DummyProvider>());
+
+    await c.dispose();
+  });
+
+  test('no providerCfg → no provider built', () async {
+    final fake = _FakeSession();
+    var called = false;
+    final c = PromptPanelController(
+      vmServiceUri: Uri.parse('ws://x'),
+      factory: (_) async => fake,
+      providerFactory: (_, __, ___) {
+        called = true;
+        return _DummyProvider();
+      },
+    );
+
+    await c.start(_cfg);
+
+    expect(called, isFalse);
+    expect(c.activeProvider, isNull);
+
+    await c.dispose();
+  });
+
+  test('swift-infer provider carries Bearer + conversation id via real factory',
+      () async {
+    final fake = _FakeSession();
+    final c = PromptPanelController(
+      vmServiceUri: Uri.parse('ws://x'),
+      factory: (_) async => fake,
+    );
+
+    final cfg = SwiftInferUiConfig(
+      bearerToken: 'tok',
+      endpoint: Uri.parse('http://localhost:8080'),
+      captureBodies: true,
+    );
+    await c.start(
+      const PromptPanelConfig(
+        goal: 'g',
+        modelId: 'qwen3.6-35b-a3b-8bit',
+        maxTurns: 1,
+        wallClockBudget: Duration(minutes: 1),
+        enabledPluginNamespaces: {},
+      ),
+      providerCfg: cfg,
+    );
+
+    final provider = c.activeProvider as SwiftInferModelProvider;
+    expect(provider.config.bearerToken, 'tok');
+    expect(provider.config.captureBodies, isTrue);
+    expect(provider.config.conversationId, startsWith('exploration-panel-'));
+    expect(provider.capabilities.vision, isTrue);
+    expect(provider.capabilities.preserveThinking, isTrue);
+
+    await c.dispose();
+  });
+}
+
+class _DummyProvider implements ModelProvider {
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities(
+        vision: false,
+        preserveThinking: false,
+        maxContext: 1,
+        supportsToolUse: false,
+      );
+
+  @override
+  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) =>
+      throw UnimplementedError();
+
+  @override
+  Stream<ThinkingDelta> thinking() => const Stream.empty();
 }

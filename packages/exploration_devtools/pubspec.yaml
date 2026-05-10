@@ -13,6 +13,7 @@ dependencies:
   exploration_agent: any
   flutter:
     sdk: flutter
+  http: ^1.2.0
   json_rpc_2: ^3.0.2
   vm_service: ^14.2.0
 

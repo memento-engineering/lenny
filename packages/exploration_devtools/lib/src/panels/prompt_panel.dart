@@ -2,36 +2,45 @@ import 'package:exploration_agent/exploration_agent.dart'
     show PluginManifestEntry;
 import 'package:flutter/material.dart';
 
+import 'model_catalog.dart';
 import 'prompt_panel_config.dart';
+import 'provider_config.dart';
 
 /// Goal / model / budget / plugin form rendered into the DevTools
-/// extension's Prompt tab. Stateless w.r.t. running session — owners pass
-/// [running] in and react to [onStart] / [onStop] callbacks.
+/// extension's Prompt tab. Stateless w.r.t. running session — owners
+/// pass [running] in and react to [onStart] / [onStop] callbacks.
 ///
-/// PRD §6.3 and AC for cx6.22: replaces CLI argument parsing for the
-/// interactive DevTools flow.
+/// Consumes a [ModelCatalogState]: provider config form sits above the
+/// model dropdown; the dropdown is populated from
+/// [ModelCatalogState.models] with capability badges. Edits to the
+/// provider config bubble up via [onProviderConfigChanged]; the
+/// reload button (keyed `prompt.modelsReload`) fires
+/// [onReloadModels].
 class PromptPanel extends StatefulWidget {
   const PromptPanel({
     super.key,
-    required this.availableModels,
+    required this.modelsState,
     required this.plugins,
     required this.running,
     required this.onStart,
     required this.onStop,
+    required this.onProviderConfigChanged,
+    required this.onReloadModels,
+    required this.catalog,
+    this.conversationId = '',
     this.pluginGuideUrl =
         'https://example.com/exploration-agent/plugin-authoring',
   });
 
-  /// Models surfaced in the dropdown. Comes from cx6.14/.15/.16 wiring;
-  /// the widget never hardcodes ids.
-  final List<ModelDescriptor> availableModels;
+  /// Snapshot of the model catalog (provider config + resolved
+  /// models + loading/error state).
+  final ModelCatalogState modelsState;
 
-  /// Plugin manifest from the binding handshake (cx6.11). Empty list
-  /// renders the empty-state guide hint instead of toggles.
+  /// Plugin manifest from the binding handshake. Empty list renders
+  /// the empty-state guide hint instead of toggles.
   final List<PluginManifestEntry> plugins;
 
-  /// `true` while a session is in flight. Disables every input and
-  /// swaps the Start button for Stop.
+  /// `true` while a session is in flight.
   final bool running;
 
   /// Invoked when the user submits a valid form.
@@ -40,7 +49,22 @@ class PromptPanel extends StatefulWidget {
   /// Invoked when the user presses Stop while [running] is true.
   final VoidCallback onStop;
 
-  /// URL surfaced in the empty-plugin hint (cx6.35).
+  /// Bubbles provider config edits up to the mount layer (which
+  /// persists + triggers a model-list refresh).
+  final void Function(ProviderConfig) onProviderConfigChanged;
+
+  /// Fires when the reload button is pressed.
+  final VoidCallback onReloadModels;
+
+  /// Shared catalog instance used by the form's "Test connection"
+  /// button.
+  final ModelCatalog catalog;
+
+  /// Conversation id breadcrumb (swift-infer only). Empty string when
+  /// no session has started yet.
+  final String conversationId;
+
+  /// URL surfaced in the empty-plugin hint.
   final String pluginGuideUrl;
 
   @override
@@ -50,11 +74,31 @@ class PromptPanel extends StatefulWidget {
 class _PromptPanelState extends State<PromptPanel> {
   late final TextEditingController _goal = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late String _modelId = widget.availableModels.first.id;
+  String? _modelId;
   int _maxTurns = 50;
   Duration _budget = const Duration(minutes: 15);
   late final Set<String> _enabled =
       widget.plugins.map((p) => p.namespace).toSet();
+
+  @override
+  void initState() {
+    super.initState();
+    _modelId = widget.modelsState.models.isNotEmpty
+        ? widget.modelsState.models.first.id
+        : null;
+  }
+
+  @override
+  void didUpdateWidget(covariant PromptPanel old) {
+    super.didUpdateWidget(old);
+    final models = widget.modelsState.models;
+    if (_modelId == null && models.isNotEmpty) {
+      _modelId = models.first.id;
+    } else if (_modelId != null &&
+        !models.any((m) => m.id == _modelId)) {
+      _modelId = models.isNotEmpty ? models.first.id : null;
+    }
+  }
 
   @override
   void dispose() {
@@ -64,19 +108,44 @@ class _PromptPanelState extends State<PromptPanel> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+    final id = _modelId;
+    if (id == null) return;
     widget.onStart(PromptPanelConfig(
       goal: _goal.text,
-      modelId: _modelId,
+      modelId: id,
       maxTurns: _maxTurns,
       wallClockBudget: _budget,
       enabledPluginNamespaces: _enabled,
     ));
   }
 
+  List<Widget> _badges(ResolvedModel m) {
+    final out = <Widget>[];
+    if (m.usingFallback) {
+      out.add(const _Badge(text: 'using fallback', key: Key('badge.fallback')));
+    }
+    final c = m.capabilities;
+    if (c == null) {
+      out.add(const _Badge(text: '⚠ unknown capabilities', key: Key('badge.unknown')));
+      return out;
+    }
+    if (c.vision) out.add(const _Badge(text: 'vision'));
+    if (c.preserveThinking) out.add(const _Badge(text: 'thinking'));
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final running = widget.running;
+    final state = widget.modelsState;
     final children = <Widget>[
+      ProviderConfigForm(
+        initial: state.config,
+        onChanged: widget.onProviderConfigChanged,
+        conversationId: widget.conversationId,
+        catalog: widget.catalog,
+      ),
+      const SizedBox(height: 12),
       TextFormField(
         key: const Key('prompt.goal'),
         controller: _goal,
@@ -86,15 +155,62 @@ class _PromptPanelState extends State<PromptPanel> {
         validator: (v) =>
             (v == null || v.trim().isEmpty) ? 'Goal required' : null,
       ),
-      DropdownButtonFormField<String>(
-        key: const Key('prompt.model'),
-        initialValue: _modelId,
-        items: widget.availableModels
-            .map((m) => DropdownMenuItem(value: m.id, child: Text(m.label)))
-            .toList(),
-        onChanged:
-            running ? null : (v) => setState(() => _modelId = v ?? _modelId),
+      Row(
+        children: <Widget>[
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              key: const Key('prompt.model'),
+              initialValue: _modelId,
+              items: state.models
+                  .map(
+                    (m) => DropdownMenuItem<String>(
+                      value: m.id,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(m.label),
+                          ..._badges(m).map((b) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 2),
+                                child: b,
+                              )),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: running
+                  ? null
+                  : (v) => setState(() => _modelId = v ?? _modelId),
+            ),
+          ),
+          IconButton(
+            key: const Key('prompt.modelsReload'),
+            tooltip: 'Reload models',
+            icon: state.loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: state.loading ? null : widget.onReloadModels,
+          ),
+        ],
       ),
+      if (state.error != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Container(
+            key: const Key('prompt.modelsError'),
+            padding: const EdgeInsets.all(8),
+            color: Colors.red.shade100,
+            child: Text(
+              'Model list error: ${state.error}',
+              style: const TextStyle(color: Colors.black87),
+            ),
+          ),
+        ),
       TextFormField(
         key: const Key('prompt.maxTurns'),
         initialValue: '$_maxTurns',
@@ -106,9 +222,9 @@ class _PromptPanelState extends State<PromptPanel> {
         key: const Key('prompt.wallMinutes'),
         initialValue: '${_budget.inMinutes}',
         enabled: !running,
-        decoration: const InputDecoration(labelText: 'Wall-clock budget (minutes)'),
-        onChanged: (v) =>
-            _budget = Duration(minutes: int.tryParse(v) ?? 15),
+        decoration:
+            const InputDecoration(labelText: 'Wall-clock budget (minutes)'),
+        onChanged: (v) => _budget = Duration(minutes: int.tryParse(v) ?? 15),
       ),
       if (widget.plugins.isEmpty)
         Padding(
@@ -150,10 +266,28 @@ class _PromptPanelState extends State<PromptPanel> {
 
     return Form(
       key: _formKey,
-      child: ListView(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: children,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       ),
     );
   }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({super.key, required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.blueGrey.shade100,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(text, style: const TextStyle(fontSize: 10)),
+      );
 }

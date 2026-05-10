@@ -9,7 +9,14 @@ import '../model_provider.dart';
 import '../types.dart';
 
 /// Set of Claude model ids that accept image inputs (PRD §22).
-const _visionModels = {'claude-sonnet-4-6', 'claude-opus-4-6'};
+///
+/// Public so a host (e.g. the DevTools panel) can advertise vision
+/// support for a model id without instantiating a provider — see
+/// `provider/capabilities_lookup.dart`.
+const kAnthropicVisionModels = <String>{
+  'claude-sonnet-4-6',
+  'claude-opus-4-6',
+};
 
 /// `ModelProvider` for Claude 4.6+ class models via Anthropic's HTTP
 /// tool-use API. Web-compatible: pure HTTP via `package:http`, no
@@ -44,7 +51,7 @@ class AnthropicModelProvider implements ModelProvider {
 
   @override
   ModelCapabilities get capabilities => ModelCapabilities(
-        vision: _visionModels.contains(model),
+        vision: kAnthropicVisionModels.contains(model),
         preserveThinking: false,
         maxContext: 200000,
         supportsToolUse: true,

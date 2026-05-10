@@ -3,6 +3,7 @@ library;
 
 export 'action_schema.dart';
 export 'anthropic/anthropic_provider.dart';
+export 'capabilities_lookup.dart';
 export 'frontier/frontier_defaults.dart';
 export 'frontier/tool_helpers.dart';
 export 'frontier/vision_image.dart';
