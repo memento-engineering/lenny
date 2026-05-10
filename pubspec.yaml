@@ -5,6 +5,7 @@ environment:
 workspace:
   - packages/exploration_flutter
   - packages/exploration_flutter/example/diagnostic_fixture
+  - packages/exploration_flutter/example/sample_app
   - packages/exploration_agent
   - packages/exploration_cli
   - packages/exploration_devtools
