@@ -35,6 +35,10 @@
       "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
       "deviceId": "macos",
       "flutterMode": "debug",
+      // Rebuild the DevTools extension bundle before launching so the
+      // panel served to Chrome always reflects the current source
+      // (lenny-1l8: rebuild-on-demand, never commit).
+      "preLaunchTask": "Build DevTools Extension",
       "presentation": {
         "group": "1_sample_app",
         "order": 1
@@ -48,6 +52,7 @@
       "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
       "deviceId": "macos",
       "flutterMode": "profile",
+      "preLaunchTask": "Build DevTools Extension",
       "presentation": {
         "group": "1_sample_app",
         "order": 2
