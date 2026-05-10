@@ -7,6 +7,8 @@ export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;
 export 'src/loop_driver/plugin_failure_tracker.dart'
     show PluginFailureTracker;
+export 'src/loop_driver/plugin_tools.dart'
+    show buildPluginTools, unknownPluginNamespaces;
 export 'src/loop_driver/validation_retry.dart'
     show
         InvalidActionExhausted,

@@ -1,3 +1,5 @@
+import 'package:exploration_agent/exploration_agent.dart'
+    show TrajectoryRecord;
 import 'package:flutter/material.dart';
 
 import 'manifest_probe.dart';
@@ -57,6 +59,12 @@ class _ExplorationShellState extends State<ExplorationShell> {
   final GlobalKey<ExplorationPanelHostState> _hostKey =
       GlobalKey<ExplorationPanelHostState>();
 
+  /// Holds the controller's live trajectory stream once the prompt
+  /// tab starts a session. The Timeline tab reads through this so
+  /// records the loop emits during a run are rendered in real time.
+  final ValueNotifier<Stream<TrajectoryRecord>?> _trajectory =
+      ValueNotifier<Stream<TrajectoryRecord>?>(null);
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +83,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
   @override
   void dispose() {
     widget.vmServiceUriListenable?.removeListener(_onUriChanged);
+    _trajectory.dispose();
     super.dispose();
   }
 
@@ -108,9 +117,14 @@ class _ExplorationShellState extends State<ExplorationShell> {
                 hostKey: _hostKey,
                 store: widget.store,
                 catalog: widget.catalog,
+                trajectorySink: _trajectory,
               ),
               const ThinkingPlaceholder(),
-              const TimelinePanelMount(),
+              ValueListenableBuilder<Stream<TrajectoryRecord>?>(
+                valueListenable: _trajectory,
+                builder: (context, stream, _) =>
+                    TimelinePanelMount(trajectoryStream: stream),
+              ),
             ],
           ),
         ),
@@ -129,11 +143,17 @@ class _PromptTabBody extends StatelessWidget {
     required this.hostKey,
     required this.store,
     required this.catalog,
+    required this.trajectorySink,
   });
 
   final GlobalKey<ExplorationPanelHostState> hostKey;
   final ProviderConfigStore store;
   final ModelCatalog catalog;
+
+  /// Write-side seam — the prompt tab assigns the controller's live
+  /// trajectory stream here when a session starts; the Timeline tab
+  /// reads through this notifier.
+  final ValueNotifier<Stream<TrajectoryRecord>?> trajectorySink;
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +184,7 @@ class _PromptTabBody extends StatelessWidget {
               plugins: plugins,
               store: store,
               catalog: catalog,
+              trajectorySink: trajectorySink,
             ),
         };
       },
