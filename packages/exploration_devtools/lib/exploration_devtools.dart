@@ -1,5 +1,14 @@
 library;
 
+export 'src/manifest_probe.dart'
+    show
+        ManifestProbe,
+        ManifestProbeBindingMissing,
+        ManifestProbeFailed,
+        ManifestProbeLoaded,
+        ManifestProbeLoading,
+        ManifestProbeResult,
+        defaultManifestProbe;
 export 'src/panels/prompt_panel.dart';
 export 'src/panels/prompt_panel_config.dart';
 export 'src/panels/prompt_panel_controller.dart';
