@@ -24,3 +24,7 @@ build/
 pubspec.lock
 **/.idea/
 **/*.iml
+
+# Per-user Flutter DevTools enablement state (extensions: ... toggles).
+# Regenerated locally; not a project default.
+devtools_options.yaml
