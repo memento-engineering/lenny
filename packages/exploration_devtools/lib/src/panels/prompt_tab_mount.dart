@@ -9,33 +9,44 @@ import 'package:exploration_agent/exploration_agent.dart'
 import 'package:flutter/material.dart';
 
 import '../panel_host.dart';
+import 'model_catalog.dart';
 import 'prompt_panel.dart';
 import 'prompt_panel_config.dart';
 import 'prompt_panel_controller.dart';
+import 'provider_config.dart';
+import 'provider_config_store.dart';
 
 /// Mounts the [PromptPanel] into [ExplorationShell]'s Prompt tab.
 ///
-/// Owns a [PromptPanelController] for the panel's lifecycle. Resolves the
-/// VM service URI through the [ExplorationPanelHost.of] ancestor's
-/// [VmServiceUriResolver] so the panel works with the same DTD wiring as
-/// the timeline tab.
-///
-/// Models / plugin manifest are passed in by the host. cx6.14/.15/.16 and
-/// cx6.11 will populate them via dependency injection from the shell;
-/// for now the shell forwards static defaults.
+/// Owns:
+///   - a [PromptPanelController] for the panel's lifecycle, and
+///   - a [ValueNotifier]<[ModelCatalogState]> that drives the model
+///     dropdown. Provider config edits persist via [store] and then
+///     trigger a fetch through the shared [ModelCatalog].
 class PromptTabMount extends StatefulWidget {
   const PromptTabMount({
     super.key,
-    required this.availableModels,
     required this.plugins,
+    required this.store,
+    required this.catalog,
     this.controllerFactory,
+    this.initialProviderId = 'swift-infer',
   });
 
-  final List<ModelDescriptor> availableModels;
+  /// Plugin manifest from the binding handshake.
   final List<PluginManifestEntry> plugins;
 
-  /// Test seam — production builds a real [PromptPanelController] keyed
-  /// to the host's resolved VM service URI.
+  /// Per-provider config persistence.
+  final ProviderConfigStore store;
+
+  /// Shared model catalog (panel + form share its cache).
+  final ModelCatalog catalog;
+
+  /// Provider id loaded from [store] at mount. Defaults to
+  /// `'swift-infer'`.
+  final String initialProviderId;
+
+  /// Test seam — production builds a real [PromptPanelController].
   final PromptPanelController Function(Uri vmServiceUri)? controllerFactory;
 
   @override
@@ -47,6 +58,51 @@ class _PromptTabMountState extends State<PromptTabMount> {
   StreamSubscription<SessionProgressEvent>? _sub;
   bool _running = false;
 
+  final ValueNotifier<ModelCatalogState> _state =
+      ValueNotifier<ModelCatalogState>(const ModelCatalogState());
+  String _conversationId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    final loaded = await widget.store.load(widget.initialProviderId);
+    if (loaded == null) return;
+    _state.value = _state.value.copyWith(config: loaded);
+    await _refresh(reload: false);
+  }
+
+  Future<void> _refresh({required bool reload}) async {
+    final cfg = _state.value.config;
+    if (cfg == null) return;
+    _state.value = _state.value.copyWith(loading: true, clearError: true);
+    try {
+      final models = await widget.catalog.fetch(
+        cfg,
+        reload: reload,
+        conversationId: _conversationId,
+      );
+      if (!mounted) return;
+      _state.value = _state.value.copyWith(
+        models: models,
+        loading: false,
+        clearError: true,
+      );
+    } on Object catch (e) {
+      if (!mounted) return;
+      _state.value = _state.value.copyWith(loading: false, error: e);
+    }
+  }
+
+  void _onProviderConfigChanged(ProviderConfig cfg) {
+    _state.value = _state.value.copyWith(config: cfg);
+    unawaited(widget.store.save(cfg));
+    unawaited(_refresh(reload: true));
+  }
+
   PromptPanelController _ensureController(Uri uri) {
     final existing = _controller;
     if (existing != null) return existing;
@@ -56,7 +112,11 @@ class _PromptTabMountState extends State<PromptTabMount> {
     _sub = c.events.listen((event) {
       if (!mounted) return;
       if (event is SessionStarted) {
-        setState(() => _running = true);
+        setState(() {
+          _running = true;
+          _conversationId =
+              'exploration-${DateTime.now().millisecondsSinceEpoch}';
+        });
       } else if (event is SessionEnded) {
         setState(() => _running = false);
       }
@@ -70,7 +130,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
     final raw = host.widget.vmServiceUri();
     if (raw == null) return;
     final c = _ensureController(Uri.parse(raw));
-    await c.start(cfg);
+    await c.start(cfg, providerCfg: _state.value.config);
   }
 
   Future<void> _onStop() async {
@@ -81,15 +141,24 @@ class _PromptTabMountState extends State<PromptTabMount> {
   void dispose() {
     _sub?.cancel();
     _controller?.dispose();
+    _state.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => PromptPanel(
-        availableModels: widget.availableModels,
-        plugins: widget.plugins,
-        running: _running,
-        onStart: _onStart,
-        onStop: _onStop,
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<ModelCatalogState>(
+        valueListenable: _state,
+        builder: (context, state, _) => PromptPanel(
+          modelsState: state,
+          plugins: widget.plugins,
+          running: _running,
+          onStart: _onStart,
+          onStop: _onStop,
+          onProviderConfigChanged: _onProviderConfigChanged,
+          onReloadModels: () => unawaited(_refresh(reload: true)),
+          catalog: widget.catalog,
+          conversationId: _conversationId,
+        ),
       );
 }

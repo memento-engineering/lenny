@@ -2,48 +2,52 @@ import 'package:flutter/material.dart';
 
 import 'manifest_probe.dart';
 import 'panel_host.dart';
-import 'panels/prompt_panel_config.dart';
+import 'panels/model_catalog.dart';
 import 'panels/prompt_tab_mount.dart';
+import 'panels/provider_config_store.dart';
 import 'panels/thinking_placeholder.dart';
 import 'panels/timeline_panel_mount.dart';
 
 /// The visible content of the extension: panel host + tabbed Scaffold.
 ///
-/// Split out from `ExplorationDevToolsExtension` so widget tests can pump it
-/// without triggering `DevToolsExtension`'s browser-only initialization.
-/// Default model surfaced in the prompt-panel dropdown until cx6.14/.15/.16
-/// wire real provider lists into the shell. Lives in the shell file so
-/// `prompt_panel.dart` stays free of hardcoded ids (cx6.22 AC7).
-const List<ModelDescriptor> _defaultAvailableModels = [
-  ModelDescriptor(id: 'default', label: 'Default'),
-];
-
-/// Tabbed shell for the Exploration DevTools extension. Drives the Prompt
-/// tab off the live manifest probe owned by [ExplorationPanelHost].
+/// Split out from `ExplorationDevToolsExtension` so widget tests can pump
+/// it without triggering `DevToolsExtension`'s browser-only
+/// initialization.
+///
+/// The shell owns one [ProviderConfigStore] and one [ModelCatalog] — the
+/// prompt-panel mount layer consumes both. Tests can pass an in-memory
+/// store; production wires a [DtdProviderConfigStore]. The shell also
+/// drives the Prompt tab off the live manifest probe owned by
+/// [ExplorationPanelHost], so plugin toggles reflect the connected app.
 class ExplorationShell extends StatefulWidget {
-  const ExplorationShell({
+  ExplorationShell({
     super.key,
     required this.vmServiceUri,
-    this.availableModels = _defaultAvailableModels,
     this.vmServiceUriListenable,
     this.manifestProbe,
-  });
+    ProviderConfigStore? store,
+    ModelCatalog? catalog,
+  })  : store = store ?? InMemoryProviderConfigStore(),
+        catalog = catalog ?? ModelCatalog();
 
-  /// Resolves the VM service URI for [ExplorationPanelHost]. Production passes
-  /// `() => serviceManager.serviceUri`; tests pass a stub.
+  /// Resolves the VM service URI for [ExplorationPanelHost]. Production
+  /// passes `() => serviceManager.serviceUri`; tests pass a stub.
   final VmServiceUriResolver vmServiceUri;
 
-  /// Models offered in the prompt panel's dropdown.
-  final List<ModelDescriptor> availableModels;
-
   /// Optional listenable that, when it fires, triggers a fresh probe.
-  /// Production wires `serviceManager.connectedState` so reconnects re-load
-  /// the plugin manifest.
+  /// Production wires `serviceManager.connectedState` so reconnects
+  /// re-load the plugin manifest.
   final Listenable? vmServiceUriListenable;
 
   /// Override for the manifest probe. Tests inject a stub; production
   /// leaves this null and the host uses `defaultManifestProbe`.
   final ManifestProbe? manifestProbe;
+
+  /// Per-provider config persistence.
+  final ProviderConfigStore store;
+
+  /// Shared model catalog.
+  final ModelCatalog catalog;
 
   @override
   State<ExplorationShell> createState() => _ExplorationShellState();
@@ -81,7 +85,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
 
   @override
   Widget build(BuildContext context) {
-    final host = ExplorationPanelHost(
+    return ExplorationPanelHost(
       key: _hostKey,
       vmServiceUri: widget.vmServiceUri,
       manifestProbe: widget.manifestProbe ?? defaultManifestProbe,
@@ -102,7 +106,8 @@ class _ExplorationShellState extends State<ExplorationShell> {
             children: [
               _PromptTabBody(
                 hostKey: _hostKey,
-                availableModels: widget.availableModels,
+                store: widget.store,
+                catalog: widget.catalog,
               ),
               const ThinkingPlaceholder(),
               const TimelinePanelMount(),
@@ -111,19 +116,24 @@ class _ExplorationShellState extends State<ExplorationShell> {
         ),
       ),
     );
-    return host;
   }
 }
 
 /// Renders the Prompt tab off the host's `ValueListenable<ManifestProbeResult>`.
+///
+/// On `Loaded`, builds the real [PromptTabMount] wired to the shell's
+/// shared [ProviderConfigStore] + [ModelCatalog]; on `Loading` /
+/// `BindingMissing` / `Failed`, surfaces the corresponding status.
 class _PromptTabBody extends StatelessWidget {
   const _PromptTabBody({
     required this.hostKey,
-    required this.availableModels,
+    required this.store,
+    required this.catalog,
   });
 
   final GlobalKey<ExplorationPanelHostState> hostKey;
-  final List<ModelDescriptor> availableModels;
+  final ProviderConfigStore store;
+  final ModelCatalog catalog;
 
   @override
   Widget build(BuildContext context) {
@@ -151,8 +161,9 @@ class _PromptTabBody extends StatelessWidget {
               message: 'Binding not detected: $message',
             ),
           ManifestProbeLoaded(:final plugins) => PromptTabMount(
-              availableModels: availableModels,
               plugins: plugins,
+              store: store,
+              catalog: catalog,
             ),
         };
       },
