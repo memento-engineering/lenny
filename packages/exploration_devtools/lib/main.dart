@@ -12,6 +12,11 @@ class ExplorationDevToolsExtension extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DevToolsExtension(
-        child: ExplorationShell(vmServiceUri: () => serviceManager.serviceUri),
+        child: ExplorationShell(
+          vmServiceUri: () => serviceManager.serviceUri,
+          // Reconnects (e.g. hot-restart of the target app) flip
+          // connectedState; the shell listens and re-probes the manifest.
+          vmServiceUriListenable: serviceManager.connectedState,
+        ),
       );
 }
