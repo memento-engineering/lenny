@@ -1,0 +1,111 @@
+{
+  // Launch configurations for the lenny workspace.
+  //
+  // Conventions:
+  //   - All Flutter targets default to macOS (the only platform sample_app
+  //     scaffolds for v1; see packages/exploration_flutter/example/sample_app/README.md).
+  //   - Sample-app configs set `cwd` to the package so `flutter run` and the
+  //     Dart-Code extension resolve the right `pubspec.yaml` from the workspace.
+  //   - The "exploration_cli (attach to running app)" config prompts for a VM
+  //     service URI — copy it from the Flutter run console after the app boots.
+  //   - Compound "Sample app + exploration_cli" boots the app first; once it
+  //     prints `Dart VM service is listening on ws://...`, paste that URI when
+  //     the CLI prompts.
+  "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "vmServiceUri",
+      "type": "promptString",
+      "description": "Dart VM service URI from the running sample_app (ws://127.0.0.1:.../ws)",
+      "default": "ws://127.0.0.1:0/ws"
+    },
+    {
+      "id": "explorationGoal",
+      "type": "promptString",
+      "description": "Exploration goal (natural language)",
+      "default": "Log in with demo@example.com/password, change the theme to dark, then log out."
+    }
+  ],
+  "configurations": [
+    {
+      "name": "sample_app (debug, macOS)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "deviceId": "macos",
+      "flutterMode": "debug",
+      "presentation": {
+        "group": "1_sample_app",
+        "order": 1
+      }
+    },
+    {
+      "name": "sample_app (profile, macOS)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "deviceId": "macos",
+      "flutterMode": "profile",
+      "presentation": {
+        "group": "1_sample_app",
+        "order": 2
+      }
+    },
+    {
+      "name": "sample_app (release, macOS)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "deviceId": "macos",
+      "flutterMode": "release",
+      "presentation": {
+        "group": "1_sample_app",
+        "order": 3
+      }
+    },
+    {
+      "name": "sample_app: tests",
+      "type": "dart",
+      "request": "launch",
+      "program": "test/",
+      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "presentation": {
+        "group": "1_sample_app",
+        "order": 4
+      }
+    },
+    {
+      "name": "exploration_cli (attach to running app)",
+      "type": "dart",
+      "request": "launch",
+      "program": "bin/exploration_cli.dart",
+      "cwd": "${workspaceFolder}/packages/exploration_cli",
+      "args": [
+        "--vm-uri", "${input:vmServiceUri}",
+        "--goal", "${input:explorationGoal}",
+        "--plugins", "router,riverpod,dio"
+      ],
+      "presentation": {
+        "group": "2_exploration_cli",
+        "order": 1
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Dogfood: sample_app + exploration_cli",
+      "configurations": [
+        "sample_app (debug, macOS)",
+        "exploration_cli (attach to running app)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "group": "3_dogfood",
+        "order": 1
+      }
+    }
+  ]
+}
