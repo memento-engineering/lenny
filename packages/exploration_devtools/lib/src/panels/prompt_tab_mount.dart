@@ -5,7 +5,8 @@ import 'package:exploration_agent/exploration_agent.dart'
         PluginManifestEntry,
         SessionEnded,
         SessionProgressEvent,
-        SessionStarted;
+        SessionStarted,
+        TrajectoryRecord;
 import 'package:flutter/material.dart';
 
 import '../panel_host.dart';
@@ -29,6 +30,7 @@ class PromptTabMount extends StatefulWidget {
     required this.plugins,
     required this.store,
     required this.catalog,
+    this.trajectorySink,
     this.controllerFactory,
     this.initialProviderId = 'swift-infer',
   });
@@ -41,6 +43,11 @@ class PromptTabMount extends StatefulWidget {
 
   /// Shared model catalog (panel + form share its cache).
   final ModelCatalog catalog;
+
+  /// Optional write-side seam — when non-null, [_ensureController]
+  /// assigns the controller's live trajectory stream to this notifier
+  /// so the Timeline tab can render records emitted during the run.
+  final ValueNotifier<Stream<TrajectoryRecord>?>? trajectorySink;
 
   /// Provider id loaded from [store] at mount. Defaults to
   /// `'swift-infer'`.
@@ -109,6 +116,8 @@ class _PromptTabMountState extends State<PromptTabMount> {
     final c = widget.controllerFactory != null
         ? widget.controllerFactory!(uri)
         : PromptPanelController(vmServiceUri: uri);
+    // Surface the controller's live trajectory to the Timeline tab.
+    widget.trajectorySink?.value = c.trajectory;
     _sub = c.events.listen((event) {
       if (!mounted) return;
       if (event is SessionStarted) {
@@ -131,6 +140,15 @@ class _PromptTabMountState extends State<PromptTabMount> {
     if (raw == null) return;
     final c = _ensureController(Uri.parse(raw));
     await c.start(cfg, providerCfg: _state.value.config);
+    // Re-enable the form when the loop terminates naturally (vs.
+    // user pressing Stop). LoopDriver's finally block closes the
+    // writer; we also need to flip _running back so the UI restores
+    // the Start button. We use whenComplete so cancellation / errors
+    // still tear down the controller state.
+    unawaited(c.runFuture?.whenComplete(() {
+      if (!mounted) return;
+      unawaited(c.stop());
+    }));
   }
 
   Future<void> _onStop() async {
