@@ -47,13 +47,35 @@ class SwiftInferModelProvider implements ModelProvider {
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
 
+  /// Build the outgoing header set.
+  ///
+  /// Mirrors the wire contract enforced by `fs agent`
+  /// (`factoryskills/internal/agent/agent.go`): Bearer auth, SSE accept,
+  /// per-conversation/session/capture-bodies trace headers. The
+  /// well-known headers always win — `extraHeaders` is merged in first
+  /// then overwritten by the well-known set so a misconfigured
+  /// `extraHeaders` cannot smuggle in a different `Authorization` or
+  /// trace header.
   Map<String, String> _headers() {
-    final h = <String, String>{
-      'content-type': 'application/json',
-      'anthropic-version': '2023-06-01',
-    };
-    final key = config.apiKey;
-    if (key != null) h['x-api-key'] = key;
+    final h = <String, String>{}..addAll(config.extraHeaders);
+    h['content-type'] = 'application/json';
+    h['accept'] = 'text/event-stream';
+    h['anthropic-version'] = '2023-06-01';
+    final tok = config.bearerToken;
+    if (tok != null && tok.isNotEmpty) {
+      h['authorization'] = 'Bearer $tok';
+    }
+    if (config.captureBodies) {
+      h['x-swift-infer-capture-bodies'] = 'true';
+    }
+    final cid = config.conversationId;
+    if (cid != null && cid.isNotEmpty) {
+      h['x-conversation-id'] = cid;
+    }
+    final sid = config.sessionId;
+    if (sid != null && sid.isNotEmpty) {
+      h['x-session-id'] = sid;
+    }
     return h;
   }
 

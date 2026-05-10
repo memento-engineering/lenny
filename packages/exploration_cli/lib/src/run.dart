@@ -76,9 +76,16 @@ Future<int> runCli(
   final TrajectoryWriter writer = TrajectoryWriter(sink);
 
   // ----- build provider (may throw on missing API key) --------------
+  // Mint a per-run sessionId so the qwen-mlx tier can stamp every
+  // request with X-Session-Id and an `exploration-<sessionId>-<ms>`
+  // X-Conversation-Id (mirrors fs agent's `fsagent-<beadID>-<unixtime>`
+  // convention). Slug ISO-8601 to keep the value safe for HTTP headers.
+  final String sessionId =
+      'cli-${DateTime.now().toUtc().toIso8601String()}'
+          .replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
   final ModelProvider provider;
   try {
-    provider = buildProvider(args.tier);
+    provider = buildProvider(args.tier, sessionId: sessionId);
   } on StateError catch (e) {
     stderr.writeln('error: ${e.message}');
     await writer.close(SessionFooter(
