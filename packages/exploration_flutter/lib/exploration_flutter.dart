@@ -1,5 +1,7 @@
 library;
 
+export 'src/binding/exploration_app.dart'
+    show ExplorationApp, ExplorationAppConfig, ExplorationAppContext;
 export 'src/binding/exploration_binding.dart'
     show
         ExplorationBinding,

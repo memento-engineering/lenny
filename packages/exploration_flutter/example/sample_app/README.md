@@ -47,6 +47,9 @@ cd packages/exploration_flutter/example/sample_app
 flutter run -d macos
 ```
 
+`main.dart` uses `ExplorationBinding.run(SampleApp())` so binding
+installation precedes router/container construction.
+
 A macOS window opens showing the Login screen. Hardcoded demo
 credentials:
 

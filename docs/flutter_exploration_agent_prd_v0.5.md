@@ -94,7 +94,7 @@ The first audience shapes the host. The plugin authors shape the ecosystem.
 
 ### 6.1 The host binding (`exploration_flutter`)
 
-A Dart package the user adds to their Flutter app. Provides `ExplorationBinding extends WidgetsFlutterBinding`, initialized in `main()` with `kDebugMode` gating. The binding:
+A Dart package the user adds to their Flutter app. Provides `ExplorationBinding extends WidgetsFlutterBinding`, initialized in `main()` with `kDebugMode` gating. The recommended entry point is `ExplorationBinding.run(ExplorationApp)`, which claims the `WidgetsBinding` slot before any user code constructs Flutter-aware objects (e.g. `GoRouter`, `MaterialApp`). The lower-level `ensureInitialized(plugins:)` surface remains for tests and headless agents that own ordering. The binding:
 
 - Replaces the default `WidgetsBinding`. Conflicts with `IntegrationTestWidgetsFlutterBinding` and other custom bindings; only one binding per process.
 - Registers a small set of *core* VM service extensions for the perception-action primitives the host owns.
@@ -162,6 +162,8 @@ Three reasons, in order of how much they shape the design:
 `integration_test` is a test framework, not a runtime introspection framework. It runs the app under `IntegrationTestWidgetsFlutterBinding`, which uses fake-async, controlled time, and a `WidgetController` API designed for assertions. It conflicts with our binding (only one binding per app), it changes how network behaves, and it requires launching the app via `flutter test` rather than `flutter run`.
 
 `integration_test` is the right substrate for **trajectory replay** (§15.4) where deterministic time and stubbed network are features, not bugs. That's a v2 feature.
+
+`ExplorationBinding.run(...)` defuses the order-of-operations failure where a user constructs `GoRouter` (which calls `WidgetsFlutterBinding.ensureInitialized()` internally) before `ExplorationBinding.ensureInitialized(...)`. With `run`, the binding slot is claimed first; subsequent `WidgetsFlutterBinding.ensureInitialized()` calls become idempotent no-ops. The §6.5 install gate (rejecting `IntegrationTestWidgetsFlutterBinding` and other custom subclasses) remains active and unchanged.
 
 ## 7. The plugin contract
 

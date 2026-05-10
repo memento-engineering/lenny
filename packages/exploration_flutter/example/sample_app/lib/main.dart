@@ -9,43 +9,45 @@ import 'router.dart';
 import 'services/api.dart';
 import 'state/settings_provider.dart';
 
-void main() {
-  // Riverpod observer must be installed on the SAME container the
-  // RiverpodExplorationPlugin sees and the SAME container the widget
-  // tree consumes.
-  final ExplorationProviderObserver observer = ExplorationProviderObserver();
-  final ProviderContainer container = ProviderContainer(
-    observers: <ProviderObserver>[observer],
-  );
+void main() => ExplorationBinding.run(SampleApp());
 
-  // Materialize Dio + Router from the shared container so the plugins
-  // observe the exact instances the app uses (PRD §7).
-  final dio = container.read(dioProvider);
-  final router = buildRouter(container);
+class SampleApp implements ExplorationApp {
+  @override
+  ExplorationAppConfig build(ExplorationAppContext ctx) {
+    // Riverpod observer must be installed on the SAME container the
+    // RiverpodExplorationPlugin sees and the SAME container the widget
+    // tree consumes.
+    final ExplorationProviderObserver observer = ExplorationProviderObserver();
+    final ProviderContainer container = ProviderContainer(
+      observers: <ProviderObserver>[observer],
+    );
 
-  ExplorationBinding.ensureInitialized(
-    plugins: <ExplorationPlugin>[
-      RouterPlugin(
-        navigatorKey: rootNavigatorKey,
-        routerDelegate: router.routerDelegate,
+    // Materialize Dio + Router from the shared container so the plugins
+    // observe the exact instances the app uses (PRD §7).
+    final dio = container.read(dioProvider);
+    final router = buildRouter(container);
+
+    return ExplorationAppConfig(
+      plugins: <ExplorationPlugin>[
+        RouterPlugin(
+          navigatorKey: rootNavigatorKey,
+          routerDelegate: router.routerDelegate,
+        ),
+        RiverpodExplorationPlugin(container: container, observer: observer),
+        ExplorationDioPlugin(dio),
+      ],
+      app: UncontrolledProviderScope(
+        container: container,
+        child: _SampleAppRoot(router: router),
       ),
-      RiverpodExplorationPlugin(container: container, observer: observer),
-      ExplorationDioPlugin(dio),
-    ],
-  );
-
-  runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: _SampleApp(router: router),
-    ),
-  );
+    );
+  }
 }
 
 /// ConsumerWidget so [MaterialApp.router] rebuilds with the live
 /// `themeMode` whenever `settingsProvider.theme` changes.
-class _SampleApp extends ConsumerWidget {
-  const _SampleApp({required this.router});
+class _SampleAppRoot extends ConsumerWidget {
+  const _SampleAppRoot({required this.router});
 
   final RouterConfig<Object> router;
 
