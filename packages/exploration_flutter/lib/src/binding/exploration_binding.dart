@@ -19,6 +19,7 @@ import '../observation/stability_metadata.dart';
 import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
+import 'exploration_app.dart';
 
 /// Reserved prefix. Format:
 /// `ext.flutter.exploration.<core_or_plugin_namespace>.<suffix>`.
@@ -97,6 +98,12 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// entries. Started in [ensureInitialized].
   late final Stopwatch _sessionClock;
 
+  /// Async teardown callbacks registered by user code via
+  /// `ExplorationAppContext.onTeardown`. Drained LIFO from
+  /// [debugReset] (debug/profile only).
+  final List<Future<void> Function()> _teardowns =
+      <Future<void> Function()>[];
+
   /// Captured prior `FlutterError.onError`, restored by [debugReset].
   FlutterExceptionHandler? _priorFlutterOnError;
 
@@ -147,30 +154,39 @@ class ExplorationBinding extends WidgetsFlutterBinding
       List<String>.unmodifiable(extraInteractiveTypes),
       errorBufferCapacity,
     );
-    // The superclass `WidgetsFlutterBinding.ensureInitialized()` invocation
-    // (implicit in `extends WidgetsFlutterBinding`) installs Flutter's
-    // default `FlutterError.onError`. We capture priors AFTER our binding
-    // has booted so the chain forwards into the framework default.
-    binding._sessionClock = Stopwatch()..start();
-    binding._errors = ErrorRingBuffer(
-      capacity: errorBufferCapacity,
-      sessionClock: binding._sessionClock,
+    _instance = binding;
+    binding._wirePlugins(binding._plugins);
+    return binding;
+  }
+
+  /// Shared install path used by both [ensureInitialized] and [run].
+  ///
+  /// The caller MUST have already set `_instance = this` before
+  /// invoking this method, and MUST have already constructed
+  /// [ExplorationBinding._] (which boots the superclass and installs
+  /// the framework's default `FlutterError.onError`). The default is
+  /// captured here AFTER boot so the chain forwards into it.
+  void _wirePlugins(List<ExplorationPlugin> plugins) {
+    _sessionClock = Stopwatch()..start();
+    _errors = ErrorRingBuffer(
+      capacity: _errorBufferCapacity,
+      sessionClock: _sessionClock,
     );
-    binding._pluginRegistry = PluginRegistry(scheduler: binding);
+    _pluginRegistry = PluginRegistry(scheduler: this);
     // Host-install CorePlugin FIRST so namespace `core` is reserved
     // before user plugins are registered. The registry's existing
     // duplicate-namespace check then rejects any user plugin claiming
     // `core` (PRD §12.1, AC #2 of cx6.6).
-    binding._corePlugin = CorePlugin(semantics: binding._semanticsCapture);
-    binding._pluginRegistry.register(binding._corePlugin);
+    _corePlugin = CorePlugin(semantics: _semanticsCapture);
+    _pluginRegistry.register(_corePlugin);
     // Register each unique plugin namespace into the registry. The
     // legacy `plugins` getter preserves the verbatim list (including
     // duplicates) per cx6.2's contract, but the registry enforces
     // namespace uniqueness — duplicate registrations are logged and
     // skipped so lifecycle dispatch sees each plugin exactly once.
-    for (final ExplorationPlugin p in binding._plugins) {
+    for (final ExplorationPlugin p in plugins) {
       try {
-        binding._pluginRegistry.register(p);
+        _pluginRegistry.register(p);
       } on StateError catch (e) {
         debugPrint(
           '[exploration] skipping plugin ${p.namespace}: $e',
@@ -181,14 +197,104 @@ class ExplorationBinding extends WidgetsFlutterBinding
         );
       }
     }
-    _instance = binding;
-    binding._installErrorHooks();
-    binding._registerCoreExtensions();
-    binding._registerDiagnosticsExtension();
+    _installErrorHooks();
+    _registerCoreExtensions();
+    _registerDiagnosticsExtension();
     // Run plugin initialization in a microtask so it completes before the
-    // first frame without blocking ensureInitialized's synchronous return.
-    scheduleMicrotask(() => binding._pluginRegistry.initializeAll());
-    return binding;
+    // first frame without blocking the synchronous return.
+    scheduleMicrotask(() => _pluginRegistry.initializeAll());
+  }
+
+  /// High-level entry point. Make this the FIRST Flutter-touching line
+  /// of `main()`:
+  ///
+  /// ```dart
+  /// void main() => ExplorationBinding.run(MyApp());
+  /// ```
+  ///
+  /// Behaviour by mode:
+  ///
+  /// - **release** (`kReleaseMode`): no binding is installed, no
+  ///   plugins are registered, and [ExplorationApp.build] is invoked
+  ///   with a release context whose [ExplorationAppContext.binding] is
+  ///   `null` and whose [ExplorationAppContext.onTeardown] is a no-op.
+  ///   `runApp(config.app)` is still called.
+  /// - **debug/profile**: claims the [WidgetsBinding] slot, calls
+  ///   [ExplorationApp.build] with a context that exposes the binding,
+  ///   wires the returned plugins through the same path as
+  ///   [ensureInitialized], then calls `runApp` inside the binding's
+  ///   stability zone so user-mode microtasks flip the
+  ///   `pendingMicrotasks` edge signal.
+  ///
+  /// Throws [StateError] if a non-`ExplorationBinding` `WidgetsBinding`
+  /// is already active when called in debug/profile — Flutter forbids
+  /// rebinding once `WidgetsBinding._instance` is set.
+  ///
+  /// Idempotent: calling `run` a second time in the same process
+  /// re-runs [ExplorationApp.build] and `runApp` against the existing
+  /// binding without reinstalling it or re-registering plugins.
+  static void run(ExplorationApp app) {
+    if (kReleaseMode) {
+      final ExplorationAppConfig cfg = app.build(const _ReleaseContext());
+      runApp(cfg.app);
+      return;
+    }
+    final ExplorationBinding? existing = _instance;
+    if (existing == null) {
+      // Detect a foreign WidgetsBinding *before* entering the stability
+      // zone so the error path is plainly synchronous to the caller.
+      final Type? existingType = BindingBase.debugBindingType();
+      if (existingType != null && existingType != ExplorationBinding) {
+        throw StateError(
+          'ExplorationBinding.run cannot install: another WidgetsBinding '
+          '($existingType) is already active. Make ExplorationBinding.run(...) '
+          'the first Flutter-touching line of main() — construct shared '
+          'instances (Router, Dio, ProviderContainer) inside '
+          'ExplorationApp.build, not before.',
+        );
+      }
+      // Install the binding, build the app, and `runApp` inside the SAME
+      // zone so Flutter's `BindingBase.debugCheckZone` does not flag a
+      // mismatch between "zone where the binding was initialized" and
+      // "zone where runApp was called". The zone also intercepts user
+      // microtasks for the `pendingMicrotasks` edge signal (cx6.7).
+      late final ExplorationBinding binding;
+      late final ExplorationAppConfig cfg;
+      runZoned<void>(
+        () {
+          binding = ExplorationBinding._(
+            <ExplorationPlugin>[],
+            const <String>[],
+            kDefaultErrorBufferCapacity,
+          );
+          _instance = binding;
+          cfg = app.build(_DebugContext(binding));
+          binding._wirePlugins(cfg.plugins);
+          runApp(cfg.app);
+        },
+        zoneSpecification: ZoneSpecification(
+          scheduleMicrotask: (Zone self, ZoneDelegate parent, Zone zone,
+              void Function() f) {
+            // _instance is set synchronously in the body above before any
+            // microtask ever runs through this hook.
+            _instance?.markMicrotaskScheduled();
+            parent.scheduleMicrotask(zone, f);
+          },
+        ),
+      );
+    } else {
+      // Idempotent: prior run/ensureInitialized already installed. Run
+      // build + runApp in the stability zone bound to the existing
+      // binding so microtasks scheduled from the new app tree still
+      // flip the edge signal.
+      runZoned<void>(
+        () {
+          final ExplorationAppConfig cfg = app.build(_DebugContext(existing));
+          runApp(cfg.app);
+        },
+        zoneSpecification: stabilityZoneSpec(existing),
+      );
+    }
   }
 
   /// Singleton accessor. Returns the active binding; throws [StateError]
@@ -593,11 +699,16 @@ class ExplorationBinding extends WidgetsFlutterBinding
 
   /// Test-only: clears the singleton AND restores the captured prior
   /// `FlutterError.onError` / `PlatformDispatcher.onError` so the next
-  /// `ensureInitialized` call starts from a clean slate.
+  /// `ensureInitialized` call starts from a clean slate. Also drains
+  /// any registered `onTeardown` callbacks LIFO; reset waits for each
+  /// callback to complete before continuing.
   @visibleForTesting
-  static void debugReset() {
+  static Future<void> debugReset() async {
     final ExplorationBinding? b = _instance;
     if (b != null) {
+      while (b._teardowns.isNotEmpty) {
+        await b._teardowns.removeLast()();
+      }
       b._uninstallErrorHooks();
     }
     _instance = null;
@@ -608,7 +719,28 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// [debugReset] — keeps the published name consistent with the bead
   /// spec.
   @visibleForTesting
-  static void resetForTesting() => debugReset();
+  static Future<void> resetForTesting() => debugReset();
+
+  /// Test-only: replace the registered teardown callbacks. Useful for
+  /// isolating LIFO-order assertions from any callbacks left over from
+  /// earlier tests sharing the singleton.
+  @visibleForTesting
+  void debugSetTeardownsForTesting(List<Future<void> Function()> v) {
+    _teardowns
+      ..clear()
+      ..addAll(v);
+  }
+
+  /// Test-only: drain registered teardown callbacks LIFO without
+  /// touching the rest of the binding state (no error-hook restore, no
+  /// singleton clear). Intended for tests that exercise teardown
+  /// ordering against the long-lived singleton install.
+  @visibleForTesting
+  Future<void> debugDrainTeardownsForTesting() async {
+    while (_teardowns.isNotEmpty) {
+      await _teardowns.removeLast()();
+    }
+  }
 
   /// Returns a `ZoneSpecification` that intercepts microtask scheduling so
   /// the binding's `pendingMicrotasks` edge signal flips immediately when
@@ -624,5 +756,42 @@ class ExplorationBinding extends WidgetsFlutterBinding
         parent.scheduleMicrotask(zone, f);
       },
     );
+  }
+}
+
+/// Debug/profile context handed to [ExplorationApp.build] when
+/// [ExplorationBinding.run] has installed the binding.
+class _DebugContext implements ExplorationAppContext {
+  const _DebugContext(this._binding);
+
+  final ExplorationBinding _binding;
+
+  @override
+  ExplorationBinding? get binding => _binding;
+
+  @override
+  bool get isProductionMode => false;
+
+  @override
+  void onTeardown(Future<void> Function() cb) {
+    _binding._teardowns.add(cb);
+  }
+}
+
+/// Release context handed to [ExplorationApp.build] when
+/// [ExplorationBinding.run] runs in `kReleaseMode`. No binding is
+/// installed; [onTeardown] is a no-op.
+class _ReleaseContext implements ExplorationAppContext {
+  const _ReleaseContext();
+
+  @override
+  ExplorationBinding? get binding => null;
+
+  @override
+  bool get isProductionMode => true;
+
+  @override
+  void onTeardown(Future<void> Function() cb) {
+    // Intentional no-op in release.
   }
 }
