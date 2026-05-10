@@ -28,10 +28,22 @@ PromptPayload _prompt({List<Map<String, dynamic>>? user}) => PromptPayload(
       tools: <ToolDescriptor>[_t('core.tap')],
     );
 
-SwiftInferConfig _cfg({bool vision = false, String? key}) => SwiftInferConfig(
+SwiftInferConfig _cfg({
+  bool vision = false,
+  String? bearer,
+  bool capture = false,
+  String? conversationId,
+  String? sessionId,
+  Map<String, String> extra = const <String, String>{},
+}) =>
+    SwiftInferConfig(
       baseUrl: Uri.parse('http://localhost:8080'),
       model: 'qwen3.6-35b-a3b-8bit',
-      apiKey: key,
+      bearerToken: bearer,
+      captureBodies: capture,
+      conversationId: conversationId,
+      sessionId: sessionId,
+      extraHeaders: extra,
       enableVision: vision,
     );
 
@@ -164,7 +176,7 @@ void main() {
     expect((block['source'] as Map)['data'], isNotEmpty);
   });
 
-  test('apiKey omitted when null', () async {
+  test('bearerToken omitted when null', () async {
     http.BaseRequest? captured;
     final m = _stream(
       _toolUseSse(),
@@ -174,22 +186,80 @@ void main() {
       _prompt(),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
+    expect(captured!.headers.containsKey('authorization'), isFalse);
     expect(captured!.headers.containsKey('x-api-key'), isFalse);
   });
 
-  test('apiKey sent when present', () async {
+  test('bearerToken → Authorization: Bearer <v>', () async {
     http.BaseRequest? captured;
     final m = _stream(
       _toolUseSse(),
       capture: (r, _) => captured = r,
     );
-    await SwiftInferModelProvider(config: _cfg(key: 'sk-abc'), client: m)
+    await SwiftInferModelProvider(config: _cfg(bearer: 'sk-abc'), client: m)
         .decide(
       _prompt(),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
-    expect(captured!.headers['x-api-key'], 'sk-abc');
+    expect(captured!.headers['authorization'], 'Bearer sk-abc');
+    expect(captured!.headers.containsKey('x-api-key'), isFalse);
+    expect(captured!.headers['accept'], 'text/event-stream');
     expect(captured!.headers['anthropic-version'], '2023-06-01');
+  });
+
+  test('conversationId/sessionId/captureBodies headers set when configured',
+      () async {
+    http.BaseRequest? captured;
+    final m = _stream(
+      _toolUseSse(),
+      capture: (r, _) => captured = r,
+    );
+    await SwiftInferModelProvider(
+      config: _cfg(
+        capture: true,
+        conversationId: 'conv-123',
+        sessionId: 'sess-xyz',
+      ),
+      client: m,
+    ).decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    expect(captured!.headers['x-conversation-id'], 'conv-123');
+    expect(captured!.headers['x-session-id'], 'sess-xyz');
+    expect(captured!.headers['x-swift-infer-capture-bodies'], 'true');
+  });
+
+  test('extraHeaders cannot overwrite well-known headers', () async {
+    http.BaseRequest? captured;
+    final m = _stream(
+      _toolUseSse(),
+      capture: (r, _) => captured = r,
+    );
+    await SwiftInferModelProvider(
+      config: _cfg(
+        bearer: 'sk-real',
+        capture: true,
+        conversationId: 'real-conv',
+        sessionId: 'real-sess',
+        extra: const <String, String>{
+          'authorization': 'Bearer attacker',
+          'x-conversation-id': 'evil',
+          'x-session-id': 'evil',
+          'x-swift-infer-capture-bodies': 'false',
+          'x-custom-trace': 'ok',
+        },
+      ),
+      client: m,
+    ).decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    expect(captured!.headers['authorization'], 'Bearer sk-real');
+    expect(captured!.headers['x-conversation-id'], 'real-conv');
+    expect(captured!.headers['x-session-id'], 'real-sess');
+    expect(captured!.headers['x-swift-infer-capture-bodies'], 'true');
+    expect(captured!.headers['x-custom-trace'], 'ok');
   });
 
   test('missing tool_use → SchemaRejection', () async {
