@@ -13,6 +13,7 @@ jobs:
           flutter-version: '3.41.4'
           channel: 'stable'
       - run: dart pub get
+      - run: ./tool/build_devtools_extension.sh
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
       - run: dart test packages/exploration_agent

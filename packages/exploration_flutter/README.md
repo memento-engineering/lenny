@@ -49,3 +49,18 @@ The host registers `ext.flutter.exploration.core.handshake` from
 `ExplorationBinding.ensureInitialized(...)`. The harness uses it to
 confirm the binding is live and read protocol/version metadata.
 Plugins register through `PluginContext` (cx6.3), which auto-prefixes.
+
+## DevTools panel
+
+This package ships `extension/devtools/config.yaml` so any app that
+transitively depends on `exploration_flutter` automatically surfaces
+the **Exploration** tab in DevTools. The compiled web bundle lives at
+`extension/devtools/build/` and is **not committed** — rebuild it from
+the repo root with:
+
+```sh
+./tool/build_devtools_extension.sh
+```
+
+See `packages/exploration_devtools/README.md` for the full build
+workflow.

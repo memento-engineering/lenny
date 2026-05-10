@@ -5,6 +5,27 @@ DevTools extension for the Flutter Exploration Agent. Surfaces three tabs
 runs the harness in-panel so trajectories persist via the Dart Tooling Daemon
 filesystem APIs (no extra IPC, no `dart:io`). See PRD §22.
 
+## Build
+
+The compiled web bundle that DevTools loads is **not committed**. Every
+fresh clone (and every rebuild after a change to this package's `lib/`,
+`web/`, or `pubspec.yaml`) must run:
+
+```sh
+./tool/build_devtools_extension.sh
+```
+
+The script runs `dart run devtools_extensions build_and_copy` twice
+and populates both `packages/exploration_devtools/extension/devtools/build/`
+(used for standalone development) and
+`packages/exploration_flutter/extension/devtools/build/` (the host
+package whose pubspec dep triggers DevTools auto-discovery in consumer
+apps such as `sample_app`).
+
+CI runs the same script before analyze/test, so a PR that breaks the
+extension build fails at merge time — there is no committed-bundle
+drift to diff against.
+
 ## Auto-discovery
 
 The host package `exploration_flutter` ships
