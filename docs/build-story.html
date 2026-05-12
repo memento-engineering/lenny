@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building Lenny — a scroll through the build log</title>
+<style>
+  :root{
+    --bg:#0c0f17; --bg2:#11151f; --ink:#dbe2f1; --dim:#8b95ad; --faint:#5b6580;
+    --grn:#6ee7b7; --blu:#7aa2f7; --amb:#f7c873; --line:#222a3a;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;
+    font-size:18px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:var(--blu);text-decoration:none;border-bottom:1px solid #2a3550}
+  a:hover{border-color:var(--blu)}
+  code,.mono{font-family:var(--mono);font-size:.92em}
+  ::selection{background:rgba(110,231,183,.25)}
+
+  /* top progress bar */
+  #bar{position:fixed;top:0;left:0;height:3px;width:0;z-index:50;
+    background:linear-gradient(90deg,var(--blu),var(--grn));box-shadow:0 0 12px rgba(110,231,183,.5)}
+
+  /* side chapter rail */
+  #rail{position:fixed;left:max(16px,3vw);top:50%;transform:translateY(-50%);z-index:40;
+    display:flex;flex-direction:column;gap:14px}
+  #rail a{display:block;width:10px;height:10px;border-radius:50%;background:#2a3550;border:none;
+    transition:transform .25s,background .25s;position:relative}
+  #rail a:hover{transform:scale(1.4)}
+  #rail a.on{background:var(--grn);box-shadow:0 0 10px rgba(110,231,183,.6)}
+  #rail a span{position:absolute;left:18px;top:50%;transform:translateY(-50%);
+    white-space:nowrap;font-size:12px;color:var(--dim);opacity:0;transition:opacity .2s;
+    font-family:var(--mono);pointer-events:none}
+  #rail a:hover span,#rail a.on span{opacity:1}
+  @media(max-width:760px){#rail{display:none}}
+
+  /* layout */
+  main{max-width:760px;margin:0 auto;padding:0 24px}
+  section{padding:14vh 0;border-bottom:1px solid transparent}
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+    padding-top:0;padding-bottom:0}
+  .kicker{font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--grn);margin-bottom:18px}
+  h1{font-size:clamp(40px,8vw,76px);line-height:1.05;letter-spacing:-.02em;font-weight:800;
+    margin-bottom:18px}
+  h1 .sub{display:block;font-size:clamp(18px,3vw,26px);font-weight:500;color:var(--dim);
+    margin-top:18px;letter-spacing:0;line-height:1.4}
+  h2{font-size:clamp(26px,4.5vw,38px);line-height:1.15;letter-spacing:-.01em;margin-bottom:8px;
+    font-weight:750}
+  h2 .num{font-family:var(--mono);font-size:.5em;color:var(--faint);display:block;
+    letter-spacing:.1em;margin-bottom:10px;font-weight:400}
+  .lead{font-size:1.12em;color:#c3cbde}
+  p{margin:1em 0}
+  p+p{margin-top:1em}
+  .meta{font-family:var(--mono);font-size:13px;color:var(--faint);margin-top:6px}
+  blockquote{border-left:3px solid var(--blu);padding:6px 0 6px 20px;margin:1.4em 0;
+    color:#c3cbde;font-style:italic}
+  ul{margin:1em 0 1em 1.2em}
+  li{margin:.4em 0}
+  .tag{font-family:var(--mono);font-size:12px;background:#1a2030;color:var(--dim);
+    padding:2px 7px;border-radius:5px;border:1px solid #283047;white-space:nowrap}
+  .pill{display:inline-block;font-family:var(--mono);font-size:12px;padding:3px 9px;border-radius:99px;
+    border:1px solid #2a3550;color:var(--dim);margin:3px 4px 3px 0}
+  .scroll-hint{margin-top:48px;font-family:var(--mono);font-size:12px;color:var(--faint);
+    letter-spacing:.1em}
+  .scroll-hint::after{content:" ↓";animation:bob 1.6s ease-in-out infinite;display:inline-block}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+
+  /* reveal animation */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),
+    transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    html{scroll-behavior:auto}
+    .scroll-hint::after{animation:none}
+  }
+
+  /* commit timeline */
+  .tl{position:relative;margin:2.5em 0;padding-left:26px}
+  .tl::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;
+    background:linear-gradient(180deg,var(--blu),var(--grn),var(--amb))}
+  .ev{position:relative;padding:10px 0 10px 6px;margin-left:0}
+  .ev::before{content:"";position:absolute;left:-26px;top:16px;width:11px;height:11px;border-radius:50%;
+    background:var(--bg);border:2px solid var(--blu)}
+  .ev.g::before{border-color:var(--grn)} .ev.a::before{border-color:var(--amb)}
+  .ev.big::before{width:15px;height:15px;left:-28px;background:var(--grn);box-shadow:0 0 12px rgba(110,231,183,.6)}
+  .ev .when{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .ev .what{font-size:.98em}
+  .ev .what b{color:var(--ink)}
+  .ev .sha{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+  /* commit stream (the sprint) */
+  .stream{font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--bg2);
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:2em 0;
+    max-height:340px;overflow:hidden;position:relative}
+  .stream::after{content:"";position:absolute;left:0;right:0;bottom:0;height:90px;
+    background:linear-gradient(180deg,transparent,var(--bg2))}
+  .stream .row{display:flex;gap:10px;padding:1.5px 0;color:var(--dim);opacity:0;transform:translateX(-8px);
+    transition:opacity .4s,transform .4s}
+  .stream.in .row{opacity:1;transform:none}
+  .stream .row .h{color:var(--amb)} .stream .row .pr{color:var(--grn)}
+  .stream .row.bd{color:var(--faint)}
+
+  /* stats grid */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;margin:2.5em 0}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:20px 18px;text-align:center}
+  .stat .n{font-size:clamp(30px,5vw,44px);font-weight:800;font-family:var(--mono);
+    background:linear-gradient(90deg,var(--blu),var(--grn));-webkit-background-clip:text;
+    background-clip:text;color:transparent;line-height:1}
+  .stat .l{font-size:12.5px;color:var(--dim);margin-top:8px;font-family:var(--mono);letter-spacing:.04em}
+
+  footer{padding:14vh 0 18vh;text-align:center;color:var(--dim)}
+  footer .links{font-family:var(--mono);font-size:14px;margin-top:14px}
+  hr.soft{border:none;border-top:1px solid var(--line);margin:2.2em 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:1.6em 0}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:.95em}
+  .card h4{font-size:13px;font-family:var(--mono);color:var(--grn);margin-bottom:6px;letter-spacing:.04em}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+<nav id="rail" aria-label="chapters"></nav>
+
+<main>
+
+  <!-- ───────────────────────── HERO ───────────────────────── -->
+  <section class="hero" id="c0" data-name="top">
+    <div class="kicker reveal in">git log --reverse · the build, narrated</div>
+    <h1 class="reveal in">Building&nbsp;Lenny.
+      <span class="sub">A Flutter exploration agent — from a PRD that kept rewriting itself,
+        through a one-evening sprint where a swarm of agents merged thirty-odd PRs,
+        to a thing you can actually point at a running app.</span>
+    </h1>
+    <div class="meta reveal in">May 7 – May 12, 2026 · ~30 stories · 3 model backends · 3 reference plugins · 1 DevTools panel</div>
+    <div class="scroll-hint reveal in">scroll</div>
+  </section>
+
+  <!-- ───────────────────────── 1. THE ITCH ───────────────────────── -->
+  <section id="c1" data-name="the itch">
+    <h2 class="reveal"><span class="num">01 — the itch</span>"It looked too early."</h2>
+    <p class="reveal lead">Watch an LLM drive a web browser long enough and you see the same failure
+      over and over: it clicks something, immediately reads the page, and acts on a half-rendered
+      snapshot. It's racing animations, network calls, partial DOM. A huge slice of agent failures
+      are just <i>"I looked before the app was done reacting."</i></p>
+    <p class="reveal d1">Flutter is built differently in a way that helps. The framework hands you the
+      frame lifecycle directly. There's a screen-reader-grade <span class="mono">semantics tree</span>
+      of the UI. And any package in a debug build can register handlers on the VM service protocol —
+      a real hook into the running app. Put those together and an agent can act, <i>wait until the
+      framework says it's settled</i>, then read a structured snapshot. One turn = one trustworthy
+      observation.</p>
+    <p class="reveal d2">That was the bet. Now it had to get built.</p>
+  </section>
+
+  <!-- ───────────────────────── 2. THE PRD ───────────────────────── -->
+  <section id="c2" data-name="the PRD">
+    <h2 class="reveal"><span class="num">02 — the document that kept rewriting itself</span>v0.2 → v0.5</h2>
+    <p class="reveal meta">May 7, 00:57 — <span class="mono">Add initial docs</span> · 02:50 — <span class="mono">docs: prd v5</span></p>
+    <p class="reveal">The first cut (v0.2) was a monolith: one binding that knew about routing, state,
+      networking — the works. By v0.5 it had turned itself inside out into a <b>host-and-plugins</b>
+      architecture. The realization that forced it: <i>routing diversity is unsolvable in the core.</i>
+      Flutter has Navigator, <span class="mono">Router</span>, go_router, auto_route, beamer, custom
+      <span class="mono">RouterConfig</span> — a unified abstraction over all of that is lossy. So don't.
+      Let each router describe itself in its own shape, as a plugin. Same logic for state management,
+      networking, error reporting, telemetry.</p>
+    <blockquote class="reveal">The host's job is to be a good plugin host. The plugins' job is to know
+      about specific things.</blockquote>
+    <p class="reveal d1">v0.5 also picked the model target — a local Qwen3.6-35B-A3B served over MLX,
+      with frontier APIs as fallback — and refactored the harness/frontend boundary so the loop is a
+      <i>library</i> consumed by two surfaces: a scriptable CLI and an in-IDE DevTools panel. Same loop.
+      Two faces.</p>
+  </section>
+
+  <!-- ───────────────────────── 3. DECOMPOSITION ───────────────────────── -->
+  <section id="c3" data-name="cutting it up">
+    <h2 class="reveal"><span class="num">03 — cutting it into pieces</span>One epic, eighteen stories, then a re-cut</h2>
+    <p class="reveal meta">May 7, 08:51 → 10:36 — six commits in under two hours</p>
+    <p class="reveal">The epic <span class="mono">lenny-cx6</span> got decomposed into 18 stories — then
+      almost immediately <i>re-decomposed</i> when the v0.2 plan was swapped for the v0.5
+      plugin-architecture plan. Then tightened again ("fix four contamination items"), then every
+      design field backfilled across 28 stories, then every story specified: <span class="mono">29
+      planned, 1 draft (legitimately blocked)</span>. Then, that evening, one more realignment around
+      <span class="mono">swift-infer</span> to define the proof-of-concept critical path.</p>
+    <div class="tl reveal d1">
+      <div class="ev a"><div class="when">08:51</div><div class="what"><b>Decompose</b> the epic → 18 stories + 2 follow-ups</div></div>
+      <div class="ev a"><div class="when">09:03</div><div class="what">Throw it out. <b>Re-decompose</b> around the v0.5 plugin architecture</div></div>
+      <div class="ev a"><div class="when">09:21–09:52</div><div class="what">Tighten the cut · backfill <b>design fields</b> on 28 stories · plan the spike</div></div>
+      <div class="ev a"><div class="when">10:36</div><div class="what"><b>Specify all v0.5 stories</b> — 29 planned, 1 draft</div></div>
+      <div class="ev a"><div class="when">18:41</div><div class="what">Realign around swift-infer · <b>define the PoC critical path</b></div></div>
+    </div>
+    <p class="reveal d2">Nineteen hours of planning. Then the floor opened.</p>
+  </section>
+
+  <!-- ───────────────────────── 4. THE SPRINT ───────────────────────── -->
+  <section id="c4" data-name="the sprint">
+    <h2 class="reveal"><span class="num">04 — the sprint</span>One evening. Thirty-one PRs.</h2>
+    <p class="reveal meta">May 7, 19:11 — <span class="mono">Repo &amp; multi-package scaffolding (#1)</span></p>
+    <p class="reveal lead">From the first scaffolding commit at 7:11 PM to "PoC complete" the next afternoon,
+      the build ran as a factory: <span class="mono">bd</span> held the dependency graph, a supervisor
+      dispatched build agents in parallel across isolated worktrees, each one claimed a ready story,
+      implemented its spec, and a reviewer gated the squash-merge. PRs landed in clusters of three and
+      four because that's how many things were unblocked at once.</p>
+    <p class="reveal d1">In the first ~2½ hours: the binding skeleton, semantics-tree capture with stable
+      IDs, frame-stability signals, the plugin contract + registry, the harness scaffolding + VM-service
+      connection, the <span class="mono">exploration_router</span> reference plugin, the model-provider
+      abstraction, <span class="mono">exploration_riverpod</span>, Anthropic + OpenAI + swift-infer
+      providers, the JSONL trajectory writer, <span class="mono">exploration_dio</span> (which exists
+      partly to prove the busy-state mechanism works), screenshot capture, the plugin authoring guide,
+      and a host diagnostic that warns when interactive widgets ship without semantics.</p>
+
+    <div class="stream reveal d2" id="stream"></div>
+
+    <p class="reveal">Then the second wave: the DevTools scaffold with auto-discovery, the runtime-error
+      ring buffer, <span class="mono">getStableObservation</span> (the actual stability primitive), the
+      Timeline panel, the core action tools, observation assembly + the per-turn structural diff. A
+      detour to clear CI (<span class="mono">analyze</span> warnings, a redundant workflow, perf-tagged
+      tests leaking into the default run). Then memory artifacts + prompt construction with the dynamic
+      merged tool list, the <span class="mono">ActionValidator</span>, and — the keystone — the
+      <b>perception-action loop driver</b> with budgets and failure handling.</p>
+    <p class="reveal d1">Then the faces: the DevTools <b>Prompt</b> panel, the <b>Thinking</b> panel
+      (live token streaming), <span class="mono">LoopHost</span> wired onto
+      <span class="mono">ExplorationSession</span>, and finally the <b>CLI frontend</b> with its
+      <span class="mono">AGENTS.md</span> template.</p>
+    <blockquote class="reveal d2">May 8, 15:54 — <span class="mono">bd: close lenny-cx6.20 (CLI frontend merged via PR #31 — PoC complete)</span></blockquote>
+  </section>
+
+  <!-- ───────────────────────── 5. THE MESSY BITS ───────────────────────── -->
+  <section id="c5" data-name="when the spec drifts">
+    <h2 class="reveal"><span class="num">05 — the part nobody screenshots</span>When the spec drifts</h2>
+    <p class="reveal">It wasn't all clean merges. A few stories were written against an <i>expected</i>
+      contract that the shipped contract didn't match — so they got kicked back:
+      <span class="mono">respec lenny-cx6.6 and .9 against shipped contract</span>,
+      <span class="mono">respec lenny-cx6.17 and .13 against shipped reality</span>. One story
+      (<span class="mono">.9</span>, the error ring buffer) got re-opened for a clean rebuild on a fresh
+      tree after its first attempt merged in a tangled state. The runtime-error work landed properly the
+      second time around.</p>
+    <p class="reveal d1">The harness/loop split also exposed a missing seam mid-flight — a
+      <span class="mono">DefaultLoopHost</span> had to be wired onto <span class="mono">ExplorationSession</span>
+      (alongside <span class="mono">VmServiceClient</span> and <span class="mono">PluginManifest</span>)
+      as a prerequisite the original decomposition hadn't named. Filed as <span class="mono">lenny-0bd</span>,
+      built, merged, then the CLI story unblocked.</p>
+    <p class="reveal d2">The honest version of "built in a weekend" includes the re-specs and the
+      rebuild. They're in the log.</p>
+  </section>
+
+  <!-- ───────────────────────── 6. CLOSING THE POC ───────────────────────── -->
+  <section id="c6" data-name="dogfood">
+    <h2 class="reveal"><span class="num">06 — proof, then dogfood</span>A whole stack to point at a real app</h2>
+    <p class="reveal meta">May 9, 20:35 — <span class="mono">Sample non-trivial Flutter app for dogfooding &amp; success criteria (#32)</span></p>
+    <p class="reveal">With the loop, the providers, the plugins, and both frontends in, the PoC needed
+      something to <i>chew on</i> — so a deliberately non-trivial sample app went in, against which the
+      success criteria could actually be measured. <span class="mono">bd: close lenny-cx6.29 — v0.5 PoC
+      stack complete.</span> VS Code launch configs for the sample app and the CLI followed the same day,
+      because dogfooding you can't launch in one keystroke is dogfooding you won't do.</p>
+  </section>
+
+  <!-- ───────────────────────── 7. MAKING IT VISIBLE ───────────────────────── -->
+  <section id="c7" data-name="DevTools">
+    <h2 class="reveal"><span class="num">07 — making it visible</span>Three panels inside DevTools</h2>
+    <p class="reveal">The CLI is the headless face — CI, batch trajectory collection. The DevTools
+      extension is the one you watch. It auto-discovers whenever an app depends on
+      <span class="mono">exploration_flutter</span>, and runs the harness loop <i>inside the panel's own
+      web app</i> — no extra process, no IPC.</p>
+    <div class="grid2 reveal d1">
+      <div class="card"><h4>Prompt</h4>Type the goal, pick a model, set budgets, hit Start. Later wired
+        to a live plugin manifest from the binding handshake, a provider config block, a dynamic model
+        list pulled from <span class="mono">/v1/models</span>, and — eventually — a Start button that
+        actually calls <span class="mono">session.run()</span>.</div>
+      <div class="card"><h4>Thinking</h4>The model's reasoning trace streams in live (the
+        <span class="mono">&lt;think&gt;…&lt;/think&gt;</span> content for the Qwen target), then the
+        action it chose and whether it validated. Fastest way to tell if the agent's mental model of your
+        app is coherent.</div>
+      <div class="card"><h4>Timeline</h4>One row per turn — action, one-line diff, running summary.
+        Click to expand into the full observation, reasoning, validation result. Live during the session,
+        browsable after.</div>
+      <div class="card"><h4>…and the plumbing</h4>A build script + commit policy so the compiled web
+        bundle is never committed (CI rebuilds it, no drift), and auto-discovery config shipped from the
+        host package so the tab shows up in standalone DevTools, VS Code, and Android Studio alike.</div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 8. THE BORING-IMPORTANT ───────────────────────── -->
+  <section id="c8" data-name="the boring-important">
+    <h2 class="reveal"><span class="num">08 — the boring-important fixes</span>Ordering, contracts, plumbing</h2>
+    <ul class="reveal">
+      <li><b>The binding has to win the race.</b> Some routers (go_router) call
+        <span class="mono">WidgetsFlutterBinding.ensureInitialized()</span> deep in their constructor.
+        If app code builds one before the binding installs, the wrong binding wins. The fix:
+        <span class="mono">ExplorationBinding.run(ExplorationApp)</span> — claim the slot first, <i>then</i>
+        hand the app a context to build its router/state/client. Discovered, specified, built, merged
+        as <span class="mono">lenny-3wt</span> (PR&nbsp;#33).</li>
+      <li><b>Speak the gateway's language exactly.</b> The swift-infer provider was realigned to match the
+        <span class="mono">fs agent</span> wire contract bit-for-bit — Bearer auth, conversation/session/
+        capture-bodies headers, <span class="mono">SWIFT_INFER_AGENT_TOKEN</span> — so one shell export
+        and one inspection toolchain serve both clients.</li>
+      <li><b>Defer the DevTools reads.</b> A <span class="mono">serviceManager</span> read above
+        <span class="mono">DevToolsExtension</span> threw on the first frame; the fix moved those reads
+        below it. Small bug, real crash, <span class="mono">lenny-g4u</span>.</li>
+      <li><b>Pre-launch rebuild.</b> Rebuild the DevTools extension bundle, gitignore the CLI's trajectory
+        output, and the stack is presentable.</li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── BY THE NUMBERS ───────────────────────── -->
+  <section id="c9" data-name="by the numbers">
+    <h2 class="reveal"><span class="num">09 — by the numbers</span>What's in the log</h2>
+    <div class="stats reveal d1" id="stats">
+      <div class="stat"><div class="n" data-to="6">0</div><div class="l">days, idea → docs</div></div>
+      <div class="stat"><div class="n" data-to="31">0</div><div class="l">numbered PRs merged</div></div>
+      <div class="stat"><div class="n" data-to="30">0</div><div class="l">stories in the epic</div></div>
+      <div class="stat"><div class="n" data-to="8">0</div><div class="l">workspace packages</div></div>
+      <div class="stat"><div class="n" data-to="3">0</div><div class="l">model backends</div></div>
+      <div class="stat"><div class="n" data-to="3">0</div><div class="l">reference plugins</div></div>
+      <div class="stat"><div class="n" data-to="3">0</div><div class="l">DevTools panels</div></div>
+      <div class="stat"><div class="n" data-to="3">0</div><div class="l">re-specs / rebuilds, owned</div></div>
+    </div>
+    <p class="reveal d2 meta">Packages: <span class="mono">exploration_flutter · exploration_agent ·
+      exploration_cli · exploration_devtools · exploration_router · exploration_riverpod ·
+      exploration_dio</span> (+ a diagnostic fixture &amp; sample app). Backends: <span class="mono">qwen-mlx
+      (local) · claude · openai</span>.</p>
+  </section>
+
+  <!-- ───────────────────────── NOW / NEXT ───────────────────────── -->
+  <section id="c10" data-name="what's next">
+    <h2 class="reveal"><span class="num">10 — now, and what's queued</span>The board after the dust settled</h2>
+    <p class="reveal">The v1 PoC stack is in. Recently: this build story and an informal
+      <a href="./how-lenny-works.md">how-it-works explainer</a>. On the board, drafted or open:</p>
+    <ul class="reveal d1">
+      <li><span class="tag">spike</span> <b>Recursive exploration &amp; a pure-Dart binding</b> — can the
+        agent explore non-Flutter Dart apps, and itself? (<span class="mono">lenny-9sg</span>)</li>
+      <li><span class="tag">feature</span> <b>Native-platform signals</b> — platform channels + an
+        adb / iOS device bridge (<span class="mono">lenny-qxx</span>); longer-term, a first-class
+        Swift-runtime <span class="mono">ExplorationKit</span>.</li>
+      <li><span class="tag">feature</span> <b>Exploration request API</b> — a job queue + an MCP server
+        front (<span class="mono">lenny-7bx</span>).</li>
+      <li><span class="tag">feature</span> <b>DevTools polish</b> — persist last-used config across
+        reloads (<span class="mono">lenny-6rh / r8f</span>), mid-turn interrupt
+        (<span class="mono">cx6.31</span>), standalone web debug workflow (<span class="mono">lenny-93o</span>).</li>
+      <li><span class="tag">deferred</span> Marionette-compat plugin, a plugin scaffolding generator,
+        the resources/prompts contract extension, empirical tuning of the 800 ms action-relative
+        stability default — all v2.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div class="reveal">Built out loud, in the open, in the log.</div>
+    <div class="reveal links">
+      <a href="./how-lenny-works.md">how Lenny works →</a> ·
+      <a href="./flutter_exploration_agent_prd_v0.5.md">PRD v0.5</a> ·
+      <a href="./plugin_authoring_guide.md">plugin authoring guide</a>
+    </div>
+    <div class="reveal meta" style="margin-top:18px">Generated from <span class="mono">git log</span> +
+      <span class="mono">bd</span> history · May 2026</div>
+  </footer>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---- the sprint commit stream (real PRs, abbreviated) ---- */
+  var SPRINT = [
+    ["ddb094b","#1","Repo & multi-package scaffolding"],
+    ["6f86a50","#2","ExplorationBinding skeleton, lifecycle, conflict detection"],
+    ["0c7f4ca","#3","Semantics tree capture with stable IDs"],
+    ["9030d0a","#4","Frame stability signal collection (host)"],
+    ["cf6a972","#5","Plugin contract: types, registry, PluginContext"],
+    ["3f24db4","#6","Harness scaffolding, VM service connection, ExplorationSession API"],
+    ["7f9bab6","#7","exploration_router reference plugin (raw Router/Navigator)"],
+    ["6ed09d7","#8","Model provider abstraction + dynamic constrained-output schema"],
+    ["39da223","#9","Anthropic frontier model provider"],
+    ["861f79f","#10","exploration_riverpod reference plugin"],
+    ["4b775b7","#11","Trajectory writer (JSONL) + plugin contribution metadata"],
+    ["eb44534","#12","swift-infer model provider (local MLX gateway)"],
+    ["a23c532","#13","exploration_dio reference plugin (validates busy-state)"],
+    ["7726cf4","#14","OpenAI frontier model provider"],
+    ["e685993","#15","Plugin authoring guide"],
+    ["15189e0","#16","Screenshot capture (host)"],
+    ["1864196","#17","Host diagnostic: warn on interactive widgets w/o semantics"],
+    ["57f4dee","#19","DevTools extension scaffold + auto-discovery"],
+    ["226f9dd","#20","Runtime error ring buffer + chained handler API"],
+    ["665cd2f","#21","Stable observation primitive (getStableObservation)"],
+    ["1422d88","#22","DevTools: Timeline panel (live + post-session)"],
+    ["2bd5aa6","#23","Core action tools (core namespace)"],
+    ["cbface0","#24","Observation assembly & per-turn structural diff"],
+    ["b69ce47","#25","Memory artifacts + prompt construction (merged tool list)"],
+    ["157c73d","#26","ActionValidator against merged tool list"],
+    ["f871a82","#27","Perception-action loop driver — budgets + failure handling"],
+    ["2eb21a2","#29","DevTools: Prompt panel"],
+    ["f07d6e6","#28","DevTools: Thinking panel (live streaming)"],
+    ["6a0f3b5","#30","Wire LoopHost on ExplorationSession + VmServiceClient + PluginManifest"],
+    ["47b7d80","#31","CLI frontend (exploration_cli) + AGENTS.md template — PoC complete"]
+  ];
+  var stream = document.getElementById("stream");
+  SPRINT.forEach(function(c,i){
+    var r = document.createElement("div");
+    r.className = "row";
+    r.style.transitionDelay = Math.min(i*28,840) + "ms";
+    r.innerHTML = '<span class="h">'+c[0]+'</span><span class="pr">'+c[1]+'</span><span>'+
+      c[2].replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</span>';
+    stream.appendChild(r);
+  });
+
+  /* ---- side rail from sections ---- */
+  var sections = Array.prototype.slice.call(document.querySelectorAll("main > section"));
+  var rail = document.getElementById("rail");
+  sections.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.innerHTML = '<span>'+(s.dataset.name||s.id)+'</span>';
+    a.dataset.for = s.id;
+    rail.appendChild(a);
+  });
+  var railLinks = {};
+  Array.prototype.slice.call(rail.children).forEach(function(a){ railLinks[a.dataset.for]=a; });
+
+  /* ---- scroll progress bar ---- */
+  var bar = document.getElementById("bar");
+  function onScroll(){
+    var h = document.documentElement;
+    var p = h.scrollTop / (h.scrollHeight - h.clientHeight || 1);
+    bar.style.width = (p*100).toFixed(2) + "%";
+  }
+  document.addEventListener("scroll", onScroll, {passive:true});
+  onScroll();
+
+  /* ---- reveal on enter ---- */
+  var ro = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add("in"); ro.unobserve(e.target); }
+    });
+  }, {threshold:0.18, rootMargin:"0px 0px -8% 0px"});
+  document.querySelectorAll(".reveal").forEach(function(el){ if(!el.classList.contains("in")) ro.observe(el); });
+
+  /* stream gets its own observer so the rows cascade when it lands */
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); obs.disconnect(); }});
+  },{threshold:0.25}).observe(stream);
+
+  /* ---- active rail dot ---- */
+  var railObs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var a = railLinks[e.target.id]; if(!a) return;
+      if(e.isIntersecting) a.classList.add("on"); else a.classList.remove("on");
+    });
+  },{rootMargin:"-45% 0px -45% 0px"});
+  sections.forEach(function(s){ railObs.observe(s); });
+
+  /* ---- count-up stats ---- */
+  function countUp(el){
+    var to = parseInt(el.dataset.to,10)||0, t0=null, dur=1100;
+    function step(ts){
+      if(!t0) t0=ts;
+      var k = Math.min((ts-t0)/dur,1);
+      var e = 1-Math.pow(1-k,3); // easeOutCubic
+      el.textContent = Math.round(to*e);
+      if(k<1) requestAnimationFrame(step); else el.textContent = to;
+    }
+    requestAnimationFrame(step);
+  }
+  var statsEl = document.getElementById("stats");
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        statsEl.querySelectorAll(".n").forEach(countUp);
+        obs.disconnect();
+      }
+    });
+  },{threshold:0.4}).observe(statsEl);
+
+})();
+</script>
+</body>
+</html>
