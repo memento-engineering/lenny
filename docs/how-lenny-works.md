@@ -77,8 +77,8 @@ graph TB
         dt["exploration_devtools<br/><i>in-IDE panel: Prompt / Thinking / Timeline</i>"]
     end
 
-    subgraph harness_box["exploration_agent — the harness library"]
-        loop["Perception-action loop<br/>+ stability policy<br/>+ action validation<br/>+ memory (summary / diff)"]
+    subgraph harness_box["exploration_agent"]
+        loop["The harness — perception-action loop<br/>+ stability policy<br/>+ action validation<br/>+ memory (summary / diff)"]
         traj["Trajectory writer<br/><i>(JSONL, flushed every record)</i>"]
         loop --> traj
     end
