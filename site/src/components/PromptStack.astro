@@ -1,0 +1,162 @@
+---
+// The prompt as a top-to-bottom stack of region cards, in prompt order, grouped by tier.
+// Accurate to PRD §10 (build prompt) and §13 (memory: summary vs diff).
+const groups = [
+  {
+    tier: 'Static',
+    tierClass: 'tier-static',
+    tierLabel: 'Static',
+    cards: [
+      {
+        region: 'AGENTS.md',
+        author: 'you (the project)',
+        churn: 'never changes',
+        budget: 'small, fixed',
+        note: 'The rules of engagement: what this app is, what’s off-limits.',
+      },
+      {
+        region: 'Goal',
+        author: 'the operator',
+        churn: 'never changes',
+        budget: 'a sentence or two',
+        note: 'What this session is for.',
+      },
+    ],
+  },
+  {
+    tier: 'Narrative',
+    tierClass: 'tier-narrative',
+    tierLabel: 'Narrative',
+    cards: [
+      {
+        region: 'Running summary',
+        author: 'the model — rewritten every turn',
+        churn: 'rewritten every turn',
+        budget: '~500 tokens soft / ~1000 hard cap',
+        note: 'The agent’s working theory of the app and its progress — the one place it talks to its future self.',
+      },
+    ],
+  },
+  {
+    tier: 'Episodic',
+    tierClass: 'tier-episodic',
+    tierLabel: 'Episodic',
+    cards: [
+      {
+        region: 'Last N actions (+ outcomes)',
+        author: 'the harness (it’s the log)',
+        churn: 'sliding window — last 3–5 verbatim, with outcomes',
+        budget: 'bounded by window size',
+        note: 'The immediate causal chain — did that tap land? did the text stick?',
+      },
+    ],
+  },
+  {
+    tier: 'Live perception',
+    tierClass: 'tier-live',
+    tierLabel: 'Live perception',
+    cards: [
+      {
+        region: 'Observation N',
+        author: 'the host + plugins',
+        churn: 'fresh capture, replaced every turn',
+        budget: 'the big variable cost',
+        note: 'Merged: core fragment (semantics tree, route stack, errors, stability meta) + plugin fragments (route stack from the router plugin, loading providers from Riverpod, in-flight requests from Dio…) — the settled snapshot the agent acts against.',
+      },
+      {
+        region: 'Diff N',
+        author: 'the harness',
+        churn: 'recomputed every turn (Obs N vs Obs N−1)',
+        budget: '~200–500 tokens',
+        note: 'What changed since the last look — the cheap signal that something happened.',
+      },
+    ],
+  },
+];
+---
+<div class="stack">
+  {groups.map((g) => (
+    <section class={`group ${g.tierClass}`}>
+      <h3 class="group-label">{g.tier}</h3>
+      {g.cards.map((c) => (
+        <article class={`card ${g.tierClass}`}>
+          <header class="card-head">
+            <h4 class="mono region">{c.region}</h4>
+            <span class="tier-tag">{g.tierLabel}</span>
+          </header>
+          <dl class="meta">
+            <div><dt>authored by</dt><dd>{c.author}</dd></div>
+            <div><dt>changes each turn</dt><dd>{c.churn}</dd></div>
+            <div><dt>token budget</dt><dd>{c.budget}</dd></div>
+          </dl>
+          <p class="card-note">{c.note}</p>
+        </article>
+      ))}
+    </section>
+  ))}
+</div>
+<p class="caption">
+  The budget asymmetry: static + narrative + episodic are bounded and small; the
+  observation is the big variable cost (semantics-tree / screenshot size drives it).
+  Keep the cheap dense memory tight so the expensive fresh perception has room.
+</p>
+
+<style>
+  .stack { margin: 24px 0 12px; display: flex; flex-direction: column; gap: 20px; }
+  .group { display: flex; flex-direction: column; gap: 12px; }
+  .group-label {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tier-color);
+    margin: 0;
+  }
+  .card {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--tier-color);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .tier-static { --tier-color: var(--muted); }
+  .tier-narrative { --tier-color: var(--tier-amber); }
+  .tier-episodic { --tier-color: var(--accent-blue); }
+  .tier-live { --tier-color: var(--accent-green); }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .region { margin: 0; font-size: 1rem; color: var(--ink); }
+  .tier-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tier-color);
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 8px;
+    white-space: nowrap;
+  }
+  .meta {
+    margin: 10px 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 6px 16px;
+  }
+  .meta div { display: flex; flex-direction: column; }
+  .meta dt {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .meta dd { margin: 0; font-size: 0.92rem; color: var(--ink); }
+  .card-note { margin: 10px 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+  .caption { margin: 14px 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+</style>

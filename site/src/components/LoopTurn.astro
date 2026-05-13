@@ -1,0 +1,91 @@
+---
+// The perception-action loop as a zero-JS ordered step list. PRD §10.
+const steps = [
+  { n: 1, actor: 'Host', title: 'Stabilize', detail: "Poll the framework's scheduler signals + every plugin's busyState() until the stability policy says the frame has settled." },
+  { n: 2, actor: 'Host', title: 'Capture core fragment', detail: 'Semantics tree, route stack, errors, stability metadata.' },
+  { n: 3, actor: 'Host', title: 'Capture plugin fragments', detail: 'Host calls observe() on each plugin and merges the fragments into one observation.' },
+  { n: 4, actor: 'Harness', title: 'Diff', detail: 'Structural diff against the previous observation — plugin fragments included.' },
+  { n: 5, actor: 'Harness', title: 'Build the prompt', detail: 'Assemble AGENTS.md + goal + running summary + last N actions + observation + diff.', highlight: true },
+  { n: 6, actor: 'Model', title: 'Decide', detail: 'Call the model with constrained output → a thinking trace + the chosen action.' },
+  { n: 7, actor: 'Harness', title: 'Validate', detail: 'Is the action in the merged tool list? Do the args match the schema? Does the target node exist?' },
+  { n: 8, actor: 'Host', title: 'Act', detail: 'Execute via the right VM-service extension — host or plugin.' },
+  { n: 9, actor: 'Plugins', title: 'Notify', detail: 'Call onActionExecuted() on every plugin.' },
+  { n: 10, actor: 'Harness', title: 'Persist', detail: 'Append the turn to the trajectory log.' },
+];
+const cls = { Harness: 'harness', Host: 'host', Plugins: 'plugins', Model: 'model' };
+---
+<ol class="loop">
+  {steps.map((s) => (
+    <li class={s.highlight ? 'step highlight' : 'step'}>
+      <span class="num">{s.n}</span>
+      <span class={`actor ${cls[s.actor]}`}>{s.actor}</span>
+      <div class="body">
+        <span class="title">{s.title}</span>
+        <span class="detail">{s.detail}{s.highlight && <> &mdash; <a href="#context">see what's in it ↓</a></>}</span>
+      </div>
+    </li>
+  ))}
+</ol>
+<p class="budget-note">turn budget ≤ 30s wall clock · session budget ≤ 50 turns or 15 min</p>
+
+<style>
+  .loop {
+    list-style: none;
+    margin: 24px 0 12px;
+    padding: 0;
+    counter-reset: none;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 14px;
+    align-items: baseline;
+    padding: 12px 16px;
+    border-top: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: none; }
+  .step.highlight {
+    background: rgba(122, 162, 247, 0.08);
+    border-left: 3px solid var(--accent-blue);
+    padding-left: 13px;
+  }
+  .num {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    min-width: 1.6em;
+    text-align: right;
+  }
+  .actor {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 8px;
+    white-space: nowrap;
+    align-self: center;
+  }
+  .actor.harness { color: var(--tier-amber); }
+  .actor.host { color: var(--accent-blue); }
+  .actor.plugins { color: var(--accent-green); }
+  .actor.model { color: var(--muted); }
+  .body { display: flex; flex-direction: column; gap: 2px; }
+  .title { font-weight: 600; color: var(--ink); }
+  .detail { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+  .detail a { color: var(--accent-blue); }
+  .budget-note {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 12px 0 0;
+  }
+  @media (max-width: 560px) {
+    .step { grid-template-columns: auto 1fr; }
+    .num { display: none; }
+  }
+</style>

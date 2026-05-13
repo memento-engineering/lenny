@@ -1,0 +1,87 @@
+---
+// Turn N → Turn N+1: each region's fate, color-coded.
+const regions = [
+  { region: 'AGENTS.md', fate: 'unchanged', fateClass: 'unchanged', blurb: 'Carried verbatim — the rules don’t move.' },
+  { region: 'Goal', fate: 'unchanged', fateClass: 'unchanged', blurb: 'Carried verbatim — the session’s target is fixed.' },
+  { region: 'Running summary', fate: 'REWRITTEN', fateClass: 'rewritten', blurb: 'The model folds the new diff + observation into a fresh summary; the old one is discarded.' },
+  { region: 'Last N actions', fate: 'SLIDES', fateClass: 'slides', blurb: 'Turn N’s action + outcome is appended; if the window is full, the oldest drops.' },
+  { region: 'Observation', fate: 'FRESH', fateClass: 'fresh', blurb: 'Turn N’s observation is gone; turn N+1 stabilizes and captures a new one.' },
+  { region: 'Diff', fate: 'RECOMPUTED', fateClass: 'fresh', blurb: 'Obs N+1 vs Obs N; turn N’s diff is gone.' },
+];
+---
+<div class="delta">
+  <div class="cols">
+    <span class="col-head col-n">Turn N</span>
+    <span class="col-arrow" aria-hidden="true">→</span>
+    <span class="col-head col-n1">Turn N+1</span>
+  </div>
+  {regions.map((r) => (
+    <div class={`row fate-${r.fateClass}`}>
+      <span class="region mono">{r.region}</span>
+      <span class="fate" aria-hidden="true">↦</span>
+      <span class="fate-label">{r.fate}</span>
+      <span class="blurb">{r.blurb}</span>
+    </div>
+  ))}
+</div>
+<p class="caption">
+  Only the running summary persists by being rewritten. Everything else is
+  immutable (the rules, the goal), a sliding window (recent actions), or thrown
+  away and rebuilt (perception). The model's leverage over its own future is
+  exactly one paragraph wide.
+</p>
+
+<style>
+  .delta {
+    margin: 24px 0 12px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .col-head { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .col-n1 { text-align: right; color: var(--ink); }
+  .col-arrow { color: var(--muted); }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(8em, 12em) auto auto 1fr;
+    gap: 10px 12px;
+    align-items: baseline;
+    padding: 11px 16px;
+    border-top: 1px solid var(--rule);
+    border-left: 3px solid var(--fate-color);
+    padding-left: 13px;
+  }
+  .row:first-child { border-top: none; }
+  .fate-unchanged { --fate-color: var(--muted); }
+  .fate-rewritten { --fate-color: var(--tier-amber); }
+  .fate-slides { --fate-color: var(--accent-blue); }
+  .fate-fresh { --fate-color: var(--accent-green); }
+  .region { color: var(--ink); font-size: 0.95rem; }
+  .fate { color: var(--fate-color); }
+  .fate-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fate-color);
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 8px;
+    white-space: nowrap;
+  }
+  .blurb { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+  .caption { margin: 14px 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+  @media (max-width: 620px) {
+    .row { grid-template-columns: 1fr auto; }
+    .blurb { grid-column: 1 / -1; }
+  }
+</style>
