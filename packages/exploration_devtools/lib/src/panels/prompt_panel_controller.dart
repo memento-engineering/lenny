@@ -7,10 +7,11 @@ import 'panel_provider_factory.dart';
 import 'prompt_panel_config.dart';
 import 'provider_config.dart';
 
-/// Builds an [ExplorationSession] connected to [vmServiceUri]. Tests
-/// override this with a fake; production wires the real
-/// [ExplorationSession.connect] static.
-typedef SessionFactory = Future<ExplorationSession> Function(Uri vmServiceUri);
+/// Builds an [ExplorationSession]. The closure owns whatever connection
+/// it needs — production wires a closure over `serviceManager.service` +
+/// the main isolate id (via [ExplorationSession.fromVmService]); tests
+/// inject a fake.
+typedef SessionFactory = Future<ExplorationSession> Function();
 
 /// Drives the in-panel session lifecycle for [PromptPanel].
 ///
@@ -27,13 +28,11 @@ typedef SessionFactory = Future<ExplorationSession> Function(Uri vmServiceUri);
 ///     production successor for persistence.
 class PromptPanelController {
   PromptPanelController({
-    required this.vmServiceUri,
-    SessionFactory? factory,
+    required SessionFactory factory,
     PanelProviderFactory? providerFactory,
-  })  : _factory = factory ?? ExplorationSession.connect,
+  })  : _factory = factory,
         _providerFactory = providerFactory ?? buildPanelProvider;
 
-  final Uri vmServiceUri;
   final SessionFactory _factory;
   final PanelProviderFactory _providerFactory;
   final StreamController<SessionProgressEvent> _events =
@@ -88,7 +87,7 @@ class PromptPanelController {
         'configure a model provider before pressing Start.',
       );
     }
-    final session = await _factory(vmServiceUri);
+    final session = await _factory();
     _session = session;
     _sub = session.progress.listen(_events.add);
     await session.start(panelCfg.goal, panelCfg.toExplorationConfig());

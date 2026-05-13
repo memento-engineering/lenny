@@ -3,33 +3,37 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'manifest_probe.dart';
-
-/// Returns the VM service URI to which DevTools is currently connected.
-///
-/// Production wires this to `serviceManager.serviceUri` from
-/// `package:devtools_extensions`. Tests can pass a stub.
-typedef VmServiceUriResolver = String? Function();
+import 'panels/prompt_panel_controller.dart' show SessionFactory;
 
 /// In-panel host that owns a single [ExplorationSession] for the extension.
 /// Sub-panels reach it via [ExplorationPanelHost.of].
+///
+/// The host no longer plumbs a VM service `Uri`: the DevTools wiring
+/// (`exploration_shell.dart` / `main.dart`) supplies a [manifestProbe]
+/// and a [sessionFactory] that close over `serviceManager.service`, so
+/// this widget stays free of `serviceManager` (and `dart:io`) and still
+/// compiles in pure-VM widget tests.
 class ExplorationPanelHost extends StatefulWidget {
   const ExplorationPanelHost({
     super.key,
     required this.child,
-    required this.vmServiceUri,
-    this.manifestProbe = defaultManifestProbe,
+    required this.manifestProbe,
+    required this.sessionFactory,
   });
 
   final Widget child;
 
-  /// Resolves the active VM service URI on demand. Decoupled from
-  /// `serviceManager` so this widget compiles in pure-VM widget tests
-  /// (the DevTools globals depend on `package:web` JS interop).
-  final VmServiceUriResolver vmServiceUri;
-
-  /// Probes the binding handshake to load the active plugin manifest.
-  /// Defaults to [defaultManifestProbe]; tests inject a stub.
+  /// Loads the active plugin manifest by running the binding handshake.
+  /// Production wires a closure over `serviceManager.service`; tests
+  /// inject a stub.
   final ManifestProbe manifestProbe;
+
+  /// Builds the in-panel [ExplorationSession]. Production wires a closure
+  /// over `serviceManager.service` + the main isolate id (via
+  /// [ExplorationSession.fromVmService]); tests inject a stub. (The CLI
+  /// frontend, which runs on the Dart VM, uses the dart:io connect path
+  /// instead — it never goes through this widget.)
+  final SessionFactory sessionFactory;
 
   static ExplorationPanelHostState of(BuildContext context) =>
       context.findAncestorStateOfType<ExplorationPanelHostState>()!;
@@ -67,22 +71,15 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
   /// Re-run the manifest probe.
   ///
   /// Publishes [ManifestProbeLoading] immediately, then either
-  /// [ManifestProbeLoaded], [ManifestProbeBindingMissing] (if the binding
-  /// extension is absent or the VM service URI is missing), or
-  /// [ManifestProbeFailed]. Stale results from earlier invocations are
-  /// dropped via [_probeGen].
+  /// [ManifestProbeLoaded], [ManifestProbeBindingMissing] (if the probe
+  /// throws `BindingNotInitializedError` — extension absent or no VM
+  /// service / isolate available), or [ManifestProbeFailed]. Stale
+  /// results from earlier invocations are dropped via [_probeGen].
   Future<void> refreshManifest() async {
-    final raw = widget.vmServiceUri();
     final gen = ++_probeGen;
     _manifest.value = const ManifestProbeLoading();
-    if (raw == null) {
-      if (gen == _probeGen && mounted) {
-        _manifest.value = const ManifestProbeBindingMissing();
-      }
-      return;
-    }
     try {
-      final plugins = await widget.manifestProbe(Uri.parse(raw));
+      final plugins = await widget.manifestProbe();
       if (gen != _probeGen || !mounted) return;
       _manifest.value = ManifestProbeLoaded(plugins);
     } on BindingNotInitializedError {
@@ -97,11 +94,7 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
   Future<ExplorationSession> ensureSession() async {
     final existing = _session;
     if (existing != null) return existing;
-    final uri = widget.vmServiceUri();
-    if (uri == null) {
-      throw StateError('VM service unavailable');
-    }
-    final created = await ExplorationSession.connect(Uri.parse(uri));
+    final created = await widget.sessionFactory();
     if (!mounted) {
       await created.end();
       throw StateError('Panel host disposed during connect');

@@ -8,6 +8,7 @@ library;
 
 import 'package:exploration_agent/exploration_agent.dart'
     show PluginManifestEntry, VmServiceClient;
+import 'package:vm_service/vm_service.dart' show VmService;
 
 /// State of the latest manifest probe.
 sealed class ManifestProbeResult {
@@ -38,24 +39,28 @@ class ManifestProbeFailed extends ManifestProbeResult {
   final String message;
 }
 
-/// Function signature for running the handshake against a connected VM
-/// service. Tests inject a stub; production wires [defaultManifestProbe].
-typedef ManifestProbe =
-    Future<List<PluginManifestEntry>> Function(Uri vmServiceUri);
-
-/// Production probe: connect, handshake, dispose.
+/// Function signature for loading the active plugin manifest. The
+/// closure owns whatever connection it needs — production wires a
+/// closure over `serviceManager.service` + the main isolate id (see
+/// `main.dart`), built on top of [probeManifest]; tests inject a stub.
 ///
-/// Connects to [uri] via [VmServiceClient.connect], reads the handshake's
-/// plugin manifest, and disposes the connection. Errors propagate to the
-/// caller (the host translates `BindingNotInitializedError` into
-/// [ManifestProbeBindingMissing] and everything else into
-/// [ManifestProbeFailed]).
-Future<List<PluginManifestEntry>> defaultManifestProbe(Uri uri) async {
-  final client = await VmServiceClient.connect(uri);
-  try {
-    final result = await client.handshake();
-    return result.plugins;
-  } finally {
-    await client.dispose();
-  }
+/// Throwing `BindingNotInitializedError` signals "no `ExplorationBinding`
+/// in the target" (→ [ManifestProbeBindingMissing]); any other throw is
+/// surfaced as [ManifestProbeFailed].
+typedef ManifestProbe = Future<List<PluginManifestEntry>> Function();
+
+/// Run the binding handshake over an already-connected [vm] (pinned to
+/// [isolateId]) and return the active plugin manifest.
+///
+/// Does **not** dispose [vm] — the DevTools extension owns that
+/// connection via `serviceManager`. Errors propagate to the caller (the
+/// host maps `BindingNotInitializedError` → [ManifestProbeBindingMissing]
+/// and everything else → [ManifestProbeFailed]).
+Future<List<PluginManifestEntry>> probeManifest(
+  VmService vm,
+  String isolateId,
+) async {
+  final client = VmServiceClient.fromVmService(vm, isolateId);
+  final result = await client.handshake();
+  return result.plugins;
 }

@@ -113,8 +113,7 @@ void main() {
   test('start instantiates session and forwards events', () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
     final received = <SessionProgressEvent>[];
@@ -133,8 +132,7 @@ void main() {
   test('stop ends session and clears running flag', () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
@@ -150,8 +148,7 @@ void main() {
   test('start while running throws', () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
@@ -168,8 +165,7 @@ void main() {
       () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
@@ -187,8 +183,7 @@ void main() {
     String? capturedModel;
     String? capturedSession;
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (cfg, modelId, sessionId) {
         capturedCfg = cfg;
         capturedModel = modelId;
@@ -221,8 +216,7 @@ void main() {
     );
     final provider = _DummyProvider();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => provider,
     );
 
@@ -255,8 +249,7 @@ void main() {
   test('runFuture resolves before stop() returns', () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
@@ -278,8 +271,7 @@ void main() {
       () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
@@ -316,8 +308,7 @@ void main() {
       () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
     );
 
     final cfg = SwiftInferUiConfig(

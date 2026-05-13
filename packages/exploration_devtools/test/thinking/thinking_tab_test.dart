@@ -8,7 +8,12 @@ void main() {
     'Thinking tab shows "No active session" hint when no session',
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: ExplorationShell(vmServiceUri: () => null)),
+        MaterialApp(
+          home: ExplorationShell(
+            manifestProbe: () async => const [],
+            sessionFactory: () async => throw StateError('no session'),
+          ),
+        ),
       );
       await tester.pump();
 

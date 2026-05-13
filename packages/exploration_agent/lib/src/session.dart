@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:meta/meta.dart';
+import 'package:vm_service/vm_service.dart' show VmService;
 
 import 'loop_driver/loop_driver.dart';
 import 'loop_driver/loop_host.dart';
@@ -49,9 +50,21 @@ class ExplorationSession {
 
   /// Connect to the target app's VM service `vmServiceUri` and return a
   /// session instance. Call [start] before [observe] / [act].
+  ///
+  /// CLI-only: this routes through `package:vm_service/vm_service_io.dart`
+  /// (transitively `dart:io`). Web callers (the DevTools extension) must
+  /// use [fromVmService] with `serviceManager.service` instead.
   static Future<ExplorationSession> connect(Uri vmServiceUri) async {
     final client = await VmServiceClient.connect(vmServiceUri);
     return ExplorationSession._(client);
+  }
+
+  /// Wrap an already-connected [vm] (e.g. the DevTools extension's
+  /// `serviceManager.service`) pinned to [isolateId]. Web-safe — no
+  /// `dart:io`. Call [start] before [observe] / [act]. The caller owns
+  /// the connection's lifetime; [end] still forwards [dispose].
+  factory ExplorationSession.fromVmService(VmService vm, String isolateId) {
+    return ExplorationSession._(VmServiceClient.fromVmService(vm, isolateId));
   }
 
   final VmServiceClient _client;

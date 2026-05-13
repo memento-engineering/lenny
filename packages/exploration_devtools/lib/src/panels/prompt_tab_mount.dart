@@ -9,7 +9,6 @@ import 'package:exploration_agent/exploration_agent.dart'
         TrajectoryRecord;
 import 'package:flutter/material.dart';
 
-import '../panel_host.dart';
 import 'model_catalog.dart';
 import 'prompt_panel.dart';
 import 'prompt_panel_config.dart';
@@ -30,8 +29,8 @@ class PromptTabMount extends StatefulWidget {
     required this.plugins,
     required this.store,
     required this.catalog,
+    required this.controllerFactory,
     this.trajectorySink,
-    this.controllerFactory,
     this.initialProviderId = 'swift-infer',
   });
 
@@ -53,8 +52,10 @@ class PromptTabMount extends StatefulWidget {
   /// `'swift-infer'`.
   final String initialProviderId;
 
-  /// Test seam — production builds a real [PromptPanelController].
-  final PromptPanelController Function(Uri vmServiceUri)? controllerFactory;
+  /// Builds the [PromptPanelController] for this mount. The shell wires
+  /// `() => PromptPanelController(factory: <closure over serviceManager>)`;
+  /// tests inject a fake.
+  final PromptPanelController Function() controllerFactory;
 
   @override
   State<PromptTabMount> createState() => _PromptTabMountState();
@@ -110,12 +111,10 @@ class _PromptTabMountState extends State<PromptTabMount> {
     unawaited(_refresh(reload: true));
   }
 
-  PromptPanelController _ensureController(Uri uri) {
+  PromptPanelController _ensureController() {
     final existing = _controller;
     if (existing != null) return existing;
-    final c = widget.controllerFactory != null
-        ? widget.controllerFactory!(uri)
-        : PromptPanelController(vmServiceUri: uri);
+    final c = widget.controllerFactory();
     // Surface the controller's live trajectory to the Timeline tab.
     widget.trajectorySink?.value = c.trajectory;
     _sub = c.events.listen((event) {
@@ -135,10 +134,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
   }
 
   Future<void> _onStart(PromptPanelConfig cfg) async {
-    final host = ExplorationPanelHost.of(context);
-    final raw = host.widget.vmServiceUri();
-    if (raw == null) return;
-    final c = _ensureController(Uri.parse(raw));
+    final c = _ensureController();
     await c.start(cfg, providerCfg: _state.value.config);
     // Re-enable the form when the loop terminates naturally (vs.
     // user pressing Stop). LoopDriver's finally block closes the
