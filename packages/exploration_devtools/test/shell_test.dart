@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:exploration_agent/exploration_agent.dart'
-    show BindingNotInitializedError, PluginManifestEntry, TrajectoryRecord;
+    show
+        BindingNotInitializedError,
+        ExplorationSession,
+        PluginManifestEntry,
+        TrajectoryRecord;
 import 'package:exploration_devtools/src/exploration_shell.dart';
 import 'package:exploration_devtools/src/manifest_probe.dart';
 import 'package:exploration_devtools/src/panels/timeline_panel_mount.dart';
@@ -9,19 +13,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ManifestProbe _staticProbe(List<PluginManifestEntry> plugins) {
-  return (Uri _) async => plugins;
+  return () async => plugins;
 }
 
 ManifestProbe _throwingProbe(Object error) {
-  return (Uri _) async => throw error;
+  return () async => throw error;
 }
+
+Future<ExplorationSession> _noSession() async =>
+    throw StateError('no session in this test');
 
 void main() {
   testWidgets('tabs render three tabs with Prompt selected', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
@@ -38,11 +45,11 @@ void main() {
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: _staticProbe(const [
           PluginManifestEntry(namespace: 'router', tools: ['router.go']),
           PluginManifestEntry(namespace: 'dio', tools: ['dio.respondNext']),
         ]),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
@@ -55,8 +62,8 @@ void main() {
   testWidgets('empty plugin list renders empty-state hint', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
@@ -69,8 +76,8 @@ void main() {
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: _throwingProbe(BindingNotInitializedError()),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
@@ -82,12 +89,12 @@ void main() {
 
   testWidgets('loading state shows spinner', (tester) async {
     final completer = Completer<List<PluginManifestEntry>>();
-    Future<List<PluginManifestEntry>> probe(Uri _) => completer.future;
+    Future<List<PluginManifestEntry>> probe() => completer.future;
 
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: probe,
+        sessionFactory: _noSession,
       ),
     ));
     // Pump once — the probe future is pending.
@@ -105,8 +112,8 @@ void main() {
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
@@ -165,10 +172,9 @@ void main() {
     );
   });
 
-  testWidgets('vmServiceUriListenable change triggers re-probe',
-      (tester) async {
+  testWidgets('probeRetrigger change triggers re-probe', (tester) async {
     var calls = 0;
-    Future<List<PluginManifestEntry>> probe(Uri _) async {
+    Future<List<PluginManifestEntry>> probe() async {
       calls += 1;
       return const <PluginManifestEntry>[];
     }
@@ -176,9 +182,9 @@ void main() {
     final notifier = ValueNotifier<int>(0);
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
-        vmServiceUri: () => 'ws://localhost:9999/abc/',
         manifestProbe: probe,
-        vmServiceUriListenable: notifier,
+        sessionFactory: _noSession,
+        probeRetrigger: notifier,
       ),
     ));
     await tester.pumpAndSettle();

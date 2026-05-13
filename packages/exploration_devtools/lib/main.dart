@@ -1,7 +1,10 @@
 import 'package:devtools_extensions/devtools_extensions.dart';
+import 'package:exploration_agent/exploration_agent.dart'
+    show BindingNotInitializedError, ExplorationSession, PluginManifestEntry;
 import 'package:flutter/material.dart';
 
 import 'src/exploration_shell.dart';
+import 'src/manifest_probe.dart' show probeManifest;
 
 void main() => runApp(const ExplorationDevToolsExtension());
 
@@ -16,21 +19,65 @@ void main() => runApp(const ExplorationDevToolsExtension());
 /// runs only after `DevToolsExtension` has initialized — see
 /// devtools_extensions's own README ("serviceManager getters … below
 /// the DevToolsExtension widget in the widget tree").
+///
+/// The DevTools extension is a Flutter **web** build, so it must never
+/// open its own VM-service websocket (`package:vm_service/vm_service_io.dart`
+/// pulls in `dart:io`, which throws `Unsupported operation: Platform._version`
+/// on web — see lenny-dzh). Instead the manifest probe and the
+/// Start-button session both reuse the live, web-safe connection DevTools
+/// already holds: `serviceManager.service` (a `package:web` JS websocket)
+/// pinned to `serviceManager.isolateManager.mainIsolate`.
 class ExplorationDevToolsExtension extends StatelessWidget {
   const ExplorationDevToolsExtension({super.key});
 
   @override
   Widget build(BuildContext context) => DevToolsExtension(
         child: Builder(
-          builder: (BuildContext context) => ExplorationShell(
-            vmServiceUri: () => serviceManager.serviceUri,
-            // Reconnects (e.g. hot-restart of the target app) flip
-            // connectedState; the shell listens and re-probes the
-            // manifest. Read inside the Builder so the access happens
-            // after DevToolsExtension.initState — not in the parent's
-            // build, where serviceManager throws.
-            vmServiceUriListenable: serviceManager.connectedState,
-          ),
+          builder: (BuildContext context) {
+            // Loads the plugin manifest over the live serviceManager VM
+            // service. When the service / main isolate aren't ready yet,
+            // throw BindingNotInitializedError → the host shows
+            // "Binding not detected" rather than an uncaught dart:io
+            // crash; the probeRetrigger below re-runs it once they are.
+            Future<List<PluginManifestEntry>> probe() async {
+              final vm = serviceManager.service;
+              final id = serviceManager.isolateManager.mainIsolate.value?.id;
+              if (vm == null || id == null) {
+                throw BindingNotInitializedError();
+              }
+              return probeManifest(vm, id);
+            }
+
+            // Builds the in-panel session over the same connection. A
+            // null service / isolate here is a clear StateError, not an
+            // "Unsupported operation" crash.
+            Future<ExplorationSession> session() async {
+              final vm = serviceManager.service;
+              final id = serviceManager.isolateManager.mainIsolate.value?.id;
+              if (vm == null || id == null) {
+                throw StateError(
+                  'VM service / main isolate not available — cannot start '
+                  'an exploration session yet.',
+                );
+              }
+              return ExplorationSession.fromVmService(vm, id);
+            }
+
+            return ExplorationShell(
+              manifestProbe: probe,
+              sessionFactory: session,
+              // Reconnects (hot-restart of the target app) flip
+              // connectedState; the main isolate may appear slightly
+              // after. The shell listens to either and re-probes the
+              // manifest. Read inside the Builder so the accesses happen
+              // after DevToolsExtension.initState — not in the parent's
+              // build, where serviceManager throws.
+              probeRetrigger: Listenable.merge(<Listenable?>[
+                serviceManager.connectedState,
+                serviceManager.isolateManager.mainIsolate,
+              ]),
+            );
+          },
         ),
       );
 }

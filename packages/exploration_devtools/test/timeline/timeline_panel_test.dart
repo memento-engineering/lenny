@@ -39,7 +39,10 @@ void main() {
   group('TimelinePanel', () {
     testWidgets('mounts under Timeline tab', (tester) async {
       await tester.pumpWidget(MaterialApp(
-        home: ExplorationShell(vmServiceUri: () => null),
+        home: ExplorationShell(
+          manifestProbe: () async => const [],
+          sessionFactory: () async => throw StateError('no session'),
+        ),
       ));
       // Default selected tab is Prompt; switch to Timeline.
       await tester.tap(find.text('Timeline'));

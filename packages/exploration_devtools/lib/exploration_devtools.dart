@@ -8,7 +8,7 @@ export 'src/manifest_probe.dart'
         ManifestProbeLoaded,
         ManifestProbeLoading,
         ManifestProbeResult,
-        defaultManifestProbe;
+        probeManifest;
 export 'src/panels/prompt_panel.dart';
 export 'src/panels/prompt_panel_config.dart';
 export 'src/panels/prompt_panel_controller.dart';

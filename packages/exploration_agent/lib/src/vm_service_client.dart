@@ -26,18 +26,37 @@ const String _extExecuteAction =
 
 /// Typed VM-service client used by [ExplorationSession].
 ///
-/// Construction is async ([connect]) because the underlying
-/// `package:vm_service` connection is async. Tests inject a fake via
-/// [VmServiceClient.forTest].
+/// Two construction modes:
+///   - [connect] (async) — opens its own websocket via
+///     `package:vm_service/vm_service_io.dart`. CLI-only: that import
+///     transitively pulls in `dart:io`, which throws on web.
+///   - [fromVmService] (sync) — wraps an already-connected [VmService]
+///     supplied by the caller (e.g. the DevTools extension's
+///     `serviceManager.service`). Web-safe: only the core
+///     `package:vm_service/vm_service.dart` is touched.
+///
+/// Tests inject a fake via [VmServiceClient.forTest].
 class VmServiceClient {
   VmServiceClient._(this._vm, this._isolateId);
 
-  /// Test-only constructor. Allows injecting a [VmService] subclass that
-  /// overrides [VmService.callServiceExtension] without going over a real
-  /// websocket.
+  /// Wrap an already-connected [VmService] and pin [isolateId] as the
+  /// binding's home isolate.
+  ///
+  /// Web-safe: pulls in only `package:vm_service/vm_service.dart` — no
+  /// `dart:io`. The DevTools extension uses this to reuse the live
+  /// `serviceManager.service` connection rather than opening its own.
+  /// The caller owns the connection's lifetime; [dispose] still
+  /// forwards to [VmService.dispose], so callers that did not create
+  /// the connection should not call [dispose].
+  factory VmServiceClient.fromVmService(VmService vm, String isolateId) {
+    return VmServiceClient._(vm, isolateId);
+  }
+
+  /// Test-only alias for [fromVmService]. Retained so existing tests
+  /// compile unchanged; new code should use [fromVmService].
   @visibleForTesting
   factory VmServiceClient.forTest(VmService vm, String isolateId) {
-    return VmServiceClient._(vm, isolateId);
+    return VmServiceClient.fromVmService(vm, isolateId);
   }
 
   final VmService _vm;

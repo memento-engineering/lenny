@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
+import 'panels/prompt_panel_controller.dart' show PromptPanelController,
+    SessionFactory;
 import 'panels/prompt_tab_mount.dart';
 import 'panels/provider_config_store.dart';
 import 'panels/thinking_placeholder.dart';
@@ -21,29 +23,36 @@ import 'panels/timeline_panel_mount.dart';
 /// store; production wires a [DtdProviderConfigStore]. The shell also
 /// drives the Prompt tab off the live manifest probe owned by
 /// [ExplorationPanelHost], so plugin toggles reflect the connected app.
+///
+/// The shell is `serviceManager`-free: `main.dart` builds [manifestProbe]
+/// and [sessionFactory] as closures over `serviceManager.service`, so
+/// pure-VM widget tests can pump the shell without the DevTools globals.
 class ExplorationShell extends StatefulWidget {
   ExplorationShell({
     super.key,
-    required this.vmServiceUri,
-    this.vmServiceUriListenable,
-    this.manifestProbe,
+    required this.manifestProbe,
+    required this.sessionFactory,
+    this.probeRetrigger,
     ProviderConfigStore? store,
     ModelCatalog? catalog,
   })  : store = store ?? InMemoryProviderConfigStore(),
         catalog = catalog ?? ModelCatalog();
 
-  /// Resolves the VM service URI for [ExplorationPanelHost]. Production
-  /// passes `() => serviceManager.serviceUri`; tests pass a stub.
-  final VmServiceUriResolver vmServiceUri;
+  /// Loads the active plugin manifest for [ExplorationPanelHost].
+  /// Production wires a closure over `serviceManager.service` + the main
+  /// isolate id (built on [probeManifest]); tests pass a stub.
+  final ManifestProbe manifestProbe;
+
+  /// Builds the in-panel [ExplorationSession]. Production wires a closure
+  /// over `serviceManager.service` + the main isolate id (via
+  /// [ExplorationSession.fromVmService]); tests pass a stub.
+  final SessionFactory sessionFactory;
 
   /// Optional listenable that, when it fires, triggers a fresh probe.
-  /// Production wires `serviceManager.connectedState` so reconnects
-  /// re-load the plugin manifest.
-  final Listenable? vmServiceUriListenable;
-
-  /// Override for the manifest probe. Tests inject a stub; production
-  /// leaves this null and the host uses `defaultManifestProbe`.
-  final ManifestProbe? manifestProbe;
+  /// Production wires `Listenable.merge([serviceManager.connectedState,
+  /// serviceManager.isolateManager.mainIsolate])` so reconnects re-load
+  /// the plugin manifest.
+  final Listenable? probeRetrigger;
 
   /// Per-provider config persistence.
   final ProviderConfigStore store;
@@ -68,26 +77,26 @@ class _ExplorationShellState extends State<ExplorationShell> {
   @override
   void initState() {
     super.initState();
-    widget.vmServiceUriListenable?.addListener(_onUriChanged);
+    widget.probeRetrigger?.addListener(_onRetrigger);
   }
 
   @override
   void didUpdateWidget(covariant ExplorationShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.vmServiceUriListenable != widget.vmServiceUriListenable) {
-      oldWidget.vmServiceUriListenable?.removeListener(_onUriChanged);
-      widget.vmServiceUriListenable?.addListener(_onUriChanged);
+    if (oldWidget.probeRetrigger != widget.probeRetrigger) {
+      oldWidget.probeRetrigger?.removeListener(_onRetrigger);
+      widget.probeRetrigger?.addListener(_onRetrigger);
     }
   }
 
   @override
   void dispose() {
-    widget.vmServiceUriListenable?.removeListener(_onUriChanged);
+    widget.probeRetrigger?.removeListener(_onRetrigger);
     _trajectory.dispose();
     super.dispose();
   }
 
-  void _onUriChanged() {
+  void _onRetrigger() {
     // ignore: unawaited_futures
     _hostKey.currentState?.refreshManifest();
   }
@@ -96,8 +105,8 @@ class _ExplorationShellState extends State<ExplorationShell> {
   Widget build(BuildContext context) {
     return ExplorationPanelHost(
       key: _hostKey,
-      vmServiceUri: widget.vmServiceUri,
-      manifestProbe: widget.manifestProbe ?? defaultManifestProbe,
+      manifestProbe: widget.manifestProbe,
+      sessionFactory: widget.sessionFactory,
       child: DefaultTabController(
         length: 3,
         child: Scaffold(
@@ -117,6 +126,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
                 hostKey: _hostKey,
                 store: widget.store,
                 catalog: widget.catalog,
+                sessionFactory: widget.sessionFactory,
                 trajectorySink: _trajectory,
               ),
               const ThinkingPlaceholder(),
@@ -143,12 +153,14 @@ class _PromptTabBody extends StatelessWidget {
     required this.hostKey,
     required this.store,
     required this.catalog,
+    required this.sessionFactory,
     required this.trajectorySink,
   });
 
   final GlobalKey<ExplorationPanelHostState> hostKey;
   final ProviderConfigStore store;
   final ModelCatalog catalog;
+  final SessionFactory sessionFactory;
 
   /// Write-side seam — the prompt tab assigns the controller's live
   /// trajectory stream here when a session starts; the Timeline tab
@@ -184,6 +196,8 @@ class _PromptTabBody extends StatelessWidget {
               plugins: plugins,
               store: store,
               catalog: catalog,
+              controllerFactory: () =>
+                  PromptPanelController(factory: sessionFactory),
               trajectorySink: trajectorySink,
             ),
         };

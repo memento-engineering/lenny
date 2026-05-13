@@ -106,8 +106,7 @@ void main() {
     // model catalog + provider config; covered by manual smoke.
     final fake = _FakeSession();
     final c = PromptPanelController(
-      vmServiceUri: Uri.parse('ws://x'),
-      factory: (_) async => fake,
+      factory: () async => fake,
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
