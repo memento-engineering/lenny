@@ -1,0 +1,82 @@
+---
+// Three ILLUSTRATIVE snapshots of what the running summary might say across a
+// "log in" session — turn 1 / ~8 / ~20. Not captured output; hand-written to
+// show the arc: thin → working theory → records a dead end → narrows → near done.
+const snapshots = [
+  {
+    label: 'Turn 1',
+    body: 'Just started. Goal: log in. Landed on what looks like a home screen — there’s a Sign in affordance top-right (node #41). No form visible yet. Plan: tap it.',
+  },
+  {
+    label: 'Turn ~8',
+    body: 'On the login form (route /auth). Email field is node #112, password #118, submit #124. A first submit with a clearly-bogus email was rejected inline (“enter a valid email”) — the field validates on submit, not on blur. Retrying with a well-formed address.',
+  },
+  {
+    label: 'Turn ~20',
+    body: 'Logged in — landed on /home with a populated feed (8 list items) and an avatar in the app bar that wasn’t there before. The email-format rejection was the only snag. Goal looks met; one more turn to confirm the session survives a route change, then done.',
+  },
+];
+---
+<div class="snapshots">
+  {snapshots.map((s) => (
+    <figure class="note">
+      <figcaption class="note-head">
+        <span class="turn mono">{s.label}</span>
+        <span class="badge">Illustrative</span>
+      </figcaption>
+      <blockquote class="note-body">{s.body}</blockquote>
+    </figure>
+  ))}
+</div>
+<p class="caption">
+  The harness never writes this. The model does — once per turn, in its own
+  words. It’s the closest thing the agent has to a memory that isn’t just “the
+  last few things I did” or “what I’m looking at right now.” (Text above is
+  illustrative, not captured output.)
+</p>
+
+<style>
+  .snapshots {
+    margin: 24px 0 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .note {
+    margin: 0;
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--tier-amber);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: rgba(247, 200, 115, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .note-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .turn { font-size: 0.85rem; color: var(--tier-amber); font-weight: 600; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+  .note-body {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    border: none;
+    padding: 0;
+  }
+  .caption { margin: 14px 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+</style>
