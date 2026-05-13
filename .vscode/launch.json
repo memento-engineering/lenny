@@ -11,6 +11,10 @@
   //   - Compound "Sample app + exploration_cli" boots the app first; once it
   //     prints `Dart VM service is listening on ws://...`, paste that URI when
   //     the CLI prompts.
+  //   - "exploration_devtools (standalone web)" runs the panel via the
+  //     devtools_extensions simulated environment (Chrome web target, no
+  //     bundle rebuild); use it for fast widget/layout iteration. The
+  //     dogfood compound is the only path that exercises real DTD/VM.
   "version": "0.2.0",
   "inputs": [
     {
@@ -95,6 +99,25 @@
       ],
       "presentation": {
         "group": "2_exploration_cli",
+        "order": 1
+      }
+    },
+    {
+      "name": "exploration_devtools (standalone web)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/packages/exploration_devtools",
+      "deviceId": "chrome",
+      // Runs the panel as a plain Flutter web app against the
+      // devtools_extensions simulated environment (fake DTD + fake VM
+      // service). NO preLaunchTask: this path deliberately skips the
+      // bundle rebuild (lenny-1l8) — Dart-Code attaches its own VM
+      // service, so breakpoints in lib/** and hot reload on save work.
+      // For the real DTD/VM handshake use the dogfood compound instead.
+      "args": ["--dart-define=use_simulated_environment=true"],
+      "presentation": {
+        "group": "4_devtools",
         "order": 1
       }
     }
