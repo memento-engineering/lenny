@@ -97,38 +97,36 @@ If your plan references a sibling-exposed symbol without a declared dep:
 
 Don't proceed until one is true. Implicit cross-bead state is the failure mode of factoryskills-9ef.
 
-### 4. Size Check
+### 4. Size Check (Advisory)
 
-- Design field: **12KB max** (~3K tokens, 8-10 detailed steps).
-- Acceptance criteria field: **4KB max**.
+- Design field: aim for under **12KB** (~3K tokens, 8-10 detailed steps).
+- Acceptance criteria field: aim for under **4KB**.
 
-If either limit is exceeded, the work is too large for a single bead. Tell the human:
+These are guidelines, not hard limits. The committee surfaces scope and concreteness issues via grades; if a spec is too large to be one bead, the committee will route it back to `draft` with a decompose hint. Don't auto-decompose on size — that's the committee's call.
 
-> "This spec exceeds size limits. It needs to become an epic and be decomposed. Go back to the discover skill for decomposition."
-
-### 5. Gate the Transition
+### 5. Submit to the Committee
 
 ```bash
-fs specify <id>
+fs convene <id>
 ```
 
-This validates that acceptance criteria and design fields are populated (including `## Implementation Plan` and `## Validation Plan` sections in the design), then transitions the bead from draft to spec_review. If it fails, the fields need more work.
+This transitions the bead from `in_spec` to `committee_review`. The committee (deliberators) then grades the spec on concreteness, decision density, and scope. Their verdict — not a CLI gate — decides whether the bead promotes to `ready`, returns to `in_spec` for revision, or returns to `draft` for decomposition.
 
-### 6. Lint
+### 6. Lint (Advisory)
 
 ```bash
 fs lint <id>
 ```
 
-Must pass. Fix any issues before handing off.
+Lint is advisory — it surfaces missing sections and structural gaps but does not block `fs convene`. Run it before submitting if you want a sanity check; the committee will weigh in regardless.
 
 ### 7. Hand Off
 
-**Stop here.** Do NOT run `fs ready <id>` yourself — that is the human's review gate and skipping it defeats the point of having a spec review step.
+**Stop here.** Do NOT promote past `committee_review` yourself — the committee verdict drives that.
 
-Hand off with: "Spec complete. Review it with `bd show <id>`, then promote with `fs ready <id>` when satisfied."
+Hand off with: "Spec submitted to the committee. Review it with `bd show <id>`; the committee will grade and route."
 
-Even if the human has already said "continue" or "keep going", still stop and hand off — those signals authorize the specify phase to finish, not to bypass the review of what you produced.
+Even if the human has already said "continue" or "keep going", still stop and hand off — those signals authorize the specify phase to finish, not to bypass the committee's review of what you produced.
 
 ## Bead Field Format
 
@@ -148,7 +146,7 @@ Load on-demand during specification:
 
 - Redesign the approach (that was the discover skill).
 - Write code (that's the forge skill).
-- Run `fs ready` — ever. That is the human's review gate.
+- Promote past `committee_review` yourself — the committee verdict drives that.
 - Write Implementation Plan or Validation Plan to the `description` field — they belong in `design`.
 - Leave any section vague or incomplete.
-- Skip the size check.
+- Auto-decompose on size — flag the human; the committee will route the bead back if it's truly too large.

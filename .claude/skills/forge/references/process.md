@@ -56,6 +56,14 @@ After claiming, read the full bead spec:
 bd show <id>
 ```
 
+Also run `bd comments list <id>`. If the latest `inspector` comment begins with
+`inspector: REBUILD.`, the bead is on the rebuild→ready path — read those
+findings as build context for this pass (you are starting from a reset branch,
+so the findings, not the prior diff, are the carried signal). The
+"Handling Review Feedback" section below covers the *other* re-dispatch shape
+(fix-the-existing-diff after a `needs_work` rejection); this one is a fresh build
+informed by the prior verdict.
+
 Verify the bead has the required sections:
 
 1. `## Acceptance Criteria` — at least one `- [ ]` item
