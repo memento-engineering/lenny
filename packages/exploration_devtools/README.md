@@ -36,6 +36,44 @@ DevTools view. A duplicate `extension/devtools/config.yaml` is kept inside
 this package for standalone development against the simulated DevTools
 environment.
 
+## Iterating on the panel
+
+Two ways to run the panel while developing it:
+
+### Standalone web (fast iteration)
+
+Use for widget work, layout, and form behavior — anything that does not
+depend on real DTD or real VM-service traffic. The
+`devtools_extensions` simulated environment supplies a fake DTD and a
+fake VM service, so `lib/main.dart` runs as a plain `flutter run -d
+chrome` web app: hot reload on save and source-level breakpoints both
+work, with **no** bundle rebuild (`tool/build_devtools_extension.sh`)
+in the loop.
+
+- VS Code: launch the **`exploration_devtools (standalone web)`** config
+  (group `4_devtools` in `.vscode/launch.json`).
+- CLI equivalent: `flutter run -d chrome --dart-define=use_simulated_environment=true`
+  from `packages/exploration_devtools/`.
+
+### In-DevTools (real handshake)
+
+Use to verify the real binding handshake, real `/v1/models` calls, and
+real `session.run` end-to-end. This runs the compiled bundle inside a
+real DevTools instance attached to `sample_app`.
+
+- VS Code: launch the **`Dogfood: sample_app + exploration_cli`** compound
+  (it runs the `Build DevTools Extension` preLaunchTask first), then open
+  DevTools -> **Exploration** tab.
+
+### Attaching a debugger
+
+- **Dart side:** launch the `exploration_devtools (standalone web)` config
+  and set breakpoints in `packages/exploration_devtools/lib/**` — Dart-Code
+  owns the VM service for this target, so they bind immediately.
+- **Browser side:** open Chrome DevTools on the served tab (the one
+  `flutter run -d chrome` opened) — debug web builds ship source maps, so
+  you can set breakpoints in the `.dart` sources from the Sources panel.
+
 ## Minimum versions
 
 - `devtools_extensions: ^0.4.0` — pinned in `pubspec.yaml`.

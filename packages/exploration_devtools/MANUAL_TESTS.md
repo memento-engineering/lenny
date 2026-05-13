@@ -3,6 +3,13 @@
 Steps a human runs by hand for things automated tests cannot reach
 (real network endpoints, real model providers).
 
+All smokes in this file target **in-DevTools mode** (compiled bundle in a
+real DevTools instance attached to a running app) — they exercise the real
+binding handshake and real provider calls. For fast iteration on widgets,
+layout, or form behavior that does not need real DTD/VM traffic, use
+**standalone web mode** instead; see
+[README.md -> "Iterating on the panel"](README.md#iterating-on-the-panel).
+
 ## Manual: Anthropic — Claude trajectory parity (lenny-0wd)
 
 Goal: verify that starting a session from the DevTools prompt panel with
