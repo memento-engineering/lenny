@@ -1,0 +1,12 @@
+---
+// BASE_URL is '/lenny' (no trailing slash) with `base: '/lenny'` and default trailingSlash.
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const home = base + '/';
+const gettingStarted = base + '/getting-started';
+---
+<nav class="container" style="display:flex;gap:20px;align-items:center;padding-top:20px;padding-bottom:20px;">
+  <a href={home} style="font-family:var(--mono);font-weight:700;color:var(--accent-green);text-decoration:none;">Lenny</a>
+  <a href={home}>Home</a>
+  <a href={gettingStarted}>Getting started</a>
+  <a href="https://github.com/nicholasspencer/lenny">GitHub</a>
+</nav>

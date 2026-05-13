@@ -1,0 +1,16 @@
+---
+interface Props { name: string; tagline: string; pitch: string; }
+const { name, tagline, pitch } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const gettingStarted = base + '/getting-started';
+---
+<header class="container" style="padding:64px 0 24px;">
+  <span class="pill">v1 proof of concept</span>
+  <h1 style="font-size:2.6rem;margin:16px 0 8px;">{name}</h1>
+  <p style="font-size:1.4rem;color:var(--accent-green);margin:0 0 12px;">{tagline}</p>
+  <p style="font-size:1.1rem;max-width:60ch;">{pitch}</p>
+  <p style="margin-top:24px;display:flex;gap:14px;">
+    <a class="cta cta-primary" href={gettingStarted}>Get started</a>
+    <a class="cta cta-secondary" href="#how-it-works">How it works</a>
+  </p>
+</header>

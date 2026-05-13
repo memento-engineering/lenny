@@ -1,0 +1,62 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Section from '../components/Section.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+const pubspec = `dependencies:
+  exploration_flutter: ^0.1.0
+  exploration_router: ^0.1.0      # optional reference plugins
+  exploration_riverpod: ^0.1.0
+  exploration_dio: ^0.1.0`;
+const mainDart = `import 'package:exploration_flutter/exploration_flutter.dart';
+
+class MyExplorationApp extends ExplorationApp {
+  @override
+  ExplorationAppConfig build() => ExplorationAppConfig(
+    plugins: [RouterPlugin(), RiverpodPlugin(), DioPlugin()],
+    app: MaterialApp(home: HomeScreen()),
+  );
+}
+
+void main() => ExplorationBinding.run(MyExplorationApp());`;
+const cliCmd = `dart run exploration_cli --goal "open settings and toggle dark mode" --model qwen-mlx
+# or: --model claude   |   --model openai`;
+---
+<Layout title="Getting started — Lenny">
+  <div class="container"><h1>Getting started</h1></div>
+  <Section id="prereqs" title="Prerequisites">
+    <ul>
+      <li>A Flutter app you can run in <strong>debug mode</strong>.</li>
+      <li>Dart <strong>3.11+</strong>.</li>
+      <li>The app reachable over the <strong>VM service</strong> (the default when you <code>flutter run</code> in debug).</li>
+    </ul>
+  </Section>
+  <Section id="add-deps" title="1. Add the packages">
+    <CodeBlock code={pubspec} lang="yaml" />
+  </Section>
+  <Section id="wrap-main" title="2. Wrap main()">
+    <p>Implement <code>ExplorationApp.build</code> to return an <code>ExplorationAppConfig</code> with your plugins and your app, then hand it to <code>ExplorationBinding.run</code>:</p>
+    <CodeBlock code={mainDart} lang="dart" />
+  </Section>
+  <Section id="run-cli" title="3a. Drive it from the CLI">
+    <CodeBlock code={cliCmd} lang="text" />
+    <p>Environment variables:</p>
+    <table>
+      <thead><tr><th>Var</th><th>Used by</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>SWIFT_INFER_ENDPOINT</code></td><td><code>qwen-mlx</code></td><td><code>http://localhost:8080</code></td></tr>
+        <tr><td><code>SWIFT_INFER_AGENT_TOKEN</code></td><td><code>qwen-mlx</code></td><td>(none — bearer token, optional)</td></tr>
+        <tr><td><code>ANTHROPIC_API_KEY</code></td><td><code>claude</code></td><td>(required)</td></tr>
+        <tr><td><code>OPENAI_API_KEY</code></td><td><code>openai</code></td><td>(required)</td></tr>
+      </tbody>
+    </table>
+  </Section>
+  <Section id="run-devtools" title="3b. Or drive it from DevTools">
+    <p>Open DevTools for the running app &rarr; the <strong>Exploration</strong> tab &rarr; type your goal &rarr; <strong>Start</strong>. Watch the model's reasoning in <strong>Thinking</strong> and each observed/acted step in <strong>Timeline</strong>.</p>
+  </Section>
+  <Section id="next" title="What next">
+    <ul>
+      <li><a href="https://github.com/nicholasspencer/lenny/blob/main/docs/plugin_authoring_guide.md">Write a plugin</a> for your own router / state / networking layer.</li>
+      <li>Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/flutter_exploration_agent_prd_v0.5.md">PRD</a>.</li>
+    </ul>
+  </Section>
+</Layout>

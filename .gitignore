@@ -31,3 +31,8 @@ devtools_options.yaml
 
 # exploration_cli trajectory output (local run artifacts, not source).
 packages/exploration_cli/trajectories/
+
+# Astro product site build artifacts (belt-and-braces with site/.gitignore).
+site/node_modules/
+site/dist/
+site/.astro/
