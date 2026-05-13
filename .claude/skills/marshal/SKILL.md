@@ -5,7 +5,7 @@ description: >
   build agents in parallel, monitors completion, dispatches review agents on
   code_review beads, and emits push notifications for human-needed events
   (blocked builds, review feedback, PRs ready to merge, escalations).
-  Human-triggered or autonomous via /loop. Use when user says "supervise",
+  Human-triggered or autonomous via /loop. Use when user says "marshal",
   "dispatch work", "check the floor", or "what needs building".
 ---
 
@@ -66,7 +66,7 @@ Each invocation runs one supervisor cycle. Load and follow
 ## Autonomous Loop
 
 ```
-/loop 10m /supervise
+/loop 10m /marshal
 ```
 
 In loop mode, the report is suppressed. Notifications from Step 5c of the
@@ -76,9 +76,8 @@ cycle are the only output. See `references/process.md` Step 6 for details.
 
 - **Write code** — you dispatch bitsmiths
 - **Write reviews** — you dispatch inspectors
-- **Fix specs** — reject invalid beads back to the human
+- **Adjudicate rework** — `fs verdict` already routes rework verdicts (`respec`/`decompose` → `committee_review`, `rebuild` → `ready`); you re-pick the bead on a later cycle, you do not re-dispatch forge or specify on a verdict
 - **Make architectural decisions** — escalate via PushNotification
-- **Merge** — that's `fs merge` after a human ack on the "PR ready" notification
+- **Spawn decompose-children** — escalate; decomposition is design work
 - **Dispatch more than 3 builds per cycle** — prevent runaway
-- **Auto-retry blocked work** — notify, human decides
 - **Act on stale beads** — notify, human investigates

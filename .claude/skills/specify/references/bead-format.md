@@ -50,15 +50,15 @@ Epics hold the full design for large features. They are **never dispatched** to 
 
 Use an epic when:
 - The plan exceeds 10 implementation steps
-- The design field would exceed 12KB
+- The design field would substantially exceed 12KB
 - Work spans multiple independent phases or files
 
 ### Stories / Tasks / Bugs — Work Units
 
 Work units are self-contained, size-bounded, and buildable.
 
-- **design field:** Capped at 12KB. Enforced by `fs lint`.
-- **acceptance_criteria:** Soft-capped at 4KB. Exceeding triggers a warning.
+- **design field:** Aim for around 12KB. Advisory — the committee surfaces oversized scope via grades, not via a hard cap.
+- **acceptance_criteria:** Aim for under 4KB. Advisory; exceeding is a hint to scope-check, not a gate.
 - **Content style:** Concrete — actual code snippets, test commands, and expected output in every implementation step.
 - **Self-contained:** A builder needs only `bd show <id>` to implement the bead. No external docs, no implicit context.
 
@@ -66,8 +66,8 @@ Work units are self-contained, size-bounded, and buildable.
 
 | Limit | Default | Applies to | Enforcement |
 |-------|---------|-----------|-------------|
-| Design max | 12KB | stories, tasks, bugs | Hard gate — lint rejects |
-| AC warn | 4KB | stories, tasks, bugs | Warning only |
+| Design max | 12KB | stories, tasks, bugs | Advisory — committee grades scope |
+| AC warn | 4KB | stories, tasks, bugs | Advisory — warning only |
 
 **Epics are exempt from all size checks.**
 
@@ -150,7 +150,7 @@ A bead is "ready" when:
 3. Every implementation step contains a backticked file path, type, or function name
 4. `design` field contains `## Validation Plan` with at least one item
 5. `description` does NOT contain duplicated section headers
-6. `fs lint <id>` passes
+6. `fs lint <id>` is clean (advisory; the committee weighs lint as one input among grades)
 
 ## Optional Sections
 

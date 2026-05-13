@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://factoryskills/schemas/critique-output.json",
+  "title": "CritiqueOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rubric", "version", "grade", "rationale"],
+  "properties": {
+    "rubric":    {"type": "string", "minLength": 1},
+    "version":   {"type": "integer", "minimum": 1},
+    "grade":     {"type": "string", "enum": ["A","B","C","D","F"]},
+    "rationale": {"type": "string", "minLength": 1}
+  }
+}

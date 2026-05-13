@@ -38,13 +38,23 @@ Decision discovery is complete when:
 - Consequences are understood
 - ADR is written to the bead description
 
-When done: "Decision recorded."
-Decisions typically don't need the specify skill — the ADR itself is the artifact.
-If the decision creates follow-up work, create separate task/feature beads and link
-them: `bd dep add <task-id> <decision-id>`.
+When done: hand off with `fs record <id>`. The verb persists the bead's
+description to `docs/adrs/NNNN-<slug>.md` and transitions `draft → recorded`.
+
+Decisions do not pass through specify/forge/inspect — `fs record` is the
+terminal verb. The 8 non-applicable fs verbs (`specify`, `convene`,
+`ready`, `forge`, `done`, `verdict`, `route`, `merge`) reject decision
+beads with a message pointing at `fs record`.
+
+If the decision creates follow-up work, create separate task/feature beads
+and link them: `bd dep add <task-id> <decision-id>`.
 
 ### ADR Persistence
 
-The decision bead's description IS the ADR. After approval, persist it to the
-project's ADR directory (e.g., `docs/adrs/`) as a markdown file. The ADR file
-should reference the decision bead ID for traceability.
+`fs record <id>` writes the bead's description to
+`docs/adrs/NNNN-<slug>.md` (auto-numbered, slugified from the title).
+Override the slug with `--name <slug>`. Use `--no-file` when the ADR
+file already exists (e.g., migrating an existing decision bead). The bead
+description remains the source of truth — re-recording is not supported
+(the bead is then in `recorded`); update the description and the file
+side-by-side if the ADR needs revisions.

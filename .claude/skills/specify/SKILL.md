@@ -22,6 +22,10 @@ Run `fs dispatch <id> --skill specify`. Parse the single JSON line on stdout. Br
 
 Never execute the specify process body in this conversation.
 
+### Front-gate alias
+
+`fs specify <id>` is now equivalent to `fs dispatch <id> --skill specify` with one extra step: it transitions the bead from `open`/`draft` to `in_spec` before emitting the same envelope. Either invocation works; `fs specify` is the convenient one for human callers, while `fs dispatch` is canonical for skill bodies and supervisors. The skill body itself uses `fs dispatch` so the dispatch waterfall stays a single code path.
+
 ## What This Skill Doesn't Do Itself
 
 This skill body is a **dispatcher**. The full specify process — writing acceptance criteria, implementation plan, validation plan, lint gating — lives in `references/process.md`. The dispatcher never executes the process directly; one of the two isolated tiers always handles it (or the skill errors out at the failure-mode step).

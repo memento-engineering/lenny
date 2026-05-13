@@ -124,7 +124,7 @@ what code to write, the step is a placeholder. The plan should eliminate all amb
 
 ## Size Awareness
 
-Beads have a design field size limit (default: 12KB for non-epic types).
+Beads have an advisory design field size guideline (around 12KB for non-epic types). It's a heuristic, not an enforced cap.
 
 **While writing the plan, monitor your step count:**
 
@@ -133,16 +133,18 @@ Beads have a design field size limit (default: 12KB for non-epic types).
 | 3-5   | Typical task | You're on track |
 | 6-8   | Getting large | Verify each step is truly atomic (2-5 min) |
 | 9-10  | At the boundary | Consider splitting into two beads |
-| 10+   | Too large | Stop — create an epic and decompose into children |
+| 10+   | Likely too large | Flag the human; the committee may route it back for decomposition |
 
 **If the plan exceeds the threshold during writing:**
 
-1. Stop writing steps in the current bead
-2. Tell the human: "This spec exceeds size limits. It needs to become an epic and be decomposed. Go back to the discover skill for decomposition."
+1. Flag the human and continue if directed; size is no longer a hard gate. The committee will surface scope issues via grades.
+2. Note the size in your hand-off so the committee has full context.
 
-**Do NOT decompose inline.** Decomposition is a discovery activity — it requires
-understanding scope boundaries, identifying seams, and wiring dependencies.
-That's the discover skill's job, not the specify skill's.
+**Do NOT auto-decompose inline.** Decomposition is a discovery activity —
+it requires understanding scope boundaries, identifying seams, and wiring
+dependencies. If the committee finds the spec too large, it routes the
+bead back to `draft` with a decompose hint; that's the right place for
+decomposition, not the specify skill.
 
 ## Step Granularity
 
@@ -182,59 +184,67 @@ The same work, written two ways:
 ```markdown
 ## Implementation Plan
 
-1. Add size threshold check after existing validations — `internal/lint/lint.go`
+1. Add a `## Touches` section warning after existing validations — `internal/lint/lint.go`
 
    After the validation plan check (~line 60), add:
 
    ```go
-   // Size enforcement (non-epic only)
-   if bead.Type != "epic" {
-       if len(bead.Design) > 12288 {
-           errors = append(errors, fmt.Sprintf(
-               "design field is %dB (limit: 12288B)", len(bead.Design)))
-       }
+   // Warning: missing '## Touches' lets sibling beads cross-reference
+   // unknown symbols (factoryskills-9ef).
+   if bead.Type != "epic" && !strings.Contains(bead.Design, "## Touches") {
+       issues = append(issues, Issue{
+           Field:    "design",
+           Severity: SeverityWarning,
+           Message:  "missing '## Touches' section",
+       })
    }
    ```
 
    **Test:**
    ```bash
-   go test ./internal/lint/ -run TestDesignSizeLimit -v
+   go test ./internal/lint/ -run TestTouchesWarning -v
    ```
-   Expected: PASS — "design field exceeds limit"
+   Expected: PASS — "missing '## Touches' section"
 
    **Commit:**
    ```bash
    git add internal/lint/lint.go
-   git commit -m "feat(lint): add design field size check"
+   git commit -m "feat(lint): warn when non-epic bead omits ## Touches"
    ```
 
-2. Add test case for size validation — `internal/lint/lint_test.go`
+2. Add test case for the warning — `internal/lint/lint_test.go`
 
    Add a new test function:
 
    ```go
-   func TestDesignSizeLimit(t *testing.T) {
+   func TestTouchesWarning(t *testing.T) {
        bead := &beads.Bead{
            Type:   "task",
-           Design: strings.Repeat("x", 15000),
+           Design: "## Implementation Plan\n1. step\n## Validation Plan\n- check\n",
        }
-       errors := Validate(bead)
-       if len(errors) == 0 {
-           t.Fatal("expected size limit error")
+       issues := Validate(bead)
+       found := false
+       for _, i := range issues {
+           if strings.Contains(i.Message, "## Touches") {
+               found = true
+           }
+       }
+       if !found {
+           t.Fatal("expected ## Touches warning")
        }
    }
    ```
 
    **Test:**
    ```bash
-   go test ./internal/lint/ -run TestDesignSizeLimit -v
+   go test ./internal/lint/ -run TestTouchesWarning -v
    ```
    Expected: PASS
 
    **Commit:**
    ```bash
    git add internal/lint/lint_test.go
-   git commit -m "test(lint): add design size threshold test"
+   git commit -m "test(lint): cover ## Touches warning"
    ```
 ```
 
@@ -264,16 +274,18 @@ or Validation Plan there.
    - Test Y: `command` -> expected output'
    ```
 
-3. **Run lint — MUST pass before marking ready:**
+3. **Run lint (advisory):**
    ```bash
    fs lint <id>
    ```
+   Lint surfaces structural gaps but does not block `fs convene`. The
+   committee weighs lint as one input among grades.
 
-## Quality Gate — MANDATORY
+## Quality Gate — ADVISORY
 
-**Do NOT hand off until ALL checks pass.** Run `fs lint <id>` to verify programmatically.
+Run `fs lint <id>` to surface structural issues — the committee weighs them when grading. Lint failures don't block `fs convene`, but they're useful signal for the architect to fix obvious gaps before submission.
 
-The lint enforces:
+The lint surfaces:
 - [ ] `acceptance_criteria` field is populated (not in description)
 - [ ] At least one checkbox item in acceptance criteria
 - [ ] `design` field contains `## Implementation Plan` with numbered steps

@@ -1,0 +1,12 @@
+{
+  "name": "spec-readiness",
+  "version": 2,
+  "rubrics": [
+    {"name": "concreteness",     "version": 2},
+    {"name": "decision-density", "version": 2},
+    {"name": "scope",            "version": 2},
+    {"name": "prior-art",        "version": 1},
+    {"name": "coherence",        "version": 1},
+    {"name": "decisions",        "version": 1}
+  ]
+}
