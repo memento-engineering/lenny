@@ -1,0 +1,40 @@
+graph TB
+    subgraph dev["Developer machine"]
+        cli["exploration_cli<br/><i>headless, scriptable</i>"]
+        dt["exploration_devtools<br/><i>in-IDE panel: Prompt / Thinking / Timeline</i>"]
+    end
+
+    subgraph harness_box["exploration_agent"]
+        loop["The harness — perception-action loop<br/>+ stability policy<br/>+ action validation<br/>+ memory (summary / diff)"]
+        traj["Trajectory writer<br/><i>(JSONL, flushed every record)</i>"]
+        loop --> traj
+    end
+
+    subgraph models["Model providers"]
+        qwen["Qwen3.6-35B-A3B<br/><i>local, via swift-infer</i>"]
+        claude["Anthropic"]
+        openai["OpenAI"]
+    end
+
+    subgraph app["The target Flutter app (debug mode)"]
+        binding["ExplorationBinding<br/><i>custom WidgetsBinding — the host</i>"]
+        core["Core tools + core observation<br/><i>tap / type / scroll / semantics tree / errors / stability</i>"]
+        subgraph plugins["Plugins (live in the app)"]
+            router_p["exploration_router"]
+            riverpod_p["exploration_riverpod"]
+            dio_p["exploration_dio"]
+            more["…ecosystem plugins"]
+        end
+        binding --> core
+        binding --> plugins
+    end
+
+    cli --> loop
+    dt --> loop
+    loop -->|"decide next action"| models
+    loop <-->|"VM service extensions:<br/>getStableObservation / executeAction"| binding
+
+    classDef host fill:#e8f0ff,stroke:#5b8def;
+    classDef plug fill:#eafaf0,stroke:#3fbf6f;
+    class binding,core host;
+    class router_p,riverpod_p,dio_p,more plug;
