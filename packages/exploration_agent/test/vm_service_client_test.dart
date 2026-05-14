@@ -101,22 +101,13 @@ void main() {
     });
   });
 
-  group('VmServiceClient.getStableObservation / executeAction', () {
-    test('routes to core extensions with the correct args', () async {
+  group('VmServiceClient.executeAction / callExtension', () {
+    test('routes executeAction to the core extension with the correct args',
+        () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');
-
-      final obs = await client.getStableObservation(
-        const <String, dynamic>{'window': 200},
-      );
-      expect(
-        fake.lastMethod,
-        equals('ext.flutter.exploration.core.getStableObservation'),
-      );
-      expect(fake.lastArgs, containsPair('window', 200));
-      expect(obs, equals(<String, dynamic>{'ok': true}));
 
       final act = await client.executeAction(
         'router.go',
@@ -160,7 +151,7 @@ void main() {
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await expectLater(
-        client.getStableObservation(const <String, dynamic>{}),
+        client.executeAction('router.go', const <String, dynamic>{}),
         throwsA(isA<RPCError>()),
       );
     });

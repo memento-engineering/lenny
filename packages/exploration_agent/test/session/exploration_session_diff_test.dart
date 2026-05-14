@@ -123,7 +123,7 @@ void main() {
         fake.lastMethod,
         equals('ext.flutter.exploration.core.get_stable_observation'),
       );
-      expect(fake.lastArgs, containsPair('policy', 'action_relative'));
+      expect(fake.lastArgs, containsPair('policy', 'action-relative'));
       expect(result.observation.core.nodes.keys, equals(<int>{1}));
       // First-turn: all current nodes appear as added; nothing removed.
       expect(result.diff.core.nodesAdded.map((SemanticsNode n) => n.id),
@@ -187,7 +187,7 @@ void main() {
       await session.start('goal', const ExplorationConfig());
 
       await session.observeWithDiff(policy: StabilityPolicy.boundedStability);
-      expect(fake.lastArgs, containsPair('policy', 'bounded_stability'));
+      expect(fake.lastArgs, containsPair('policy', 'bounded-stability'));
     });
   });
 }

@@ -21,8 +21,6 @@ const int _kMethodNotFoundRpc = -32601;
 
 /// Service-extension method names exchanged with `ExplorationBinding`.
 const String _extHandshake = 'ext.flutter.exploration.core.handshake';
-const String _extGetStableObservation =
-    'ext.flutter.exploration.core.getStableObservation';
 const String _extExecuteAction =
     'ext.flutter.exploration.core.executeAction';
 
@@ -124,13 +122,6 @@ class VmServiceClient {
     }
     return HandshakeResult(contractVersion: rawVersion, plugins: plugins);
   }
-
-  /// Invoke `ext.flutter.exploration.core.getStableObservation` with the
-  /// caller's stability policy.
-  Future<Map<String, dynamic>> getStableObservation(
-    Map<String, dynamic> policy,
-  ) =>
-      _safeCall(_extGetStableObservation, policy);
 
   /// Invoke `ext.flutter.exploration.core.executeAction` with the
   /// (already-validated) tool name and args.

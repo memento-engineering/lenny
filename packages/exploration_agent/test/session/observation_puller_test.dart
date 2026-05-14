@@ -79,7 +79,7 @@ void main() {
         fake.lastMethod,
         equals('ext.flutter.exploration.core.get_stable_observation'),
       );
-      expect(fake.lastArgs, containsPair('policy', 'action_relative'));
+      expect(fake.lastArgs, containsPair('policy', 'action-relative'));
       expect(obs.core.nodes.keys, equals(<int>{1}));
       expect(obs.core.routeStack, equals(<String>['/home']));
       expect(obs.plugins['router']!.data, equals(<String, dynamic>{'path': '/home'}));
@@ -94,10 +94,20 @@ void main() {
       final ObservationPuller puller = ObservationPuller(client);
 
       await puller.pull(policy: StabilityPolicy.boundedStability);
-      expect(fake.lastArgs, containsPair('policy', 'bounded_stability'));
+      expect(fake.lastArgs, containsPair('policy', 'bounded-stability'));
 
       await puller.pull(policy: StabilityPolicy.quietFrame);
-      expect(fake.lastArgs, containsPair('policy', 'quiet_frame'));
+      expect(fake.lastArgs, containsPair('policy', 'quiet-frame'));
+    });
+
+    test('StabilityPolicy.wireName matches the binding kebab-case contract',
+        () {
+      expect(StabilityPolicy.actionRelative.wireName, equals('action-relative'));
+      expect(StabilityPolicy.quietFrame.wireName, equals('quiet-frame'));
+      expect(
+        StabilityPolicy.boundedStability.wireName,
+        equals('bounded-stability'),
+      );
     });
 
     test('unwraps {type, value} envelope when the binding wraps the bundle',

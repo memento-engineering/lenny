@@ -22,18 +22,19 @@ const String _kExtGetStableObservation =
 enum StabilityPolicy {
   /// Default policy: end after route/semantics change, all-idle, or the
   /// per-action budget.
-  actionRelative('action_relative'),
+  actionRelative('action-relative'),
 
   /// Stop after N consecutive idle frames.
-  quietFrame('quiet_frame'),
+  quietFrame('quiet-frame'),
 
   /// Hybrid: quiet-frame OR a wall-clock budget; tags `budget` on
   /// timeout.
-  boundedStability('bounded_stability');
+  boundedStability('bounded-stability');
 
   const StabilityPolicy(this.wireName);
 
-  /// Snake-cased wire identifier sent in the request payload.
+  /// Kebab-case wire identifier sent in the request payload — matches
+  /// `kStabilityPolicyWireNames` on the binding side (PRD §9.1).
   final String wireName;
 }
 

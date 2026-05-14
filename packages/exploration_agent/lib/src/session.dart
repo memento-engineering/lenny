@@ -128,12 +128,18 @@ class ExplorationSession {
     _emit(SessionStarted(goal));
   }
 
-  /// Pull a stable observation from the binding (delegates to
-  /// [VmServiceClient.getStableObservation] with an empty default
-  /// policy; .12 will replace the policy shape).
-  Future<Map<String, dynamic>> observe() async {
+  /// Pull a stable observation from the binding. Routes through the
+  /// session's [ObservationPuller] (the same path that backs
+  /// [pullObservation] and [observeWithDiff]), so all three observation
+  /// entrypoints share one VM-service call shape and one decode path.
+  ///
+  /// Does *not* mutate the per-session diff baseline (`_prevObservation`).
+  /// Callers that need a diff use [observeWithDiff] instead.
+  Future<Observation> observe({
+    StabilityPolicy policy = StabilityPolicy.actionRelative,
+  }) async {
     _ensureStarted('observe');
-    return _client.getStableObservation(const <String, dynamic>{});
+    return _puller.pull(policy: policy);
   }
 
   /// Internal accessor for the underlying [VmServiceClient]. Used by

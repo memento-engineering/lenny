@@ -125,7 +125,47 @@ void main() {
       );
     });
 
-    test('observe and act delegate to the client after start', () async {
+    test('observe delegates to the puller after start', () async {
+      String? lastMethod;
+      Map<String, dynamic>? lastArgs;
+      final client = _clientWith((method, iso, args) async {
+        lastMethod = method;
+        lastArgs = args;
+        if (method == 'ext.flutter.exploration.core.handshake') {
+          return _resp(<String, dynamic>{
+            'contractVersion': '1.0.0',
+            'plugins': <Map<String, dynamic>>[],
+          });
+        }
+        // get_stable_observation — return a minimally-valid bundle.
+        return _resp(<String, dynamic>{
+          'semantics': const <Object>[],
+          'routes': const <String>[],
+          'errors': const <Object>[],
+          'stability': <String, dynamic>{
+            'policy': 'action_relative',
+            'terminated_by': 'idle',
+            'duration_ms': 1,
+            'framework_busy': <String, dynamic>{'anyBusy': false},
+            'plugins_busy': const <Object>[],
+          },
+          'plugins': const <String, dynamic>{},
+        });
+      });
+      final session = ExplorationSession.forTest(client);
+      await session.start('goal', const ExplorationConfig());
+
+      final Observation obs = await session.observe();
+      expect(
+        lastMethod,
+        equals('ext.flutter.exploration.core.get_stable_observation'),
+      );
+      expect(lastArgs, containsPair('policy', 'action-relative'));
+      expect(obs.core.routeStack, isEmpty);
+      expect(obs.stability.terminatedBy, equals('idle'));
+    });
+
+    test('act delegates to the client after start', () async {
       String? lastMethod;
       Map<String, dynamic>? lastArgs;
       final client = _clientWith((method, iso, args) async {
@@ -141,13 +181,6 @@ void main() {
       });
       final session = ExplorationSession.forTest(client);
       await session.start('goal', const ExplorationConfig());
-
-      final obs = await session.observe();
-      expect(
-        lastMethod,
-        equals('ext.flutter.exploration.core.getStableObservation'),
-      );
-      expect(obs, equals(<String, dynamic>{'ok': true}));
 
       final act = await session.act(const <String, dynamic>{
         'name': 'router.go',
