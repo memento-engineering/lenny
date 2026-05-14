@@ -109,30 +109,9 @@ class CorePlugin extends ExplorationPlugin {
         String method,
         Map<String, String> params,
       ) async {
-        try {
-          final Map<String, Object?> args = _decodeParams(params);
-          final ToolResult r = await tool.call(args);
-          return developer.ServiceExtensionResponse.result(
-            jsonEncode(<String, Object?>{
-              'ok': r.ok,
-              'value': r.value,
-              'error': r.error,
-            }),
-          );
-        } catch (e, st) {
-          // The tool itself should never throw — every error path returns
-          // a ToolResult. Defence-in-depth: wrap an unexpected throw into
-          // `dispatch_failed` so the agent sees a structured error.
-          return developer.ServiceExtensionResponse.result(
-            jsonEncode(<String, Object?>{
-              'ok': false,
-              'value': null,
-              'error':
-                  '${CoreToolErrorCode.dispatchFailed}: $e',
-              'trace': st.toString(),
-            }),
-          );
-        }
+        final Map<String, Object?> args = decodeServiceExtensionParams(params);
+        final String body = await dispatchToolToEnvelope(tool, args);
+        return developer.ServiceExtensionResponse.result(body);
       });
     }
   }
@@ -153,7 +132,11 @@ class CorePlugin extends ExplorationPlugin {
 /// VM service extensions hand parameters as `Map<String, String>` (every
 /// value JSON-encoded). Decode each value back into its native form so
 /// tools can apply `JsonSchema` validation against the original types.
-Map<String, Object?> _decodeParams(Map<String, String> params) {
+///
+/// Promoted from the private `_decodeParams` so the binding's
+/// `@visibleForTesting invokePluginTool` helper can share the decode path
+/// with `CorePlugin.initialize`.
+Map<String, Object?> decodeServiceExtensionParams(Map<String, String> params) {
   final Map<String, Object?> out = <String, Object?>{};
   params.forEach((String k, String v) {
     out[k] = _tryDecode(v);
@@ -168,5 +151,33 @@ Object? _tryDecode(String raw) {
     return jsonDecode(raw);
   } catch (_) {
     return raw;
+  }
+}
+
+/// Run [tool] with [args] and wrap the result in the canonical
+/// `{ok, value, error[, trace]}` envelope.
+///
+/// Single source of truth for that envelope shape — used by both
+/// `CorePlugin.initialize`'s per-tool extension handler and the binding's
+/// `@visibleForTesting invokePluginTool` helper. Never throws: any
+/// unexpected error becomes a `dispatch_failed` envelope.
+Future<String> dispatchToolToEnvelope(
+  ExplorationTool tool,
+  Map<String, Object?> args,
+) async {
+  try {
+    final ToolResult r = await tool.call(args);
+    return jsonEncode(<String, Object?>{
+      'ok': r.ok,
+      'value': r.value,
+      'error': r.error,
+    });
+  } catch (e, st) {
+    return jsonEncode(<String, Object?>{
+      'ok': false,
+      'value': null,
+      'error': '${CoreToolErrorCode.dispatchFailed}: $e',
+      'trace': st.toString(),
+    });
   }
 }

@@ -646,6 +646,61 @@ class ExplorationBinding extends WidgetsFlutterBinding
     return resp.result ?? '';
   }
 
+  /// Test-only: dispatch a plugin tool by its fully-qualified service
+  /// extension method name (e.g. `ext.flutter.exploration.sample.echo`).
+  ///
+  /// Plugin tools are registered with `PluginContext.registerExtension`,
+  /// which calls `dart:developer.registerExtension` directly and never
+  /// populates [_extensionCallbacks] — so they cannot be reached through
+  /// [invokeServiceExtension]. This helper resolves the tool via
+  /// [pluginRegistry]'s `mergedTools()` map (keyed by the qualified
+  /// `<ns>.<tool>` form) and wraps the result in the same
+  /// `{ok, value, error[, trace]}` envelope `CorePlugin.initialize` uses,
+  /// via [dispatchToolToEnvelope].
+  ///
+  /// Test-only: production callers reach plugin tools through the real
+  /// `developer.registerExtension` path. This bypass exists so
+  /// `flutter_test` integration tests can drive plugin tools without a
+  /// VM service connection.
+  ///
+  /// Throws [ArgumentError] when the method name does not start with
+  /// `ext.flutter.exploration.`, is missing the `<ns>.<tool>` tail, or
+  /// when no tool is registered for the qualified name.
+  @visibleForTesting
+  Future<String> invokePluginTool(
+    String method,
+    Map<String, String> params,
+  ) async {
+    const String prefix = '$kExplorationExtensionPrefix.';
+    if (!method.startsWith(prefix)) {
+      throw ArgumentError.value(
+        method,
+        'method',
+        'must start with "$prefix"',
+      );
+    }
+    final String tail = method.substring(prefix.length);
+    final int dot = tail.indexOf('.');
+    if (dot <= 0 || dot == tail.length - 1) {
+      throw ArgumentError.value(
+        method,
+        'method',
+        'malformed <ns>.<tool>',
+      );
+    }
+    final Map<String, ExplorationTool> merged = _pluginRegistry.mergedTools();
+    final ExplorationTool? tool = merged[tail];
+    if (tool == null) {
+      throw ArgumentError.value(
+        method,
+        'method',
+        'no tool registered for $tail',
+      );
+    }
+    final Map<String, Object?> args = decodeServiceExtensionParams(params);
+    return dispatchToolToEnvelope(tool, args);
+  }
+
   /// Test-only: install a custom root provider for the diagnostics walker.
   /// Pass null to restore the live `rootElement` lookup.
   @visibleForTesting
