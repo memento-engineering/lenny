@@ -102,7 +102,7 @@ void main() {
   });
 
   group('VmServiceClient.executeAction / callExtension', () {
-    test('routes executeAction to the core extension with the correct args',
+    test('routes plugin tool calls to ext.flutter.exploration.<ns>.<tool>',
         () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
@@ -113,16 +113,84 @@ void main() {
         'router.go',
         const <String, dynamic>{'route': '/home'},
       );
-      expect(
-        fake.lastMethod,
-        equals('ext.flutter.exploration.core.executeAction'),
-      );
-      expect(fake.lastArgs?['name'], equals('router.go'));
-      expect(
-        fake.lastArgs?['args'],
-        equals(<String, dynamic>{'route': '/home'}),
-      );
+      expect(fake.lastMethod, equals('ext.flutter.exploration.router.go'));
+      // Each arg value is JSON-encoded on the wire so the binding's
+      // `_tryDecode` round-trips nested values.
+      expect(fake.lastArgs?['route'], equals('"/home"'));
       expect(act, equals(<String, dynamic>{'ok': true}));
+    });
+
+    test('routes core tool calls to ext.flutter.exploration.core.<tool>',
+        () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      await client.executeAction('core.tap', const <String, dynamic>{'id': 42});
+      expect(fake.lastMethod, equals('ext.flutter.exploration.core.tap'));
+      expect(fake.lastArgs?['id'], equals('42'));
+    });
+
+    test('JSON-encodes nested values so the binding can _tryDecode them back',
+        () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      await client.executeAction(
+        'forms.fill',
+        const <String, dynamic>{
+          'count': 42,
+          'target': 'home',
+          'payload': <String, dynamic>{'k': 1},
+        },
+      );
+      expect(fake.lastMethod, equals('ext.flutter.exploration.forms.fill'));
+      expect(fake.lastArgs?['count'], equals('42'));
+      expect(fake.lastArgs?['target'], equals('"home"'));
+      expect(fake.lastArgs?['payload'], equals('{"k":1}'));
+    });
+
+    test('throws ArgumentError on unqualified name (no dot)', () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{}),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      expect(
+        () => client.executeAction('tap', const <String, dynamic>{}),
+        throwsA(isA<ArgumentError>()
+            .having((e) => e.name, 'name', 'name')),
+      );
+      expect(fake.callCount, equals(0));
+    });
+
+    test('throws ArgumentError on leading-dot name', () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{}),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      expect(
+        () => client.executeAction('.tool', const <String, dynamic>{}),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(fake.callCount, equals(0));
+    });
+
+    test('throws ArgumentError on trailing-dot name', () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{}),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      expect(
+        () => client.executeAction('core.', const <String, dynamic>{}),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(fake.callCount, equals(0));
     });
 
     test('callExtension passes the literal extension name through',

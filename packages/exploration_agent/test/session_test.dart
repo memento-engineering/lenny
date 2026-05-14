@@ -188,13 +188,11 @@ void main() {
       });
       expect(
         lastMethod,
-        equals('ext.flutter.exploration.core.executeAction'),
+        equals('ext.flutter.exploration.router.go'),
       );
-      expect(lastArgs?['name'], equals('router.go'));
-      expect(
-        lastArgs?['args'],
-        equals(<String, dynamic>{'route': '/home'}),
-      );
+      // Args go on the wire JSON-encoded per value so the binding's
+      // `_tryDecode` round-trips them.
+      expect(lastArgs?['route'], equals('"/home"'));
       expect(act, equals(<String, dynamic>{'ok': true}));
     });
   });
