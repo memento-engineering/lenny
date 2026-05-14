@@ -1,7 +1,7 @@
 /// Public DTOs and progress events for [ExplorationSession].
 library;
 
-/// Result of the `ext.flutter.exploration.handshake` exchange.
+/// Result of the `ext.flutter.exploration.core.handshake` exchange.
 class HandshakeResult {
   const HandshakeResult({
     required this.contractVersion,
@@ -25,7 +25,10 @@ class PluginManifestEntry {
   /// Plugin namespace (e.g. `router`).
   final String namespace;
 
-  /// Tool names — pre-namespaced (e.g. `router.go`).
+  /// Bare tool tokens as reported by the binding's handshake (e.g.
+  /// `go` for the `router` plugin) — NOT namespaced. Callers that need
+  /// the fully-qualified `<namespace>.<tool>` form join them with
+  /// [namespace].
   final List<String> tools;
 }
 

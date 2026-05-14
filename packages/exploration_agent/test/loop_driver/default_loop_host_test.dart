@@ -54,7 +54,7 @@ Response _resp(Map<String, dynamic> json) {
 }
 
 /// Build a fake VM-service that responds to:
-///   * `ext.flutter.exploration.handshake` with the supplied plugin
+///   * `ext.flutter.exploration.core.handshake` with the supplied plugin
 ///     manifest (namespaces only — descriptors are caller-supplied).
 ///   * `ext.flutter.exploration.core.get_stable_observation` via
 ///     [observationHandler] (defaults to one node, route `/`).
@@ -69,7 +69,7 @@ _FakeVmService _fakeVm({
 }) {
   return _FakeVmService((method, args) async {
     switch (method) {
-      case 'ext.flutter.exploration.handshake':
+      case 'ext.flutter.exploration.core.handshake':
         return _resp(<String, dynamic>{
           'contractVersion': '1.0.0',
           'plugins': plugins,
@@ -381,7 +381,7 @@ void main() {
 
     test('non-transport RPCError propagates unwrapped', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -415,7 +415,7 @@ void main() {
         () async {
       int extraCalls = 0;
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -451,7 +451,7 @@ void main() {
     test('observe: RPCError(-32000, "Service connection disposed") → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -482,7 +482,7 @@ void main() {
     test('executeAction: RPCError(-32603, "connection closed") → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -513,7 +513,7 @@ void main() {
     test('observe: bare StateError("disposed") from VmService → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],

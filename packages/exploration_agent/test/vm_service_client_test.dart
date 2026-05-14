@@ -46,14 +46,17 @@ Response _resp(Map<String, dynamic> json) {
 
 void main() {
   group('VmServiceClient.handshake', () {
-    test('decodes contractVersion and plugin manifest', () async {
+    test('decodes protocolVersion and plugin manifest', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{
-          'contractVersion': '1.0.0',
+          'protocolVersion': '1',
+          'bindingType': 'ExplorationBinding',
+          'flutterMode': 'debug',
+          'pluginCount': 1,
           'plugins': <Map<String, dynamic>>[
             <String, dynamic>{
               'namespace': 'router',
-              'tools': <String>['router.go'],
+              'tools': <String>['go'],
             },
           ],
         }),
@@ -62,19 +65,20 @@ void main() {
 
       final result = await client.handshake();
 
-      expect(fake.lastMethod, equals('ext.flutter.exploration.handshake'));
+      expect(fake.lastMethod,
+          equals('ext.flutter.exploration.core.handshake'));
       expect(fake.lastIsolateId, equals('iso-1'));
-      expect(result.contractVersion, equals('1.0.0'));
+      expect(result.contractVersion, equals('1'));
       expect(result.plugins, hasLength(1));
       expect(result.plugins.first.namespace, equals('router'));
-      expect(result.plugins.first.tools, equals(<String>['router.go']));
+      expect(result.plugins.first.tools, equals(<String>['go']));
     });
 
-    test('handshake throws BindingNotInitializedError on RPC code 110',
+    test('handshake throws BindingNotInitializedError on RPC code -32601',
         () async {
       final fake = _FakeVmService(
         (method, iso, args) async {
-          throw RPCError('callServiceExtension', 110, 'method not found');
+          throw RPCError('callServiceExtension', -32601, 'method not found');
         },
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');
@@ -85,7 +89,7 @@ void main() {
       );
     });
 
-    test('handshake rethrows non-110 RPCError unchanged', () async {
+    test('handshake rethrows non-(-32601) RPCError unchanged', () async {
       final fake = _FakeVmService(
         (method, iso, args) async {
           throw RPCError('callServiceExtension', 100, 'feature disabled');
@@ -147,10 +151,10 @@ void main() {
       );
     });
 
-    test('non-handshake extensions do NOT translate code 110', () async {
+    test('non-handshake extensions do NOT translate code -32601', () async {
       final fake = _FakeVmService(
         (method, iso, args) async {
-          throw RPCError('callServiceExtension', 110, 'method not found');
+          throw RPCError('callServiceExtension', -32601, 'method not found');
         },
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');

@@ -2,7 +2,7 @@
 /// from a caller-supplied namespace whitelist and the binding's
 /// handshake manifest.
 ///
-/// The handshake (`ext.flutter.exploration.handshake`,
+/// The handshake (`ext.flutter.exploration.core.handshake`,
 /// [PluginManifestEntry]) only carries pre-namespaced tool *names*;
 /// full JSON-schema input descriptors live in
 /// `package:exploration_flutter` inside the running app and are not

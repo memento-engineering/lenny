@@ -14,11 +14,13 @@ import 'package:vm_service/vm_service_io.dart';
 import 'errors.dart';
 import 'types.dart';
 
-/// JSON-RPC error code for "method not found" / extension absent.
-const int _kMethodNotFound = 110;
+/// JSON-RPC standard "method not found" code — what the VM service
+/// returns when a service extension is not registered (i.e. the
+/// target app's `ExplorationBinding` is absent).
+const int _kMethodNotFoundRpc = -32601;
 
 /// Service-extension method names exchanged with `ExplorationBinding`.
-const String _extHandshake = 'ext.flutter.exploration.handshake';
+const String _extHandshake = 'ext.flutter.exploration.core.handshake';
 const String _extGetStableObservation =
     'ext.flutter.exploration.core.getStableObservation';
 const String _extExecuteAction =
@@ -87,19 +89,19 @@ class VmServiceClient {
     return VmServiceClient._(vm, id);
   }
 
-  /// Exchange the `ext.flutter.exploration.handshake` contract version
-  /// and active plugin manifest.
+  /// Exchange the `ext.flutter.exploration.core.handshake` contract
+  /// version and active plugin manifest.
   ///
   /// Throws [BindingNotInitializedError] when the extension is absent
-  /// (RPC error code 110, "method not found").
+  /// (RPC error code `-32601`, "method not found").
   Future<HandshakeResult> handshake() async {
     final Map<String, dynamic> json =
         await _safeCall(_extHandshake, const <String, dynamic>{});
-    final Object? rawVersion = json['contractVersion'];
+    final Object? rawVersion = json['protocolVersion'] ?? json['contractVersion'];
     final Object? rawPlugins = json['plugins'];
     if (rawVersion is! String) {
       throw StateError(
-        'Handshake response missing or malformed contractVersion: $rawVersion',
+        'Handshake response missing or malformed protocolVersion: $rawVersion',
       );
     }
     final List<PluginManifestEntry> plugins = <PluginManifestEntry>[];
@@ -165,7 +167,7 @@ class VmServiceClient {
       );
       return r.json ?? const <String, dynamic>{};
     } on RPCError catch (e) {
-      if (ext == _extHandshake && e.code == _kMethodNotFound) {
+      if (ext == _extHandshake && e.code == _kMethodNotFoundRpc) {
         throw BindingNotInitializedError();
       }
       rethrow;
