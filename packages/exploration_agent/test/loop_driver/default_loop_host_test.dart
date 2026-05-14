@@ -58,58 +58,66 @@ Response _resp(Map<String, dynamic> json) {
 ///     manifest (namespaces only — descriptors are caller-supplied).
 ///   * `ext.flutter.exploration.core.get_stable_observation` via
 ///     [observationHandler] (defaults to one node, route `/`).
-///   * `ext.flutter.exploration.core.executeAction` via
-///     [executeActionHandler] (defaults to `{ok:true}`).
+///   * any other `ext.flutter.exploration.<ns>.<tool>` via
+///     [executeActionHandler] — `args` arrives JSON-encoded per value
+///     (mirrors the real binding's `_decodeParams`).
 _FakeVmService _fakeVm({
   List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
-  Future<Map<String, dynamic>> Function(Map<String, dynamic>?)?
-      observationHandler,
-  Future<Map<String, dynamic>> Function(Map<String, dynamic>?)?
-      executeActionHandler,
+  Future<Map<String, dynamic>> Function(
+    String method,
+    Map<String, dynamic>?,
+  )? observationHandler,
+  Future<Map<String, dynamic>> Function(
+    String method,
+    Map<String, dynamic>?,
+  )? executeActionHandler,
 }) {
   return _FakeVmService((method, args) async {
-    switch (method) {
-      case 'ext.flutter.exploration.core.handshake':
-        return _resp(<String, dynamic>{
-          'contractVersion': '1.0.0',
-          'plugins': plugins,
-        });
-      case 'ext.flutter.exploration.core.get_stable_observation':
-        final obs = observationHandler != null
-            ? await observationHandler(args)
-            : <String, dynamic>{
-                'value': <String, dynamic>{
-                  'semantics': <Map<String, dynamic>>[
-                    <String, dynamic>{
-                      'id': 1,
-                      'role': 'button',
-                      'label': 'OK',
-                      'state': <String>[],
-                      'actions': <String>['tap'],
-                      'rect': <int>[0, 0, 100, 40],
-                    },
-                  ],
-                  'routes': <String>['/'],
-                  'errors': <Map<String, dynamic>>[],
-                  'plugins': <String, dynamic>{},
-                  'stability': <String, dynamic>{
-                    'policy': 'action_relative',
-                    'terminated_by': 'all_idle',
-                    'duration_ms': 0,
-                    'framework_busy': <String, dynamic>{},
-                    'plugins_busy': <Map<String, dynamic>>[],
-                  },
-                },
-              };
-        return _resp(obs);
-      case 'ext.flutter.exploration.core.executeAction':
-        final result = executeActionHandler != null
-            ? await executeActionHandler(args)
-            : <String, dynamic>{'ok': true};
-        return _resp(result);
-      default:
-        throw RPCError('callServiceExtension', -32601, 'method not found');
+    if (method == 'ext.flutter.exploration.core.handshake') {
+      return _resp(<String, dynamic>{
+        'contractVersion': '1.0.0',
+        'plugins': plugins,
+      });
     }
+    if (method == 'ext.flutter.exploration.core.get_stable_observation') {
+      final obs = observationHandler != null
+          ? await observationHandler(method, args)
+          : <String, dynamic>{
+              'value': <String, dynamic>{
+                'semantics': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'id': 1,
+                    'role': 'button',
+                    'label': 'OK',
+                    'state': <String>[],
+                    'actions': <String>['tap'],
+                    'rect': <int>[0, 0, 100, 40],
+                  },
+                ],
+                'routes': <String>['/'],
+                'errors': <Map<String, dynamic>>[],
+                'plugins': <String, dynamic>{},
+                'stability': <String, dynamic>{
+                  'policy': 'action_relative',
+                  'terminated_by': 'all_idle',
+                  'duration_ms': 0,
+                  'framework_busy': <String, dynamic>{},
+                  'plugins_busy': <Map<String, dynamic>>[],
+                },
+              },
+            };
+      return _resp(obs);
+    }
+    // Action: any extension method under `ext.flutter.exploration.` that
+    // is not handshake/observation. Includes both core tools
+    // (`...core.tap`) and plugin tools (`...router.go`).
+    if (method.startsWith('ext.flutter.exploration.')) {
+      final result = executeActionHandler != null
+          ? await executeActionHandler(method, args)
+          : <String, dynamic>{'ok': true};
+      return _resp(result);
+    }
+    throw RPCError('callServiceExtension', -32601, 'method not found');
   });
 }
 
@@ -350,13 +358,13 @@ void main() {
   group('DefaultLoopHost.executeAction', () {
     test('executeAction delegates to VmServiceClient and returns the '
         'response verbatim', () async {
-      String? lastTool;
+      String? lastMethod;
       Map<String, dynamic>? lastArgs;
       final vm = _fakeVm(
-        executeActionHandler: (args) async {
-          lastTool = args?['name'] as String?;
-          lastArgs = (args?['args'] as Map?)?.cast<String, dynamic>();
-          return <String, dynamic>{'ok': true, 'echo': lastTool};
+        executeActionHandler: (method, args) async {
+          lastMethod = method;
+          lastArgs = args?.cast<String, dynamic>();
+          return <String, dynamic>{'ok': true, 'echo': method};
         },
       );
       final session = await _newStartedSession(vm);
@@ -372,9 +380,13 @@ void main() {
         'core.tap',
         const <String, dynamic>{'id': 42},
       );
-      expect(lastTool, 'core.tap');
-      expect(lastArgs, equals(<String, dynamic>{'id': 42}));
-      expect(result, equals(<String, dynamic>{'ok': true, 'echo': 'core.tap'}));
+      expect(lastMethod, 'ext.flutter.exploration.core.tap');
+      // `id` arrives JSON-encoded.
+      expect(lastArgs?['id'], equals('42'));
+      expect(result, equals(<String, dynamic>{
+        'ok': true,
+        'echo': 'ext.flutter.exploration.core.tap',
+      }));
 
       await session.end();
     });
@@ -558,7 +570,7 @@ void main() {
             'tools': <String>['flaky.x'],
           },
         ],
-        observationHandler: (args) async => <String, dynamic>{
+        observationHandler: (method, args) async => <String, dynamic>{
           'value': <String, dynamic>{
             'semantics': <Map<String, dynamic>>[],
             'routes': <String>['/'],

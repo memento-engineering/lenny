@@ -7,6 +7,8 @@
 /// .19 writer, .21 DevTools transport) share one abstraction.
 library;
 
+import 'dart:convert';
+
 import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -21,8 +23,6 @@ const int _kMethodNotFoundRpc = -32601;
 
 /// Service-extension method names exchanged with `ExplorationBinding`.
 const String _extHandshake = 'ext.flutter.exploration.core.handshake';
-const String _extExecuteAction =
-    'ext.flutter.exploration.core.executeAction';
 
 /// Typed VM-service client used by [ExplorationSession].
 ///
@@ -123,16 +123,40 @@ class VmServiceClient {
     return HandshakeResult(contractVersion: rawVersion, plugins: plugins);
   }
 
-  /// Invoke `ext.flutter.exploration.core.executeAction` with the
-  /// (already-validated) tool name and args.
+  /// Invoke the per-tool VM service extension that the binding registers
+  /// via `PluginContext.registerExtension`:
+  /// `ext.flutter.exploration.<namespace>.<tool>`.
+  ///
+  /// [name] must be the fully-qualified `<namespace>.<tool>` token that
+  /// `buildPluginTools` emits and `LoopHost.executeAction` documents
+  /// (e.g. `'core.tap'`, `'router.go'`). Throws [ArgumentError] when
+  /// [name] is unqualified or has a leading/trailing dot.
+  ///
+  /// Each value in [args] is JSON-encoded on the wire so the binding's
+  /// `_decodeParams`/`_tryDecode` (`core_plugin.dart:156-172`) round-trips
+  /// nested maps and lists. Scalars survive either form; encoding
+  /// uniformly avoids special-casing.
   Future<Map<String, dynamic>> executeAction(
     String name,
     Map<String, dynamic> args,
-  ) =>
-      _safeCall(_extExecuteAction, <String, dynamic>{
-        'name': name,
-        'args': args,
-      });
+  ) {
+    final int dot = name.indexOf('.');
+    if (dot <= 0 || dot == name.length - 1) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'action name must be qualified as <namespace>.<tool>',
+      );
+    }
+    final String namespace = name.substring(0, dot);
+    final String tool = name.substring(dot + 1);
+    final String ext = 'ext.flutter.exploration.$namespace.$tool';
+    final Map<String, dynamic> encoded = <String, dynamic>{
+      for (final MapEntry<String, dynamic> e in args.entries)
+        e.key: jsonEncode(e.value),
+    };
+    return _safeCall(ext, encoded);
+  }
 
   /// Generic escape hatch for plugin-provided extensions (used by .12 to
   /// pull plugin contributions). The [extension] string is passed
