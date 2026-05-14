@@ -56,13 +56,16 @@ After claiming, read the full bead spec:
 bd show <id>
 ```
 
-Also run `bd comments list <id>`. If the latest `inspector` comment begins with
-`inspector: REBUILD.`, the bead is on the rebuild→ready path — read those
-findings as build context for this pass (you are starting from a reset branch,
-so the findings, not the prior diff, are the carried signal). The
-"Handling Review Feedback" section below covers the *other* re-dispatch shape
-(fix-the-existing-diff after a `needs_work` rejection); this one is a fresh build
-informed by the prior verdict.
+Also run `bd comments list <id>`. If the bead carries a prior **rebuild
+finding** — a legacy `inspector: REBUILD.` comment **or** the code-Committee's
+`fs-route: REBUILD.` comment (which names the rubrics graded D/F) — the bead
+is on the rebuild→ready path: read that comment, and read the bead's `grade:*`
+labels to see which rubrics failed. Treat those findings as build context for
+this pass — you are starting from a reset branch, so the findings, not the
+prior diff, are the carried signal. The "Handling Review Feedback" section
+below covers the *other* re-dispatch shape (fix-the-existing-diff after a
+`needs_work` rejection); this one is a fresh build informed by the prior
+verdict.
 
 Verify the bead has the required sections:
 
@@ -127,7 +130,7 @@ When re-dispatched after a review rejection, the bead will have a review comment
    ```bash
    bd comments list <id>
    ```
-   Look for the latest comment from the `inspector` actor starting with `inspector: REBUILD.`, `inspector: RESPEC.`, or `inspector: DECOMPOSE.` (or, on legacy beads, the `review` actor with `Review: CHANGES REQUESTED.` — recognised during the deprecation window).
+   Look for the latest comment from the `inspector` actor starting with `inspector: REBUILD.`, `inspector: RESPEC.`, or `inspector: DECOMPOSE.`, or the code-Committee's `fs-route: REBUILD.` comment (the current rebuild-finding source — names the rubrics graded D/F) (or, on legacy beads, the `review` actor with `Review: CHANGES REQUESTED.` — recognised during the deprecation window).
 
 2. **Parse the findings** — review comments include file/line references, severity (Critical, Important, Suggestion), and recommendations.
 

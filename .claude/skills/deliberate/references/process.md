@@ -18,16 +18,23 @@ Each invocation grades one bead. The cycle is idempotent — safe to re-run.
 ## Inputs
 
 - The bead id (e.g. `factoryskills-abc`).
-- The active rubric set at `skills/deliberate/references/rubric-set.json` —
-  currently `spec-readiness@v2`, six rubrics (`concreteness`,
-  `decision-density`, `scope`, `prior-art`, `coherence`, `decisions`), each
-  with its own version pin independent of the set version.
+- The active rubric set, chosen from the bead's status: `spec_review` →
+  `skills/deliberate/references/rubric-set.json` (`spec-readiness@v2`, six
+  rubrics — `concreteness`, `decision-density`, `scope`, `prior-art`,
+  `coherence`, `decisions`); `code_review` →
+  `skills/deliberate/references/code-review-rubric-set.json` (`code-review@v1`,
+  five rubrics — `spec-adherence`, `test-coverage`, `scope-creep`,
+  `regression-risk`, `prior-art`). Each rubric carries its own version pin
+  independent of the set version. `fs deliberate <id>` emits the right set's
+  envelopes; the `/critique` member reads exactly the rubric path its envelope
+  names (which may be under `references/code/`).
 
 ## Cycle
 
 1. **Read the bead.** `bd show <id>` — confirm its status is
-   `committee_review`. If the bead cannot be found, or is not in
-   `committee_review`, BLOCK/dependency.
+   `spec_review` **or** `code_review`. If the bead cannot be found, or is
+   in neither, BLOCK/dependency. (The status also selects the rubric set —
+   see Inputs; `fs deliberate <id>` does that selection for you.)
 
 2. **Get the critique envelopes.** `fs deliberate <id>` — parse the JSON
    **array** on stdout. Each element is a critique dispatch envelope
@@ -50,9 +57,11 @@ Each invocation grades one bead. The cycle is idempotent — safe to re-run.
    `skills/critique/references/output-schema.json`:
    `{"rubric": "<name>", "version": <int>, "grade": "A|B|C|D|F", "rationale": "<one sentence>"}`.
 
-4. **Aggregate.** Read the set name and version from
-   `skills/deliberate/references/rubric-set.json`, then build the canonical
-   aggregate JSON:
+4. **Aggregate.** Read the set name and version from the rubric-set file
+   the bead's status selected — `rubric-set.json` (`{"rubric_set":"spec-readiness","set_version":2,...}`)
+   for a `spec_review` bead, `code-review-rubric-set.json`
+   (`{"rubric_set":"code-review","set_version":1,...}`) for a `code_review`
+   bead — then build the canonical aggregate JSON:
    ```json
    {
      "rubric_set": "<set-name>",
@@ -99,11 +108,12 @@ the full cycle above, then routes it. The chair cycle (steps 1–7) is
 unchanged — `--auto` just calls it once per bead.
 
 1. **Enumerate.** `fs ready --committee` — prints, one ID per line, every
-   bead in `committee_review` plus every `in_spec` bead whose `blocks`-deps
-   are all satisfied (closed ∨ recorded) and is therefore convene-eligible.
-   Beads labelled `calibration-baseline` are intentionally parked (the
-   dogfood calibration anchor) and excluded from this list.
-   If the list is empty, report `COMPLETE — no beads to deliberate` and stop.
+   bead in `spec_review`, every bead in `code_review`, plus every `in_spec`
+   bead whose `blocks`-deps are all satisfied (closed ∨ recorded) and is
+   therefore convene-eligible. Beads labelled `calibration-baseline` are
+   intentionally parked (the dogfood calibration anchor) and excluded from
+   this list. If the list is empty, report `COMPLETE — no beads to
+   deliberate` and stop.
 
 2. **For each ID, in order, sequentially** — finish one bead's entire
    deliberation (convene → all N rubric members → aggregate → apply →
@@ -112,18 +122,22 @@ unchanged — `--auto` just calls it once per bead.
    (that is step 3 of the chair cycle), but beads themselves are serial.
    For bead `<id>`:
    a. `bd show <id>` — if its status is `in_spec`, run `fs convene <id>`
-      (→ `committee_review`). If it is already `committee_review`, skip
-      the convene. If it is anything else (a race — another worker moved
-      it), skip the bead.
+      (→ `spec_review`). If it is already `spec_review` **or** `code_review`,
+      skip the convene (`code_review` beads arrive there via `fs done`). If
+      it is anything else (a race — another worker moved it), skip the bead.
    b. Run the chair cycle on `<id>` exactly as documented above (steps
       1–7): `fs deliberate <id>` → dispatch the `/critique` members in one
       Agent turn → aggregate → fail-closed check → `fs deliberate-apply` →
       print the per-bead summary. If the chair BLOCKs on this bead, record
       it and move to the next bead — one bad bead does not abort the run.
    c. `fs route <id> --apply` — applies the routing matrix to the labels
-      the chair just wrote, transitioning the bead to `ready` / `in_spec`
-      / `draft` (or self-looping on `committee_review` for a `human`
-      outcome). The chair never picks the next status; `fs route` does.
+      the chair just wrote. The matrix is phase-specific: a `spec_review`
+      bead routes to `ready` / `in_spec` / `draft` (or self-loops on
+      `spec_review` for a `human` outcome); a `code_review` bead routes
+      per the code-phase matrix (approved → status held for `fs merge`,
+      rebuild → `ready`, `regression-risk==F` → `blocked`, human-ultimatum
+      → `code_review` self-loop). The chair never picks the next status;
+      `fs route` does.
 
 3. **Report.** One line per bead: `<id>: <route outcome>` (or
    `<id>: BLOCKED — <reason>`), then `COMPLETE`.
@@ -135,7 +149,8 @@ the marshal's cycle.
 ## Note: human capability outcomes
 
 Grades may, in combination with the routing matrix in `fs route`, surface a
-`human` capability outcome — a self-loop on `committee_review` that signals
+`human` capability outcome — a self-loop on the deliberation status
+(`spec_review` for a spec bead, `code_review` for a code-phase bead) that signals
 the AI committee couldn't decide and a human must rule. The trigger is a
 grade-spread of 3+ letter steps between any two rubrics (e.g.
 concreteness=A, decision-density=F). You don't decide capabilities (the
@@ -150,8 +165,9 @@ When you cannot complete a deliberation:
 bd comments add <id> "deliberator: BLOCKED/<category>. <specific reason>" --actor deliberator
 ```
 Then exit without writing any labels. Categories:
-- `dependency` — bead missing, not in `committee_review`, the rubric set is
-  unreadable, or `fs deliberate` is not installed (a `via:none` element).
+- `dependency` — bead missing, in neither `spec_review` nor `code_review`,
+  the rubric set is unreadable, or `fs deliberate` is not installed (a
+  `via:none` element).
 - `member` — a `/critique` member returned malformed JSON or a non-A–F
   grade, or the `fs deliberate` array carried a `via:fs_agent ok:false`
   element.
@@ -165,8 +181,9 @@ one-sentence summary.
 ## Note on `fs route --verdict`
 
 `fs route <id> --apply --verdict <next_status>` is a human-only override
-that promotes a `committee_review` bead to `ready`, `in_spec`, or `draft`
-without consulting the matrix and without requiring grade labels. The chair
+that promotes a bead in the deliberation status (`spec_review` / `code_review`)
+to one of its valid targets without consulting the matrix and without
+requiring grade labels. The chair
 never uses this flag — its job is to grade and write labels; routing is
 `fs route`'s domain. The flag exists so a human can promote a bead without
 running the committee end-to-end (e.g. when grades are obviously unnecessary).
