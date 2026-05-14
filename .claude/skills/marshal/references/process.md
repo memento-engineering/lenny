@@ -1,6 +1,6 @@
 ---
 name: marshal-process
-description: Full supervisor cycle — scan, validate, stale check, dispatch, monitor, review dispatch, notify, report.
+description: Full supervisor cycle — scan, validate, stale check, dispatch builds, monitor, merge approved, notify, report.
 ---
 
 # Supervise — Process
@@ -14,7 +14,7 @@ Each invocation runs one supervisor cycle. Cycles are idempotent — safe to re-
 3. STALE             -> flag stuck in_progress beads
 4. DISPATCH BUILD    -> spawn build agents (parallel when independent)
 5. MONITOR BUILD     -> collect build agent results
-5b. DISPATCH REVIEW  -> spawn review agents on code_review beads
+5b. MERGE APPROVED   -> fs merge each code_review bead carrying review=approved
 5c. NOTIFY           -> PushNotification for human-needed events
 6. REPORT            -> summarize cycle (single-shot only; suppressed in /loop)
 ```
@@ -32,8 +32,9 @@ and the cycle must see it. `git:*` is already allowlisted.
 No `go build -o $(command -v fs) ./cmd/fs` is needed after the pull. `fs merge`
 rebuilds the `fs` binary whenever the merge touched `fs` source
 (`factoryskills-rv3s`), so a merge done by *this* marshal's auto-merge (Step 5b)
-keeps the binary current. The only stale-binary gap was a raw `gh pr merge` done
-out of band — which Step 5b's auto-merge eliminates.
+keeps the binary current. Every merge the marshal performs goes through
+`fs merge`; there is no out-of-band merge step and no `--admin` shortcut
+anywhere in the loop, so the binary never goes stale and CI is never bypassed.
 
 ## 1. Scan
 
@@ -136,56 +137,69 @@ Flag for human attention in the report.
 ### REJECTED
 
 The agent found the spec was unbuildable (missing sections, contradictions).
-It should have already called `fs block --category dependency` (or, if a
-review-level verdict, `fs verdict <id> respec|unfit`).
+It should have already called `fs block --category dependency` with the reason.
 
 ```bash
 bd comments add <id> "marshal: UNFIT. Agent rejected bead. Spec needs rework." --actor marshal
 ```
 
-## 5b. Dispatch Review
+## 5b. Merge Approved
 
-Scan for code_review beads after collecting build results:
+After collecting build results, scan for code_review beads:
 
 ```bash
 bd list --status=code_review --json
 ```
 
-For each code_review bead, run `fs dispatch <id> --skill review` and parse the JSON line on stdout. Branch on `via`:
+By the time the marshal runs, the Committee (`/deliberate --auto`) and `fs route`
+have already decided each code_review bead's disposition — the marshal's only job
+here is to **land the approved ones**. For each code_review bead, branch on its
+`review=` state (set by `fs route --apply`):
 
-- `via=fs_agent`, `ok=true`: worker ran; refetch `bd show <id>` for state.
-- `via=fs_agent`, `ok=false`: worker failed; record `error` and continue with the next bead.
-- `via=subagent`: spawn an Agent subagent using the envelope's `subagent_type`, `description`, and `prompt`.
-- `via=none`: surface `error` and stop review dispatch for this cycle.
+- **`review=approved`** — run `fs merge <id>` (see "Merge on APPROVED" below). Merge
+  these **one at a time**, even when the build wave ran in parallel.
+- **No `review=` state and no `grade:*` labels** — this bead hasn't been to the
+  Committee yet. That's `/deliberate --auto`'s job, not the marshal's (the marshal
+  is a build/merge floor, not a chair). Note it in the report — "N code_review beads
+  await the Committee — run `/deliberate --auto` or `/factory`" — and move on.
+- **Any other state** (`grade:*` labels present but `review=` ≠ `approved`, or `fs
+  route` already routed the bead onward to `ready` / `in_spec` / `draft` / `blocked`,
+  or it self-looped `code_review` with `[human]`) — `fs route` already handled it. A
+  bead routed to `ready` re-enters the build queue the marshal scans in Step 1; a
+  `[human]` self-loop is a notify (Step 5c), not a re-dispatch; everything else has
+  left the floor. The marshal **re-dispatches nothing** — `fs route` does the routing
+  (ADR 0004/0005, now enforced at the code phase). Its only code-review actions are:
+  merge-the-approved, surface a `[human]` self-loop, and the circuit breaker below.
 
-**Independent reviews (parallel):** spawn each `fs dispatch` call via Bash `run_in_background`; collect results by re-fetching `bd show <id>`. For `via=subagent` envelopes, batch the resulting Agent tool calls in a single message.
+### What `fs route` already did
 
-### Outcomes
+`fs route --apply` ran on each code_review bead during deliberation and chose its
+disposition — the marshal never transitions a code_review bead itself:
 
-The inspector returns one of these verdicts. `fs verdict` records it and drives
-the next state — the marshal does not transition the bead itself:
-
-| Verdict | Bead state after `fs verdict` | Marshal action |
+| `fs route` outcome | bead state | marshal action |
 |---|---|---|
-| APPROVED   | code_review (still)  | run `fs merge <id>` — see "Merge on APPROVED" below |
-| REBUILD    | ready                | nothing now; next cycle's Step 1 SCAN re-picks it; the bitsmith reads the prior `inspector: REBUILD.` comment as build context (the `/forge` side is `factoryskills-thxf`) |
-| RESPEC     | committee_review     | nothing now; next cycle's deliberate step re-grades it with the inspector findings as evidence (ADR 0005); `fs route` will most often send it to `in_spec` for the architect |
-| DECOMPOSE  | committee_review     | nothing now; re-graded next cycle; the `scope` rubric grades F → `fs route` sends it to `draft` with the decompose hint → a human (or the marshal, if it judges the split mechanical) spawns the children. Default: escalate — decomposition is design work, not a marshal action |
-| UNFIT / circuit-breaker ESCALATED | code_review (still) | escalate — notify, human (Step 5c) |
-| BLOCKED (build) | blocked          | escalate — notify, human (Step 5c) |
+| passing grades | `code_review`, `review=approved` | `fs merge <id>` (below) |
+| rebuild (any D/F default) | `ready`, `fs-route: REBUILD.` comment, grade labels kept | nothing now — Step 1 SCAN re-picks it next cycle; the bitsmith reads the `fs-route: REBUILD.` comment + `grade:*` labels on claim (the `/forge` hook) |
+| respec (`spec-adherence` issue traced to the spec) | `in_spec`, grade labels cleared | nothing — the architect re-specs; the bead re-enters the Committee later |
+| decompose (`scope-creep==F` → spec was too big) | `draft`, decompose comment | nothing — decomposition is design work; a human (or `/discover`) splits it |
+| `regression-risk==F` | `blocked` | escalate — notify, human (Step 5c) |
+| grade-spread ≥ 3, or `scope-creep==F` ambiguous | `code_review` self-loop, `capabilities=[human]` | escalate — notify, human (Step 5c) |
 
-On REBUILD / RESPEC / DECOMPOSE the marshal **re-dispatches nothing** — `fs
-verdict` already moved the bead to the station that handles it (`ready` for the
-next bitsmith, `committee_review` for the next deliberation), and the loop picks
-it up on a later turn. The marshal's only post-verdict actions are
-merge-on-APPROVED and escalate-on-{UNFIT, BLOCKED, circuit-breaker}. There is no
-per-bead retry-budget counter; the 3-cycle review circuit breaker (below, and in
-`skills/inspect/references/process.md`) plus `fs route`'s `decisions==F` /
-`spread≥3` escalation are the only bounds.
+The marshal re-dispatches nothing on a rework outcome: `fs route` already moved the
+bead to the station that handles it, and a later cycle picks it up. There is no
+per-bead retry-budget counter; the circuit breaker (below) and `fs route`'s
+`spread ≥ 3` / `scope-creep==F` escalations are the only bounds.
 
 ### Merge on APPROVED
 
-On an inspector APPROVED verdict, the marshal runs:
+Merge `code_review` beads **one at a time** — even when the build wave ran in
+parallel, the merge step is serial. Each `fs merge` rebases the bead's worktree
+branch onto the just-updated `main` *before* it merges (`factoryskills-1ql`), so a
+wave of N parallel builds that all touched a shared file (a barrel, a root config,
+`.beads/issues.jsonl`) lands without the parent session hand-resolving rebases.
+
+On a code_review bead carrying `review=approved` (set by `fs route --apply` on
+passing `code-review@v1` grades), the marshal runs:
 ```bash
 fs merge <id>
 ```
@@ -201,21 +215,56 @@ the merge gate, not a marshal-side rule:
   open PR via the `pr-ready` notification (Step 5c) and moves on. There is no
   "always stop at PR-open" rule — the platform gate is the safety net.
 
-`fs merge` does its own CI-status check before merging (`factoryskills-vhq` adds
-that guard inside `fs merge`) — the marshal does not need to, and must not, force a
-merge past failing checks; just call `fs merge` and let it gate.
+`fs merge` gates on green CI before merging — it runs `gh pr checks` and refuses
+to merge if any check is failing or still pending, naming the offenders in the
+error. It never passes `--admin` to `gh pr merge` unless invoked with
+`--force-unsafe`. **The marshal must never pass `--force-unsafe`**: a merge past
+failing checks is a human decision, not a loop decision. Just call `fs merge <id>`
+and let it gate; if checks aren't green it errors and the marshal surfaces the
+open PR via the `pr-ready` notification (Step 5c) and moves on.
 
-If `fs merge` *fails* (an error rather than a clean platform refusal — e.g. a
-`bd close` false-block on a `recorded` ancestor, still real for some beads per
-`factoryskills-92iq`), the marshal **surfaces the failure and escalates** (notify,
-human, Step 5c). It does NOT report success — a bead orphaned in `code_review`
-after a half-completed merge is exactly the failure `factoryskills-gmah` filed.
+If `fs merge` *fails*, the marshal first asks **why**, because a clean (approved)
+bead whose merge fails is not the same thing as a broken merge step:
+
+- **Merge conflict / red required check** — `fs merge` rebases the worktree branch
+  onto current `main` first (`factoryskills-1ql`); if that rebase conflicts it runs
+  `git rebase --abort`, records `merge-blocked: conflict` on the bead itself, and
+  errors *without* merging. So when you see that error / comment, the auto-rebase
+  could not resolve the overlap — a human (or a `rebuild` re-dispatch with the
+  conflict as build context — the `detect-and-re-dispatch` fallback) must finish it.
+  If a required CI check is red instead, `fs merge` errors before merging; add
+  `merge-blocked: ci-red` if it isn't already there. Either way the bead stays in
+  `code_review`, it is *not* `needs_work`, and you do *not* `fs reject`: surface via
+  the `pr-ready` / `merge-blocked` notification (Step 5c) and move on.
+- **Genuine error** (anything other than a conflict / red check / clean platform
+  refusal — e.g. a `bd close` false-block on a `recorded` ancestor, still real for
+  some beads per `factoryskills-92iq`) — the marshal **surfaces the failure and
+  escalates** (notify, human, Step 5c). It does NOT report success — a bead orphaned
+  in `code_review` after a half-completed merge is exactly the failure
+  `factoryskills-gmah` filed.
+
+`fs merge` is itself transactional now (`factoryskills-0vmp`): it does not tear
+down the worktree or branch, and prints no success line, unless BOTH the merge
+*and* `bd close` succeeded — so a bead orphaned in `code_review` after a failed
+close can simply be re-merged (`fs merge` is idempotent once the PR is merged).
+
+Neither path uses `needs_work`: a merge conflict is a rebase situation, a genuine
+error is a human-escalation situation, and `needs_work` is not a state the marshal
+ever sets — `fs route` owns the rework transitions, and a merge problem is a rebase
+or escalation situation, never `needs_work`.
 
 ### Circuit breaker
 
-Before dispatching, check the bead's review history. If the bead has cycled through code_review -> needs_work -> ready -> code_review three or more times, do NOT dispatch a fourth review. Mark as escalated and notify (Step 5c).
+Before letting a code_review bead re-enter the build queue (or before reporting it
+as awaiting more work), check its history: count the `fs-route: REBUILD.` comments
+on it (actor `fs-route` — each one marks a `code_review → ready` round-trip back
+toward the bitsmith). If there are **3 or more**, do not let it loop a fourth time:
+mark it escalated and notify (Step 5c). A bead this stuck needs a human, not another
+build pass.
 
-Detection: count comments by `--actor inspector` (or legacy `--actor review`) whose body begins with `inspector: RESPEC.`, `inspector: REBUILD.`, `inspector: DECOMPOSE.`, or `inspector: UNFIT.` (or, on legacy beads, `Review: CHANGES REQUESTED.` / `Review: REJECTED.` — recognised during the deprecation window). If >= 3, escalate.
+There is no per-bead retry-budget counter beyond this — the circuit breaker plus
+`fs route`'s `spread ≥ 3` / `scope-creep==F` / `regression-risk==F` escalations are
+the only bounds.
 
 ## 5c. Notify
 
@@ -225,36 +274,35 @@ For each outcome from Steps 5 and 5b that needs human attention, emit a PushNoti
 
 | Event | When | Command |
 |---|---|---|
-| Build blocked              | build agent set bead to blocked    | fs notify <id> --event build-blocked --reason "..." |
-| Review CHANGES_REQUESTED   | review returned changes requested  | fs notify <id> --event review-changes |
-| Review APPROVED → merge refused | team-repo branch protection / CI gate refused the merge | fs notify <id> --event pr-ready --pr-url "..." |
-| Review APPROVED → merge failed  | `fs merge` errored (e.g. bd close false-block)          | fs notify <id> --event escalated --reason "..." |
-| Review REJECTED            | review rejected                    | fs notify <id> --event review-rejected --reason "..." |
-| Circuit breaker ESCALATED  | 3+ review cycles                   | fs notify <id> --event escalated |
+| Build blocked                          | build agent set bead to blocked                              | fs notify <id> --event build-blocked --reason "..." |
+| code_review needs a human (`[human]`)  | `fs route` self-looped a code_review bead with capabilities=[human] (grade-spread ≥ 3 or scope-creep=F) | fs notify <id> --event escalated --reason "code-review grades disagree / scope-creep=F — human re-grade or re-route" |
+| Approved → merge refused               | team-repo branch protection / CI gate refused the merge      | fs notify <id> --event pr-ready --pr-url "..." |
+| Approved → merge-blocked               | `fs merge` hit a conflict / red required check (recorded `merge-blocked: conflict\|ci-red`); routes to rebase-and-retry, not an escalation | fs notify <id> --event pr-ready --pr-url "..." |
+| Approved → merge failed                | `fs merge` errored for a genuine reason (e.g. bd close false-block) — distinct from `merge-blocked` | fs notify <id> --event escalated --reason "..." |
+| Circuit breaker ESCALATED              | 3+ REBUILD round-trips                                       | fs notify <id> --event escalated |
 
 Pipe to Claude Code's PushNotification tool: `PushNotification "$(fs notify ...)"`.
 
 ### Silent (no notification)
 
 - Build COMPLETE -> bead is now code_review; next cycle's Step 5b picks it up.
-- Review dispatched -> the supervisor is still working; loop continues.
-- Review APPROVED + `fs merge` succeeded -> bead is now closed, PR merged; nothing to notify.
+- code_review bead routed to ready by fs route -> next cycle's Step 1 SCAN re-picks it for the bitsmith.
+- Approved + `fs merge` succeeded -> bead is now closed, PR merged; nothing to notify.
 
 ### Escalation triggers
 
 The marshal escalates to a human **only** on:
-- a `fs route` `[human]` verdict (grade spread ≥ 3, or `decisions==F`),
-- the 3-cycle review circuit-breaker trip,
-- an `unfit` (escalated) review verdict,
+- a `fs route` `[human]` self-loop on a code_review bead (grade-spread ≥ 3, or `scope-creep==F`),
+- the 3-cycle circuit-breaker trip,
 - a build `blocked` outcome,
-- an `fs merge` failure (not a clean team-repo refusal — an actual error),
+- an `fs merge` genuine-error failure (not a clean team-repo refusal, not a `merge-blocked` conflict — an actual error),
 - genuine divergence: an out-of-envelope lifecycle transition, an out-of-worktree
   write, or an unexpected tool invocation by a worker.
 
-Everything else — rework verdicts, slow-but-running agents, ready beads,
-code_review beads — the marshal drives forward by default. There is no per-bead
-retry-budget counter; the circuit breaker and `fs route`'s escalation rules are
-the only bounds.
+Everything else — rework dispositions `fs route` already moved, slow-but-running
+agents, ready beads, code_review beads — the marshal drives forward by default.
+There is no per-bead retry-budget counter; the circuit breaker and `fs route`'s
+escalation rules are the only bounds.
 
 ## 6. Report
 
@@ -268,11 +316,10 @@ Cycle summary format (single-shot only):
 ```
 Supervisor cycle complete.
   Dispatched build: 2 (bead-xxx, bead-yyy)
-  Dispatched review: 1 (bead-zzz)
   Build complete:    1 (bead-xxx -> code_review)
-  Review approved:   1 (bead-zzz -> merged, closed, PR #42)
+  Merged:            1 (bead-zzz -> closed, PR #42)
   Merge refused:     0 (team-repo branch protection — PR left open)
-  Review changes:    0
+  Await Committee:   1 (bead-aaa -- code_review, no grades — run /deliberate --auto or /factory)
   Build blocked:     1 (bead-yyy -- missing API dependency)
   Stale:             1 (bead-www -- in_progress 45 min, no updates)
   Escalated:         0

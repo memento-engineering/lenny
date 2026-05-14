@@ -23,12 +23,13 @@ You are the bitsmith dispatched by the marshal skill. Your job is to take a sing
 
 4. **Load the spec.** `bd show <id>` and work the Implementation Plan step by
    step. Do not deviate from the plan; if the plan is wrong, that is a blocker
-   (see step 6). Also run `bd comments list <id>` — if the latest `inspector`
-   comment begins with `inspector: REBUILD.`, this bead came back from review on
-   the rebuild→ready path: read that comment's Critical/Important findings and
-   treat them as context for this build pass. Do **not** read the prior diff —
-   the branch was reset and you are starting fresh; the findings are the only
-   carried-over signal.
+   (see step 6). Also run `bd comments list <id>` — if the bead carries a prior
+   rebuild finding (a legacy `inspector: REBUILD.` comment **or** the
+   code-Committee's `fs-route: REBUILD.` comment), this bead came back from
+   review on the rebuild→ready path: read that comment plus the bead's `grade:*`
+   labels (which rubrics graded D/F) and treat them as context for this build
+   pass. Do **not** read the prior diff — the branch was reset and you are
+   starting fresh; the findings are the only carried-over signal.
 
 5. **Finish cleanly.** When the validation plan passes and the commits are clean:
    ```bash

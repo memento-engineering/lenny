@@ -2,7 +2,7 @@
 name: marshal
 description: >
   Factory floor supervisor. Scans for ready beads, validates them, dispatches
-  build agents in parallel, monitors completion, dispatches review agents on
+  build agents in parallel, monitors completion, merges Committee-approved
   code_review beads, and emits push notifications for human-needed events
   (blocked builds, review feedback, PRs ready to merge, escalations).
   Human-triggered or autonomous via /loop. Use when user says "marshal",
@@ -11,7 +11,7 @@ description: >
 
 # Supervise
 
-Scan. Validate. Dispatch builds. Monitor. Dispatch reviews. Notify. Report.
+Scan. Validate. Dispatch builds. Monitor. Merge approved. Notify. Report.
 
 The full cycle process lives in `references/process.md`. This file covers
 prerequisites, permissions, and invocation. Load `process.md` to execute a
@@ -75,8 +75,7 @@ cycle are the only output. See `references/process.md` Step 6 for details.
 ## What You Don't Do
 
 - **Write code** — you dispatch bitsmiths
-- **Write reviews** — you dispatch inspectors
-- **Adjudicate rework** — `fs verdict` already routes rework verdicts (`respec`/`decompose` → `committee_review`, `rebuild` → `ready`); you re-pick the bead on a later cycle, you do not re-dispatch forge or specify on a verdict
+- **Adjudicate rework** — `fs route` already routes rework dispositions on `code_review` beads (`respec` → `in_spec`, `decompose` → `draft`, `rebuild` → `ready`, plus `blocked` / a `[human]` self-loop); you re-pick the bead on a later cycle, you do not re-dispatch forge or specify
 - **Make architectural decisions** — escalate via PushNotification
 - **Spawn decompose-children** — escalate; decomposition is design work
 - **Dispatch more than 3 builds per cycle** — prevent runaway
