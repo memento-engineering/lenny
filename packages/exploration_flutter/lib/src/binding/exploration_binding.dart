@@ -348,10 +348,20 @@ class ExplorationBinding extends WidgetsFlutterBinding
       '$kExplorationExtensionPrefix.core.handshake',
       (String method, Map<String, String> parameters) async {
         return developer.ServiceExtensionResponse.result(
-          '{"protocolVersion":"1",'
-          '"bindingType":"ExplorationBinding",'
-          '"flutterMode":"${kDebugMode ? 'debug' : 'profile'}",'
-          '"pluginCount":${_plugins.length}}',
+          jsonEncode(<String, Object?>{
+            'protocolVersion': '1',
+            'bindingType': 'ExplorationBinding',
+            'flutterMode': kDebugMode ? 'debug' : 'profile',
+            'pluginCount': _plugins.length,
+            'plugins': <Map<String, Object?>>[
+              for (final ({String namespace, List<String> tools}) m
+                  in _pluginRegistry.manifest)
+                <String, Object?>{
+                  'namespace': m.namespace,
+                  'tools': m.tools,
+                },
+            ],
+          }),
         );
       },
     );

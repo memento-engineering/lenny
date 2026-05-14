@@ -103,7 +103,7 @@ void main() {
       final _FakeVmService fake =
           _FakeVmService((String method, String? iso, Map<String, dynamic>? args) async {
         call++;
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': const <Object>[],
@@ -137,7 +137,7 @@ void main() {
       int obsCall = 0;
       final _FakeVmService fake =
           _FakeVmService((String method, String? iso, Map<String, dynamic>? args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': const <Object>[],
@@ -173,7 +173,7 @@ void main() {
     test('threads a non-default policy onto the wire', () async {
       final _FakeVmService fake =
           _FakeVmService((String method, String? iso, Map<String, dynamic>? args) async {
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': const <Object>[],

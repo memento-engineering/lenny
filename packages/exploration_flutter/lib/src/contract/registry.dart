@@ -64,6 +64,23 @@ class PluginRegistry {
         for (final _Entry e in _entries) e.plugin.namespace,
       ]);
 
+  /// Plugin manifest: ordered `(namespace, bare tool names)` records,
+  /// one per registered plugin (post de-duplication). Read by the
+  /// binding's `core.handshake` extension to build the handshake
+  /// `plugins` array. Does not finalize the registry.
+  List<({String namespace, List<String> tools})> get manifest =>
+      List<({String namespace, List<String> tools})>.unmodifiable(
+        <({String namespace, List<String> tools})>[
+          for (final _Entry e in _entries)
+            (
+              namespace: e.plugin.namespace,
+              tools: List<String>.unmodifiable(
+                e.plugin.tools.map((ExplorationTool t) => t.name),
+              ),
+            ),
+        ],
+      );
+
   /// Register [p]. Order is preserved across every dispatch.
   ///
   /// Throws [StateError] if [mergedTools]/[finalize] has already run.

@@ -54,7 +54,7 @@ VmServiceClient _handshakeOnlyClient({
   List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
 }) {
   return _clientWith((method, iso, args) async {
-    if (method == 'ext.flutter.exploration.handshake') {
+    if (method == 'ext.flutter.exploration.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': contractVersion,
         'plugins': plugins,
@@ -131,7 +131,7 @@ void main() {
       final client = _clientWith((method, iso, args) async {
         lastMethod = method;
         lastArgs = args;
-        if (method == 'ext.flutter.exploration.handshake') {
+        if (method == 'ext.flutter.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
