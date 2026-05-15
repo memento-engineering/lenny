@@ -9,10 +9,16 @@ library;
 import 'dart:async';
 
 import 'package:exploration_agent/exploration_agent.dart';
+import 'package:exploration_devtools/src/panels/model_catalog.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_config.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_controller.dart';
+import 'package:exploration_devtools/src/panels/prompt_tab_mount.dart';
 import 'package:exploration_devtools/src/panels/provider_config.dart';
+import 'package:exploration_devtools/src/panels/provider_config_store.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 class _FakeSession implements ExplorationSession {
   _FakeSession();
@@ -132,5 +138,65 @@ void main() {
     expect(c.runFuture, isNull);
 
     await c.dispose();
+  });
+
+  testWidgets(
+      'onUseFallback installs synthetic single-model state and clears the error banner',
+      (tester) async {
+    // Wire a swift-infer config into the store; the catalog will hard
+    // fail with a ClientException so the banner fires; tapping the
+    // fallback link should rewrite ModelCatalogState to a single-entry
+    // synthetic model and clear the error.
+    final store = InMemoryProviderConfigStore();
+    await store.save(SwiftInferUiConfig(
+      bearerToken: 't',
+      endpoint: Uri.parse('http://localhost:8080'),
+      defaultModelId: 'qwen3.6-35b-a3b-8bit',
+    ));
+    final catalog = ModelCatalog(
+      client: MockClient((req) async =>
+          throw http.ClientException('Failed to fetch', req.url)),
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: PromptTabMount(
+          plugins: const <PluginManifestEntry>[],
+          store: store,
+          catalog: catalog,
+          controllerFactory: () => PromptPanelController(
+            factory: () async => _FakeSession(),
+            providerFactory: (_, __, ___) => _DummyProvider(),
+          ),
+        ),
+      ),
+    ));
+    // Allow _bootstrap()'s async load + refresh chain to settle.
+    await tester.pumpAndSettle();
+
+    // The banner is up (ClientException -> networkOrCors).
+    expect(find.byKey(const Key('prompt.modelsError')), findsOneWidget);
+    expect(
+      find.byKey(const Key('prompt.modelsError.useFallback')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+        find.byKey(const Key('prompt.modelsError.useFallback')));
+    await tester
+        .tap(find.byKey(const Key('prompt.modelsError.useFallback')));
+    await tester.pumpAndSettle();
+
+    // Banner is gone; the dropdown carries exactly the fallback id.
+    expect(find.byKey(const Key('prompt.modelsError')), findsNothing);
+    final dropdown = tester.widget<DropdownButtonFormField<String>>(
+      find.byKey(const Key('prompt.model')),
+    );
+    expect(dropdown.initialValue, 'qwen3.6-35b-a3b-8bit');
+    // The synthetic model id is rendered in the dropdown's label area.
+    expect(find.text('qwen3.6-35b-a3b-8bit'), findsWidgets);
+    // And the "using fallback" badge fires because synthetic state
+    // carries usingFallback: true.
+    expect(find.byKey(const Key('badge.fallback')), findsOneWidget);
   });
 }

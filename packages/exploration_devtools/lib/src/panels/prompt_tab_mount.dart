@@ -6,7 +6,8 @@ import 'package:exploration_agent/exploration_agent.dart'
         SessionEnded,
         SessionProgressEvent,
         SessionStarted,
-        TrajectoryRecord;
+        TrajectoryRecord,
+        capabilitiesFor;
 import 'package:flutter/material.dart';
 
 import 'model_catalog.dart';
@@ -151,6 +152,30 @@ class _PromptTabMountState extends State<PromptTabMount> {
     await _controller?.stop();
   }
 
+  /// Installs a synthetic single-entry catalog state so the dropdown
+  /// becomes selectable when the live `/v1/models` fetch is dead. The
+  /// banner is cleared deliberately — the user has acknowledged the
+  /// failure and chosen recovery; leaving the banner alongside a
+  /// working dropdown would be confusing. Pressing the reload button
+  /// re-runs the live fetch (and the banner re-fires if it still fails).
+  void _onUseFallback(String modelId) {
+    final cfg = _state.value.config;
+    _state.value = ModelCatalogState(
+      config: cfg,
+      models: <ResolvedModel>[
+        ResolvedModel(
+          id: modelId,
+          label: modelId,
+          capabilities:
+              cfg == null ? null : capabilitiesFor(cfg.id, modelId),
+          usingFallback: true,
+        ),
+      ],
+      loading: false,
+      // error intentionally cleared.
+    );
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -173,6 +198,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
           onReloadModels: () => unawaited(_refresh(reload: true)),
           catalog: widget.catalog,
           conversationId: _conversationId,
+          onUseFallback: _onUseFallback,
         ),
       );
 }
