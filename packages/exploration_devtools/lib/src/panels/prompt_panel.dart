@@ -30,6 +30,7 @@ class PromptPanel extends StatefulWidget {
     this.conversationId = '',
     this.pluginGuideUrl =
         'https://example.com/exploration-agent/plugin-authoring',
+    this.onUseFallback,
   });
 
   /// Snapshot of the model catalog (provider config + resolved
@@ -66,6 +67,12 @@ class PromptPanel extends StatefulWidget {
 
   /// URL surfaced in the empty-plugin hint.
   final String pluginGuideUrl;
+
+  /// Invoked when the user taps the `Use fallback model: <id>` link in
+  /// the error banner. Only rendered for [SwiftInferUiConfig] (the
+  /// only provider with a documented "always-available" model id).
+  /// `null` disables the link.
+  final void Function(String modelId)? onUseFallback;
 
   @override
   State<PromptPanel> createState() => _PromptPanelState();
@@ -203,11 +210,49 @@ class _PromptPanelState extends State<PromptPanel> {
           padding: const EdgeInsets.only(top: 4),
           child: Container(
             key: const Key('prompt.modelsError'),
-            padding: const EdgeInsets.all(8),
-            color: Colors.red.shade100,
-            child: Text(
-              'Model list error: ${state.error}',
-              style: const TextStyle(color: Colors.black87),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              border: Border.all(color: Colors.red.shade400),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Icon(Icons.error_outline,
+                    color: Colors.red, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        state.error.toString(),
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                      if (_fallbackModelIdFor(state.config) != null) ...<Widget>[
+                        const SizedBox(height: 8),
+                        InkWell(
+                          key: const Key('prompt.modelsError.useFallback'),
+                          onTap: widget.onUseFallback == null
+                              ? null
+                              : () => widget.onUseFallback!(
+                                    _fallbackModelIdFor(state.config)!,
+                                  ),
+                          child: Text(
+                            'Use fallback model: '
+                            '${_fallbackModelIdFor(state.config)}',
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -276,6 +321,14 @@ class _PromptPanelState extends State<PromptPanel> {
     );
   }
 }
+
+/// Returns the configured swift-infer fallback model id, or `null` for
+/// providers that don't expose a documented "always-available" model
+/// (anthropic / openai — pointing users at their `defaultModelId`
+/// would mislead them into pressing Start against the same broken
+/// network).
+String? _fallbackModelIdFor(ProviderConfig? cfg) =>
+    cfg is SwiftInferUiConfig ? cfg.defaultModelId : null;
 
 class _Badge extends StatelessWidget {
   const _Badge({super.key, required this.text});

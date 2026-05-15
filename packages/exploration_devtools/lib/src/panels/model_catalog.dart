@@ -35,21 +35,72 @@ class ResolvedModel {
   final bool usingFallback;
 }
 
+/// Failure category for [ModelCatalogError]. The browser deliberately
+/// hides CORS preflight specifics behind a generic `ClientException`
+/// (`'Failed to fetch'` on Chrome, `'TypeError: NetworkError ...'` on
+/// Firefox), so [networkOrCors] collapses both into one honest bucket
+/// — the UI surfaces a README pointer for local servers.
+enum ModelCatalogErrorKind {
+  /// HTTP returned 4xx/5xx. `statusCode` populated.
+  httpError,
+
+  /// The HTTP request never completed (CORS preflight rejection, DNS,
+  /// connection refused, TLS error, etc.). Browser hides CORS specifics
+  /// behind a generic `ClientException` / 'Failed to fetch'; we cannot
+  /// know for sure, but for localhost / 127.0.0.1 targets the most
+  /// common cause is missing CORS headers — see hint in [toString].
+  networkOrCors,
+
+  /// Response decoded but did not match the `/v1/models` shape.
+  malformedResponse,
+}
+
 /// Thrown by [ModelCatalog.fetch] when an HTTP request fails or the
 /// response cannot be parsed. The widget surfaces this as an inline
 /// banner without crashing the form.
+///
+/// [kind] drives the human-readable [toString] output that the prompt
+/// panel banner renders verbatim. [targetUrl] is the `/v1/models` URI
+/// that failed (e.g. `http://localhost:8080/v1/models`) — surfaced so
+/// the user can correlate the banner with the right server.
 class ModelCatalogError implements Exception {
-  ModelCatalogError({this.statusCode, required this.message});
+  ModelCatalogError({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.targetUrl,
+  });
+
+  /// Failure category.
+  final ModelCatalogErrorKind kind;
 
   /// HTTP status code, or `null` if the failure was network /
   /// parse-level.
   final int? statusCode;
 
-  /// Short, user-facing description (e.g. `'401 Unauthorized'`).
+  /// Short, underlying description (e.g. `'Failed to fetch'`,
+  /// `'HTTP 401'`). Surfaced as part of [toString].
   final String message;
 
+  /// The `/v1/models` URI that failed, when known.
+  final Uri? targetUrl;
+
   @override
-  String toString() => 'ModelCatalogError($statusCode): $message';
+  String toString() {
+    final where = targetUrl?.toString() ?? 'the model server';
+    return switch (kind) {
+      ModelCatalogErrorKind.httpError =>
+        'HTTP $statusCode from $where: $message',
+      ModelCatalogErrorKind.networkOrCors =>
+        'Could not reach $where. For local servers (localhost / 127.0.0.1) '
+            'the most common cause is missing CORS headers — see '
+            'exploration_devtools README §CORS for local MLX inference. '
+            'Underlying: $message',
+      ModelCatalogErrorKind.malformedResponse =>
+        'The model server at $where responded but the body did not match '
+            'the /v1/models shape: $message',
+    };
+  }
 }
 
 /// Fetches and caches the per-provider model list.
@@ -110,14 +161,35 @@ class ModelCatalog {
     AnthropicUiConfig cfg,
     String conversationId,
   ) async {
-    final res = await _client.get(_modelsUri(cfg), headers: cfg.headersFor(conversationId));
-    if (res.statusCode >= 400) {
+    final uri = _modelsUri(cfg);
+    final http.Response res;
+    try {
+      res = await _client.get(uri, headers: cfg.headersFor(conversationId));
+    } on http.ClientException catch (e) {
       throw ModelCatalogError(
-        statusCode: res.statusCode,
-        message: 'HTTP ${res.statusCode}',
+        kind: ModelCatalogErrorKind.networkOrCors,
+        message: e.message,
+        targetUrl: uri,
       );
     }
-    final decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    if (res.statusCode >= 400) {
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.httpError,
+        statusCode: res.statusCode,
+        message: 'HTTP ${res.statusCode}',
+        targetUrl: uri,
+      );
+    }
+    final Map<String, dynamic> decoded;
+    try {
+      decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    } on FormatException catch (e) {
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.malformedResponse,
+        message: e.message,
+        targetUrl: uri,
+      );
+    }
     final data = (decoded['data'] as List?) ?? const [];
     return data
         .whereType<Map<dynamic, dynamic>>()
@@ -137,14 +209,35 @@ class ModelCatalog {
     OpenAiUiConfig cfg,
     String conversationId,
   ) async {
-    final res = await _client.get(_modelsUri(cfg), headers: cfg.headersFor(conversationId));
-    if (res.statusCode >= 400) {
+    final uri = _modelsUri(cfg);
+    final http.Response res;
+    try {
+      res = await _client.get(uri, headers: cfg.headersFor(conversationId));
+    } on http.ClientException catch (e) {
       throw ModelCatalogError(
-        statusCode: res.statusCode,
-        message: 'HTTP ${res.statusCode}',
+        kind: ModelCatalogErrorKind.networkOrCors,
+        message: e.message,
+        targetUrl: uri,
       );
     }
-    final decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    if (res.statusCode >= 400) {
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.httpError,
+        statusCode: res.statusCode,
+        message: 'HTTP ${res.statusCode}',
+        targetUrl: uri,
+      );
+    }
+    final Map<String, dynamic> decoded;
+    try {
+      decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    } on FormatException catch (e) {
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.malformedResponse,
+        message: e.message,
+        targetUrl: uri,
+      );
+    }
     final data = (decoded['data'] as List?) ?? const [];
     return data
         .whereType<Map<dynamic, dynamic>>()
@@ -163,41 +256,63 @@ class ModelCatalog {
     SwiftInferUiConfig cfg,
     String conversationId,
   ) async {
+    final uri = _modelsUri(cfg);
+    final http.Response res;
     try {
-      final res = await _client.get(
-        _modelsUri(cfg),
+      res = await _client.get(
+        uri,
         headers: cfg.headersFor(conversationId),
       );
-      if (res.statusCode == 404 || res.statusCode >= 500) {
-        return _swiftInferFallback(cfg);
-      }
-      if (res.statusCode >= 400) {
-        throw ModelCatalogError(
-          statusCode: res.statusCode,
-          message: 'HTTP ${res.statusCode}',
-        );
-      }
-      final decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
-      final data = (decoded['data'] as List?) ?? const [];
-      if (data.isEmpty) return _swiftInferFallback(cfg);
-      return data
-          .whereType<Map<dynamic, dynamic>>()
-          .map((m) => m.cast<String, dynamic>())
-          .map((m) {
-        final id = m['id'] as String;
-        return ResolvedModel(
-          id: id,
-          label: (m['display_name'] as String?) ?? id,
-          capabilities: capabilitiesFor('swift-infer', id),
-        );
-      }).toList();
-    } on ModelCatalogError {
-      rethrow;
-    } on Object {
-      // Network / parse failure — fall back so the user can still pick
-      // their default model.
+    } on http.ClientException catch (e) {
+      // CORS preflight rejection / DNS / connection-refused. We
+      // deliberately stop swallowing this into the fallback (the
+      // dogfood case): the user needs to see why the picker is dead.
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.networkOrCors,
+        message: e.message,
+        targetUrl: uri,
+      );
+    }
+    if (res.statusCode == 404 || res.statusCode >= 500) {
+      // 404 = gateway doesn't implement /v1/models (documented mode);
+      // 5xx = transient server failure; both fall back so the user
+      // can still pick the configured default.
       return _swiftInferFallback(cfg);
     }
+    if (res.statusCode >= 400) {
+      // 4xx-other-than-404 (401, 403, 400, 422, ...) is a
+      // misconfiguration the user can fix — re-raise so the banner
+      // fires instead of hiding the failure behind a fallback dropdown
+      // that Start would then hit with the same bad credentials.
+      throw ModelCatalogError(
+        kind: ModelCatalogErrorKind.httpError,
+        statusCode: res.statusCode,
+        message: 'HTTP ${res.statusCode}',
+        targetUrl: uri,
+      );
+    }
+    final Map<String, dynamic> decoded;
+    try {
+      decoded = (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    } on FormatException {
+      // Malformed JSON from a swift-infer gateway is treated the same
+      // as "doesn't implement /v1/models": fall back to the configured
+      // default model id so the user can still pick something.
+      return _swiftInferFallback(cfg);
+    }
+    final data = (decoded['data'] as List?) ?? const [];
+    if (data.isEmpty) return _swiftInferFallback(cfg);
+    return data
+        .whereType<Map<dynamic, dynamic>>()
+        .map((m) => m.cast<String, dynamic>())
+        .map((m) {
+      final id = m['id'] as String;
+      return ResolvedModel(
+        id: id,
+        label: (m['display_name'] as String?) ?? id,
+        capabilities: capabilitiesFor('swift-infer', id),
+      );
+    }).toList();
   }
 
   List<ResolvedModel> _swiftInferFallback(SwiftInferUiConfig cfg) =>

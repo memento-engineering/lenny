@@ -44,7 +44,8 @@ void main() {
       await expectLater(
         catalog.fetch(AnthropicUiConfig(apiKey: 'k')),
         throwsA(isA<ModelCatalogError>()
-            .having((e) => e.statusCode, 'status', 401)),
+            .having((e) => e.statusCode, 'status', 401)
+            .having((e) => e.kind, 'kind', ModelCatalogErrorKind.httpError)),
       );
     });
 
@@ -140,17 +141,6 @@ void main() {
       expect(models.single.usingFallback, isTrue);
     });
 
-    test('network exception falls back', () async {
-      final client = MockClient((req) async => throw Exception('boom'));
-      final cfg = SwiftInferUiConfig(
-        bearerToken: 't',
-        endpoint: Uri.parse('http://localhost:8080'),
-      );
-      final catalog = ModelCatalog(client: client);
-      final models = await catalog.fetch(cfg);
-      expect(models.single.usingFallback, isTrue);
-    });
-
     test('500 falls back instead of throwing', () async {
       final client = MockClient((req) async => http.Response('bad', 503));
       final cfg = SwiftInferUiConfig(
@@ -175,6 +165,191 @@ void main() {
         throwsA(isA<ModelCatalogError>()
             .having((e) => e.statusCode, 'status', 401)),
       );
+    });
+
+    test('malformed JSON falls back (gateway probably does not implement v1/models)',
+        () async {
+      final client =
+          MockClient((req) async => http.Response('{not json', 200));
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 't',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      final catalog = ModelCatalog(client: client);
+      final models = await catalog.fetch(cfg);
+      expect(models.single.usingFallback, isTrue);
+      expect(models.single.id, cfg.defaultModelId);
+    });
+  });
+
+  group('error classification', () {
+    test('Anthropic ClientException -> networkOrCors with targetUrl',
+        () async {
+      final client = MockClient((req) async =>
+          throw http.ClientException('Failed to fetch', req.url));
+      final catalog = ModelCatalog(client: client);
+      final cfg = AnthropicUiConfig(apiKey: 'k');
+      Object? caught;
+      try {
+        await catalog.fetch(cfg);
+      } on Object catch (e) {
+        caught = e;
+      }
+      expect(
+        caught,
+        isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind',
+                ModelCatalogErrorKind.networkOrCors)
+            .having((e) => e.targetUrl?.path, 'path', '/v1/models'),
+      );
+      expect(caught.toString(), contains('CORS'));
+      expect(caught.toString(), contains('README'));
+    });
+
+    test('OpenAI ClientException -> networkOrCors with targetUrl', () async {
+      final client = MockClient((req) async =>
+          throw http.ClientException('Failed to fetch', req.url));
+      final catalog = ModelCatalog(client: client);
+      final cfg = OpenAiUiConfig(apiKey: 'k');
+      Object? caught;
+      try {
+        await catalog.fetch(cfg);
+      } on Object catch (e) {
+        caught = e;
+      }
+      expect(
+        caught,
+        isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind',
+                ModelCatalogErrorKind.networkOrCors)
+            .having((e) => e.targetUrl?.path, 'path', '/v1/models'),
+      );
+    });
+
+    test('OpenAI 404 -> httpError with targetUrl', () async {
+      final client = MockClient((req) async => http.Response('nope', 404));
+      final catalog = ModelCatalog(client: client);
+      await expectLater(
+        catalog.fetch(OpenAiUiConfig(apiKey: 'k')),
+        throwsA(isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind', ModelCatalogErrorKind.httpError)
+            .having((e) => e.statusCode, 'status', 404)
+            .having((e) => e.targetUrl?.path, 'path', '/v1/models')),
+      );
+    });
+
+    test('Anthropic 500 -> httpError with targetUrl', () async {
+      final client = MockClient((req) async => http.Response('boom', 500));
+      final catalog = ModelCatalog(client: client);
+      await expectLater(
+        catalog.fetch(AnthropicUiConfig(apiKey: 'k')),
+        throwsA(isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind', ModelCatalogErrorKind.httpError)
+            .having((e) => e.statusCode, 'status', 500)),
+      );
+    });
+
+    test('Anthropic malformed JSON -> malformedResponse', () async {
+      final client =
+          MockClient((req) async => http.Response('{not json', 200));
+      final catalog = ModelCatalog(client: client);
+      Object? caught;
+      try {
+        await catalog.fetch(AnthropicUiConfig(apiKey: 'k'));
+      } on Object catch (e) {
+        caught = e;
+      }
+      expect(
+        caught,
+        isA<ModelCatalogError>().having(
+            (e) => e.kind, 'kind', ModelCatalogErrorKind.malformedResponse),
+      );
+      expect(caught.toString(), contains('/v1/models'));
+    });
+
+    test('OpenAI malformed JSON -> malformedResponse', () async {
+      final client =
+          MockClient((req) async => http.Response('not json at all', 200));
+      final catalog = ModelCatalog(client: client);
+      await expectLater(
+        catalog.fetch(OpenAiUiConfig(apiKey: 'k')),
+        throwsA(isA<ModelCatalogError>().having(
+            (e) => e.kind, 'kind', ModelCatalogErrorKind.malformedResponse)),
+      );
+    });
+
+    test('swift-infer 404 -> still falls back (regression coverage)',
+        () async {
+      final client =
+          MockClient((req) async => http.Response('not found', 404));
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 't',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      final catalog = ModelCatalog(client: client);
+      final models = await catalog.fetch(cfg);
+      expect(models.single.usingFallback, isTrue);
+    });
+
+    test(
+        'swift-infer 401 -> httpError (no silent fallback — auth misconfig is actionable)',
+        () async {
+      final client = MockClient((req) async => http.Response('unauth', 401));
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 'bad',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      final catalog = ModelCatalog(client: client);
+      await expectLater(
+        catalog.fetch(cfg),
+        throwsA(isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind', ModelCatalogErrorKind.httpError)
+            .having((e) => e.statusCode, 'status', 401)
+            .having((e) => e.targetUrl?.path, 'path', '/v1/models')),
+      );
+    });
+
+    test('swift-infer 403 -> httpError (no silent fallback)', () async {
+      final client =
+          MockClient((req) async => http.Response('forbidden', 403));
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 't',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      final catalog = ModelCatalog(client: client);
+      await expectLater(
+        catalog.fetch(cfg),
+        throwsA(isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind', ModelCatalogErrorKind.httpError)
+            .having((e) => e.statusCode, 'status', 403)),
+      );
+    });
+
+    test(
+        'swift-infer ClientException -> networkOrCors (the dogfood CORS case)',
+        () async {
+      final client = MockClient((req) async =>
+          throw http.ClientException('Failed to fetch', req.url));
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 't',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      final catalog = ModelCatalog(client: client);
+      Object? caught;
+      try {
+        await catalog.fetch(cfg);
+      } on Object catch (e) {
+        caught = e;
+      }
+      expect(
+        caught,
+        isA<ModelCatalogError>()
+            .having((e) => e.kind, 'kind',
+                ModelCatalogErrorKind.networkOrCors)
+            .having((e) => e.targetUrl?.path, 'path', '/v1/models'),
+      );
+      expect(caught.toString(), contains('CORS'));
+      expect(caught.toString(), contains('localhost'));
     });
   });
 }
