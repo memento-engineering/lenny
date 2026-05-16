@@ -112,7 +112,15 @@ class AnthropicModelProvider implements ModelProvider {
 
     final wireName = toolUse['name'] as String;
     final args = (toolUse['input'] as Map).cast<String, dynamic>();
-    final dottedName = lookupTool(prompt.tools, wireName)?.name ?? wireName;
+    final tool = lookupTool(prompt.tools, wireName);
+    if (tool == null) {
+      throw unknownToolRejection(
+        wireName,
+        prompt.tools,
+        rawPayload: <String, Object?>{'name': wireName, 'input': args},
+      );
+    }
+    final dottedName = tool.name;
 
     final envelope = jsonEncode(<String, dynamic>{
       'action': <String, dynamic>{'tool': dottedName, 'args': args},
