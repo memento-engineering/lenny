@@ -303,6 +303,44 @@ void main() {
     );
   });
 
+  test('unknown tool wire name → SchemaRejection (unknown tool, available list)',
+      () async {
+    final p = SwiftInferModelProvider(
+      config: _cfg(),
+      client: _stream(_toolUseSse(
+        name: 'navigate',
+        input: <String, dynamic>{'route_name': 'settings'},
+      )),
+    );
+    final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
+    final prompt = PromptPayload(
+      systemMessage: 'sys',
+      userMessages: <Map<String, dynamic>>[
+        <String, dynamic>{'type': 'text', 'text': 'hi'},
+      ],
+      tools: tools,
+    );
+    await expectLater(
+      p.decide(prompt, ActionSchema.fromToolList(tools)),
+      throwsA(
+        isA<SchemaRejection>()
+            .having(
+              (SchemaRejection e) => e.validationError,
+              'validationError',
+              'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
+            )
+            .having(
+              (SchemaRejection e) => jsonDecode(e.rawOutput),
+              'rawOutput',
+              <String, Object?>{
+                'name': 'navigate',
+                'input': <String, Object?>{'route_name': 'settings'},
+              },
+            ),
+      ),
+    );
+  });
+
   test('thinking stream emits ThinkingDelta as SSE chunks arrive', () async {
     final body = _sse(<Map<String, dynamic>>[
       <String, dynamic>{

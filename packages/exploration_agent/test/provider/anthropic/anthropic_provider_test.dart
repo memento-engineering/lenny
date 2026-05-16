@@ -118,6 +118,47 @@ void main() {
     expect(() => _p(m).decide(_prompt(), s), throwsA(isA<SchemaRejection>()));
   });
 
+  test('unknown tool wire name → SchemaRejection (unknown tool, available list)',
+      () async {
+    final m = _ok(<String, dynamic>{
+      'content': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'tool_use',
+          'name': 'navigate',
+          'input': <String, dynamic>{'route_name': 'settings'},
+        },
+      ],
+    });
+    final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
+    final s = ActionSchema.fromToolList(tools);
+    final prompt = PromptPayload(
+      systemMessage: 'sys',
+      userMessages: <Map<String, dynamic>>[
+        <String, dynamic>{'type': 'text', 'text': 'go'},
+      ],
+      tools: tools,
+    );
+    await expectLater(
+      _p(m).decide(prompt, s),
+      throwsA(
+        isA<SchemaRejection>()
+            .having(
+              (SchemaRejection e) => e.validationError,
+              'validationError',
+              'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
+            )
+            .having(
+              (SchemaRejection e) => jsonDecode(e.rawOutput),
+              'rawOutput',
+              <String, Object?>{
+                'name': 'navigate',
+                'input': <String, Object?>{'route_name': 'settings'},
+              },
+            ),
+      ),
+    );
+  });
+
   test('capabilities: vision toggles by model', () {
     final m = MockClient((_) async => http.Response('', 200));
     expect(_p(m).capabilities.vision, isTrue);

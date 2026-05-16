@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:exploration_agent/exploration_agent.dart';
+import 'package:exploration_agent/src/provider/openai/openai_parse.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -127,6 +128,65 @@ void main() {
     await expectLater(
       _provider(mock).decide(_prompt(), s),
       throwsA(isA<SchemaRejection>()),
+    );
+  });
+
+  test('unknown tool name → SchemaRejection (unknown tool, available list)',
+      () {
+    const navigateTool = ToolDescriptor(
+      name: 'router.navigate',
+      description: 'navigate',
+      inputSchema: <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{
+          'route_name': <String, dynamic>{'type': 'string'},
+        },
+        'required': <String>['route_name'],
+        'additionalProperties': false,
+      },
+    );
+    final body = <String, dynamic>{
+      'choices': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'message': <String, dynamic>{
+            'role': 'assistant',
+            'tool_calls': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'call_1',
+                'type': 'function',
+                'function': <String, dynamic>{
+                  'name': 'navigate',
+                  'arguments': '{"route_name":"settings"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    final tools = <ToolDescriptor>[_tap(), navigateTool];
+    expect(
+      () => parseOpenAiResponse(
+        body,
+        schema: ActionSchema.fromToolList(tools),
+        tools: tools,
+      ),
+      throwsA(
+        isA<SchemaRejection>()
+            .having(
+              (SchemaRejection e) => e.validationError,
+              'validationError',
+              'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
+            )
+            .having(
+              (SchemaRejection e) => jsonDecode(e.rawOutput),
+              'rawOutput',
+              <String, Object?>{
+                'name': 'navigate',
+                'arguments': <String, Object?>{'route_name': 'settings'},
+              },
+            ),
+      ),
     );
   });
 

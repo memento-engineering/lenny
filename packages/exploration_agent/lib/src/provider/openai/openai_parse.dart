@@ -74,9 +74,10 @@ ModelDecision parseOpenAiResponse(
   }
   tool ??= lookupTool(tools, name);
   if (tool == null) {
-    throw SchemaRejection(
-      validationError: 'unknown tool: $name',
-      rawOutput: jsonEncode(<String, dynamic>{'name': name, 'arguments': args}),
+    throw unknownToolRejection(
+      name,
+      tools,
+      rawPayload: <String, Object?>{'name': name, 'arguments': args},
     );
   }
 

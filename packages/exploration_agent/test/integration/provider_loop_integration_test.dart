@@ -15,25 +15,24 @@
 /// click Start, read minified JS stack traces). The
 /// `unknownToolBareNavigate` scenario is the direct regression for the
 /// swift-infer trace `msg_333DE0C006B` (qwen3.6-27b returned
-/// `"navigate"` without the `router_` prefix); it asserts the current
-/// `ArgumentError` from cvl.3's qualified-name guard and carries a
-/// `TODO(cx6.40)` flip marker.
+/// `"navigate"` without the `router_` prefix); after cx6.40 the
+/// provider fails closed at the unknown-tool guard with
+/// [SchemaRejection] before the call ever reaches the binding.
 ///
 /// ## Scenarios (registered on `_Scenario.values`)
 ///
 /// | id                       | shape                                                        | locks                                            |
 /// |--------------------------|--------------------------------------------------------------|--------------------------------------------------|
 /// | `happyPathSwiftInfer`    | well-formed `tool_use{name: router_navigate, ...}`           | baseline: encoded wire name routes end-to-end.    |
-/// | `unknownToolBareNavigate`| bare `tool_use{name: navigate, ...}` (no namespace prefix)   | regression for swift-infer `msg_333DE0C006B`.    |
+/// | `unknownToolBareNavigate`| bare `tool_use{name: navigate, ...}` (no namespace prefix)   | regression for swift-infer `msg_333DE0C006B` — fail closed at unknown-tool guard. |
 /// | `malformedSseLine`       | one `data: {not valid json` chunk + a well-formed tool_use   | forward guard: malformed wire surfaces FormatException. |
 /// | `noToolUseBlock`         | text-only stream, no `content_block_start` of type tool_use  | forward guard: provider rejects with SchemaRejection. |
 /// | `midStreamDone`          | tool_use start then `[DONE]` before `input_json_delta`       | regression-lock for current bubble-through path. |
 ///
-/// `happyPathSwiftInfer` is the baseline assertion; the four others
-/// encode regressions or forward-looking guards. Today only
-/// `unknownToolBareNavigate` asserts a present-tense bug — its
-/// [Matcher] is `throwsArgumentError` and the in-line `TODO(cx6.40)`
-/// is the explicit flip-marker for the downstream fix bead.
+/// All five scenarios are forward-looking guards after cx6.40 landed.
+/// The `unknownToolBareNavigate` scenario locks the regression by
+/// asserting [SchemaRejection] is thrown before the call ever reaches
+/// the binding.
 ///
 /// ## Provider reuse
 ///
@@ -45,12 +44,12 @@
 /// [ModelProvider] in the repo (the swift-infer gateway, the
 /// `AnthropicProvider`, the `OpenAIProvider`) parses the same
 /// `tool_use{name, input}` content-block shape through
-/// `frontier/tool_helpers.dart`. cx6.40's validation step will (a)
-/// widen `expectScenario`'s `provider:` parameter from the concrete
-/// `SwiftInferModelProvider` to the [ModelProvider] interface, and (b)
-/// flip the `unknownToolBareNavigate` matcher to
-/// `throwsA(isA<SchemaRejection>())` — both changes touch this file
-/// only, no production source.
+/// `frontier/tool_helpers.dart`. cx6.40 flipped the
+/// `unknownToolBareNavigate` matcher to
+/// `throwsA(isA<SchemaRejection>())`; future widening of
+/// `expectScenario`'s `provider:` parameter from the concrete
+/// `SwiftInferModelProvider` to the [ModelProvider] interface remains
+/// a touch-this-file-only change.
 ///
 /// ## Sibling fakes
 ///
@@ -246,36 +245,14 @@ MockClient _streamingMock(String body) => MockClient.streaming(
 
 /// Tool descriptor matching the production-realistic qualified name
 /// (`router.navigate`) the test plugin contributes via the registry.
-/// Default tools list for every scenario except
-/// `unknownToolBareNavigate`, which deliberately ships a bare-named
-/// descriptor so the SSE wire's unprefixed `'navigate'` slips past
-/// `ActionSchema` and reaches cvl.3's qualified-name guard.
+/// Default tools list for every scenario, including
+/// `unknownToolBareNavigate`: the unprefixed wire name `'navigate'` no
+/// longer resolves via `lookupTool`, so after cx6.40 the provider
+/// throws [SchemaRejection] at the unknown-tool guard before the call
+/// ever reaches `VmServiceClient.executeAction`.
 final ToolDescriptor _routerNavigateDescriptor = ToolDescriptor(
   name: 'router.navigate',
   description: 'navigate to the named route',
-  inputSchema: const <String, dynamic>{
-    'type': 'object',
-    'properties': <String, dynamic>{
-      'route_name': <String, dynamic>{'type': 'string'},
-    },
-    'required': <String>['route_name'],
-    'additionalProperties': false,
-  },
-);
-
-/// Bare-named tool descriptor used exclusively by
-/// `_Scenario.unknownToolBareNavigate`. Mirrors the production wire
-/// shape that surfaced the swift-infer trace `msg_333DE0C006B`: the
-/// model emitted `'navigate'`, the agent built an ActionSchema whose
-/// `tool` const matches that bare name, validation succeeded, and the
-/// resulting `executeAction('navigate', ...)` crashed cvl.3's
-/// `<namespace>.<tool>` guard. Once cx6.40 lands, this descriptor still
-/// lets the schema accept the call, but `frontier/tool_helpers.dart`
-/// fails closed earlier with [SchemaRejection] — which is the flip the
-/// TODO marks.
-final ToolDescriptor _bareNavigateDescriptor = ToolDescriptor(
-  name: 'navigate',
-  description: 'navigate (bare, unprefixed — regression fixture only)',
   inputSchema: const <String, dynamic>{
     'type': 'object',
     'properties': <String, dynamic>{
@@ -320,11 +297,10 @@ class _Scenario {
 
   /// Tool descriptors fed to both the provider's prompt and the
   /// `ActionSchema`. Defaults to the production-realistic
-  /// `[router.navigate]`; the `unknownToolBareNavigate` scenario
-  /// overrides this with a bare-named descriptor so the schema accepts
-  /// the unprefixed wire name and the call actually reaches
-  /// `VmServiceClient.executeAction`'s qualified-name guard (which is
-  /// the bug we are locking in).
+  /// `[router.navigate]`; every current scenario uses the default
+  /// (the `unknownToolBareNavigate` regression now relies on the
+  /// unprefixed wire name *not* resolving against this list so the
+  /// provider's unknown-tool guard fires).
   final List<ToolDescriptor> tools;
 
   /// Happy path — provider emits a well-formed
@@ -347,31 +323,27 @@ class _Scenario {
 
   /// Regression for swift-infer trace `msg_333DE0C006B` — provider
   /// emits the bare token `'navigate'` (no `router_` namespace prefix).
-  /// `lookupTool` matches the bare descriptor, the dotted name stays
-  /// `'navigate'`, ActionSchema validation succeeds, and cvl.3's
-  /// qualified-name guard inside `VmServiceClient.executeAction` then
-  /// throws [ArgumentError] because the name has no `.` separator.
-  ///
-  /// The fixture's tool list is overridden to a single
-  /// [_bareNavigateDescriptor] so the schema accepts the bare wire name
-  /// — that is the production-shape this regression locks. When cx6.40
-  /// makes `frontier/tool_helpers.dart` fail closed earlier, decide()
-  /// will throw [SchemaRejection] before the executeAction guard ever
-  /// runs; the [outcome] matcher flips at that point.
-  ///
-  /// TODO(cx6.40): flip [outcome] to
-  /// `throwsA(isA<SchemaRejection>())` once
-  /// `frontier/tool_helpers.dart` fails closed on unknown wire names.
+  /// `lookupTool('navigate', [router.navigate])` returns null, so
+  /// `frontier/tool_helpers.dart`'s `unknownToolRejection` fires and
+  /// the provider throws [SchemaRejection] before the call ever
+  /// reaches `session.act` (and therefore never reaches the binding or
+  /// cvl.3's qualified-name guard). The scenario uses the default
+  /// `[router.navigate]` tool list — no override — so the unknown-tool
+  /// guard is what trips, exactly mirroring the production wire shape.
   static final _Scenario unknownToolBareNavigate = _Scenario(
     id: 'unknownToolBareNavigate',
     body: _toolUseSse(name: 'navigate'),
-    tools: <ToolDescriptor>[_bareNavigateDescriptor],
-    // TODO(cx6.40): flip to throwsA(isA<SchemaRejection>()) once
-    // tool_helpers fails closed on unknown wire names.
-    outcome: throwsArgumentError,
+    outcome: throwsA(
+      isA<SchemaRejection>().having(
+        (SchemaRejection e) => e.validationError,
+        'validationError',
+        startsWith('model emitted unknown tool: navigate'),
+      ),
+    ),
     regressionNote:
         'swift-infer msg_333DE0C006B: model returned "navigate" without '
-        'the namespace prefix; agent crashed on cvl.3 qualified-name guard.',
+        'the namespace prefix; provider now fails closed with '
+        'SchemaRejection before reaching the binding.',
   );
 
   /// One SSE line is unparseable JSON (`data: {not valid json`); the
