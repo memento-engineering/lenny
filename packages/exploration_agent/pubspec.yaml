@@ -7,14 +7,17 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
+  args: ^2.6.0
+  exploration_flutter:
+    path: ../exploration_flutter
   http: ^1.2.0
   json_schema: ^5.1.7
   meta: ^1.16.0
   vm_service: ^14.2.0
 
 dev_dependencies:
-  exploration_flutter:
-    path: ../exploration_flutter
+  exploration_cli:
+    path: ../exploration_cli
   flutter_test:
     sdk: flutter
   lints: ^5.1.0

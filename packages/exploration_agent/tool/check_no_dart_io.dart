@@ -4,7 +4,11 @@
 // web-compatible per PRD §22.
 //
 // Allowed: this script lives in `tool/` and may use `dart:io` itself.
-// Forbidden: any `.dart` file under `lib/` importing `dart:io` directly.
+// Forbidden: any `.dart` file under `lib/` importing `dart:io` directly,
+// EXCEPT files under `lib/src/dogfood/` — that subtree is the dogfood
+// harness (bead lenny-cx6.43) and is NOT re-exported from
+// `lib/exploration_agent.dart`, so its `dart:io` use cannot leak into
+// the web-exported surface.
 
 import 'dart:io';
 
@@ -18,7 +22,10 @@ void main() {
     exit(2);
   }
   for (final f in dir.listSync(recursive: true).whereType<File>()) {
-    if (f.path.endsWith('.dart') && re.hasMatch(f.readAsStringSync())) {
+    if (!f.path.endsWith('.dart')) continue;
+    // Whitelist the dogfood subtree — see bead lenny-cx6.43.
+    if (f.path.contains('/lib/src/dogfood/')) continue;
+    if (re.hasMatch(f.readAsStringSync())) {
       hits.add(f.path);
     }
   }
@@ -26,5 +33,6 @@ void main() {
     stderr.writeln('dart:io imports forbidden in exploration_agent: $hits');
     exit(1);
   }
-  stdout.writeln('OK: no dart:io in exploration_agent/lib');
+  stdout.writeln('OK: no dart:io in exploration_agent/lib '
+      '(dogfood subtree whitelisted)');
 }
