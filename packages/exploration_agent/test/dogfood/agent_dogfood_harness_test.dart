@@ -347,6 +347,127 @@ void main() {
       expect(f['harness_error'], 'connection_lost');
     }, timeout: const Timeout(Duration(seconds: 30)));
 
+    test(
+        'dogfood_turn line emitted on turn_timeout failed-turn path',
+        () async {
+      // Regression for lenny-cx6.47: the harness must call
+      // DogfoodTraceWriter.writeTurn for every LoopDriver turn — even
+      // failed turns. _HandshakeOkThenHangingVmService lets the
+      // handshake succeed and then hangs every subsequent call. The
+      // LoopDriver's per-turn budget (50ms) fires TurnTimeoutError,
+      // which the driver writes to its TrajectoryWriter via the
+      // _writeFailedTurn path. Our intercepting writer must surface
+      // that turn as a dogfood_turn JSONL line.
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: _HandshakeOkThenHangingVmService(),
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config,
+        goal: 'g',
+        tools: _tools,
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 50,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+
+      await harness.run();
+
+      final List<Map<String, dynamic>> turns = sink.lines
+          .map((String l) => jsonDecode(l) as Map<String, dynamic>)
+          .where((Map<String, dynamic> j) =>
+              j['type'] == 'dogfood_turn')
+          .toList();
+      expect(turns, isNotEmpty,
+          reason: 'expected at least one dogfood_turn line on a '
+              'failed-turn path; got ${sink.lines}');
+      final Map<String, dynamic> first = turns.first;
+      expect(first['type'], 'dogfood_turn');
+      expect(first['index'], 0);
+      expect(first['error'], 'turn_timeout');
+      expect(first['elapsed_ms'], isA<int>());
+      expect(first['elapsed_ms'] as int, greaterThanOrEqualTo(0));
+
+      final Map<String, dynamic> decision =
+          (first['decision'] as Map).cast<String, dynamic>();
+      expect(decision.containsKey('tool'), isTrue);
+      expect(decision.containsKey('args'), isTrue);
+      expect(decision.containsKey('thinking_excerpt'), isTrue);
+      expect((decision['thinking_excerpt'] as String).length,
+          lessThanOrEqualTo(2000));
+      // observation_summary may be null on the failed-turn path
+      // (the LoopDriver's _writeFailedTurn writes _prev.toJson()
+      // which is an empty Observation map on the first turn).
+      expect(decision.containsKey('observation_summary'), isTrue);
+
+      final Map<String, dynamic> act =
+          (first['act_result'] as Map).cast<String, dynamic>();
+      expect(act['ok'], false);
+      expect(act['error'], 'turn_timeout');
+    }, timeout: const Timeout(Duration(seconds: 30)));
+
+    test('dogfood_turn line absent when no turn ever completes',
+        () async {
+      // Counterpart to the above: _HangingVmService hangs the
+      // handshake itself, so the harness exits via the total-run
+      // TimeoutException before any LoopDriver turn writes through
+      // the interceptor. The trace must carry header + footer and
+      // zero dogfood_turn lines.
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: _HangingVmService(),
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config,
+        goal: 'g',
+        tools: _tools,
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 50,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+      await harness.run();
+      final int turnCount = sink.lines
+          .where((String l) => l.contains('"dogfood_turn"'))
+          .length;
+      expect(turnCount, 0,
+          reason: 'no LoopDriver turn ever wrote; expected zero '
+              'dogfood_turn lines, got ${sink.lines}');
+    }, timeout: const Timeout(Duration(seconds: 30)));
+
+    test('verbose mode logs one [dogfood] turn line per dogfood_turn',
+        () async {
+      // AC9: when verbose is true, the harness emits a one-line
+      // summary per turn via the _log callback, in addition to the
+      // JSONL record.
+      final sink = _MemorySink();
+      final List<String> captured = <String>[];
+      final harness = AgentDogfoodHarness(
+        vm: _HandshakeOkThenHangingVmService(),
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config,
+        goal: 'g',
+        tools: _tools,
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 50,
+        traceSink: sink,
+        tracePath: '<memory>',
+        verbose: true,
+        log: captured.add,
+      );
+      await harness.run();
+      final RegExp turnLine =
+          RegExp(r'^\[dogfood\] turn 0 tool=.* ok=false ms=-?\d+');
+      expect(
+        captured.any((String l) => turnLine.hasMatch(l)),
+        isTrue,
+        reason: 'expected a "[dogfood] turn 0 ..." log line in '
+            'verbose mode; captured=$captured',
+      );
+    }, timeout: const Timeout(Duration(seconds: 30)));
+
     test('DogfoodRunResult exposes all four typed fields', () async {
       final sink = _MemorySink();
       final harness = AgentDogfoodHarness(
