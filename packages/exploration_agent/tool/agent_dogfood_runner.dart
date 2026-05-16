@@ -7,6 +7,15 @@
 // code is written to `--dart-define=DOGFOOD_RESULT_PATH` so the parent
 // shim can recover it.
 //
+// `ExplorationBinding.ensureInitialized` is invoked with
+// `installCorePlugin: false` (lenny-cx6.45) so the runner can register
+// its own `_StandInPlugin('core', toolNames)` alongside the non-core
+// stand-ins. The dogfood loop exercises model tool selection over the
+// full namespace surface — including `core.*` — without booting a
+// real widget tree. Without this seam the real CorePlugin's `core.tap`
+// dispatches against a missing widget tree and crashes the loop as
+// `HarnessError.connectionLost`.
+//
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 //
 // `debugSetPolicyLoopSeamsForTesting` is `@visibleForTesting`; the
@@ -154,12 +163,12 @@ void main() {
         : await ObservationFixture.loadFromFile(fixturePath);
 
     final Set<String> namespaces =
-        toolNames.map((String t) => t.split('.').first).toSet()
-          ..remove('core');
+        toolNames.map((String t) => t.split('.').first).toSet();
     final ExplorationBinding binding = ExplorationBinding.ensureInitialized(
       plugins: <ExplorationPlugin>[
         for (final String ns in namespaces) _StandInPlugin(ns, toolNames),
       ],
+      installCorePlugin: false,
     )!;
     await Future<void>.delayed(Duration.zero);
     int now = 0;
