@@ -48,6 +48,40 @@ class _HangingVmService extends VmService {
   Future<void> dispose() async {}
 }
 
+/// VmService that returns a successful handshake but hangs on every
+/// subsequent call. Drives the harness through `session.start()`
+/// (which calls `ext.flutter.exploration.core.handshake`) and into
+/// the LoopDriver's per-turn observation pull, which hangs until the
+/// per-turn budget trips. Used to assert that the original failure
+/// surfaces — not the historic `StateError: writeHeader must precede`
+/// (lenny-cx6.44 step 1 fix).
+class _HandshakeOkThenHangingVmService extends VmService {
+  _HandshakeOkThenHangingVmService()
+      : super(const Stream<dynamic>.empty(), (_) {});
+
+  @override
+  Future<Response> callServiceExtension(
+    String method, {
+    String? isolateId,
+    Map<String, dynamic>? args,
+  }) {
+    if (method == 'ext.flutter.exploration.core.handshake') {
+      return Future<Response>.value(
+        Response.parse(<String, dynamic>{
+          'type': 'Response',
+          'protocolVersion': '1',
+          'plugins': <dynamic>[],
+        })!,
+      );
+    }
+    final Completer<Response> c = Completer<Response>();
+    return c.future; // hang
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
 /// VmService that responds to every call with method-not-found, the
 /// JSON-RPC -32601 code the agent's [VmServiceClient] translates into
 /// [BindingNotInitializedError] on handshake.
@@ -192,6 +226,52 @@ void main() {
         isTrue,
       );
     });
+
+    test('failed turn does not mask original error with StateError',
+        () async {
+      // Regression for lenny-cx6.44: when LoopDriver.runTurn enters its
+      // failure branch and writes through its own TrajectoryWriter, the
+      // header invariant used to trip with
+      // `StateError: writeHeader must precede turns/events`, masking the
+      // original turn failure. The fix is to writeHeader on the
+      // discardWriter before driver.runSession starts.
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: _HandshakeOkThenHangingVmService(),
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config,
+        goal: 'g',
+        tools: _tools,
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 50,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+
+      final DogfoodRunResult r = await harness.run();
+
+      expect(r.exception, isNot(isA<StateError>()));
+      // No trace line carries the historic StateError message.
+      expect(
+        sink.lines.every(
+          (String l) => !l.contains('writeHeader must precede'),
+        ),
+        isTrue,
+        reason: 'no trace line may carry the historic header-invariant '
+            'StateError; got: ${sink.lines}',
+      );
+      // The harness still surfaces a meaningful outcome (the per-turn /
+      // session budget trips because the VmService hangs after the
+      // handshake).
+      expect(
+        r.outcome,
+        anyOf(
+          DogfoodOutcome.budgetExceeded,
+          DogfoodOutcome.typedException,
+        ),
+      );
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('DogfoodRunResult exposes all four typed fields', () async {
       final sink = _MemorySink();

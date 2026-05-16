@@ -33,7 +33,8 @@ import '../loop_driver/default_loop_host.dart';
 import '../provider/swift_infer/swift_infer_config.dart';
 import '../provider/swift_infer/swift_infer_provider.dart';
 import '../provider/types.dart';
-import '../trajectory/records.dart' show SessionOutcome;
+import '../trajectory/records.dart'
+    show PluginManifestRecord, SessionHeader, SessionOutcome;
 import '../session.dart';
 import '../session/observation_puller.dart' show StabilityPolicy;
 import '../trajectory/sink.dart';
@@ -169,6 +170,27 @@ class AgentDogfoodHarness {
       // written on `traceSink` via DogfoodTraceWriter above.
       final TrajectoryWriter discardWriter =
           TrajectoryWriter(_DiscardSink());
+      // The LoopDriver's TrajectoryWriter enforces `header → turns* →
+      // footer`. If `runTurn` enters its `_writeFailedTurn` branch
+      // (TurnTimeoutError / InvalidActionExhausted / SchemaExhausted)
+      // before any successful turn lands a header, the invariant trips
+      // with `StateError: writeHeader must precede turns/events`,
+      // masking the original failure. Write a degenerate header here so
+      // the invariant is satisfied trivially — the bytes go to
+      // `_DiscardSink` since the harness owns its own dogfood trace via
+      // [DogfoodTraceWriter].
+      await discardWriter.writeHeader(SessionHeader(
+        goal: goal,
+        agentsMdHash: '',
+        buildIdentifier: 'dogfood-harness',
+        modelIdentifier: swiftInferConfig.model,
+        harnessVersion: 'dogfood',
+        plugins: const <PluginManifestRecord>[],
+        config: <String, dynamic>{
+          'max_turns': maxTurns,
+          'max_turn_budget_ms': maxTurnBudgetMs,
+        },
+      ));
       final LoopDriver driver = LoopDriver(
         host: host,
         provider: provider,
@@ -227,10 +249,30 @@ class AgentDogfoodHarness {
         // Best-effort cleanup. Swallow to keep the harness contract
         // (never re-throw) intact.
       }
-      await trace.writeFooter(
-        outcome: outcome.name,
-        exception: capturedException?.toString(),
-      );
+      // Footer write is the last diagnostic surface for a failed run.
+      // If the writer itself throws (defensive: today's writer cannot,
+      // but a future regression / injected writer could), the
+      // **original** exception must not be displaced by the secondary
+      // recovery error. Attempt a second footer write that carries
+      // both fields. If even that fails, the original [capturedException]
+      // is still surfaced through [DogfoodRunResult.exception] below.
+      try {
+        await trace.writeFooter(
+          outcome: outcome.name,
+          exception: capturedException?.toString(),
+        );
+      } catch (e) {
+        try {
+          await trace.writeFooter(
+            outcome: outcome.name,
+            exception: capturedException?.toString(),
+            recoveryError: e.toString(),
+          );
+        } catch (_) {
+          // Nothing more to do — [capturedException] is still on the
+          // returned [DogfoodRunResult] so the caller is not blind.
+        }
+      }
     }
 
     return DogfoodRunResult(

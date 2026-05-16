@@ -138,6 +138,11 @@ void main() {
     final int maxTurnBudgetMs = (args['max_turn_budget_ms'] as num).toInt();
     final bool verbose = args['verbose'] as bool;
     final String tracePath = args['trace_out'] as String;
+    // Default captureBodies=true so swift-infer's admin trace retains
+    // the request/response bodies for downstream `debug-inference`
+    // analysis. Older arg blobs (pre-lenny-cx6.44) lacking the key
+    // still get capture on. CLI may opt out via `--no-capture-bodies`.
+    final bool captureBodies = (args['capture_bodies'] as bool?) ?? true;
 
     if (fixturePath != null && !await File(fixturePath).exists()) {
       stderr.writeln('observation fixture not found: $fixturePath');
@@ -175,6 +180,7 @@ void main() {
         baseUrl: Uri.parse(endpoint),
         model: model,
         bearerToken: token,
+        captureBodies: captureBodies,
       ),
       goal: goal,
       tools: <ToolDescriptor>[

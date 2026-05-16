@@ -157,6 +157,28 @@ void main() {
       expect(sink.lines.length, lengthAfterFirst);
     });
 
+    test('footer carries recovery_error when supplied', () async {
+      // Regression for lenny-cx6.44 AC5: the original exception must
+      // not be displaced by a secondary recovery error — both surface
+      // as distinct fields on the footer line.
+      final sink = _MemorySink();
+      final writer = DogfoodTraceWriter(sink, '<memory>');
+      await writer.writeHeader(
+        goal: 'g',
+        model: 'm',
+        tools: const <ToolDescriptor>[],
+      );
+      await writer.writeFooter(
+        outcome: 'typedException',
+        exception: 'TurnTimeoutError: budget exceeded',
+        recoveryError: 'StateError: writer already closed',
+      );
+      final f = jsonDecode(sink.lines.last) as Map<String, dynamic>;
+      expect(f['outcome'], 'typedException');
+      expect(f['exception'], 'TurnTimeoutError: budget exceeded');
+      expect(f['recovery_error'], 'StateError: writer already closed');
+    });
+
     test('writeFooter without header synthesizes a header', () async {
       final sink = _MemorySink();
       final writer = DogfoodTraceWriter(sink, '<memory>');
