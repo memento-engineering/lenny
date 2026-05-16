@@ -92,15 +92,22 @@ class DogfoodTraceWriter {
   /// caller-side try/finally can always invoke this safely.
   ///
   /// [exception] carries the **original** turn-level failure
-  /// (TurnTimeoutError, SchemaRejection, …). [recoveryError] is the
-  /// secondary exception (if any) raised from the harness's own
-  /// cleanup path — surfaced separately so downstream readers can
-  /// distinguish "the run failed because X" from "the run failed
-  /// because X and recovery itself also failed with Y". The harness
-  /// must not let a secondary error overwrite the original.
+  /// (TurnTimeoutError, SchemaRejection, …). [harnessError] carries
+  /// the wire name of the [HarnessError] sub-classification when the
+  /// LoopDriver returned a `SessionTermination` with a non-null
+  /// `harnessError` (e.g. `connection_lost`, `agent_stuck`); the
+  /// human-readable text remains on [exception] so existing readers
+  /// stay unchanged, and the enum value lives on `harness_error` for
+  /// filterability (lenny-cx6.45). [recoveryError] is the secondary
+  /// exception (if any) raised from the harness's own cleanup path —
+  /// surfaced separately so downstream readers can distinguish "the
+  /// run failed because X" from "the run failed because X and
+  /// recovery itself also failed with Y". The harness must not let a
+  /// secondary error overwrite the original.
   Future<void> writeFooter({
     required String outcome,
     String? exception,
+    String? harnessError,
     String? recoveryError,
   }) async {
     if (_footerWritten) return;
@@ -127,6 +134,7 @@ class DogfoodTraceWriter {
       'type': 'dogfood_footer',
       'outcome': outcome,
       if (exception != null) 'exception': exception,
+      if (harnessError != null) 'harness_error': harnessError,
       if (recoveryError != null) 'recovery_error': recoveryError,
       'ended_at': DateTime.now().toUtc().toIso8601String(),
     }));

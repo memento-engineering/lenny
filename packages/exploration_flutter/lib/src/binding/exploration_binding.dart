@@ -44,6 +44,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
     this._plugins,
     this._extraInteractiveTypes,
     this._errorBufferCapacity,
+    this._installCorePlugin,
   );
 
   static ExplorationBinding? _instance;
@@ -52,6 +53,15 @@ class ExplorationBinding extends WidgetsFlutterBinding
 
   /// Configured ring-buffer capacity. Read by [debugErrorBufferCapacity].
   final int _errorBufferCapacity;
+
+  /// When `true` (production default), [_wirePlugins] constructs and
+  /// registers a host-owned [CorePlugin] FIRST, reserving the `core`
+  /// namespace before any user plugins are registered. Test harnesses
+  /// that need to stand in their own `core` plugin (the dogfood loop —
+  /// see lenny-cx6.45) set this to `false` via the `@visibleForTesting`
+  /// param on [ensureInitialized]; the real CorePlugin is then never
+  /// constructed and the namespace is available for a user plugin.
+  final bool _installCorePlugin;
   final SemanticsCapture _semanticsCapture = SemanticsCapture();
 
   /// Local registry of every extension this binding registered with the
@@ -84,12 +94,6 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// Wired in [ensureInitialized]; owns plugin lifecycle dispatch and the
   /// per-plugin error-handler chain.
   late final PluginRegistry _pluginRegistry;
-
-  /// Host-owned plugin that contributes the 10 `core.*` action tools
-  /// (PRD §12.1). Registered first by [ensureInitialized] so the
-  /// registry's existing duplicate-namespace check reserves `core` for
-  /// the host before any user plugin is registered.
-  late final CorePlugin _corePlugin;
 
   /// Bounded ring buffer of recent runtime errors (cx6.9).
   late final ErrorRingBuffer _errors;
@@ -132,6 +136,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
     required List<ExplorationPlugin> plugins,
     List<String> extraInteractiveTypes = const <String>[],
     int errorBufferCapacity = kDefaultErrorBufferCapacity,
+    @visibleForTesting bool installCorePlugin = true,
   }) {
     if (!kDebugMode && !kProfileMode) return null;
     if (_instance != null) return _instance;
@@ -153,6 +158,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
       List.of(plugins),
       List<String>.unmodifiable(extraInteractiveTypes),
       errorBufferCapacity,
+      installCorePlugin,
     );
     _instance = binding;
     binding._wirePlugins(binding._plugins);
@@ -177,8 +183,16 @@ class ExplorationBinding extends WidgetsFlutterBinding
     // before user plugins are registered. The registry's existing
     // duplicate-namespace check then rejects any user plugin claiming
     // `core` (PRD §12.1, AC #2 of cx6.6).
-    _corePlugin = CorePlugin(semantics: _semanticsCapture);
-    _pluginRegistry.register(_corePlugin);
+    //
+    // Test harnesses (e.g. the dogfood loop — lenny-cx6.45) may pass
+    // `installCorePlugin: false` to [ensureInitialized] so a caller-
+    // supplied stand-in plugin can claim the `core` namespace. The
+    // production path (`ExplorationBinding.run` and the default
+    // `ensureInitialized` invocation) always installs the real
+    // CorePlugin.
+    if (_installCorePlugin) {
+      _pluginRegistry.register(CorePlugin(semantics: _semanticsCapture));
+    }
     // Register each unique plugin namespace into the registry. The
     // legacy `plugins` getter preserves the verbatim list (including
     // duplicates) per cx6.2's contract, but the registry enforces
@@ -266,6 +280,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
             <ExplorationPlugin>[],
             const <String>[],
             kDefaultErrorBufferCapacity,
+            true,
           );
           _instance = binding;
           cfg = app.build(_DebugContext(binding));

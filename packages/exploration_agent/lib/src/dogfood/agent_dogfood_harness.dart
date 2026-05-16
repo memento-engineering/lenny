@@ -59,6 +59,25 @@ class _DiscardSink implements TrajectorySink {
   Future<void> close() async {}
 }
 
+/// File-private sentinel surfacing the [HarnessError] sub-classification
+/// from a normally-returned `SessionTermination` (i.e. no Dart exception
+/// was thrown — the LoopDriver returned a typed termination). The
+/// harness wraps such a termination in this object so the
+/// `dogfood_footer.exception` field carries a human-readable string
+/// instead of `null`, mirroring how thrown exceptions surface
+/// (lenny-cx6.45).
+class _HarnessTerminationException implements Exception {
+  _HarnessTerminationException(this.harnessError);
+
+  /// The driver-reported sub-classification (e.g. `connectionLost`,
+  /// `agentStuck`).
+  final HarnessError harnessError;
+
+  @override
+  String toString() =>
+      'HarnessError.${harnessError.name} (${harnessError.wireName})';
+}
+
 /// Drives one exploration session against swift-infer for prompt
 /// tuning and CI regression gating. See the bead description and the
 /// `tool/agent_dogfood.dart` CLI for usage.
@@ -212,6 +231,18 @@ class AgentDogfoodHarness {
         );
       });
 
+      // When the LoopDriver returns a typed `harnessError`-shaped
+      // termination, no Dart exception is thrown — the driver returns
+      // a `SessionTermination` value. Synthesize a sentinel so the
+      // footer's `exception` field is populated (parallel to the
+      // thrown-exception paths below) and the run's
+      // `DogfoodRunResult.exception` carries the same text. The
+      // termination's `harnessError` wire name is threaded into the
+      // footer's `harness_error` field separately. lenny-cx6.45.
+      if (term.harnessError != null) {
+        capturedException = _HarnessTerminationException(term.harnessError!);
+      }
+
       toolCallCount = host.toolCallCount;
       outcome = _classify(term, toolCallCount);
       if (verbose) {
@@ -256,16 +287,29 @@ class AgentDogfoodHarness {
       // recovery error. Attempt a second footer write that carries
       // both fields. If even that fails, the original [capturedException]
       // is still surfaced through [DogfoodRunResult.exception] below.
+      //
+      // When the captured exception is a [_HarnessTerminationException]
+      // (the LoopDriver returned a typed `harnessError` termination
+      // rather than throwing), surface the wire name on the
+      // `harness_error` footer field so post-mortem filtering can
+      // bucket by enum value (lenny-cx6.45).
+      String? harnessErrorWire;
+      final Object? exc = capturedException;
+      if (exc is _HarnessTerminationException) {
+        harnessErrorWire = exc.harnessError.wireName;
+      }
       try {
         await trace.writeFooter(
           outcome: outcome.name,
           exception: capturedException?.toString(),
+          harnessError: harnessErrorWire,
         );
       } catch (e) {
         try {
           await trace.writeFooter(
             outcome: outcome.name,
             exception: capturedException?.toString(),
+            harnessError: harnessErrorWire,
             recoveryError: e.toString(),
           );
         } catch (_) {

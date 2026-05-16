@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart'
     show BindingNotInitializedError, TrajectorySink;
@@ -76,6 +77,38 @@ class _HandshakeOkThenHangingVmService extends VmService {
     }
     final Completer<Response> c = Completer<Response>();
     return c.future; // hang
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
+/// VmService that succeeds on handshake then throws an `RPCError`
+/// with a transport code (-32000) on every subsequent call. The
+/// `DefaultLoopHost` translates transport-coded RPCErrors into
+/// [VmServiceConnectionLost], which the LoopDriver then turns into a
+/// `harnessError = connectionLost` termination. Used to assert the
+/// harness surfaces the HarnessError name in both
+/// `DogfoodRunResult.exception` and the JSONL footer's
+/// `exception`/`harness_error` fields (lenny-cx6.45).
+class _HandshakeOkThenTransportRpcErrorVmService extends VmService {
+  _HandshakeOkThenTransportRpcErrorVmService()
+      : super(const Stream<dynamic>.empty(), (_) {});
+
+  @override
+  Future<Response> callServiceExtension(
+    String method, {
+    String? isolateId,
+    Map<String, dynamic>? args,
+  }) async {
+    if (method == 'ext.flutter.exploration.core.handshake') {
+      return Response.parse(<String, dynamic>{
+        'type': 'Response',
+        'protocolVersion': '1',
+        'plugins': <dynamic>[],
+      })!;
+    }
+    throw RPCError(method, -32000, 'connection closed');
   }
 
   @override
@@ -271,6 +304,47 @@ void main() {
           DogfoodOutcome.typedException,
         ),
       );
+    }, timeout: const Timeout(Duration(seconds: 30)));
+
+    test(
+        'harnessError termination surfaces exception text and harness_error '
+        'footer field', () async {
+      // Regression for lenny-cx6.45: when the LoopDriver returns a
+      // typed `harnessError`-shaped SessionTermination (rather than
+      // throwing), the harness must synthesize a sentinel exception so
+      // `DogfoodRunResult.exception` and the JSONL footer's `exception`
+      // field both carry the HarnessError name. The new `harness_error`
+      // footer field additionally carries the wire-name enum value.
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: _HandshakeOkThenTransportRpcErrorVmService(),
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config,
+        goal: 'g',
+        tools: _tools,
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 1000,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+
+      final DogfoodRunResult r = await harness.run();
+
+      expect(r.outcome, DogfoodOutcome.typedException);
+      expect(r.exception, isNotNull);
+      expect(r.exception!.toString(), contains('connectionLost'));
+
+      final String footer = sink.lines.firstWhere(
+        (String l) => l.contains('dogfood_footer'),
+        orElse: () => fail('expected a dogfood_footer line; got '
+            '${sink.lines}'),
+      );
+      final Map<String, dynamic> f =
+          jsonDecode(footer) as Map<String, dynamic>;
+      expect(f['exception'], isA<String>());
+      expect(f['exception'] as String, contains('connectionLost'));
+      expect(f['harness_error'], 'connection_lost');
     }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('DogfoodRunResult exposes all four typed fields', () async {
