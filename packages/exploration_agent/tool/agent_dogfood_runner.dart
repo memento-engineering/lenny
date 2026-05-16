@@ -179,7 +179,11 @@ void main() {
       nowMs: () => now,
     );
 
-    final BindingVmServiceFake fake = BindingVmServiceFake(binding);
+    // Wire the loaded fixture into the binding fake so the agent's
+    // `core.get_stable_observation` calls return the fixture body
+    // instead of the real binding's empty-tree response (lenny-cx6.48).
+    final BindingVmServiceFake fake =
+        BindingVmServiceFake(binding, observationFixture: fixture);
     final _FileSink sink = await _FileSink.open(tracePath);
 
     final AgentDogfoodHarness harness = AgentDogfoodHarness(

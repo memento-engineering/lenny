@@ -20,18 +20,42 @@
 /// once that sibling refactor lands. Until then, any wire-contract
 /// change in `cvl.*` (extension prefixes, `args` encoding, RPC error
 /// codes) MUST be mirrored across all four call sites.
+///
+/// Optional [observationFixture] (lenny-cx6.48): when non-null, calls
+/// to `ext.flutter.exploration.core.get_stable_observation` short-
+/// circuit to the fixture body wrapped in the binding's standard
+/// `{type: 'Observation', value: <body>}` envelope, bypassing
+/// `_binding.invokeServiceExtension` for that one method. Every other
+/// extension and plugin tool routes normally regardless. This is the
+/// seam the agent dogfood harness uses to serve canned observations
+/// for prompt-tuning — without it the real binding's empty-tree
+/// response is returned and the loaded fixture is ignored.
 library;
 
 import 'dart:convert';
 
+import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:vm_service/vm_service.dart';
 
 class BindingVmServiceFake extends VmService {
-  BindingVmServiceFake(this._binding)
+  BindingVmServiceFake(this._binding, {this.observationFixture})
       : super(const Stream<dynamic>.empty(), (_) {});
 
   final ExplorationBinding _binding;
+
+  /// Optional canned observation. When non-null, calls to
+  /// `ext.flutter.exploration.core.get_stable_observation` return
+  /// `{type: 'Observation', value: observationFixture.body}` instead
+  /// of executing the binding's real handler. Other extensions and
+  /// plugin tools route normally regardless. (lenny-cx6.48)
+  final ObservationFixture? observationFixture;
+
+  /// Wire-name of the binding's stable-observation extension. The
+  /// short-circuit branch keys off exactly this method; everything
+  /// else falls through to the registry/extension routing below.
+  static const String _kObservationMethod =
+      'ext.flutter.exploration.core.get_stable_observation';
 
   @override
   Future<Response> callServiceExtension(
@@ -39,6 +63,19 @@ class BindingVmServiceFake extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
+    // Fixture-serving short-circuit (lenny-cx6.48). When a fixture is
+    // configured, the binding's empty-tree observation is bypassed for
+    // exactly this one method; everything else falls through to the
+    // registry/extension routing below.
+    final ObservationFixture? fx = observationFixture;
+    if (fx != null && method == _kObservationMethod) {
+      final Response r = Response();
+      r.json = <String, dynamic>{
+        'type': 'Observation',
+        'value': fx.body,
+      };
+      return r;
+    }
     final Map<String, String> stringArgs = <String, String>{
       for (final MapEntry<String, dynamic> e
           in (args ?? const <String, dynamic>{}).entries)

@@ -15,6 +15,7 @@
 ///     `RPCError(..., -32601, ...)`.
 library;
 
+import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -155,6 +156,110 @@ void main() {
         'code',
         -32601,
       )),
+    );
+  });
+
+  group('observation fixture serving (lenny-cx6.48)', () {
+    test(
+      'returns fixture body wrapped in Observation envelope when '
+      'fixture is supplied',
+      () async {
+        final Map<String, dynamic> body = <String, dynamic>{
+          'core': <String, dynamic>{
+            'routeStack': <String>['login'],
+            'nodes': <String, dynamic>{
+              'n1': <String, dynamic>{
+                'id': 'n1',
+                'label': 'Email',
+                'rect': <double>[0, 0, 100, 40],
+              },
+            },
+          },
+          'plugins': <String, dynamic>{},
+          'stability': <String, dynamic>{'policy': 'action_relative'},
+        };
+        final ObservationFixture fixture =
+            ObservationFixture.forTest('<test>', body);
+        final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
+          binding,
+          observationFixture: fixture,
+        );
+
+        final Response r = await fixtureFake.callServiceExtension(
+          'ext.flutter.exploration.core.get_stable_observation',
+          args: <String, dynamic>{'policy': 'action_relative'},
+        );
+
+        expect(r.json, isNotNull);
+        expect(r.json!['type'], 'Observation');
+        expect(r.json!['value'], body);
+      },
+    );
+
+    test(
+      'fixture short-circuit does not affect other extension routes — '
+      'plugin tool still reaches invokePluginTool',
+      () async {
+        // Reuse the `core.tap` plugin tool wired in setUpAll. Construct
+        // a fixture-armed fake and prove the fixture is irrelevant for
+        // non-observation methods: `core.tap` still routes via the
+        // registry and the plugin's `tap.call` runs.
+        tap.invoked = false;
+        tap.lastArgs = null;
+        final ObservationFixture fixture =
+            ObservationFixture.forTest('<test>', <String, dynamic>{
+          'core': <String, dynamic>{'routeStack': <String>['login']},
+        });
+        final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
+          binding,
+          observationFixture: fixture,
+        );
+
+        final Response r = await fixtureFake.callServiceExtension(
+          'ext.flutter.exploration.core.tap',
+          args: <String, dynamic>{'x': 0.5, 'y': 0.5},
+        );
+
+        expect(tap.invoked, isTrue,
+            reason: 'fixture short-circuit must NOT intercept other '
+                'methods; core.tap must still route via mergedTools');
+        expect(tap.lastArgs, <String, Object?>{'x': 0.5, 'y': 0.5});
+        expect(r.json!['ok'], isTrue);
+      },
+    );
+
+    test(
+      'without a fixture, get_stable_observation still falls through '
+      'to the binding (existing behavior preserved)',
+      () async {
+        // Construct a fresh fake with NO fixture. The call must still
+        // return the binding's `{type: 'Observation', value: <bundle>}`
+        // envelope from invokeServiceExtension — proving the constructor
+        // default preserves today's behavior. (The `setUpAll` `fake`
+        // also has no fixture; we use a local instance here to make the
+        // test self-contained.)
+        final BindingVmServiceFake noFixtureFake =
+            BindingVmServiceFake(binding);
+        final Response r = await noFixtureFake.callServiceExtension(
+          'ext.flutter.exploration.core.get_stable_observation',
+        );
+        final Map<String, dynamic> envelope = r.json!;
+        expect(envelope['type'], 'Observation');
+        expect(envelope.containsKey('value'), isTrue);
+        // The real binding's empty-tree response: the fixture body's
+        // 'login' route stack must NOT appear here. We assert the
+        // observation came from the binding, not from a leaked fixture.
+        final Map<String, dynamic> bundle =
+            (envelope['value'] as Map).cast<String, dynamic>();
+        final Map<String, dynamic>? core =
+            (bundle['core'] as Map?)?.cast<String, dynamic>();
+        final Object? routeStack = core?['routeStack'];
+        // The binding's empty-tree response either omits routeStack or
+        // returns an empty list; in particular it must not be ['login'].
+        if (routeStack is List) {
+          expect(routeStack, isNot(<String>['login']));
+        }
+      },
     );
   });
 }
