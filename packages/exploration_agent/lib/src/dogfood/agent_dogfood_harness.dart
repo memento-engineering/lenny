@@ -19,6 +19,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:vm_service/vm_service.dart' show VmService;
 
@@ -33,8 +34,15 @@ import '../loop_driver/default_loop_host.dart';
 import '../provider/swift_infer/swift_infer_config.dart';
 import '../provider/swift_infer/swift_infer_provider.dart';
 import '../provider/types.dart';
+import '../session/turn_event.dart';
 import '../trajectory/records.dart'
-    show PluginManifestRecord, SessionHeader, SessionOutcome;
+    show
+        PluginDisabledEvent,
+        PluginManifestRecord,
+        SessionFooter,
+        SessionHeader,
+        SessionOutcome,
+        TurnRecord;
 import '../session.dart';
 import '../session/observation_puller.dart' show StabilityPolicy;
 import '../trajectory/sink.dart';
@@ -184,21 +192,32 @@ class AgentDogfoodHarness {
       final CountingLoopHost host = CountingLoopHost(inner);
 
       // The harness owns its own LoopDriver so we can tune the
-      // per-turn budget and the maxTurns cap; the trajectory writer
-      // is wired to a discard sink because dogfood records are
-      // written on `traceSink` via DogfoodTraceWriter above.
-      final TrajectoryWriter discardWriter =
-          TrajectoryWriter(_DiscardSink());
+      // per-turn budget and the maxTurns cap. We wrap a discard-sink
+      // [TrajectoryWriter] in [_DogfoodInterceptingTrajectoryWriter]
+      // so every `writeTurn(TurnRecord)` from the loop driver also
+      // emits a `dogfood_turn` JSONL line on the caller-supplied sink
+      // via [DogfoodTraceWriter]. lenny-cx6.47.
+      final _ThinkingAccumulator thinking = _ThinkingAccumulator();
+      final _DogfoodInterceptingTrajectoryWriter interceptor =
+          _DogfoodInterceptingTrajectoryWriter(
+        inner: TrajectoryWriter(_DiscardSink()),
+        trace: trace,
+        thinking: thinking,
+        verbose: verbose,
+        log: _log,
+        clock: () => DateTime.now(),
+      );
       // The LoopDriver's TrajectoryWriter enforces `header → turns* →
       // footer`. If `runTurn` enters its `_writeFailedTurn` branch
       // (TurnTimeoutError / InvalidActionExhausted / SchemaExhausted)
       // before any successful turn lands a header, the invariant trips
       // with `StateError: writeHeader must precede turns/events`,
-      // masking the original failure. Write a degenerate header here so
-      // the invariant is satisfied trivially — the bytes go to
-      // `_DiscardSink` since the harness owns its own dogfood trace via
-      // [DogfoodTraceWriter].
-      await discardWriter.writeHeader(SessionHeader(
+      // masking the original failure. Write a degenerate header on the
+      // interceptor here so the invariant is satisfied trivially — the
+      // bytes go to `_DiscardSink` (and the interceptor does NOT emit
+      // a dogfood line for header writes; dogfood_header was already
+      // written above).
+      await interceptor.writeHeader(SessionHeader(
         goal: goal,
         agentsMdHash: '',
         buildIdentifier: 'dogfood-harness',
@@ -215,12 +234,13 @@ class AgentDogfoodHarness {
         provider: provider,
         assembler: const PromptAssembler(),
         validator: const ActionValidator(),
-        writer: discardWriter,
+        writer: interceptor,
         summary: RunningSummary(counter: WhitespaceTokenCounter()),
         actions: ActionRing(),
         turnBudget: Duration(milliseconds: maxTurnBudgetMs),
         sessionBudget: totalBudget,
         maxTurns: maxTurns,
+        onTurnEvent: thinking.onTurnEvent,
       );
 
       final SessionTermination term =
@@ -328,6 +348,10 @@ class AgentDogfoodHarness {
     );
   }
 
+  // Implementation note: the file-private classes
+  // [_ThinkingAccumulator], [_DogfoodInterceptingTrajectoryWriter], and
+  // [_NoopSink] live below the class declaration (lenny-cx6.47).
+
   DogfoodOutcome _classify(SessionTermination t, int toolCalls) {
     if (t.harnessError == HarnessError.connectionLost) {
       return DogfoodOutcome.typedException;
@@ -346,4 +370,183 @@ class AgentDogfoodHarness {
         ? DogfoodOutcome.completedWithToolCall
         : DogfoodOutcome.completedNoToolCall;
   }
+}
+
+/// Buckets [TurnThinking] deltas by turn index and surfaces a
+/// truncated excerpt on demand. Cleared on read so each
+/// [DogfoodTraceWriter.writeTurn] consumes only its own deltas.
+/// File-private to the dogfood harness (lenny-cx6.47).
+class _ThinkingAccumulator {
+  final Map<int, StringBuffer> _byTurn = <int, StringBuffer>{};
+
+  void onTurnEvent(TurnEvent e) {
+    if (e is TurnThinking) {
+      (_byTurn[e.turn] ??= StringBuffer()).write(e.delta.text);
+    }
+  }
+
+  /// Returns the accumulated thinking text for [turn], truncated to
+  /// [maxLen] characters (default 2000). Clears the bucket so any
+  /// subsequent read (e.g. a defensive retry of `writeTurn`) returns
+  /// the empty string.
+  String drain(int turn, {int maxLen = 2000}) {
+    final StringBuffer? b = _byTurn.remove(turn);
+    if (b == null) return '';
+    final String s = b.toString();
+    return s.length <= maxLen ? s : s.substring(0, maxLen);
+  }
+}
+
+/// Subclasses [TrajectoryWriter] so the LoopDriver's writer
+/// invariants (`header → turns* → footer`) stay unchanged. For every
+/// `writeTurn(TurnRecord)` call we additionally emit one
+/// `dogfood_turn` line on the caller-supplied [DogfoodTraceWriter].
+/// File-private to the dogfood harness (lenny-cx6.47).
+class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
+  _DogfoodInterceptingTrajectoryWriter({
+    required TrajectoryWriter inner,
+    required this.trace,
+    required this.thinking,
+    required this.verbose,
+    required this.log,
+    required this.clock,
+  })  : _inner = inner,
+        super(_NoopSink()) {
+    _turnStart = clock();
+  }
+
+  final TrajectoryWriter _inner;
+  final DogfoodTraceWriter trace;
+  final _ThinkingAccumulator thinking;
+  final bool verbose;
+  final void Function(String) log;
+  final DateTime Function() clock;
+  late DateTime _turnStart;
+
+  @override
+  Future<void> writeHeader(SessionHeader h) async {
+    await _inner.writeHeader(h);
+    _turnStart = clock();
+  }
+
+  @override
+  Future<void> writeTurn(TurnRecord t) async {
+    await _inner.writeTurn(t);
+    final DateTime now = clock();
+    final int elapsedMs = now.difference(_turnStart).inMilliseconds;
+    _turnStart = now;
+
+    final Map<String, dynamic> exec = t.executedAction;
+    final Map<String, dynamic> val = t.validation;
+    final bool ok = val['ok'] == true;
+    final String tool = (exec['tool'] as String?) ??
+        (t.proposedAction['tool'] as String?) ??
+        '';
+    final Map<String, dynamic> args =
+        (exec['args'] as Map?)?.cast<String, dynamic>() ??
+            (t.proposedAction['args'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final Map<String, dynamic>? result =
+        (exec['result'] as Map?)?.cast<String, dynamic>();
+
+    final Map<String, dynamic> decision = <String, dynamic>{
+      'tool': tool,
+      'args': args,
+      'thinking_excerpt': thinking.drain(t.index),
+      'observation_summary': _observationSummary(t),
+    };
+
+    final Map<String, dynamic> actResult = ok && result != null
+        ? <String, dynamic>{
+            'ok': result['ok'] ?? true,
+            if (result.containsKey('value')) 'value': result['value'],
+            if (result.containsKey('error')) 'error': result['error'],
+          }
+        : <String, dynamic>{
+            'ok': false,
+            'error': val['reason'] ?? 'unknown',
+          };
+
+    final String? error = ok ? null : (val['reason'] as String?);
+
+    await trace.writeTurn(
+      index: t.index,
+      prompt: _summarisePrompt(t),
+      decision: decision,
+      actResult: actResult,
+      elapsedMs: elapsedMs < 0 ? 0 : elapsedMs,
+      error: error,
+    );
+
+    if (verbose) {
+      log('[dogfood] turn ${t.index} tool=$tool ok=$ok ms=$elapsedMs'
+          '${error == null ? '' : ' error=$error'}');
+    }
+  }
+
+  @override
+  Future<void> writePluginDisabled(PluginDisabledEvent e) =>
+      _inner.writePluginDisabled(e);
+
+  @override
+  Future<void> close(SessionFooter footer) => _inner.close(footer);
+}
+
+/// Compact, JSON-encodable summary of the observation captured for
+/// this turn. Returns `null` when the turn record carries no
+/// observation (failed-turn path with an empty `_prev`).
+///
+/// Wire shape: `Observation.toJson()` serialises `core` as a
+/// CoreFragment map with `routeStack` (camelCase `List<String>`) and
+/// `nodes` as a `Map<String, dynamic>` keyed by node-id strings — not
+/// a List. We count Map entries for node_count.
+Map<String, dynamic>? _observationSummary(TurnRecord t) {
+  if (t.observation.isEmpty) return null;
+  final Map<String, dynamic> obs = t.observation;
+  final Map<String, dynamic>? core =
+      (obs['core'] as Map?)?.cast<String, dynamic>();
+  final Object? nodesRaw = core?['nodes'];
+  final int nodeCount = nodesRaw is Map
+      ? nodesRaw.length
+      : (nodesRaw is List ? nodesRaw.length : 0);
+  final Object? routeRaw = core?['routeStack'] ?? core?['route_stack'];
+  final List<dynamic> routeStack =
+      routeRaw is List ? List<dynamic>.from(routeRaw) : const <dynamic>[];
+  return <String, dynamic>{
+    'keys': obs.keys.toList()..sort(),
+    'node_count': nodeCount,
+    'route_stack': routeStack,
+  };
+}
+
+/// Compact prompt summary: the literal bytes sent to swift-infer are
+/// NOT on [TurnRecord] (full-prompt capture is intentionally out of
+/// scope for cx6.47). We serialize the observation top-level keys and
+/// the per-turn diff so post-mortem readers can see what changed each
+/// turn. Truncated to 2000 characters.
+String _summarisePrompt(TurnRecord t) {
+  final Map<String, dynamic> obs = t.observation;
+  final Map<String, dynamic> diff = t.diff;
+  final List<String> obsKeys = obs.keys.toList()..sort();
+  final String s = jsonEncode(<String, dynamic>{
+    'observation_keys': obsKeys,
+    'diff_summary': diff,
+  });
+  return s.length <= 2000 ? s : s.substring(0, 2000);
+}
+
+/// Minimal no-op [TrajectorySink] used as the `super(...)` argument
+/// for [_DogfoodInterceptingTrajectoryWriter]. The subclass overrides
+/// every public method on [TrajectoryWriter], so this sink is never
+/// actually written to — it exists only because the base class's
+/// constructor requires a non-null sink. We keep it distinct from
+/// [_DiscardSink] (which is the inner writer's real sink) so the
+/// override contract is obvious to future readers.
+class _NoopSink implements TrajectorySink {
+  @override
+  Future<void> writeLine(String _) async {}
+  @override
+  Future<void> flush() async {}
+  @override
+  Future<void> close() async {}
 }

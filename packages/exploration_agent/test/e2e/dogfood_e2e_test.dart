@@ -186,6 +186,21 @@ void main() {
           'exception=${r.exception}',
     );
     expect(r.toolCallCount, greaterThanOrEqualTo(0));
+
+    // lenny-cx6.47: per-turn dogfood_turn lines must be emitted
+    // whenever the LoopDriver actually entered a turn (i.e. the run
+    // did NOT exit via a pre-turn typed exception). The
+    // typedException outcome covers handshake-time failures where
+    // zero turns ran; otherwise we require at least one turn line.
+    final int turnLines = sink.lines
+        .where((String l) => l.contains('"dogfood_turn"'))
+        .length;
+    if (r.outcome == DogfoodOutcome.completedWithToolCall ||
+        r.outcome == DogfoodOutcome.completedNoToolCall) {
+      expect(turnLines, greaterThanOrEqualTo(1),
+          reason: 'expected ≥1 dogfood_turn line for outcome '
+              '${r.outcome.name}; got ${sink.lines}');
+    }
   }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
 
   test('unknownToolNameSurvives', () async {
