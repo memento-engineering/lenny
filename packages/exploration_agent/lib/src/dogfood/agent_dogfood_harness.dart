@@ -123,12 +123,13 @@ class AgentDogfoodHarness {
   /// Tool descriptors offered to the model on every turn.
   final List<ToolDescriptor> tools;
 
-  /// Canned observation served by the binding fake when the agent
-  /// pulls `core.get_stable_observation`. Currently informational —
-  /// the binding fake's observation path is owned by the caller's
-  /// [ExplorationBinding], not by the harness; the fixture is
-  /// recorded in the trace header so prompt-tuning diffs can be
-  /// reproduced.
+  /// Canned observation served by the binding fake on every
+  /// `core.get_stable_observation` call. The caller is expected to
+  /// construct its `BindingVmServiceFake` with
+  /// `observationFixture: fixture` (the CLI runner does this; the
+  /// e2e test does the same). The fixture body is wrapped in the
+  /// binding's standard `{type: 'Observation', value: <body>}`
+  /// envelope before being returned to the agent (lenny-cx6.48).
   final ObservationFixture fixture;
 
   /// Hard cap on loop iterations.

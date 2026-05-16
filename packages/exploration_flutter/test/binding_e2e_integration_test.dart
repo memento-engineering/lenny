@@ -84,10 +84,20 @@ class _SampleEchoPlugin extends ExplorationPlugin {
 /// JSON-encoding every non-string value (the binding's
 /// `decodeServiceExtensionParams` reverses the encoding on the way in).
 class _BindingVmServiceFake extends VmService {
-  _BindingVmServiceFake(this._binding)
+  // ignore: unused_element_parameter
+  _BindingVmServiceFake(this._binding, {this.observationFixture})
       : super(const Stream<dynamic>.empty(), (_) {});
 
   final ExplorationBinding _binding;
+
+  /// Signature-compat with the shared fake (lenny-cx6.48). The clone
+  /// does not implement fixture-serving; it exists only so a future
+  /// hoist (lenny-imr) can replace the clone with the shared class
+  /// without breaking call sites. All call sites in this file pass no
+  /// fixture, preserving today's pass-through behavior. The type is
+  /// `Object?` (not `ObservationFixture?`) because
+  /// `exploration_flutter` cannot depend on `exploration_agent`.
+  final Object? observationFixture;
 
   @override
   Future<Response> callServiceExtension(

@@ -16,6 +16,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
+
 import 'types.dart';
 
 /// One canned observation payload, ready to be served by the binding
@@ -65,4 +67,13 @@ class ObservationFixture {
           'plugins': <String, dynamic>{},
         },
       );
+
+  /// Test-only constructor: build a fixture from an in-memory body
+  /// without touching disk. The public constructor remains private to
+  /// preserve the `loadFromFile` / `empty` factory contract; this
+  /// `@visibleForTesting` factory is the documented seam used by
+  /// `BindingVmServiceFake` and harness unit tests in lenny-cx6.48.
+  @visibleForTesting
+  static ObservationFixture forTest(String path, Map<String, dynamic> body) =>
+      ObservationFixture._(path, body);
 }

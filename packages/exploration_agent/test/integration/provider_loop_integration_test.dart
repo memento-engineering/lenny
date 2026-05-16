@@ -69,6 +69,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart';
+import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -94,10 +95,18 @@ import 'package:vm_service/vm_service.dart';
 /// shared test-support library; until then, any wire-contract change in
 /// cvl.* MUST be mirrored here.
 class _BindingVmServiceFake extends VmService {
-  _BindingVmServiceFake(this._binding)
+  // ignore: unused_element_parameter
+  _BindingVmServiceFake(this._binding, {this.observationFixture})
     : super(const Stream<dynamic>.empty(), (_) {});
 
   final ExplorationBinding _binding;
+
+  /// Signature-compat with the shared fake (lenny-cx6.48). The clone
+  /// does not implement fixture-serving; it exists only so a future
+  /// hoist (lenny-imr) can replace the clone with the shared class
+  /// without breaking call sites. All call sites in this file pass no
+  /// fixture, preserving today's pass-through behavior.
+  final ObservationFixture? observationFixture;
 
   @override
   Future<Response> callServiceExtension(
