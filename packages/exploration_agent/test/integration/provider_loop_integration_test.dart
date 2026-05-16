@@ -1,10 +1,5 @@
-/// Provider-loop integration test for the exploration agent
-/// (originally landed by lenny-cx6.41; renamed for taxonomy honesty
-/// in lenny-cx6.42 — this test mocks the HTTP boundary via
-/// `package:http/testing.dart` [MockClient.streaming] and therefore
-/// does **not** exercise a live inference server; a real
-/// SWIFT_INFER_ENDPOINT-gated full-stack test against a running
-/// swift-infer server is tracked separately).
+/// End-to-end provider-loop integration test for the exploration agent
+/// (bead lenny-cx6.41).
 ///
 /// Sibling to `packages/exploration_flutter/test/binding_e2e_integration_test.dart`
 /// (lenny-cvl.4): cvl.4 closed the binding-side wire gap; this file
@@ -28,7 +23,7 @@
 ///
 /// | id                       | shape                                                        | locks                                            |
 /// |--------------------------|--------------------------------------------------------------|--------------------------------------------------|
-/// | `happyPathSwiftInfer`    | well-formed `tool_use{name: router_navigate, ...}`           | baseline: encoded wire name routes through provider → session → binding. |
+/// | `happyPathSwiftInfer`    | well-formed `tool_use{name: router_navigate, ...}`           | baseline: encoded wire name routes end-to-end.    |
 /// | `unknownToolBareNavigate`| bare `tool_use{name: navigate, ...}` (no namespace prefix)   | regression for swift-infer `msg_333DE0C006B` — fail closed at unknown-tool guard. |
 /// | `malformedSseLine`       | one `data: {not valid json` chunk + a well-formed tool_use   | forward guard: malformed wire surfaces FormatException. |
 /// | `noToolUseBlock`         | text-only stream, no `content_block_start` of type tool_use  | forward guard: provider rejects with SchemaRejection. |
@@ -268,10 +263,8 @@ final ToolDescriptor _routerNavigateDescriptor = ToolDescriptor(
   },
 );
 
-/// One scenario fixture exercising a specific class of model
+/// One end-to-end fixture exercising a specific class of model
 /// behaviour against the full provider → session → binding loop.
-/// "Full loop" here means every layer of the agent's own code; the
-/// HTTP boundary below the provider is mocked (see `_streamingMock`).
 ///
 /// Each scenario bundles the SSE body the fake `http.Client` will
 /// stream back, the matcher [outcome] applied to the
