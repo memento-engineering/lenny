@@ -13,5 +13,9 @@ dependencies:
   vm_service: ^14.2.0
 
 dev_dependencies:
+  exploration_flutter:
+    path: ../exploration_flutter
+  flutter_test:
+    sdk: flutter
   lints: ^5.1.0
   test: ^1.25.0
