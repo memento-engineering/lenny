@@ -90,12 +90,23 @@ class DogfoodTraceWriter {
   /// Append the trace's `dogfood_footer` line, flush, and close the
   /// underlying sink. Idempotent — repeated calls are no-ops so a
   /// caller-side try/finally can always invoke this safely.
+  ///
+  /// [exception] carries the **original** turn-level failure
+  /// (TurnTimeoutError, SchemaRejection, …). [recoveryError] is the
+  /// secondary exception (if any) raised from the harness's own
+  /// cleanup path — surfaced separately so downstream readers can
+  /// distinguish "the run failed because X" from "the run failed
+  /// because X and recovery itself also failed with Y". The harness
+  /// must not let a secondary error overwrite the original.
   Future<void> writeFooter({
     required String outcome,
     String? exception,
+    String? recoveryError,
   }) async {
     if (_footerWritten) return;
-    _footerWritten = true;
+    // NB: _footerWritten is set **after** the sink write succeeds.
+    // If the sink throws, the caller may retry (e.g. with a populated
+    // [recoveryError]) and we will still emit one footer line.
     if (!_headerWritten) {
       // Defensive: write a degenerate header so the trace remains
       // parseable even if the harness aborts before the header path
@@ -116,9 +127,11 @@ class DogfoodTraceWriter {
       'type': 'dogfood_footer',
       'outcome': outcome,
       if (exception != null) 'exception': exception,
+      if (recoveryError != null) 'recovery_error': recoveryError,
       'ended_at': DateTime.now().toUtc().toIso8601String(),
     }));
     await _sink.flush();
+    _footerWritten = true;
     await _sink.close();
   }
 }

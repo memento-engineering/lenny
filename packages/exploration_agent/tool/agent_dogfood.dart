@@ -54,6 +54,13 @@ ArgParser _buildParser() => ArgParser()
     defaultsTo: true,
     help: 'structured per-turn logging (CLI default on)',
   )
+  ..addFlag(
+    'no-capture-bodies',
+    defaultsTo: false,
+    negatable: false,
+    help: 'disable swift-infer body capture (default: capture on so '
+        'GET /v1/trace/<id> returns request/response bodies)',
+  )
   ..addOption(
     'trace-out',
     help: 'where to write the JSONL trace; default '
@@ -147,6 +154,7 @@ Future<int> _run(List<String> argv) async {
     'max_turn_budget_ms': maxTurnBudgetMs,
     'verbose': r['verbose'] as bool,
     'trace_out': tracePath,
+    'capture_bodies': !(r['no-capture-bodies'] as bool),
   };
 
   // Fork `flutter test` against the runner file. The runner reads its
