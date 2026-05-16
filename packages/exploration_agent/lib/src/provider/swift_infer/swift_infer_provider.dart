@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../action_schema.dart';
+import '../frontier/thinking_decoder.dart';
 import '../frontier/tool_helpers.dart';
 import '../model_provider.dart';
 import '../types.dart';
@@ -127,32 +128,38 @@ class SwiftInferModelProvider implements ModelProvider {
     Map<String, dynamic>? toolUse;
     StringBuffer? inputJsonBuf;
     var inThink = false;
+    final thinkingDecoder = ThinkingSseDecoder(_thinking);
 
-    await for (final line in streamed.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())) {
-      if (!line.startsWith('data: ')) continue;
-      final payload = line.substring(6).trim();
-      if (payload.isEmpty || payload == '[DONE]') continue;
-      final evt = jsonDecode(payload) as Map<String, dynamic>;
-      final type = evt['type'] as String?;
-      if (type == 'content_block_start') {
-        final block = (evt['content_block'] as Map).cast<String, dynamic>();
-        if (block['type'] == 'tool_use') {
-          toolUse = block;
-          inputJsonBuf = StringBuffer();
-        }
-      } else if (type == 'content_block_delta') {
-        final delta = (evt['delta'] as Map).cast<String, dynamic>();
-        final dtype = delta['type'] as String?;
-        if (dtype == 'text_delta') {
-          final text = delta['text'] as String;
-          raw.write(text);
-          inThink = _emitThinking(text, inThink: inThink);
-        } else if (dtype == 'input_json_delta' && inputJsonBuf != null) {
-          inputJsonBuf.write(delta['partial_json'] as String? ?? '');
+    try {
+      await for (final line in streamed.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (!line.startsWith('data: ')) continue;
+        final payload = line.substring(6).trim();
+        if (payload.isEmpty || payload == '[DONE]') continue;
+        final evt = jsonDecode(payload) as Map<String, dynamic>;
+        thinkingDecoder.onEvent(evt);
+        final type = evt['type'] as String?;
+        if (type == 'content_block_start') {
+          final block = (evt['content_block'] as Map).cast<String, dynamic>();
+          if (block['type'] == 'tool_use') {
+            toolUse = block;
+            inputJsonBuf = StringBuffer();
+          }
+        } else if (type == 'content_block_delta') {
+          final delta = (evt['delta'] as Map).cast<String, dynamic>();
+          final dtype = delta['type'] as String?;
+          if (dtype == 'text_delta') {
+            final text = delta['text'] as String;
+            raw.write(text);
+            inThink = _emitThinking(text, inThink: inThink);
+          } else if (dtype == 'input_json_delta' && inputJsonBuf != null) {
+            inputJsonBuf.write(delta['partial_json'] as String? ?? '');
+          }
         }
       }
+    } finally {
+      thinkingDecoder.onDone();
     }
 
     if (toolUse == null) {
