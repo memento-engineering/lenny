@@ -387,6 +387,64 @@ void main() {
     expect(deltas.last.isFinal, isTrue);
   });
 
+  test('thinking stream emits ThinkingDelta from Anthropic-native '
+      'thinking_delta events', () async {
+    final body = _sse(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'index': 0,
+        'content_block': <String, dynamic>{'type': 'thinking', 'thinking': ''},
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': <String, dynamic>{
+          'type': 'thinking_delta',
+          'thinking': 'Here',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': <String, dynamic>{
+          'type': 'thinking_delta',
+          'thinking': "'s",
+        },
+      },
+      <String, dynamic>{'type': 'content_block_stop', 'index': 0},
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'index': 1,
+        'content_block': <String, dynamic>{
+          'type': 'tool_use',
+          'id': 't1',
+          'name': 'core_tap',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'index': 1,
+        'delta': <String, dynamic>{
+          'type': 'input_json_delta',
+          'partial_json': '{"node_id":1}',
+        },
+      },
+      <String, dynamic>{'type': 'content_block_stop', 'index': 1},
+      <String, dynamic>{'type': 'message_stop'},
+    ]);
+    final p = SwiftInferModelProvider(config: _cfg(), client: _stream(body));
+    final deltas = <ThinkingDelta>[];
+    final sub = p.thinking().listen(deltas.add);
+    await p.decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+    expect(deltas.map((d) => d.text).toList(), <String>['Here', "'s", '']);
+    expect(deltas.last.isFinal, isTrue);
+  });
+
   test('capabilities reflect config', () {
     final m = _stream('');
     final p1 =

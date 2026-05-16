@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../action_schema.dart';
 import '../frontier/frontier_defaults.dart';
+import '../frontier/thinking_decoder.dart';
 import '../frontier/tool_helpers.dart';
 import '../model_provider.dart';
 import '../types.dart';
@@ -25,6 +27,11 @@ const kAnthropicVisionModels = <String>{
 /// Hosts the SHARED frontier helpers (`FrontierDefaults`, `VisionImage`,
 /// `validateToolArgs`, `lookupTool`) consumed by the OpenAI provider
 /// (.37).
+///
+/// Streaming: SSE-decodes the response so Anthropic-native
+/// `thinking_delta` events surface live on [thinking] via the shared
+/// [ThinkingSseDecoder] (cx6.49). Tool calls are accumulated from
+/// `input_json_delta` events.
 ///
 /// Retry contract: throws [SchemaRejection] on a malformed response;
 /// the loop driver (.18) owns retry policy per .14's contract.
@@ -48,6 +55,8 @@ class AnthropicModelProvider implements ModelProvider {
   final Uri endpoint;
 
   final http.Client _client;
+  final StreamController<ThinkingDelta> _thinking =
+      StreamController<ThinkingDelta>.broadcast();
 
   @override
   ModelCapabilities get capabilities => ModelCapabilities(
@@ -58,7 +67,7 @@ class AnthropicModelProvider implements ModelProvider {
       );
 
   @override
-  Stream<ThinkingDelta> thinking() => const Stream.empty();
+  Stream<ThinkingDelta> thinking() => _thinking.stream;
 
   @override
   Future<ModelDecision> decide(
@@ -69,6 +78,7 @@ class AnthropicModelProvider implements ModelProvider {
       'model': model,
       'max_tokens': FrontierDefaults.maxTokens,
       'temperature': FrontierDefaults.temperature,
+      'stream': true,
       'system': prompt.systemMessage,
       'tools': prompt.tools
           .map((t) => <String, dynamic>{
@@ -82,36 +92,63 @@ class AnthropicModelProvider implements ModelProvider {
       ],
     };
 
-    final resp = await _client.post(
-      endpoint,
-      headers: <String, String>{
+    final req = http.Request('POST', endpoint)
+      ..headers.addAll(<String, String>{
         'content-type': 'application/json',
+        'accept': 'text/event-stream',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
-      },
-      body: jsonEncode(body),
-    );
+      })
+      ..body = jsonEncode(body);
+    final streamed = await _client.send(req);
 
-    final raw = resp.body;
-    final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    final content = (decoded['content'] as List?) ?? const [];
-
+    final raw = StringBuffer();
     Map<String, dynamic>? toolUse;
-    for (final block in content) {
-      if (block is Map && block['type'] == 'tool_use') {
-        toolUse = block.cast<String, dynamic>();
-        break;
+    StringBuffer? inputJsonBuf;
+    final thinkingDecoder = ThinkingSseDecoder(_thinking);
+
+    try {
+      await for (final line in streamed.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (!line.startsWith('data: ')) continue;
+        final payload = line.substring(6).trim();
+        if (payload.isEmpty || payload == '[DONE]') continue;
+        final evt = jsonDecode(payload) as Map<String, dynamic>;
+        thinkingDecoder.onEvent(evt);
+        final type = evt['type'] as String?;
+        if (type == 'content_block_start') {
+          final block = (evt['content_block'] as Map).cast<String, dynamic>();
+          if (block['type'] == 'tool_use') {
+            toolUse = block;
+            inputJsonBuf = StringBuffer();
+          }
+        } else if (type == 'content_block_delta') {
+          final delta = (evt['delta'] as Map).cast<String, dynamic>();
+          final dtype = delta['type'] as String?;
+          if (dtype == 'input_json_delta' && inputJsonBuf != null) {
+            inputJsonBuf.write(delta['partial_json'] as String? ?? '');
+          } else if (dtype == 'text_delta') {
+            raw.write(delta['text'] as String? ?? '');
+          }
+        }
       }
+    } finally {
+      thinkingDecoder.onDone();
     }
+
     if (toolUse == null) {
       throw SchemaRejection(
         validationError: 'no tool_use block in response',
-        rawOutput: raw,
+        rawOutput: raw.toString(),
       );
     }
 
     final wireName = toolUse['name'] as String;
-    final args = (toolUse['input'] as Map).cast<String, dynamic>();
+    final inputJson = inputJsonBuf?.toString() ?? '';
+    final args = inputJson.isEmpty
+        ? <String, dynamic>{}
+        : (jsonDecode(inputJson) as Map).cast<String, dynamic>();
     final tool = lookupTool(prompt.tools, wireName);
     if (tool == null) {
       throw unknownToolRejection(
