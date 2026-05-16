@@ -70,9 +70,13 @@ class _SampleEchoPlugin extends ExplorationPlugin {
 
 /// In-process fake [VmService] that bridges
 /// `VmServiceClient.callServiceExtension` straight into the real
-/// binding's two test helpers — [ExplorationBinding.invokeServiceExtension]
-/// for the host-owned `core.*` extensions and
-/// [ExplorationBinding.invokePluginTool] for plugin-registered tools.
+/// binding's two test helpers. Routing is registry-driven: methods
+/// whose `<ns>.<tool>` suffix is present in
+/// `pluginRegistry.mergedTools()` go to
+/// [ExplorationBinding.invokePluginTool]; binding-owned extensions
+/// (handshake, get_stable_observation, get_recent_errors, screenshot,
+/// diagnostics_warnings) fall through to
+/// [ExplorationBinding.invokeServiceExtension].
 ///
 /// The bridge mirrors what the live VM service does on the wire: it
 /// converts the agent's `Map<String, dynamic>? args` to the
@@ -96,15 +100,24 @@ class _BindingVmServiceFake extends VmService {
           in (args ?? const <String, dynamic>{}).entries)
         e.key: e.value is String ? e.value as String : jsonEncode(e.value),
     };
-    const String corePrefix = 'ext.flutter.exploration.core.';
-    const String pluginPrefix = 'ext.flutter.exploration.';
+    // Route by registry, not by URL prefix. Plugin tools (registered via
+    // PluginContext.registerExtension) live in pluginRegistry.mergedTools()
+    // keyed by '<ns>.<tool>'. Binding-owned extensions (handshake,
+    // get_stable_observation, get_recent_errors, screenshot,
+    // diagnostics_warnings) live in _extensionCallbacks and are reached
+    // via invokeServiceExtension. The 'core.*' URL prefix is NOT a
+    // routing signal — CorePlugin's per-tool extensions live in the
+    // registry, not in _extensionCallbacks.
+    const String prefix = 'ext.flutter.exploration.';
+    if (!method.startsWith(prefix)) {
+      throw RPCError(method, -32601, 'Unknown method "$method"');
+    }
+    final String suffix = method.substring(prefix.length);
     final String body;
-    if (method.startsWith(corePrefix)) {
-      body = await _binding.invokeServiceExtension(method, stringArgs);
-    } else if (method.startsWith(pluginPrefix)) {
+    if (_binding.pluginRegistry.mergedTools().containsKey(suffix)) {
       body = await _binding.invokePluginTool(method, stringArgs);
     } else {
-      throw RPCError(method, -32601, 'Unknown method "$method"');
+      body = await _binding.invokeServiceExtension(method, stringArgs);
     }
     final Response r = Response();
     r.json = jsonDecode(body) as Map<String, dynamic>;
