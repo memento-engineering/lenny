@@ -1,4 +1,5 @@
-/// Regression test for lenny-cx6.46.
+/// Regression test for lenny-cx6.46 (originally agent-side; moved to
+/// exploration_flutter under lenny-imr alongside the hoisted fake).
 ///
 /// Proves that [BindingVmServiceFake] routes by
 /// `pluginRegistry.mergedTools()` and not by the literal
@@ -13,15 +14,30 @@
 ///   - any method that does not start with
 ///     `ext.flutter.exploration.` still throws
 ///     `RPCError(..., -32601, ...)`.
+///
+/// Fixture-serving paths (lenny-cx6.48) are also covered, using a
+/// file-local minimal duck-typed body holder (`_FakeFixture`) instead
+/// of `package:exploration_agent/src/dogfood/observation_fixture.dart`
+/// — exploration_flutter cannot depend on exploration_agent, and the
+/// fake reads `body` via `dynamic` dispatch so any class exposing the
+/// getter works.
 library;
 
-import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vm_service/vm_service.dart';
 
-import 'binding_vm_service_fake.dart';
+/// Minimal duck-typed body holder for the fake's fixture-serving
+/// branch. The fake reads `body` via `dynamic` dispatch so any class
+/// exposing this getter works; the production-side `ObservationFixture`
+/// in `package:exploration_agent/src/dogfood/observation_fixture.dart`
+/// is one such class, but exploration_flutter cannot depend on it.
+class _FakeFixture {
+  _FakeFixture(this.body);
+  final Map<String, dynamic> body;
+}
 
 class _CoreNamespaceTapTool extends ExplorationTool {
   _CoreNamespaceTapTool();
@@ -178,8 +194,7 @@ void main() {
           'plugins': <String, dynamic>{},
           'stability': <String, dynamic>{'policy': 'action_relative'},
         };
-        final ObservationFixture fixture =
-            ObservationFixture.forTest('<test>', body);
+        final _FakeFixture fixture = _FakeFixture(body);
         final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
           binding,
           observationFixture: fixture,
@@ -206,8 +221,7 @@ void main() {
         // registry and the plugin's `tap.call` runs.
         tap.invoked = false;
         tap.lastArgs = null;
-        final ObservationFixture fixture =
-            ObservationFixture.forTest('<test>', <String, dynamic>{
+        final _FakeFixture fixture = _FakeFixture(<String, dynamic>{
           'core': <String, dynamic>{'routeStack': <String>['login']},
         });
         final BindingVmServiceFake fixtureFake = BindingVmServiceFake(

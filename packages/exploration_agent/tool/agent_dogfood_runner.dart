@@ -37,7 +37,7 @@ import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../test/_support/binding_vm_service_fake.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 
 /// File-backed [TrajectorySink] used by the CLI shim. Inlined here to
 /// avoid `exploration_cli` becoming a runtime dependency.

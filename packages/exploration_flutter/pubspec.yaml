@@ -12,9 +12,9 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.16.0
+  vm_service: ^14.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   lints: ^5.1.0
-  vm_service: ^14.2.0
