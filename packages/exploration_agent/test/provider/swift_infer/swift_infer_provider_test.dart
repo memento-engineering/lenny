@@ -445,6 +445,57 @@ void main() {
     expect(deltas.last.isFinal, isTrue);
   });
 
+  test('captures message.id from message_start as providerRequestId',
+      () async {
+    final body = _sse(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'message_start',
+        'message': <String, dynamic>{
+          'id': 'msg_5C16E942855',
+          'type': 'message',
+          'role': 'assistant',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'content_block': <String, dynamic>{
+          'type': 'tool_use',
+          'id': 't1',
+          'name': 'core_tap',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'delta': <String, dynamic>{
+          'type': 'input_json_delta',
+          'partial_json': jsonEncode(<String, dynamic>{'node_id': 7}),
+        },
+      },
+      <String, dynamic>{'type': 'message_stop'},
+    ]);
+    final p = SwiftInferModelProvider(
+      config: _cfg(),
+      client: _stream(body),
+    );
+    final d = await p.decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    expect(d.providerRequestId, 'msg_5C16E942855');
+  });
+
+  test('providerRequestId is null when message_start is absent', () async {
+    final p = SwiftInferModelProvider(
+      config: _cfg(),
+      client: _stream(_toolUseSse()),
+    );
+    final d = await p.decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    expect(d.providerRequestId, isNull);
+  });
+
   test('capabilities reflect config', () {
     final m = _stream('');
     final p1 =

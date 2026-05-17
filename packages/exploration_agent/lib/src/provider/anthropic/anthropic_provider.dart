@@ -105,6 +105,7 @@ class AnthropicModelProvider implements ModelProvider {
     final raw = StringBuffer();
     Map<String, dynamic>? toolUse;
     StringBuffer? inputJsonBuf;
+    String? providerRequestId;
     final thinkingDecoder = ThinkingSseDecoder(_thinking);
 
     try {
@@ -117,7 +118,14 @@ class AnthropicModelProvider implements ModelProvider {
         final evt = jsonDecode(payload) as Map<String, dynamic>;
         thinkingDecoder.onEvent(evt);
         final type = evt['type'] as String?;
-        if (type == 'content_block_start') {
+        if (type == 'message_start') {
+          final Map<String, dynamic>? msg =
+              (evt['message'] as Map?)?.cast<String, dynamic>();
+          final Object? id = msg?['id'];
+          if (id is String && id.isNotEmpty) {
+            providerRequestId = id;
+          }
+        } else if (type == 'content_block_start') {
           final block = (evt['content_block'] as Map).cast<String, dynamic>();
           if (block['type'] == 'tool_use') {
             toolUse = block;
@@ -169,6 +177,7 @@ class AnthropicModelProvider implements ModelProvider {
         tool: action['tool'] as String,
         args: (action['args'] as Map).cast<String, dynamic>(),
       ),
+      providerRequestId: providerRequestId,
     );
   }
 }

@@ -75,6 +75,7 @@ class ModelDecision {
     this.summaryUpdate,
     this.rationale,
     this.waitStrategy,
+    this.providerRequestId,
   });
 
   /// The action chosen this turn — `tool` is a tool name, `args` is the
@@ -89,6 +90,14 @@ class ModelDecision {
 
   /// Optional wait strategy hint (e.g. `'frame'`, `'idle'`).
   final String? waitStrategy;
+
+  /// Provider-side request id (e.g. Anthropic/swift-infer `message.id`
+  /// from the SSE `message_start` event). Null when the provider did
+  /// not emit one, or when the decision was synthesized in tests.
+  /// Surfaced into the dogfood trace as `decision.provider_request_id`
+  /// so an operator can cross-reference swift-infer's
+  /// `/v1/trace/:id` endpoint without manual time-correlation.
+  final String? providerRequestId;
 }
 
 /// One delta emitted on the [ModelProvider.thinking] stream.

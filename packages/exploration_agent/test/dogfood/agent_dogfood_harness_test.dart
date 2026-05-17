@@ -13,9 +13,12 @@ import 'package:exploration_agent/exploration_agent.dart'
     show BindingNotInitializedError, TrajectorySink;
 import 'package:exploration_agent/src/dogfood/agent_dogfood_harness.dart';
 import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
+import 'package:exploration_agent/src/dogfood/trace_writer.dart';
 import 'package:exploration_agent/src/dogfood/types.dart';
 import 'package:exploration_agent/src/provider/swift_infer/swift_infer_config.dart';
 import 'package:exploration_agent/src/provider/types.dart' show ToolDescriptor;
+import 'package:exploration_agent/src/trajectory/records.dart'
+    show PluginManifestRecord, SessionHeader, TurnRecord;
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 
@@ -488,6 +491,103 @@ void main() {
       expect(r.turnCount, 3);
       expect(r.toolCallCount, isA<int>());
       expect(r.exception, isNotNull);
+    });
+  });
+
+  group('dogfood_turn.decision.provider_request_id', () {
+    // The harness has no http.Client/provider injection seam (see
+    // observation_fixture_e2e_test.dart for the rationale), so a
+    // successful turn cannot be driven through `run()` without a real
+    // swift-infer. We use the `@visibleForTesting` interceptor factory
+    // exposed at the bottom of agent_dogfood_harness.dart to drive the
+    // exact same writer the harness wires into the LoopDriver — proving
+    // that a TurnRecord carrying providerRequestId surfaces on the
+    // dogfood_turn.decision wire shape (lenny-9am AC6).
+
+    TurnRecord buildTurn({String? providerRequestId}) => TurnRecord(
+          index: 0,
+          observation: const <String, dynamic>{},
+          stability: const <String, dynamic>{},
+          proposedAction: const <String, dynamic>{
+            'tool': 'core.tap',
+            'args': <String, dynamic>{'node_id': 7},
+          },
+          validation: const <String, dynamic>{'ok': true},
+          executedAction: const <String, dynamic>{
+            'tool': 'core.tap',
+            'args': <String, dynamic>{'node_id': 7},
+            'result': <String, dynamic>{'ok': true},
+          },
+          diff: const <String, dynamic>{},
+          summaryUpdate: '',
+          modelMetadata: const <String, dynamic>{},
+          providerRequestId: providerRequestId,
+        );
+
+    test('includes provider_request_id when TurnRecord carries it',
+        () async {
+      final sink = _MemorySink();
+      final trace = DogfoodTraceWriter(sink, '<memory>');
+      await trace.writeHeader(
+        goal: 'g',
+        model: 'qwen3.6',
+        tools: _tools,
+      );
+      final writer = debugDogfoodInterceptingTrajectoryWriterForTesting(
+        trace: trace,
+        clock: DateTime.now,
+      );
+      // The interceptor's super-class enforces header invariants on its
+      // own (discard) writer.
+      await writer.writeHeader(const SessionHeader(
+        goal: 'g',
+        agentsMdHash: '',
+        buildIdentifier: 'test',
+        modelIdentifier: 'qwen3.6',
+        harnessVersion: 'test',
+        plugins: <PluginManifestRecord>[],
+        config: <String, dynamic>{},
+      ));
+      await writer.writeTurn(buildTurn(providerRequestId: 'msg_test_1'));
+
+      final Map<String, dynamic> turn = sink.lines
+          .map((String l) => jsonDecode(l) as Map<String, dynamic>)
+          .firstWhere((Map<String, dynamic> j) => j['type'] == 'dogfood_turn');
+      final Map<String, dynamic> decision =
+          (turn['decision'] as Map).cast<String, dynamic>();
+      expect(decision['provider_request_id'], 'msg_test_1');
+    });
+
+    test('omits provider_request_id when TurnRecord leaves it null',
+        () async {
+      final sink = _MemorySink();
+      final trace = DogfoodTraceWriter(sink, '<memory>');
+      await trace.writeHeader(
+        goal: 'g',
+        model: 'qwen3.6',
+        tools: _tools,
+      );
+      final writer = debugDogfoodInterceptingTrajectoryWriterForTesting(
+        trace: trace,
+        clock: DateTime.now,
+      );
+      await writer.writeHeader(const SessionHeader(
+        goal: 'g',
+        agentsMdHash: '',
+        buildIdentifier: 'test',
+        modelIdentifier: 'qwen3.6',
+        harnessVersion: 'test',
+        plugins: <PluginManifestRecord>[],
+        config: <String, dynamic>{},
+      ));
+      await writer.writeTurn(buildTurn());
+
+      final Map<String, dynamic> turn = sink.lines
+          .map((String l) => jsonDecode(l) as Map<String, dynamic>)
+          .firstWhere((Map<String, dynamic> j) => j['type'] == 'dogfood_turn');
+      final Map<String, dynamic> decision =
+          (turn['decision'] as Map).cast<String, dynamic>();
+      expect(decision.containsKey('provider_request_id'), isFalse);
     });
   });
 

@@ -87,6 +87,42 @@ void main() {
     });
   });
 
+  group('TurnRecord.providerRequestId', () {
+    test('round-trips provider_request_id', () {
+      const rec = TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{'tool': 'core.tap'},
+        validation: <String, dynamic>{'ok': true},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        summaryUpdate: '',
+        modelMetadata: <String, dynamic>{},
+        providerRequestId: 'msg_5C16E942855',
+      );
+      final j = rec.toJson();
+      expect(j['provider_request_id'], 'msg_5C16E942855');
+      final back = TurnRecord.fromJson(j);
+      expect(back.providerRequestId, 'msg_5C16E942855');
+    });
+
+    test('omits provider_request_id when null', () {
+      const rec = TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{},
+        validation: <String, dynamic>{'ok': true},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        summaryUpdate: '',
+        modelMetadata: <String, dynamic>{},
+      );
+      expect(rec.toJson().containsKey('provider_request_id'), isFalse);
+    });
+  });
+
   group('PluginDisabledEvent', () {
     test('emits plugin_disabled type with namespace, reason, turn', () {
       const e = PluginDisabledEvent(

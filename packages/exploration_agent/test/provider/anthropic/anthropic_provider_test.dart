@@ -249,6 +249,48 @@ void main() {
     expect(deltas.last.isFinal, isTrue);
   });
 
+  test('captures message.id from message_start as providerRequestId',
+      () async {
+    final body = _sse(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'message_start',
+        'message': <String, dynamic>{
+          'id': 'msg_anthropic_1',
+          'type': 'message',
+          'role': 'assistant',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'index': 0,
+        'content_block': <String, dynamic>{
+          'type': 'tool_use',
+          'id': 't1',
+          'name': 'core_tap',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': <String, dynamic>{
+          'type': 'input_json_delta',
+          'partial_json': jsonEncode(<String, dynamic>{'node_id': 7}),
+        },
+      },
+      <String, dynamic>{'type': 'content_block_stop', 'index': 0},
+      <String, dynamic>{'type': 'message_stop'},
+    ]);
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    final d = await _p(_stream(body)).decide(_prompt(), s);
+    expect(d.providerRequestId, 'msg_anthropic_1');
+  });
+
+  test('providerRequestId is null when message_start is absent', () async {
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    final d = await _p(_stream(_toolUseSse())).decide(_prompt(), s);
+    expect(d.providerRequestId, isNull);
+  });
+
   test('capabilities: vision toggles by model', () {
     final m = MockClient((_) async => http.Response('', 200));
     expect(_p(m).capabilities.vision, isTrue);
