@@ -1,40 +1,46 @@
-/// Shared in-process [VmService] fake bridging the agent's
+/// Shared in-process [VmService] fake bridging
 /// `VmServiceClient.callServiceExtension` calls into a real
 /// `ExplorationBinding`'s two test helpers (registry-routed:
 /// methods whose `<ns>.<tool>` suffix is in
 /// `pluginRegistry.mergedTools()` go to `invokePluginTool`;
 /// everything else falls through to `invokeServiceExtension`).
 ///
-/// Bound by `packages/exploration_agent/tool/agent_dogfood.dart` and
-/// `packages/exploration_agent/test/e2e/dogfood_e2e_test.dart` —
-/// both consumers of the dogfood harness (bead lenny-cx6.43).
+/// Hoisted from three sibling clones by bead lenny-imr:
+///   - `packages/exploration_flutter/test/binding_e2e_integration_test.dart` (lenny-cvl.4 origin)
+///   - `packages/exploration_agent/test/integration/provider_loop_integration_test.dart` (lenny-cx6.41)
+///   - `packages/exploration_agent/test/_support/binding_vm_service_fake.dart` (lenny-cx6.43)
 ///
-/// Call sites today (4 total):
-///   1. lenny-cvl.4 — `packages/exploration_flutter/test/binding_e2e_integration_test.dart` (origin)
-///   2. lenny-cx6.41 — `packages/exploration_agent/test/integration/provider_loop_integration_test.dart` (clone 1)
-///   3. lenny-cx6.43 — this file, imported by `tool/agent_dogfood.dart`
-///   4. lenny-cx6.43 — this file, imported by `test/e2e/dogfood_e2e_test.dart`
+/// Lives under `lib/test_support/` so it's importable as
+/// `package:exploration_flutter/test_support/binding_vm_service_fake.dart`
+/// but is NOT re-exported from `lib/exploration_flutter.dart` — opt-in
+/// test-only surface.
 ///
-/// TODO(lenny-imr): hoist all copies into
-/// `packages/exploration_flutter/test_support/binding_vm_service_fake.dart`
-/// once that sibling refactor lands. Until then, any wire-contract
-/// change in `cvl.*` (extension prefixes, `args` encoding, RPC error
-/// codes) MUST be mirrored across all four call sites.
+/// Optional [observationFixture] (lenny-cx6.48): when non-null AND the
+/// method equals `ext.flutter.exploration.core.get_stable_observation`,
+/// the fake returns `{type: 'Observation', value: <fixture.body>}` and
+/// bypasses the binding's real handler. Every other extension and
+/// plugin tool routes normally regardless.
 ///
-/// Optional [observationFixture] (lenny-cx6.48): when non-null, calls
-/// to `ext.flutter.exploration.core.get_stable_observation` short-
-/// circuit to the fixture body wrapped in the binding's standard
-/// `{type: 'Observation', value: <body>}` envelope, bypassing
-/// `_binding.invokeServiceExtension` for that one method. Every other
-/// extension and plugin tool routes normally regardless. This is the
-/// seam the agent dogfood harness uses to serve canned observations
-/// for prompt-tuning — without it the real binding's empty-tree
-/// response is returned and the loaded fixture is ignored.
+/// The fixture parameter is `Object?` (NOT a typed
+/// `ObservationFixture?`) because `exploration_flutter` cannot depend
+/// on `exploration_agent` — the harness-side ObservationFixture lives
+/// in `package:exploration_agent/src/dogfood/observation_fixture.dart`.
+/// Callers pass whatever object exposes a `body` getter returning
+/// `Map<String, dynamic>`; the fake reads it via `dynamic` dispatch.
 library;
+
+// The fake bridges into the binding's `@visibleForTesting`
+// `invokePluginTool` and `invokeServiceExtension`. The file lives under
+// `lib/test_support/` (opt-in test-only surface, not re-exported from
+// the main library) so consumers can `package:`-import it from both
+// tests and dev tooling (e.g. `tool/agent_dogfood_runner.dart`). That
+// directory is NOT recognised as a test path by the analyzer, so the
+// visible-for-testing warnings fire here unless suppressed — same
+// trade-off the dogfood runner already documents.
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'dart:convert';
 
-import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:vm_service/vm_service.dart';
 
@@ -46,10 +52,13 @@ class BindingVmServiceFake extends VmService {
 
   /// Optional canned observation. When non-null, calls to
   /// `ext.flutter.exploration.core.get_stable_observation` return
-  /// `{type: 'Observation', value: observationFixture.body}` instead
-  /// of executing the binding's real handler. Other extensions and
-  /// plugin tools route normally regardless. (lenny-cx6.48)
-  final ObservationFixture? observationFixture;
+  /// `{type: 'Observation', value: (observationFixture as dynamic).body}`
+  /// instead of executing the binding's real handler. Other extensions
+  /// and plugin tools route normally regardless. (lenny-cx6.48)
+  ///
+  /// Typed `Object?` to keep `exploration_flutter` independent of
+  /// `exploration_agent`; the body is read via `dynamic` dispatch.
+  final Object? observationFixture;
 
   /// Wire-name of the binding's stable-observation extension. The
   /// short-circuit branch keys off exactly this method; everything
@@ -67,12 +76,14 @@ class BindingVmServiceFake extends VmService {
     // configured, the binding's empty-tree observation is bypassed for
     // exactly this one method; everything else falls through to the
     // registry/extension routing below.
-    final ObservationFixture? fx = observationFixture;
+    final Object? fx = observationFixture;
     if (fx != null && method == _kObservationMethod) {
+      final Map<String, dynamic> body =
+          (fx as dynamic).body as Map<String, dynamic>;
       final Response r = Response();
       r.json = <String, dynamic>{
         'type': 'Observation',
-        'value': fx.body,
+        'value': body,
       };
       return r;
     }

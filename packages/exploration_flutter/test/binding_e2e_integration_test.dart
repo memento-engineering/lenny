@@ -11,11 +11,11 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vm_service/vm_service.dart';
 
@@ -68,76 +68,6 @@ class _SampleEchoPlugin extends ExplorationPlugin {
   Future<void> dispose() async {}
 }
 
-/// In-process fake [VmService] that bridges
-/// `VmServiceClient.callServiceExtension` straight into the real
-/// binding's two test helpers. Routing is registry-driven: methods
-/// whose `<ns>.<tool>` suffix is present in
-/// `pluginRegistry.mergedTools()` go to
-/// [ExplorationBinding.invokePluginTool]; binding-owned extensions
-/// (handshake, get_stable_observation, get_recent_errors, screenshot,
-/// diagnostics_warnings) fall through to
-/// [ExplorationBinding.invokeServiceExtension].
-///
-/// The bridge mirrors what the live VM service does on the wire: it
-/// converts the agent's `Map<String, dynamic>? args` to the
-/// `Map<String, String>` shape `dart:developer` hands extensions, by
-/// JSON-encoding every non-string value (the binding's
-/// `decodeServiceExtensionParams` reverses the encoding on the way in).
-class _BindingVmServiceFake extends VmService {
-  // ignore: unused_element_parameter
-  _BindingVmServiceFake(this._binding, {this.observationFixture})
-      : super(const Stream<dynamic>.empty(), (_) {});
-
-  final ExplorationBinding _binding;
-
-  /// Signature-compat with the shared fake (lenny-cx6.48). The clone
-  /// does not implement fixture-serving; it exists only so a future
-  /// hoist (lenny-imr) can replace the clone with the shared class
-  /// without breaking call sites. All call sites in this file pass no
-  /// fixture, preserving today's pass-through behavior. The type is
-  /// `Object?` (not `ObservationFixture?`) because
-  /// `exploration_flutter` cannot depend on `exploration_agent`.
-  final Object? observationFixture;
-
-  @override
-  Future<Response> callServiceExtension(
-    String method, {
-    String? isolateId,
-    Map<String, dynamic>? args,
-  }) async {
-    final Map<String, String> stringArgs = <String, String>{
-      for (final MapEntry<String, dynamic> e
-          in (args ?? const <String, dynamic>{}).entries)
-        e.key: e.value is String ? e.value as String : jsonEncode(e.value),
-    };
-    // Route by registry, not by URL prefix. Plugin tools (registered via
-    // PluginContext.registerExtension) live in pluginRegistry.mergedTools()
-    // keyed by '<ns>.<tool>'. Binding-owned extensions (handshake,
-    // get_stable_observation, get_recent_errors, screenshot,
-    // diagnostics_warnings) live in _extensionCallbacks and are reached
-    // via invokeServiceExtension. The 'core.*' URL prefix is NOT a
-    // routing signal — CorePlugin's per-tool extensions live in the
-    // registry, not in _extensionCallbacks.
-    const String prefix = 'ext.flutter.exploration.';
-    if (!method.startsWith(prefix)) {
-      throw RPCError(method, -32601, 'Unknown method "$method"');
-    }
-    final String suffix = method.substring(prefix.length);
-    final String body;
-    if (_binding.pluginRegistry.mergedTools().containsKey(suffix)) {
-      body = await _binding.invokePluginTool(method, stringArgs);
-    } else {
-      body = await _binding.invokeServiceExtension(method, stringArgs);
-    }
-    final Response r = Response();
-    r.json = jsonDecode(body) as Map<String, dynamic>;
-    return r;
-  }
-
-  @override
-  Future<void> dispose() async {}
-}
-
 /// Stand-in VmService whose `callServiceExtension` unconditionally
 /// raises the JSON-RPC "method not found" error — what a live VM would
 /// emit if the target isolate has no `ExplorationBinding` installed.
@@ -161,7 +91,7 @@ class _RejectingVmService extends VmService {
 
 void main() {
   late ExplorationBinding binding;
-  late _BindingVmServiceFake fake;
+  late BindingVmServiceFake fake;
 
   setUpAll(() async {
     binding = ExplorationBinding.ensureInitialized(
@@ -183,7 +113,7 @@ void main() {
       },
       nowMs: () => now,
     );
-    fake = _BindingVmServiceFake(binding);
+    fake = BindingVmServiceFake(binding);
   });
 
   tearDownAll(() async {

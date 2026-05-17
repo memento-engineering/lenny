@@ -35,9 +35,8 @@ library;
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import '../_support/binding_vm_service_fake.dart';
 
 void main() {
   late ExplorationBinding binding;

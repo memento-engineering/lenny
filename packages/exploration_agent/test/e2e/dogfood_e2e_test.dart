@@ -47,7 +47,7 @@ import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../_support/binding_vm_service_fake.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 
 const String _skipMessage =
     'SWIFT_INFER_ENDPOINT and SWIFT_INFER_AGENT_TOKEN must be set; '

@@ -53,12 +53,12 @@
 ///
 /// ## Sibling fakes
 ///
-/// `_BindingVmServiceFake` is a deliberate clone of the one in
-/// `packages/exploration_flutter/test/binding_e2e_integration_test.dart`.
-/// Any wire-contract change in `cvl.*` (extension prefixes, `args`
-/// encoding, RPC error codes) MUST be mirrored here. The duplication
-/// is intentional until a third call site appears; at that point hoist
-/// both copies to a shared test-support library.
+/// The in-process [VmService] bridge is the shared
+/// `BindingVmServiceFake` from
+/// `package:exploration_flutter/test_support/binding_vm_service_fake.dart`
+/// (hoisted by lenny-imr). Any wire-contract change in `cvl.*`
+/// (extension prefixes, `args` encoding, RPC error codes) updates the
+/// single shared class — no manual mirror discipline anymore.
 // The test-private `expectScenario` helper accepts a private `_Scenario`
 // parameter; both stay file-private to keep the registry from leaking
 // out of the test. cx6.40 will widen the helper without unprivatizing.
@@ -69,83 +69,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart';
-import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
+import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:vm_service/vm_service.dart';
-
-/// In-process fake [VmService] that bridges
-/// `VmServiceClient.callServiceExtension` straight into the real
-/// binding's two test helpers — [ExplorationBinding.invokeServiceExtension]
-/// for the host-owned `core.*` extensions and
-/// [ExplorationBinding.invokePluginTool] for plugin-registered tools.
-///
-/// The bridge mirrors what the live VM service does on the wire: it
-/// converts the agent's `Map<String, dynamic>? args` to the
-/// `Map<String, String>` shape `dart:developer` hands extensions, by
-/// JSON-encoding every non-string value (the binding's
-/// `decodeServiceExtensionParams` reverses the encoding on the way in).
-///
-/// Deliberate clone of `_BindingVmServiceFake` in
-/// `packages/exploration_flutter/test/binding_e2e_integration_test.dart`
-/// (lenny-cvl.4). If a third call site appears, hoist both copies to a
-/// shared test-support library; until then, any wire-contract change in
-/// cvl.* MUST be mirrored here.
-class _BindingVmServiceFake extends VmService {
-  // ignore: unused_element_parameter
-  _BindingVmServiceFake(this._binding, {this.observationFixture})
-    : super(const Stream<dynamic>.empty(), (_) {});
-
-  final ExplorationBinding _binding;
-
-  /// Signature-compat with the shared fake (lenny-cx6.48). The clone
-  /// does not implement fixture-serving; it exists only so a future
-  /// hoist (lenny-imr) can replace the clone with the shared class
-  /// without breaking call sites. All call sites in this file pass no
-  /// fixture, preserving today's pass-through behavior.
-  final ObservationFixture? observationFixture;
-
-  @override
-  Future<Response> callServiceExtension(
-    String method, {
-    String? isolateId,
-    Map<String, dynamic>? args,
-  }) async {
-    final Map<String, String> stringArgs = <String, String>{
-      for (final MapEntry<String, dynamic> e
-          in (args ?? const <String, dynamic>{}).entries)
-        e.key: e.value is String ? e.value as String : jsonEncode(e.value),
-    };
-    // Route by registry, not by URL prefix. Plugin tools (registered via
-    // PluginContext.registerExtension) live in pluginRegistry.mergedTools()
-    // keyed by '<ns>.<tool>'. Binding-owned extensions (handshake,
-    // get_stable_observation, get_recent_errors, screenshot,
-    // diagnostics_warnings) live in _extensionCallbacks and are reached
-    // via invokeServiceExtension. The 'core.*' URL prefix is NOT a
-    // routing signal — CorePlugin's per-tool extensions live in the
-    // registry, not in _extensionCallbacks.
-    const String prefix = 'ext.flutter.exploration.';
-    if (!method.startsWith(prefix)) {
-      throw RPCError(method, -32601, 'Unknown method "$method"');
-    }
-    final String suffix = method.substring(prefix.length);
-    final String body;
-    if (_binding.pluginRegistry.mergedTools().containsKey(suffix)) {
-      body = await _binding.invokePluginTool(method, stringArgs);
-    } else {
-      body = await _binding.invokeServiceExtension(method, stringArgs);
-    }
-    final Response r = Response();
-    r.json = jsonDecode(body) as Map<String, dynamic>;
-    return r;
-  }
-
-  @override
-  Future<void> dispose() async {}
-}
 
 /// Tool contributed by [_RouterEchoPlugin]: records its invocation args
 /// on the shared `calls` list and returns the `route_name` argument
@@ -501,7 +431,7 @@ SwiftInferModelProvider _buildProvider(String body) => SwiftInferModelProvider(
 
 void main() {
   late ExplorationBinding binding;
-  late _BindingVmServiceFake fake;
+  late BindingVmServiceFake fake;
   late List<Map<String, Object?>> routerCalls;
 
   setUpAll(() async {
@@ -523,7 +453,7 @@ void main() {
       },
       nowMs: () => now,
     );
-    fake = _BindingVmServiceFake(binding);
+    fake = BindingVmServiceFake(binding);
   });
 
   setUp(() {
