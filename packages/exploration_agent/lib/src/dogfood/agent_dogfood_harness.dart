@@ -21,6 +21,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart' show VmService;
 
 import '../loop_driver/loop_driver.dart';
@@ -402,7 +403,11 @@ class _ThinkingAccumulator {
 /// invariants (`header → turns* → footer`) stay unchanged. For every
 /// `writeTurn(TurnRecord)` call we additionally emit one
 /// `dogfood_turn` line on the caller-supplied [DogfoodTraceWriter].
-/// File-private to the dogfood harness (lenny-cx6.47).
+/// File-private to the dogfood harness (lenny-cx6.47); a
+/// `@visibleForTesting` factory under [DogfoodInterceptingWriterForTesting]
+/// at the bottom of this file lets unit tests assert the JSONL shape
+/// without driving the full harness — used by lenny-9am to lock the
+/// `provider_request_id` decision-map plumbing end to end.
 class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
   _DogfoodInterceptingTrajectoryWriter({
     required TrajectoryWriter inner,
@@ -455,6 +460,8 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
       'args': args,
       'thinking_excerpt': thinking.drain(t.index),
       'observation_summary': _observationSummary(t),
+      if (t.providerRequestId != null)
+        'provider_request_id': t.providerRequestId,
     };
 
     final Map<String, dynamic> actResult = ok && result != null
@@ -551,3 +558,27 @@ class _NoopSink implements TrajectorySink {
   @override
   Future<void> close() async {}
 }
+
+/// Test-only factory exposing the file-private
+/// [_DogfoodInterceptingTrajectoryWriter] as a [TrajectoryWriter]. The
+/// harness has no `http.Client` or `ModelProvider` injection seam (see
+/// `observation_fixture_e2e_test.dart` for the rationale), so unit
+/// tests cannot drive a successful turn through `run()` without a
+/// real swift-infer. This entry point lets a unit test construct the
+/// interceptor over a [DogfoodTraceWriter] writing to a memory sink
+/// and call `writeTurn(TurnRecord(..., providerRequestId: ...))`
+/// directly to assert the JSONL `decision.provider_request_id` shape
+/// (lenny-9am AC6 end-to-end).
+@visibleForTesting
+TrajectoryWriter debugDogfoodInterceptingTrajectoryWriterForTesting({
+  required DogfoodTraceWriter trace,
+  required DateTime Function() clock,
+}) =>
+    _DogfoodInterceptingTrajectoryWriter(
+      inner: TrajectoryWriter(_DiscardSink()),
+      trace: trace,
+      thinking: _ThinkingAccumulator(),
+      verbose: false,
+      log: (_) {},
+      clock: clock,
+    );

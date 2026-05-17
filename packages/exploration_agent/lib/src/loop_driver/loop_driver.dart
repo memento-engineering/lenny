@@ -272,6 +272,7 @@ class LoopDriver {
         if (v.decision.rationale != null) 'rationale': v.decision.rationale,
         if (v.decision.waitStrategy != null) 'wait_strategy': v.decision.waitStrategy,
       },
+      providerRequestId: v.decision.providerRequestId,
     );
     await _writer.writeTurn(rec);
 

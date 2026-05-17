@@ -120,6 +120,11 @@ class TurnRecord implements TrajectoryRecord {
   final String summaryUpdate;
   final Map<String, dynamic> modelMetadata;
 
+  /// Optional provider-side request id (e.g. Anthropic/swift-infer
+  /// `message.id`). Round-trips as snake_case `provider_request_id` and
+  /// is omitted from [toJson] when null.
+  final String? providerRequestId;
+
   const TurnRecord({
     required this.index,
     required this.observation,
@@ -130,6 +135,7 @@ class TurnRecord implements TrajectoryRecord {
     required this.diff,
     required this.summaryUpdate,
     required this.modelMetadata,
+    this.providerRequestId,
   });
 
   factory TurnRecord.fromJson(Map<String, dynamic> j) => TurnRecord(
@@ -145,6 +151,7 @@ class TurnRecord implements TrajectoryRecord {
         summaryUpdate: (j['summary_update'] as String?) ?? '',
         modelMetadata:
             Map<String, dynamic>.from(j['model_metadata'] as Map? ?? const {}),
+        providerRequestId: j['provider_request_id'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -158,6 +165,8 @@ class TurnRecord implements TrajectoryRecord {
         'diff': diff,
         'summary_update': summaryUpdate,
         'model_metadata': modelMetadata,
+        if (providerRequestId != null)
+          'provider_request_id': providerRequestId,
       };
 }
 
