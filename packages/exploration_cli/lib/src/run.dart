@@ -122,41 +122,7 @@ Future<int> runCli(
     // ----- start session --------------------------------------------
     await session.start(goal, const ExplorationConfig());
 
-    // ----- write trajectory header ----------------------------------
-    final List<PluginManifestRecord> manifest = <PluginManifestRecord>[
-      for (final PluginManifestEntry p in session.handshake.plugins)
-        PluginManifestRecord(
-          namespace: p.namespace,
-          packageVersion: 'unknown',
-          contractVersion: session.handshake.contractVersion,
-        ),
-    ];
-    await writer.writeHeader(SessionHeader(
-      goal: goal,
-      agentsMdHash: '',
-      buildIdentifier: 'cli',
-      modelIdentifier: args.tier.name,
-      harnessVersion: _kHarnessVersion,
-      plugins: manifest,
-      config: <String, dynamic>{
-        'policy': args.policy.wireName,
-        'requested_plugins': args.plugins,
-      },
-    ));
-
-    // ----- compose loop host ----------------------------------------
-    // Build per-plugin tool descriptors from the user's --plugins
-    // whitelist, intersected with the handshake's active plugin
-    // manifest. Unknown namespaces (in --plugins but not in the
-    // handshake) are dropped with a stderr warning so the user notices
-    // a typo instead of silently running without their plugin.
-    //
-    // The handshake only carries tool *names*; full input schemas live
-    // in package:exploration_flutter inside the target app and are not
-    // yet exposed over the contract — buildPluginTools emits a
-    // permissive object schema per tool until cx6.39 plumbs schemas
-    // through. The binding-side ActionValidator (cx6.17) remains the
-    // authoritative arg check.
+    // ----- plugin warning block (unchanged) ----------------------------------
     final List<String> unknown = unknownPluginNamespaces(
       requested: args.plugins,
       handshake: session.handshake.plugins,
@@ -171,14 +137,24 @@ Future<int> runCli(
       requested: args.plugins,
       handshake: session.handshake.plugins,
     );
-    final DefaultLoopHost host = DefaultLoopHost.fromSession(
+
+    // ----- shared bring-up helper (replaces header build + host compose) -----
+    final (:header, :host) = await bringUpSession(
       session: session,
+      goal: goal,
+      policy: args.policy,
+      modelIdentifier: args.tier.name,
+      buildIdentifier: 'cli',
+      harnessVersion: _kHarnessVersion,
       coreTools: const <ToolDescriptor>[],
       pluginTools: pluginTools,
-      goal: goal,
       agentsMd: '',
-      policy: args.policy,
+      extraConfig: <String, dynamic>{
+        'policy': args.policy.wireName,
+        'requested_plugins': args.plugins,
+      },
     );
+    await writer.writeHeader(header);
 
     // ----- run loop -------------------------------------------------
     final SessionTermination termination = await session.run(
