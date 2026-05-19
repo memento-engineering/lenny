@@ -53,6 +53,7 @@ export 'src/observation/models.dart'
 export 'src/prompt/prompt_assembler.dart' show PromptAssembler;
 export 'src/provider/provider.dart';
 export 'src/session.dart' show ExplorationSession;
+export 'src/session_bringup.dart' show BringUpResult, bringUpSession;
 export 'src/session/observation_puller.dart' show StabilityPolicy;
 export 'src/session/turn_event.dart'
     show

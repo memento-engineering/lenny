@@ -27,6 +27,7 @@ import 'package:vm_service/vm_service.dart' show VmService;
 import '../loop_driver/loop_driver.dart';
 import '../loop_driver/loop_host.dart';
 import '../loop_driver/types.dart';
+import '../session_bringup.dart' show bringUpSession;
 import '../memory/action_ring.dart';
 import '../memory/running_summary.dart';
 import '../memory/token_counter.dart';
@@ -39,7 +40,6 @@ import '../session/turn_event.dart';
 import '../trajectory/records.dart'
     show
         PluginDisabledEvent,
-        PluginManifestRecord,
         SessionFooter,
         SessionHeader,
         SessionOutcome,
@@ -183,15 +183,22 @@ class AgentDogfoodHarness {
       await session
           .start(goal, const ExplorationConfig())
           .timeout(totalBudget);
-      final DefaultLoopHost inner = DefaultLoopHost.fromSession(
+      final (:header, :host) = await bringUpSession(
         session: session,
+        goal: goal,
+        policy: StabilityPolicy.actionRelative,
+        modelIdentifier: swiftInferConfig.model,
+        buildIdentifier: 'dogfood-harness',
+        harnessVersion: 'dogfood',
         coreTools: tools,
         pluginTools: const <String, List<ToolDescriptor>>{},
-        goal: goal,
         agentsMd: '',
-        policy: StabilityPolicy.actionRelative,
+        extraConfig: <String, dynamic>{
+          'max_turns': maxTurns,
+          'max_turn_budget_ms': maxTurnBudgetMs,
+        },
       );
-      final CountingLoopHost host = CountingLoopHost(inner);
+      final CountingLoopHost countingHost = CountingLoopHost(host);
 
       // The harness owns its own LoopDriver so we can tune the
       // per-turn budget and the maxTurns cap. We wrap a discard-sink
@@ -219,20 +226,9 @@ class AgentDogfoodHarness {
       // bytes go to `_DiscardSink` (and the interceptor does NOT emit
       // a dogfood line for header writes; dogfood_header was already
       // written above).
-      await interceptor.writeHeader(SessionHeader(
-        goal: goal,
-        agentsMdHash: '',
-        buildIdentifier: 'dogfood-harness',
-        modelIdentifier: swiftInferConfig.model,
-        harnessVersion: 'dogfood',
-        plugins: const <PluginManifestRecord>[],
-        config: <String, dynamic>{
-          'max_turns': maxTurns,
-          'max_turn_budget_ms': maxTurnBudgetMs,
-        },
-      ));
+      await interceptor.writeHeader(header);
       final LoopDriver driver = LoopDriver(
-        host: host,
+        host: countingHost,
         provider: provider,
         assembler: const PromptAssembler(),
         validator: const ActionValidator(),
@@ -265,7 +261,7 @@ class AgentDogfoodHarness {
         capturedException = _HarnessTerminationException(term.harnessError!);
       }
 
-      toolCallCount = host.toolCallCount;
+      toolCallCount = countingHost.toolCallCount;
       outcome = _classify(term, toolCallCount);
       if (verbose) {
         _log('[dogfood] end outcome=${outcome.name} '
