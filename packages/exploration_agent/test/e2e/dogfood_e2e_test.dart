@@ -26,12 +26,6 @@
 /// On failure, each scenario prints `tracePath` so the swift-infer
 /// `request_id` can be cross-referenced via the `debug-inference`
 /// admin skill.
-///
-// ignore_for_file: invalid_use_of_visible_for_testing_member
-//
-// `debugSetPolicyLoopSeamsForTesting` is `@visibleForTesting`; this
-// test is the explicit test that needs it. Suppressed here to keep
-// analyzer-clean.
 library;
 
 import 'dart:io';
@@ -43,11 +37,9 @@ import 'package:exploration_agent/src/dogfood/observation_fixture.dart';
 import 'package:exploration_agent/src/dogfood/types.dart';
 import 'package:exploration_agent/src/provider/swift_infer/swift_infer_config.dart';
 import 'package:exploration_agent/src/provider/types.dart' show ToolDescriptor;
-import 'package:exploration_flutter/contract.dart';
-import 'package:exploration_flutter/exploration_flutter.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
-import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
+import '../_support/exploration_vm_service_fake.dart';
 
 const String _skipMessage =
     'SWIFT_INFER_ENDPOINT and SWIFT_INFER_AGENT_TOKEN must be set; '
@@ -71,39 +63,6 @@ class _MemorySink implements TrajectorySink {
   Future<void> flush() async {}
   @override
   Future<void> close() async {}
-}
-
-class _NoopTool extends ExplorationTool {
-  _NoopTool(this._name);
-  final String _name;
-  @override
-  String get name => _name;
-  @override
-  String get description => 'dogfood stand-in for $_name';
-  @override
-  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-      });
-  @override
-  Future<ToolResult> call(Map<String, Object?> args) async =>
-      ToolResult(ok: true, value: args);
-}
-
-class _RouterPlugin extends ExplorationPlugin {
-  @override
-  String get namespace => 'router';
-  @override
-  List<ExplorationTool> get tools => <ExplorationTool>[_NoopTool('navigate')];
-  @override
-  Future<void> initialize(PluginContext ctx) async {}
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
-  @override
-  Future<BusyState> busyState() async => BusyState.idle;
-  @override
-  Future<void> onActionExecuted(ExecutedAction action) async {}
-  @override
-  Future<void> dispose() async {}
 }
 
 const ToolDescriptor _navigateTool = ToolDescriptor(
@@ -139,28 +98,24 @@ SwiftInferConfig _config({String? conversationId}) => SwiftInferConfig(
     );
 
 void main() {
-  // We allocate the binding inside each test so a teardown failure in
-  // one scenario doesn't poison the others. The skip check fires on
-  // both the `skip:` argument AND inside the test body so default
-  // `flutter test` runs do zero work.
-  Future<ExplorationBinding> bootBinding() async {
-    final ExplorationBinding binding = ExplorationBinding.ensureInitialized(
-      plugins: <ExplorationPlugin>[_RouterPlugin()],
-    )!;
-    await Future<void>.delayed(Duration.zero);
-    int now = 0;
-    binding.debugSetPolicyLoopSeamsForTesting(
-      waitForFrame: () async {
-        now += 16;
-      },
-      nowMs: () => now,
-    );
-    return binding;
-  }
-
   test('happyPathDarkMode', () async {
-    final ExplorationBinding binding = await bootBinding();
-    final fake = BindingVmServiceFake(binding);
+    final fake = ExplorationVmServiceFake(
+      handshakeResponse: <String, dynamic>{
+        'protocolVersion': '1',
+        'plugins': <dynamic>[],
+      },
+      observationBundle: ObservationFixture.empty().body,
+      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
+        'ext.flutter.exploration.router.navigate': (args) async {
+          final String? raw = args?['route_name'] as String?;
+          return <String, dynamic>{'ok': true, 'value': raw};
+        },
+        'ext.flutter.exploration.core.tap': (args) async {
+          final Object? nodeId = args?['node_id'];
+          return <String, dynamic>{'ok': true, 'node_id': nodeId};
+        },
+      },
+    );
     final sink = _MemorySink();
     final harness = AgentDogfoodHarness(
       vm: fake,
@@ -204,8 +159,19 @@ void main() {
   }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
 
   test('unknownToolNameSurvives', () async {
-    final ExplorationBinding binding = await bootBinding();
-    final fake = BindingVmServiceFake(binding);
+    final fake = ExplorationVmServiceFake(
+      handshakeResponse: <String, dynamic>{
+        'protocolVersion': '1',
+        'plugins': <dynamic>[],
+      },
+      observationBundle: ObservationFixture.empty().body,
+      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
+        'ext.flutter.exploration.router.navigate': (args) async {
+          final String? raw = args?['route_name'] as String?;
+          return <String, dynamic>{'ok': true, 'value': raw};
+        },
+      },
+    );
     final sink = _MemorySink();
     final harness = AgentDogfoodHarness(
       vm: fake,
@@ -240,8 +206,19 @@ void main() {
   }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
 
   test('emptyObservationDoesNotCrash', () async {
-    final ExplorationBinding binding = await bootBinding();
-    final fake = BindingVmServiceFake(binding);
+    final fake = ExplorationVmServiceFake(
+      handshakeResponse: <String, dynamic>{
+        'protocolVersion': '1',
+        'plugins': <dynamic>[],
+      },
+      observationBundle: ObservationFixture.empty().body,
+      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
+        'ext.flutter.exploration.core.tap': (args) async {
+          final Object? nodeId = args?['node_id'];
+          return <String, dynamic>{'ok': true, 'node_id': nodeId};
+        },
+      },
+    );
     final sink = _MemorySink();
     final harness = AgentDogfoodHarness(
       vm: fake,
