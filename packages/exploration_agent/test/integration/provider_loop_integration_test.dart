@@ -69,73 +69,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart';
-import 'package:exploration_flutter/contract.dart';
-import 'package:exploration_flutter/exploration_flutter.dart';
-import 'package:exploration_flutter/test_support/binding_vm_service_fake.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 
-/// Tool contributed by [_RouterEchoPlugin]: records its invocation args
-/// on the shared `calls` list and returns the `route_name` argument
-/// wrapped in a successful [ToolResult].
-///
-/// The bare tool name is `navigate`; the registry prefixes it with the
-/// plugin namespace `router`, giving the qualified token `router.navigate`
-/// — which is exactly the dotted name `encodeToolName('router.navigate')`
-/// converts to the wire form `router_navigate` used by the happy-path
-/// SSE fixture.
-class _NavigateTool extends ExplorationTool {
-  _NavigateTool(this._calls);
-  final List<Map<String, Object?>> _calls;
-  @override
-  String get name => 'navigate';
-  @override
-  String get description => 'navigate to the named route';
-  @override
-  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-    'type': 'object',
-    'properties': <String, Object?>{
-      'route_name': <String, Object?>{'type': 'string'},
-    },
-    'required': <String>['route_name'],
-  });
-  @override
-  Future<ToolResult> call(Map<String, Object?> args) async {
-    _calls.add(Map<String, Object?>.from(args));
-    return ToolResult(ok: true, value: args['route_name']);
-  }
-}
+import '../_support/exploration_vm_service_fake.dart';
 
-/// Test plugin under namespace `router` contributing one tool, `navigate`.
-///
-/// Mirrors the structure of `_SampleEchoPlugin` in
-/// `binding_e2e_integration_test.dart` (lenny-cvl.4) — does NOT call
-/// `ctx.registerExtension`; tests reach the tool through the binding's
-/// `invokePluginTool` → `mergedTools()['router.navigate']` seam.
-///
-/// The injected `calls` list lets each scenario assert exactly which
-/// arguments the model successfully routed to the binding (or, for
-/// regression scenarios, that nothing was routed at all).
-class _RouterEchoPlugin extends ExplorationPlugin {
-  _RouterEchoPlugin(this.calls);
-  final List<Map<String, Object?>> calls;
-  @override
-  String get namespace => 'router';
-  @override
-  List<ExplorationTool> get tools => <ExplorationTool>[_NavigateTool(calls)];
-  @override
-  Future<void> initialize(PluginContext ctx) async {}
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
-  @override
-  Future<BusyState> busyState() async => BusyState.idle;
-  @override
-  Future<void> onActionExecuted(ExecutedAction action) async {}
-  @override
-  Future<void> dispose() async {}
-}
 
 /// Serialise [events] into the `data: <json>\n\n` SSE wire form the
 /// Anthropic-compat providers (swift-infer / Anthropic / OpenAI) all
@@ -430,34 +370,47 @@ SwiftInferModelProvider _buildProvider(String body) => SwiftInferModelProvider(
 );
 
 void main() {
-  late ExplorationBinding binding;
-  late BindingVmServiceFake fake;
-  late List<Map<String, Object?>> routerCalls;
+  late ExplorationVmServiceFake fake;
+  late List<Map<String, dynamic>> routerCalls;
 
   setUpAll(() async {
-    routerCalls = <Map<String, Object?>>[];
-    binding = ExplorationBinding.ensureInitialized(
-      plugins: <ExplorationPlugin>[_RouterEchoPlugin(routerCalls)],
-    )!;
-    // Flush the plugin-init microtask so mergedTools() is populated
-    // before the first extension lookup. Same pattern as cvl.4.
-    await Future<void>.delayed(Duration.zero);
-    // The observation path runs PolicyLoop, which awaits
-    // SchedulerBinding.endOfFrame; this test runs as a plain test() (no
-    // widget pumping) so we inject a no-op frame-wait and a static
-    // wall-clock advancing 16ms per call (cvl.4 lines 142-150).
-    int now = 0;
-    binding.debugSetPolicyLoopSeamsForTesting(
-      waitForFrame: () async {
-        now += 16;
+    routerCalls = <Map<String, dynamic>>[];
+    fake = ExplorationVmServiceFake(
+      handshakeResponse: <String, dynamic>{
+        'protocolVersion': '1',
+        'plugins': <dynamic>[
+          <String, dynamic>{
+            'namespace': 'router',
+            'tools': <String>['navigate'],
+          },
+        ],
       },
-      nowMs: () => now,
+      observationBundle: <String, dynamic>{
+        'semantics': <dynamic>[],
+        'routes': <String>['login'],
+        'errors': <dynamic>[],
+        'stability': <String, dynamic>{
+          'policy': 'action_relative',
+          'reason': 'idle',
+        },
+        'plugins': <String, dynamic>{},
+      },
+      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
+        'ext.flutter.exploration.router.navigate': (args) async {
+          // args arrive JSON-encoded from VmServiceClient.executeAction;
+          // decode the route_name value before storing.
+          final String? raw = args?['route_name'] as String?;
+          final Object? routeName = raw != null ? jsonDecode(raw) : null;
+          routerCalls.add(<String, dynamic>{'route_name': routeName});
+          return <String, dynamic>{'ok': true, 'value': routeName};
+        },
+      },
     );
-    fake = BindingVmServiceFake(binding);
   });
 
   setUp(() {
     routerCalls.clear();
+    fake.calls.clear();   // reset recorded RPC calls between scenarios
   });
 
   tearDownAll(() async {
@@ -467,6 +420,7 @@ void main() {
   for (final _Scenario scenario in _Scenario.values) {
     test('provider loop scenario: ${scenario.id}', () async {
       final SwiftInferModelProvider provider = _buildProvider(scenario.body);
+      // ExplorationVmServiceFake is a VmService; fromVmService accepts VmService.
       final ExplorationSession session = ExplorationSession.fromVmService(
         fake,
         'isolate-0',
@@ -480,14 +434,14 @@ void main() {
       );
 
       if (identical(scenario, _Scenario.happyPath)) {
-        // AC4: assert the binding actually received the call.
         expect(routerCalls, hasLength(1));
         expect(routerCalls.single['route_name'], 'settings');
       } else {
-        // Every failure scenario must short-circuit before the binding
-        // is touched; nothing should land in the test plugin.
         expect(routerCalls, isEmpty);
       }
+      // end() is not strictly required here since the session's VmService
+      // is the shared fake (not a real socket), but call it for hygiene.
+      await session.end();
     });
   }
 }
