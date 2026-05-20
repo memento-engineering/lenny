@@ -12,8 +12,8 @@ concrete `ModelProvider`:
 
 | Tier        | Provider             | Required env                      |
 |-------------|----------------------|-----------------------------------|
+| `claude`    | `AnthropicModelProvider` | `ANTHROPIC_API_KEY` (default)           |
 | `qwen-mlx`  | `SwiftInferModelProvider` (local swift-infer gateway) | `SWIFT_INFER_AGENT_TOKEN` (when the gateway requires auth), `SWIFT_INFER_ENDPOINT` (optional, defaults to `http://localhost:8080`) |
-| `claude`    | `AnthropicModelProvider` | `ANTHROPIC_API_KEY`           |
 | `openai`    | `OpenAiModelProvider`    | `OPENAI_API_KEY`              |
 
 ## swift-infer gateway (qwen-mlx)
@@ -51,7 +51,16 @@ header-safe characters) and stamps every request with:
 * `Accept: text/event-stream` — SSE streaming for live `<think>…</think>`
   surfaces.
 
-Example:
+Example (default — cloud backend):
+
+```sh
+export ANTHROPIC_API_KEY=sk-ant-…
+dart run exploration_cli \
+  --vm-uri ws://127.0.0.1:54321/abc=/ws \
+  --goal "open settings"
+```
+
+Example (opt-in — local swift-infer):
 
 ```sh
 export SWIFT_INFER_AGENT_TOKEN=sk-…
@@ -63,6 +72,14 @@ dart run exploration_cli \
 # Inspect captured turn:
 curl "$SWIFT_INFER_ENDPOINT/v1/conversations/exploration-cli-…"
 ```
+
+## Nightly dogfood
+
+The nightly e2e test (`packages/exploration_agent/test/e2e/dogfood_e2e_test.dart`) is
+self-pinned to local inference via its own `SwiftInferConfig` construction and does not
+depend on `exploration_cli`'s `--model` default. The launchagent that runs the nightly
+test (`scripts/launchd/run-dogfood.sh`) invokes `dart test` directly on the e2e test
+file, bypassing the CLI entirely, so the default change has no effect on nightly behavior.
 
 ### See also
 
