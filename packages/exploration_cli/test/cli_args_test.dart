@@ -56,11 +56,11 @@ void main() {
       expect(spaced.plugins, <String>['router', 'dio']);
     });
 
-    test('default tier is qwen-mlx and policy is action-relative', () {
+    test('default tier is claude and policy is action-relative', () {
       final args = parseCliArgs(<String>[
         '--vm-uri', 'ws://127.0.0.1/ws',
       ]);
-      expect(args.tier, ModelTier.qwenMlx);
+      expect(args.tier, ModelTier.claude);
       expect(args.policy, StabilityPolicy.actionRelative);
     });
   });

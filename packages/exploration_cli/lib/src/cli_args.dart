@@ -71,7 +71,7 @@ ArgParser buildParser() => ArgParser()
   )
   ..addOption(
     'model',
-    defaultsTo: 'qwen-mlx',
+    defaultsTo: 'claude',
     allowed: <String>['qwen-mlx', 'claude', 'openai'],
     help: 'Model tier (PRD 16.4).',
   )
