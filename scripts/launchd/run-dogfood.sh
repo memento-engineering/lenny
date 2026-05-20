@@ -8,6 +8,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# ── change to repo root for dart test and bd ───────────────────────────────
+cd "$REPO_ROOT"
+
 # ── source secrets (not inherited from login shell in launchd context) ─────
 ENV_FILE="$HOME/.lenny-dogfood.env"
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -16,6 +19,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 # shellcheck source=/dev/null
 source "$ENV_FILE"
+export SWIFT_INFER_ENDPOINT SWIFT_INFER_AGENT_TOKEN
 
 # ── log dir ────────────────────────────────────────────────────────────────
 LOG_DIR="$HOME/Library/Logs/lenny-dogfood"

@@ -25,5 +25,12 @@
 
   <key>StandardErrorPath</key>
   <string>HOME_PLACEHOLDER/Library/Logs/lenny-dogfood/run.log</string>
+
+  <!-- Add Flutter SDK, Homebrew, and local binaries to PATH for dart, bd, fs. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>HOME_PLACEHOLDER/flutter/bin:HOME_PLACEHOLDER/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
 </dict>
 </plist>
