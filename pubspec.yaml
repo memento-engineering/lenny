@@ -12,3 +12,54 @@ workspace:
   - packages/exploration_router
   - packages/exploration_riverpod
   - packages/exploration_dio
+
+dev_dependencies:
+  melos: ^7.7.0
+
+melos:
+  scripts:
+    # ---------- primary scripts ----------
+    test:
+      description: >-
+        Run all unit/widget tests (excludes perf tests in exploration_devtools
+        and excludes the env-gated dogfood e2e). Runs dart test on pure-Dart
+        packages and flutter test on Flutter packages.
+      steps:
+        - test:dart
+        - test:flutter
+
+    analyze:
+      description: >-
+        Run dart analyze on the entire workspace.
+      run: dart analyze
+
+    format:
+      description: >-
+        Check formatting for all Dart files. Fails if any file needs changes.
+      run: dart format --output=none --set-exit-if-changed .
+
+    test:e2e:
+      description: >-
+        Run the live dogfood e2e test against swift-infer.
+        Requires SWIFT_INFER_ENDPOINT and SWIFT_INFER_AGENT_TOKEN to be set.
+        The test self-skips when those vars are absent, so this script is safe
+        to invoke locally - it will simply report all tests skipped.
+      run: >-
+        dart test packages/exploration_agent/test/e2e/dogfood_e2e_test.dart
+
+    # ---------- private sub-scripts (not listed by melos run) ----------
+    test:dart:
+      private: true
+      description: dart test on pure-Dart packages (exploration_agent, exploration_cli)
+      exec: dart test
+      packageFilters:
+        flutter: false
+
+    test:flutter:
+      private: true
+      description: flutter test on Flutter packages; exploration_devtools skips perf tags via dart_test.yaml
+      exec: flutter test
+      packageFilters:
+        flutter: true
+        ignore:
+          - "**/example/**"
