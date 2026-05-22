@@ -85,7 +85,19 @@ Future<int> runCli(
           .replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
   final ModelProvider provider;
   try {
-    provider = buildProvider(args.tier, sessionId: sessionId);
+    provider = buildProvider(
+      args.tier,
+      sessionId: sessionId,
+      onModelDiagnostics: (Map<String, Object?> d) {
+        final StringBuffer line = StringBuffer('[model] ')
+          ..write('${d['provider']} ${d['model']} ')
+          ..write('http=${d['http_status']} dur=${d['duration_ms']}ms ')
+          ..write('stop=${d['stop_reason']} tool_use=${d['tool_use']} ')
+          ..write('ok=${d['ok']}');
+        if (d['error'] != null) line.write(' error=${d['error']}');
+        stderr.writeln(line);
+      },
+    );
   } on StateError catch (e) {
     stderr.writeln('error: ${e.message}');
     await writer.close(SessionFooter(

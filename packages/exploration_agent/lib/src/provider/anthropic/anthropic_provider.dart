@@ -41,9 +41,11 @@ class AnthropicModelProvider implements ModelProvider {
     required this.apiKey,
     Uri? endpoint,
     http.Client? client,
+    void Function(Map<String, Object?> diagnostics)? onCallDiagnostics,
   })  : endpoint =
             endpoint ?? Uri.parse('https://api.anthropic.com/v1/messages'),
-        _client = client ?? http.Client();
+        _client = client ?? http.Client(),
+        _onCallDiagnostics = onCallDiagnostics;
 
   /// Anthropic model id (e.g. `claude-sonnet-4-6`).
   final String model;
@@ -55,6 +57,14 @@ class AnthropicModelProvider implements ModelProvider {
   final Uri endpoint;
 
   final http.Client _client;
+
+  /// Optional sink for per-call API diagnostics. Invoked exactly once
+  /// per [decide] HTTP call — on success AND on failure — with a
+  /// structured map: `duration_ms`, `http_status`, `stop_reason`,
+  /// `tool_use`, `ok`, and `error` (when failed). Lets a host log API
+  /// health so an outage is visible in run output, not inferred.
+  final void Function(Map<String, Object?> diagnostics)? _onCallDiagnostics;
+
   final StreamController<ThinkingDelta> _thinking =
       StreamController<ThinkingDelta>.broadcast();
 
@@ -105,84 +115,114 @@ class AnthropicModelProvider implements ModelProvider {
         'anthropic-version': '2023-06-01',
       })
       ..body = jsonEncode(body);
-    final streamed = await _client.send(req);
-
-    final raw = StringBuffer();
+    // Per-call diagnostics — captured across every exit path and emitted
+    // exactly once in `finally`, so a failed call is as visible as a
+    // good one (lenny-ahz). `_onCallDiagnostics` is the host's sink.
+    final Stopwatch stopwatch = Stopwatch()..start();
+    int? httpStatus;
+    String? stopReason;
     Map<String, dynamic>? toolUse;
-    StringBuffer? inputJsonBuf;
     String? providerRequestId;
-    final thinkingDecoder = ThinkingSseDecoder(_thinking);
-
+    Object? failure;
     try {
-      await for (final line in streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        if (!line.startsWith('data: ')) continue;
-        final payload = line.substring(6).trim();
-        if (payload.isEmpty || payload == '[DONE]') continue;
-        final evt = jsonDecode(payload) as Map<String, dynamic>;
-        thinkingDecoder.onEvent(evt);
-        final type = evt['type'] as String?;
-        if (type == 'message_start') {
-          final Map<String, dynamic>? msg =
-              (evt['message'] as Map?)?.cast<String, dynamic>();
-          final Object? id = msg?['id'];
-          if (id is String && id.isNotEmpty) {
-            providerRequestId = id;
-          }
-        } else if (type == 'content_block_start') {
-          final block = (evt['content_block'] as Map).cast<String, dynamic>();
-          if (block['type'] == 'tool_use') {
-            toolUse = block;
-            inputJsonBuf = StringBuffer();
-          }
-        } else if (type == 'content_block_delta') {
-          final delta = (evt['delta'] as Map).cast<String, dynamic>();
-          final dtype = delta['type'] as String?;
-          if (dtype == 'input_json_delta' && inputJsonBuf != null) {
-            inputJsonBuf.write(delta['partial_json'] as String? ?? '');
-          } else if (dtype == 'text_delta') {
-            raw.write(delta['text'] as String? ?? '');
+      final streamed = await _client.send(req);
+      httpStatus = streamed.statusCode;
+
+      final raw = StringBuffer();
+      StringBuffer? inputJsonBuf;
+      final thinkingDecoder = ThinkingSseDecoder(_thinking);
+      try {
+        await for (final line in streamed.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
+          if (!line.startsWith('data: ')) continue;
+          final payload = line.substring(6).trim();
+          if (payload.isEmpty || payload == '[DONE]') continue;
+          final evt = jsonDecode(payload) as Map<String, dynamic>;
+          thinkingDecoder.onEvent(evt);
+          final type = evt['type'] as String?;
+          if (type == 'message_start') {
+            final Map<String, dynamic>? msg =
+                (evt['message'] as Map?)?.cast<String, dynamic>();
+            final Object? id = msg?['id'];
+            if (id is String && id.isNotEmpty) {
+              providerRequestId = id;
+            }
+          } else if (type == 'content_block_start') {
+            final block =
+                (evt['content_block'] as Map).cast<String, dynamic>();
+            if (block['type'] == 'tool_use') {
+              toolUse = block;
+              inputJsonBuf = StringBuffer();
+            }
+          } else if (type == 'content_block_delta') {
+            final delta = (evt['delta'] as Map).cast<String, dynamic>();
+            final dtype = delta['type'] as String?;
+            if (dtype == 'input_json_delta' && inputJsonBuf != null) {
+              inputJsonBuf.write(delta['partial_json'] as String? ?? '');
+            } else if (dtype == 'text_delta') {
+              raw.write(delta['text'] as String? ?? '');
+            }
+          } else if (type == 'message_delta') {
+            final delta = (evt['delta'] as Map?)?.cast<String, dynamic>();
+            final Object? sr = delta?['stop_reason'];
+            if (sr is String) stopReason = sr;
           }
         }
+      } finally {
+        thinkingDecoder.onDone();
       }
+
+      if (toolUse == null) {
+        throw SchemaRejection(
+          validationError: 'no tool_use block in response',
+          rawOutput: raw.toString(),
+        );
+      }
+
+      final wireName = toolUse['name'] as String;
+      final inputJson = inputJsonBuf?.toString() ?? '';
+      final args = inputJson.isEmpty
+          ? <String, dynamic>{}
+          : (jsonDecode(inputJson) as Map).cast<String, dynamic>();
+      final tool = lookupTool(prompt.tools, wireName);
+      if (tool == null) {
+        throw unknownToolRejection(
+          wireName,
+          prompt.tools,
+          rawPayload: <String, Object?>{'name': wireName, 'input': args},
+        );
+      }
+      final dottedName = tool.name;
+
+      final envelope = jsonEncode(<String, dynamic>{
+        'action': <String, dynamic>{'tool': dottedName, 'args': args},
+      });
+      final validated = schema.validate(envelope);
+      final action = (validated['action'] as Map).cast<String, dynamic>();
+      return ModelDecision(
+        action: (
+          tool: action['tool'] as String,
+          args: (action['args'] as Map).cast<String, dynamic>(),
+        ),
+        providerRequestId: providerRequestId,
+      );
+    } catch (e) {
+      failure = e;
+      rethrow;
     } finally {
-      thinkingDecoder.onDone();
+      stopwatch.stop();
+      _onCallDiagnostics?.call(<String, Object?>{
+        'provider': 'anthropic',
+        'model': model,
+        'duration_ms': stopwatch.elapsedMilliseconds,
+        'http_status': httpStatus,
+        'stop_reason': stopReason,
+        'tool_use': toolUse != null,
+        'provider_request_id': providerRequestId,
+        'ok': failure == null,
+        if (failure != null) 'error': failure.toString(),
+      });
     }
-
-    if (toolUse == null) {
-      throw SchemaRejection(
-        validationError: 'no tool_use block in response',
-        rawOutput: raw.toString(),
-      );
-    }
-
-    final wireName = toolUse['name'] as String;
-    final inputJson = inputJsonBuf?.toString() ?? '';
-    final args = inputJson.isEmpty
-        ? <String, dynamic>{}
-        : (jsonDecode(inputJson) as Map).cast<String, dynamic>();
-    final tool = lookupTool(prompt.tools, wireName);
-    if (tool == null) {
-      throw unknownToolRejection(
-        wireName,
-        prompt.tools,
-        rawPayload: <String, Object?>{'name': wireName, 'input': args},
-      );
-    }
-    final dottedName = tool.name;
-
-    final envelope = jsonEncode(<String, dynamic>{
-      'action': <String, dynamic>{'tool': dottedName, 'args': args},
-    });
-    final validated = schema.validate(envelope);
-    final action = (validated['action'] as Map).cast<String, dynamic>();
-    return ModelDecision(
-      action: (
-        tool: action['tool'] as String,
-        args: (action['args'] as Map).cast<String, dynamic>(),
-      ),
-      providerRequestId: providerRequestId,
-    );
   }
 }
