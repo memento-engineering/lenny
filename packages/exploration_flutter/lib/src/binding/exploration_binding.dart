@@ -216,7 +216,9 @@ class ExplorationBinding extends WidgetsFlutterBinding
     _registerDiagnosticsExtension();
     // Run plugin initialization in a microtask so it completes before the
     // first frame without blocking the synchronous return.
-    scheduleMicrotask(() => _pluginRegistry.initializeAll());
+    scheduleMicrotask(
+      () => _pluginRegistry.initializeAll().then((_) => _registerPluginToolExtensions()),
+    );
   }
 
   /// High-level entry point. Make this the FIRST Flutter-touching line
@@ -483,6 +485,42 @@ class ExplorationBinding extends WidgetsFlutterBinding
     );
   }
 
+  /// Registers every plugin tool as a real VM service extension so
+  /// live VM-service callers can invoke plugin tools by name.
+  ///
+  /// Iterates [PluginRegistry.mergedTools] (keyed by `<ns>.<tool>`)
+  /// and calls [_registerExtension] for each entry, exposing it at
+  /// `ext.flutter.exploration.<ns>.<tool>`. This also populates
+  /// [_extensionCallbacks] so [invokeServiceExtension] can reach plugin
+  /// tools in tests without a live VM connection.
+  ///
+  /// Called once, in the microtask that runs [PluginRegistry.initializeAll],
+  /// after all plugins have finished their own [initialize] callbacks.
+  /// Must be the sole registration site for plugin tools; plugin
+  /// [initialize] implementations must NOT call
+  /// [PluginContext.registerExtension] for their own tools (doing so
+  /// double-registers and [developer.registerExtension] throws).
+  ///
+  /// Gated on [kDebugMode] / [kProfileMode] (same gate as every other
+  /// extension in this class).
+  void _registerPluginToolExtensions() {
+    if (!kDebugMode && !kProfileMode) return;
+    final Map<String, ExplorationTool> tools = _pluginRegistry.mergedTools();
+    for (final MapEntry<String, ExplorationTool> entry in tools.entries) {
+      final String method = '$kExplorationExtensionPrefix.${entry.key}';
+      final ExplorationTool tool = entry.value;
+      _registerExtension(
+        method,
+        (String m, Map<String, String> params) async {
+          final Map<String, Object?> args =
+              decodeServiceExtensionParams(params);
+          final String body = await dispatchToolToEnvelope(tool, args);
+          return developer.ServiceExtensionResponse.result(body);
+        },
+      );
+    }
+  }
+
   List<InteractiveSemanticsWarning> _runDiagnostic() {
     final Element? root = _diagnosticsRootProviderForTesting != null
         ? _diagnosticsRootProviderForTesting!()
@@ -664,19 +702,12 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// Test-only: dispatch a plugin tool by its fully-qualified service
   /// extension method name (e.g. `ext.flutter.exploration.sample.echo`).
   ///
-  /// Plugin tools are registered with `PluginContext.registerExtension`,
-  /// which calls `dart:developer.registerExtension` directly and never
-  /// populates [_extensionCallbacks] — so they cannot be reached through
-  /// [invokeServiceExtension]. This helper resolves the tool via
-  /// [pluginRegistry]'s `mergedTools()` map (keyed by the qualified
-  /// `<ns>.<tool>` form) and wraps the result in the same
-  /// `{ok, value, error[, trace]}` envelope `CorePlugin.initialize` uses,
-  /// via [dispatchToolToEnvelope].
-  ///
-  /// Test-only: production callers reach plugin tools through the real
-  /// `developer.registerExtension` path. This bypass exists so
-  /// `flutter_test` integration tests can drive plugin tools without a
-  /// VM service connection.
+  /// Plugin tools are registered by [_registerPluginToolExtensions] via [_registerExtension],
+  /// which populates both [developer.registerExtension] and [_extensionCallbacks]. They can
+  /// therefore also be reached through [invokeServiceExtension]. This helper resolves the
+  /// tool via [pluginRegistry]'s `mergedTools()` map (keyed by the qualified `<ns>.<tool>`
+  /// form) and wraps the result in the canonical `{ok, value, error[, trace]}` envelope via
+  /// [dispatchToolToEnvelope].
   ///
   /// Throws [ArgumentError] when the method name does not start with
   /// `ext.flutter.exploration.`, is missing the `<ns>.<tool>` tail, or

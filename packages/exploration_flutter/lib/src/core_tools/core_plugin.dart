@@ -104,16 +104,11 @@ class CorePlugin extends ExplorationPlugin {
 
   @override
   Future<void> initialize(PluginContext ctx) async {
-    for (final ExplorationTool tool in tools) {
-      ctx.registerExtension(tool.name, (
-        String method,
-        Map<String, String> params,
-      ) async {
-        final Map<String, Object?> args = decodeServiceExtensionParams(params);
-        final String body = await dispatchToolToEnvelope(tool, args);
-        return developer.ServiceExtensionResponse.result(body);
-      });
-    }
+    // Tool VM-service extensions are registered by the binding
+    // (ExplorationBinding._registerPluginToolExtensions) after all
+    // plugins have initialized. CorePlugin no longer registers here
+    // to prevent double-registration — developer.registerExtension
+    // throws on duplicate names (dart:developer contract).
   }
 
   @override
