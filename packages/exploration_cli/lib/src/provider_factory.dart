@@ -23,9 +23,11 @@ import 'cli_args.dart';
 /// Default swift-infer base URL for the local MLX gateway.
 const String _kSwiftInferBaseUrl = 'http://localhost:8080';
 
-/// Default MLX model id served by swift-infer (PRD §16.3 — qwen3.5
-/// coder MoE, 8-bit quant).
-const String _kSwiftInferModel = 'qwen3-35b-a3b';
+/// Default MLX model id served by swift-infer (PRD §16.3 — qwen3.6
+/// coder MoE, 8-bit quant). Must match an id the gateway advertises at
+/// `GET /v1/models`; a stale id makes the gateway close the stream
+/// mid-response.
+const String _kSwiftInferModel = 'qwen3.6-35b-a3b-8bit';
 
 /// Default Anthropic model id (Claude Sonnet 4.6).
 const String _kAnthropicSonnet = 'claude-sonnet-4-6';

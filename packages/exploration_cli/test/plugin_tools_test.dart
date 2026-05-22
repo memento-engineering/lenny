@@ -12,7 +12,7 @@ void main() {
       final out = buildPluginTools(
         requested: const <String>[],
         handshake: const <PluginManifestEntry>[
-          PluginManifestEntry(namespace: 'router', tools: <String>['router.go']),
+          PluginManifestEntry(namespace: 'router', tools: <String>['go']),
         ],
       );
       expect(out, isEmpty);
@@ -23,13 +23,15 @@ void main() {
       final out = buildPluginTools(
         requested: const <String>['router', 'riverpod', 'dio'],
         handshake: const <PluginManifestEntry>[
+          // Handshake carries BARE tool names; buildPluginTools prefixes
+          // the namespace to produce the qualified ToolDescriptor.name.
           PluginManifestEntry(
             namespace: 'router',
-            tools: <String>['router.navigate'],
+            tools: <String>['navigate'],
           ),
           PluginManifestEntry(
             namespace: 'riverpod',
-            tools: <String>['riverpod.invalidate_provider'],
+            tools: <String>['invalidate_provider'],
           ),
           // No `dio` entry — handshake says it isn't loaded.
         ],
@@ -52,7 +54,7 @@ void main() {
         handshake: const <PluginManifestEntry>[
           PluginManifestEntry(
             namespace: 'router',
-            tools: <String>['router.go', 'router.back'],
+            tools: <String>['go', 'back'],
           ),
         ],
       );
@@ -71,11 +73,11 @@ void main() {
         handshake: const <PluginManifestEntry>[
           PluginManifestEntry(
             namespace: 'router',
-            tools: <String>['router.go'],
+            tools: <String>['go'],
           ),
           PluginManifestEntry(
             namespace: 'dio',
-            tools: <String>['dio.cancel_in_flight'],
+            tools: <String>['cancel_in_flight'],
           ),
         ],
       );

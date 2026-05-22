@@ -3,13 +3,15 @@
 /// handshake manifest.
 ///
 /// The handshake (`ext.flutter.exploration.core.handshake`,
-/// [PluginManifestEntry]) only carries pre-namespaced tool *names*;
-/// full JSON-schema input descriptors live in
-/// `package:exploration_flutter` inside the running app and are not
-/// currently fetched over the wire. Until cx6.39 plumbs full schemas
-/// through the contract, this helper emits [ToolDescriptor]s with a
-/// permissive object input schema so the model at least *sees* the
-/// plugin tools and can call them; the binding-side `ActionValidator`
+/// [PluginManifestEntry]) carries *bare* tool names grouped under each
+/// plugin namespace; this helper prefixes the namespace to produce the
+/// fully-qualified `<namespace>.<tool>` [ToolDescriptor.name] that
+/// `LoopHost.executeAction` requires. Full JSON-schema input
+/// descriptors live in `package:exploration_flutter` inside the running
+/// app and are not currently fetched over the wire. Until cx6.39 plumbs
+/// full schemas through the contract, this helper emits [ToolDescriptor]s
+/// with a permissive object input schema so the model at least *sees*
+/// the plugin tools and can call them; the binding-side `ActionValidator`
 /// (cx6.17) is the authoritative schema check on every action.
 ///
 /// Selection rules:
@@ -46,9 +48,10 @@ Map<String, List<ToolDescriptor>> buildPluginTools({
     out[p.namespace] = <ToolDescriptor>[
       for (final String name in p.tools)
         ToolDescriptor(
-          name: name,
+          name: '${p.namespace}.$name',
           description:
-              'Plugin tool $name (permissive schema; cx6.39 plumbs real one).',
+              'Plugin tool ${p.namespace}.$name '
+              '(permissive schema; cx6.39 plumbs real one).',
           inputSchema: const <String, dynamic>{
             'type': 'object',
             'additionalProperties': true,
