@@ -52,12 +52,37 @@ bd close <id>         # Complete work
 
 ## Build & Test
 
-_Add your build and test commands here_
+Install Melos (once, globally):
 
 ```bash
-# Example:
-# npm install
-# npm test
+dart pub global activate melos
+```
+
+Then, from the repo root:
+
+```bash
+melos run test       # Run all tests (pure-Dart + Flutter; excludes perf + dogfood e2e)
+melos run analyze    # Run dart analyze on the workspace
+melos run format     # Check formatting (fails if files need changes)
+melos run test:e2e   # Run the live dogfood e2e test (see env requirements below)
+melos run            # List all available scripts with descriptions
+```
+
+### Dogfood e2e (`melos run test:e2e`)
+
+Requires two environment variables:
+
+- `SWIFT_INFER_ENDPOINT` — base URL of the swift-infer service
+- `SWIFT_INFER_AGENT_TOKEN` — bearer token
+
+The test self-skips when these are absent, so `melos run test:e2e` is safe to run locally without them — all three scenarios will be reported as skipped.
+
+### Perf tests (`exploration_devtools`)
+
+Tests tagged `perf` are excluded from `melos run test` by default (via `dart_test.yaml` in that package). To run them explicitly:
+
+```bash
+flutter test packages/exploration_devtools --tags=perf
 ```
 
 ## Architecture Overview

@@ -13,13 +13,8 @@ jobs:
           flutter-version: '3.41.4'
           channel: 'stable'
       - run: dart pub get
+      - run: dart pub global activate melos
       - run: ./tool/build_devtools_extension.sh
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
-      - run: dart test packages/exploration_agent
-      - run: dart test packages/exploration_cli
-      - run: flutter test packages/exploration_flutter
-      - run: flutter test packages/exploration_devtools --exclude-tags=perf
-      - run: flutter test packages/exploration_router
-      - run: flutter test packages/exploration_riverpod
-      - run: flutter test packages/exploration_dio
+      - run: melos run test --no-select
