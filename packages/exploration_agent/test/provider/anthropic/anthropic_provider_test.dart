@@ -87,6 +87,24 @@ void main() {
     expect(d.action.args['node_id'], 7);
   });
 
+  test('request body forces a tool call via tool_choice:any', () async {
+    Map<String, dynamic>? sent;
+    final m = _stream(
+      _toolUseSse(),
+      capture: (req, bytes) => sent = _decodeBody(bytes),
+    );
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    await _p(m).decide(_prompt(), s);
+    expect(sent, isNotNull);
+    expect(
+      sent!['tool_choice'],
+      <String, dynamic>{'type': 'any'},
+      reason: 'the agent must emit a tool_use block every turn; '
+          'tool_choice:auto lets the model answer in prose, which '
+          'decide() rejects as "no tool_use block in response"',
+    );
+  });
+
   test('missing tool_use → SchemaRejection', () async {
     final body = _sse(<Map<String, dynamic>>[
       <String, dynamic>{

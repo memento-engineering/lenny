@@ -87,6 +87,11 @@ class AnthropicModelProvider implements ModelProvider {
                 'input_schema': t.inputSchema,
               })
           .toList(),
+      // Force a tool call every turn. The exploration agent must always
+      // act (an action tool, or core.done). Without this the API
+      // defaults to tool_choice:auto and the model may answer in prose,
+      // which `decide` rejects as 'no tool_use block in response'.
+      'tool_choice': const <String, dynamic>{'type': 'any'},
       'messages': <Map<String, dynamic>>[
         <String, dynamic>{'role': 'user', 'content': prompt.userMessages},
       ],
