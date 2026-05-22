@@ -42,10 +42,14 @@ const String _kOpenAiGpt5 = 'gpt-5';
 /// [sessionId] is required so the qwen-mlx tier can mint a stable
 /// per-run `X-Conversation-Id` of the form `exploration-<sessionId>-<unixMs>`.
 /// Pass [now] in tests to make the conversationId deterministic.
+/// [onModelDiagnostics], when supplied, is forwarded to the Anthropic
+/// provider's per-call diagnostics sink (latency, HTTP status,
+/// stop_reason) so the CLI can surface API health on every model call.
 ModelProvider buildProvider(
   ModelTier tier, {
   required String sessionId,
   DateTime Function()? now,
+  void Function(Map<String, Object?> diagnostics)? onModelDiagnostics,
 }) {
   return switch (tier) {
     ModelTier.qwenMlx => _buildSwiftInferProvider(
@@ -55,6 +59,7 @@ ModelProvider buildProvider(
     ModelTier.claude => AnthropicModelProvider(
         model: _kAnthropicSonnet,
         apiKey: _requireEnv('ANTHROPIC_API_KEY'),
+        onCallDiagnostics: onModelDiagnostics,
       ),
     ModelTier.openai => OpenAiModelProvider(
         modelId: _kOpenAiGpt5,

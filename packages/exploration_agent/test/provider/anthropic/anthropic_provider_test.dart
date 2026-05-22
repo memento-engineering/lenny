@@ -105,6 +105,55 @@ void main() {
     );
   });
 
+  test('onCallDiagnostics fires with timing + status on a successful call',
+      () async {
+    Map<String, Object?>? diag;
+    final m = _stream(_toolUseSse());
+    final p = AnthropicModelProvider(
+      model: 'claude-sonnet-4-6',
+      apiKey: 'k',
+      client: m,
+      onCallDiagnostics: (d) => diag = d,
+    );
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    await p.decide(_prompt(), s);
+    expect(diag, isNotNull);
+    expect(diag!['provider'], 'anthropic');
+    expect(diag!['ok'], isTrue);
+    expect(diag!['http_status'], 200);
+    expect(diag!['tool_use'], isTrue);
+    expect(diag!['duration_ms'], isA<int>());
+    expect(diag!.containsKey('error'), isFalse);
+  });
+
+  test('onCallDiagnostics fires with ok:false + error on a failed call',
+      () async {
+    Map<String, Object?>? diag;
+    final body = _sse(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'index': 0,
+        'content_block': <String, dynamic>{'type': 'text'},
+      },
+      <String, dynamic>{'type': 'message_stop'},
+    ]);
+    final p = AnthropicModelProvider(
+      model: 'claude-sonnet-4-6',
+      apiKey: 'k',
+      client: _stream(body),
+      onCallDiagnostics: (d) => diag = d,
+    );
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    await expectLater(
+      () => p.decide(_prompt(), s),
+      throwsA(isA<SchemaRejection>()),
+    );
+    expect(diag, isNotNull);
+    expect(diag!['ok'], isFalse);
+    expect(diag!['tool_use'], isFalse);
+    expect(diag!['error'], contains('no tool_use block'));
+  });
+
   test('missing tool_use → SchemaRejection', () async {
     final body = _sse(<Map<String, dynamic>>[
       <String, dynamic>{
