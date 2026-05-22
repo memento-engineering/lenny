@@ -347,10 +347,20 @@ class LoopDriver {
     }
   }
 
+  /// One-line outcome of an executed action for the [ActionRing] — the
+  /// model's only window onto its own past turns. On failure the
+  /// result's `error` is appended verbatim: without it the model sees a
+  /// bare `failed` with no reason and cannot self-correct, so it retries
+  /// the same losing call until the budget is exhausted.
   String _actionLine(String tool, Map<String, dynamic> result) {
     final Object? ok = result['ok'];
-    final String suffix = ok is bool ? (ok ? 'ok' : 'failed') : 'done';
-    return '$tool: $suffix';
+    if (ok == false) {
+      final Object? error = result['error'];
+      return error is String && error.isNotEmpty
+          ? '$tool: failed — $error'
+          : '$tool: failed';
+    }
+    return ok is bool ? '$tool: ok' : '$tool: done';
   }
 
   // ===== session loop =====

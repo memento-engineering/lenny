@@ -170,6 +170,7 @@ LoopDriver _newDriver({
   required _FakeProvider provider,
   required TrajectoryWriter writer,
   Duration turnBudget = const Duration(seconds: 30),
+  ActionRing? actions,
 }) {
   return LoopDriver(
     host: host,
@@ -178,7 +179,7 @@ LoopDriver _newDriver({
     validator: const ActionValidator(),
     writer: writer,
     summary: RunningSummary(counter: WhitespaceTokenCounter()),
-    actions: ActionRing(),
+    actions: actions ?? ActionRing(),
     turnBudget: turnBudget,
   );
 }
@@ -279,6 +280,42 @@ void main() {
       expect(last['type'], 'turn');
       expect(last['index'], 0);
       expect(last['validation']['ok'], isTrue);
+    });
+
+    test('failed action: error reaches the action ring (lenny-jfh)', () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        observations: <Observation>[_emptyObs()],
+        tools: <ToolDescriptor>[_coreDone(), _coreWait()],
+        executeFn: (tool, args) async => <String, dynamic>{
+          'ok': false,
+          'error': 'provider_id (string) required',
+        },
+      );
+      final provider = _FakeProvider(script: <ModelDecision>[
+        ModelDecision(
+          action: (tool: 'core.wait', args: <String, dynamic>{}),
+        ),
+      ]);
+      final ring = ActionRing();
+      final driver = _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+        actions: ring,
+      );
+
+      await driver.runTurn();
+
+      expect(ring.entries, hasLength(1));
+      expect(
+        ring.entries.single,
+        'core.wait: failed — provider_id (string) required',
+        reason: 'the action ring is the model\'s only view of past turns; '
+            'a bare "failed" with no reason leaves it unable to '
+            'self-correct, so it retries the same losing call',
+      );
     });
 
     test('stability budget expired is captured, not failed', () async {
