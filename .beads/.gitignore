@@ -1,10 +1,7 @@
 # Dolt database (managed by Dolt, not git)
-# Match both the directory and any symlink/file named `dolt` — a worktree-
-# local symlink at .beads/dolt (absolute path into the main repo) was
-# committed once by accident; bare `dolt` here prevents reintroducing it.
-dolt
 dolt/
 embeddeddolt/
+proxieddb/
 
 # Runtime files
 bd.sock
@@ -15,9 +12,6 @@ last-touched
 
 # Daemon runtime (lock, log, pid)
 daemon.*
-
-# Interactions log (runtime, not versioned)
-interactions.jsonl
 
 # Push state (runtime, per-machine)
 push-state.json
@@ -53,6 +47,9 @@ dolt-server.log
 dolt-server.lock
 dolt-server.port
 dolt-server.activity
+
+# Debug-mode pprof artifacts (written when dolt.debug: true in config.yaml)
+dolt-pprof/
 
 # Corrupt backup directories (created by bd doctor --fix recovery)
 *.corrupt.backup/
