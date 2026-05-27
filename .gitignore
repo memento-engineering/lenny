@@ -36,3 +36,6 @@ packages/exploration_cli/trajectories/
 site/node_modules/
 site/dist/
 site/.astro/
+
+# Beads / Dolt files (added by bd init)
+.beads/proxieddb/

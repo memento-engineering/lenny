@@ -4,8 +4,8 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "fs prime"
+            "command": "fs prime",
+            "type": "command"
           }
         ]
       }
@@ -14,8 +14,8 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "fs prime"
+            "command": "fs prime",
+            "type": "command"
           }
         ]
       }
