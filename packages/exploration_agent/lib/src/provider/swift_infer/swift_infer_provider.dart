@@ -61,10 +61,22 @@ class SwiftInferModelProvider implements ModelProvider {
   /// an image through a vision-disabled config.
   List<Map<String, dynamic>> _buildMessages(ConversationSnapshot snapshot) {
     final List<Map<String, dynamic>> messages = <Map<String, dynamic>>[];
+    String? pendingToolUseId;
+    int assistantIndex = 0;
     for (final ConversationTurn turn in snapshot.turns) {
       if (turn is UserTurn) {
         final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
-        if (turn.toolResult != null) {
+        if (pendingToolUseId != null) {
+          final String resultContent = turn.toolResult != null
+              ? jsonEncode(turn.toolResult)
+              : 'ok';
+          content.add(<String, dynamic>{
+            'type': 'tool_result',
+            'tool_use_id': pendingToolUseId,
+            'content': resultContent,
+          });
+          pendingToolUseId = null;
+        } else if (turn.toolResult != null) {
           content.add(<String, dynamic>{
             'type': 'text',
             'text': jsonEncode(turn.toolResult),
@@ -87,9 +99,6 @@ class SwiftInferModelProvider implements ModelProvider {
         }
         messages.add(<String, dynamic>{'role': 'user', 'content': content});
       } else if (turn is AssistantTurn) {
-        // SwiftInfer/Qwen3 don't accept native thinking blocks like
-        // Anthropic — instead the model emits `<think>...</think>` inline
-        // text and consumes the same when carrying thinking forward.
         final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
         if (turn.thinking.isNotEmpty) {
           content.add(<String, dynamic>{
@@ -97,12 +106,15 @@ class SwiftInferModelProvider implements ModelProvider {
             'text': '<think>${turn.thinking}</think>',
           });
         }
+        final String toolUseId = 'toolu_turn_$assistantIndex';
+        assistantIndex += 1;
         content.add(<String, dynamic>{
           'type': 'tool_use',
-          'id': 'toolu_carry',
+          'id': toolUseId,
           'name': encodeToolName(turn.action.tool),
           'input': turn.action.args,
         });
+        pendingToolUseId = toolUseId;
         messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
       }
     }
