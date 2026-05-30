@@ -231,4 +231,32 @@ void main() {
     expect(nonFinal, <String>['hi', '!']);
     expect(collected.last.isFinal, isTrue);
   });
+
+  test('2-turn snapshot: role:tool message follows assistant tool_calls; ids match', () async {
+    Map<String, dynamic>? sent;
+    final mock = MockClient((req) async {
+      sent = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(_resp('core.tap', '{"node_id":7}')), 200);
+    });
+    final builder = ConversationBuilder(
+      systemMessage: 'sys',
+      tools: <ToolDescriptor>[_tap()],
+    );
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    builder.appendAssistantTurn('', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
+    await _provider(mock).decide(builder.snapshot(), s);
+    final msgs = sent!['messages'] as List;
+    final assistantMsg = msgs.firstWhere(
+      (m) => (m as Map)['role'] == 'assistant',
+    ) as Map;
+    final callId =
+        ((assistantMsg['tool_calls'] as List).first as Map)['id'] as String;
+    expect(callId, isNot('call_carry'));
+    final toolMsg = msgs.firstWhere(
+      (m) => (m as Map)['role'] == 'tool',
+    ) as Map;
+    expect(toolMsg['tool_call_id'], callId);
+  });
 }

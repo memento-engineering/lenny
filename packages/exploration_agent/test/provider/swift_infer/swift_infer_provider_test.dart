@@ -503,4 +503,36 @@ void main() {
         SwiftInferModelProvider(config: _cfg(vision: true), client: m);
     expect(p2.capabilities.vision, isTrue);
   });
+
+  test('2-turn snapshot: messages[2] contains tool_result with matching tool_use_id', () async {
+    Map<String, dynamic>? sent;
+    final m = _stream(
+      _toolUseSse(),
+      capture: (_, bytes) {
+        sent = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      },
+    );
+    final builder = ConversationBuilder(
+      systemMessage: 'sys',
+      tools: <ToolDescriptor>[_t('core.tap')],
+    );
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    builder.appendAssistantTurn('', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+    await SwiftInferModelProvider(config: _cfg(), client: m)
+        .decide(builder.snapshot(), s);
+    final msgs = sent!['messages'] as List;
+    expect(msgs.length, 3);
+    final assistantContent = (msgs[1] as Map)['content'] as List;
+    final toolUseBlock = assistantContent.firstWhere(
+      (b) => (b as Map)['type'] == 'tool_use',
+    ) as Map;
+    expect(toolUseBlock['id'], isNot('toolu_carry'));
+    final userContent2 = (msgs[2] as Map)['content'] as List;
+    final toolResultBlock = userContent2.firstWhere(
+      (b) => (b as Map)['type'] == 'tool_result',
+    ) as Map;
+    expect(toolResultBlock['tool_use_id'], toolUseBlock['id']);
+  });
 }
