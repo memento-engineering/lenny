@@ -50,7 +50,6 @@ TurnRecord _turn(int i) => TurnRecord(
       validation: const {'result': 'ok', 'retries': 0},
       executedAction: const {'tool': 'core.tap'},
       diff: const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-      summaryUpdate: 'tapped',
       modelMetadata: const {
         'tokens_in': 10,
         'tokens_out': 5,
@@ -68,7 +67,6 @@ void main() {
       await w.writeTurn(_turn(1));
       await w.close(const SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'ok',
         totalTurns: 2,
         totalDurationMs: 1234,
       ));
@@ -97,7 +95,6 @@ void main() {
       await w.writeTurn(_turn(1));
       await w.close(const SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'ok',
         totalTurns: 2,
         totalDurationMs: 100,
       ));
@@ -116,7 +113,6 @@ void main() {
       await w.writeHeader(_hdr());
       await w.close(const SessionFooter(
         outcome: SessionOutcome.harnessError,
-        finalSummary: 'crashed',
         totalTurns: 0,
         totalDurationMs: 50,
         harnessError: 'connection_lost',
@@ -134,7 +130,6 @@ void main() {
       await w.writeHeader(_hdr());
       const footer = SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'ok',
         totalTurns: 0,
         totalDurationMs: 1,
       );
@@ -154,7 +149,6 @@ void main() {
       await w.writeHeader(_hdr());
       await w.close(const SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'ok',
         totalTurns: 0,
         totalDurationMs: 1,
       ));

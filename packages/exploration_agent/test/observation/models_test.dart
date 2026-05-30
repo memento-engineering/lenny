@@ -195,4 +195,47 @@ void main() {
       expect(a, isNot(equals(b)));
     });
   });
+
+  group('Observation.screenshot (lenny-wisp-cl4)', () {
+    test('Observation.empty() has null screenshot', () {
+      expect(Observation.empty().screenshot, isNull);
+    });
+
+    test('fromJson populates screenshot from screenshot_png_b64', () {
+      final Observation o =
+          Observation.fromJson(<String, dynamic>{'screenshot_png_b64': 'AAAA'});
+      expect(o.screenshot, equals('AAAA'));
+    });
+
+    test('toJson omits screenshot_png_b64 when null', () {
+      final Observation o = Observation.empty();
+      final Map<String, dynamic> json = o.toJson();
+      expect(json.containsKey('screenshot_png_b64'), isFalse);
+    });
+
+    test('toJson emits screenshot_png_b64 when non-null', () {
+      final Observation o = Observation.fromJson(
+          <String, dynamic>{'screenshot_png_b64': 'XYZ='});
+      final Map<String, dynamic> json = o.toJson();
+      expect(json['screenshot_png_b64'], equals('XYZ='));
+    });
+
+    test('two Observations with different screenshots are not equal', () {
+      final Observation a = Observation.fromJson(
+          <String, dynamic>{'screenshot_png_b64': 'A'});
+      final Observation b = Observation.fromJson(
+          <String, dynamic>{'screenshot_png_b64': 'B'});
+      expect(a, isNot(equals(b)));
+    });
+
+    test('screenshot round-trips through toJson + fromJson', () {
+      final Observation original = Observation.fromJson(<String, dynamic>{
+        'semantics': <Map<String, dynamic>>[],
+        'screenshot_png_b64': 'round-trip',
+      });
+      final Observation restored = Observation.fromJson(original.toJson());
+      expect(restored.screenshot, equals('round-trip'));
+      expect(restored, equals(original));
+    });
+  });
 }

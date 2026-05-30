@@ -41,7 +41,8 @@ class _FakeProvider extends ModelProvider {
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     if (_i >= script.length) {
       // Loop the last decision so callers don't need to pad with extras.
       return script.last;
@@ -167,11 +168,12 @@ LoopDriver _newDriver({
   return LoopDriver(
     host: host,
     provider: provider,
-    assembler: const PromptAssembler(),
+    conversation: ConversationBuilder(
+      systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+      tools: host.mergedTools(),
+    ),
     validator: const ActionValidator(),
     writer: writer,
-    summary: RunningSummary(counter: WhitespaceTokenCounter()),
-    actions: ActionRing(),
     turnBudget: turnBudget,
     sessionBudget: sessionBudget,
     maxTurns: maxTurns,
@@ -297,10 +299,15 @@ void main() {
       final driver = _newDriver(host: host, provider: provider, writer: writer);
       final t = await driver.runSession();
       expect(t.outcome, SessionOutcome.done);
+      // SessionTermination.finalSummary still captures the core.done
+      // reason on the structured return value (lenny-wisp-cl4 keeps the
+      // field on the termination type; only the trajectory footer JSON
+      // drops the final_summary key in v2).
       expect(t.finalSummary, 'login complete');
       final footer = _lastFooter(sink);
       expect(footer['outcome'], 'done');
-      expect(footer['final_summary'], 'login complete');
+      // v2 (lenny-wisp-cl4): final_summary key removed from footer JSON.
+      expect(footer.containsKey('final_summary'), isFalse);
     });
 
     test('plugin auto-disable does NOT terminate session', () async {

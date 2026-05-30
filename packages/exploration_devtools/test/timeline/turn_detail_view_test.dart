@@ -34,7 +34,6 @@ TurnRecord _turn({
       validation: validation ?? const {'result': 'ok', 'retries': 0},
       executedAction: executed ?? const {'tool': 'core.tap', 'args': {'id': 'submit'}},
       diff: const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-      summaryUpdate: 'tapped submit',
       modelMetadata: modelMetadata ?? const {'reasoning': 'tap submit to log in'},
     );
 
@@ -121,7 +120,6 @@ void main() {
         validation: const {'result': 'ok'},
         executedAction: const {'tool': 'core.tap'},
         diff: const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-        summaryUpdate: '',
         modelMetadata: const {},
       );
 

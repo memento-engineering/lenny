@@ -21,13 +21,17 @@ ToolDescriptor _tap() => const ToolDescriptor(
       },
     );
 
-PromptPayload _prompt({Map<String, dynamic>? user}) => PromptPayload(
-      systemMessage: 'sys',
-      userMessages: <Map<String, dynamic>>[
-        user ?? <String, dynamic>{'text': 'hi'},
-      ],
-      tools: <ToolDescriptor>[_tap()],
-    );
+ConversationSnapshot _prompt({Observation? observation}) {
+  final builder = ConversationBuilder(
+    systemMessage: 'sys',
+    tools: <ToolDescriptor>[_tap()],
+  );
+  builder.appendUserTurn(
+    observation ?? Observation.empty(),
+    ObservationDiff.empty(),
+  );
+  return builder.snapshot();
+}
 
 Map<String, dynamic> _resp(String name, String args) => <String, dynamic>{
       'choices': <Map<String, dynamic>>[
@@ -82,11 +86,11 @@ void main() {
     });
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
     final img = VisionImage.fromPngBytes(Uint8List.fromList(<int>[0, 0, 0, 1]));
+    final obs = Observation.fromJson(<String, dynamic>{
+      'screenshot_png_b64': img.base64Png,
+    });
 
-    await _provider(mock).decide(
-      _prompt(user: <String, dynamic>{'text': 's', 'screenshot': img}),
-      s,
-    );
+    await _provider(mock).decide(_prompt(observation: obs), s);
 
     final messages = captured!['messages'] as List;
     final userMsg = messages.firstWhere(

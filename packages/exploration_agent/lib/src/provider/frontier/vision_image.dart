@@ -15,6 +15,10 @@ class VisionImage {
   factory VisionImage.fromPngBytes(Uint8List bytes) =>
       VisionImage._(base64Encode(bytes));
 
+  /// Build a [VisionImage] from an already-encoded base64 PNG string.
+  /// Used by providers when forwarding `Observation.screenshot` (cx6.7).
+  factory VisionImage.fromBase64(String b64) => VisionImage._(b64);
+
   /// Anthropic-shaped image content block.
   Map<String, dynamic> toAnthropicBlock() => <String, dynamic>{
         'type': 'image',

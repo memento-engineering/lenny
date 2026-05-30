@@ -23,11 +23,6 @@ export 'src/loop_driver/types.dart'
         TurnFailure,
         TurnTimeoutError,
         VmServiceConnectionLost;
-export 'src/memory/action_ring.dart' show ActionRing;
-export 'src/memory/running_summary.dart'
-    show RunningSummary, SummaryOversizeError;
-export 'src/memory/token_counter.dart'
-    show TokenCounter, WhitespaceTokenCounter;
 export 'src/observation/diff_models.dart'
     show
         ChangedValue,
@@ -50,7 +45,9 @@ export 'src/observation/models.dart'
         RuntimeError,
         SemanticsNode,
         StabilityMetadata;
-export 'src/prompt/prompt_assembler.dart' show PromptAssembler;
+export 'src/prompt/conversation_builder.dart' show ConversationBuilder;
+export 'src/prompt/observation_renderer.dart'
+    show JsonObservationRenderer, ObservationRenderer;
 export 'src/provider/provider.dart';
 export 'src/session.dart' show ExplorationSession;
 export 'src/session_bringup.dart' show BringUpResult, bringUpSession;

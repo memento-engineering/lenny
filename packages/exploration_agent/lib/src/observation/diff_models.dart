@@ -14,6 +14,20 @@ import 'models.dart';
 class ObservationDiff {
   const ObservationDiff({required this.core, required this.plugins});
 
+  /// Empty diff — no route/node/error changes, no plugin entries.
+  /// Used by validation-retry to append synthetic UserTurns carrying only
+  /// a `toolResult` (no real observation change).
+  factory ObservationDiff.empty() => const ObservationDiff(
+        core: CoreDiff(
+          routeChanges: <RouteChange>[],
+          nodesAdded: <SemanticsNode>[],
+          nodesRemoved: <int>[],
+          nodesChanged: <NodeChange>[],
+          errorsAdded: <RuntimeError>[],
+        ),
+        plugins: <String, PluginDiff>{},
+      );
+
   /// Diff over the core fragment.
   final CoreDiff core;
 

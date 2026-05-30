@@ -32,6 +32,7 @@ class Observation {
     required this.core,
     required this.plugins,
     required this.stability,
+    this.screenshot,
   });
 
   /// Empty prior used as the "previous observation" on the first turn.
@@ -93,10 +94,13 @@ class Observation {
         ? StabilityMetadata.fromJson(rawStability.cast<String, dynamic>())
         : StabilityMetadata.empty;
 
+    final String? screenshot = j['screenshot_png_b64'] as String?;
+
     return Observation(
       core: core,
       plugins: Map<String, PluginFragment>.unmodifiable(plugins),
       stability: stability,
+      screenshot: screenshot,
     );
   }
 
@@ -109,6 +113,11 @@ class Observation {
   /// Stability metadata block from the binding.
   final StabilityMetadata stability;
 
+  /// Optional base64-encoded PNG screenshot. Present only when the binding
+  /// reports `screenshot_png_b64` (cx6.7). Carried through to providers
+  /// gated on `capabilities.vision`.
+  final String? screenshot;
+
   Map<String, dynamic> toJson() {
     final List<String> sortedKeys = plugins.keys.toList()..sort();
     return <String, dynamic>{
@@ -117,6 +126,7 @@ class Observation {
         for (final String k in sortedKeys) k: plugins[k]!.toJson(),
       },
       'stability': stability.toJson(),
+      if (screenshot != null) 'screenshot_png_b64': screenshot,
     };
   }
 
@@ -125,7 +135,8 @@ class Observation {
       other is Observation &&
       core == other.core &&
       _mapEq(plugins, other.plugins) &&
-      stability == other.stability;
+      stability == other.stability &&
+      screenshot == other.screenshot;
 
   @override
   int get hashCode => Object.hash(
@@ -133,6 +144,7 @@ class Observation {
         Object.hashAllUnordered(plugins.entries.map((MapEntry<String, PluginFragment> e) =>
             Object.hash(e.key, e.value))),
         stability,
+        screenshot,
       );
 }
 

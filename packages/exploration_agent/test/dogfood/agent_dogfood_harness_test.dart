@@ -519,7 +519,6 @@ void main() {
             'result': <String, dynamic>{'ok': true},
           },
           diff: const <String, dynamic>{},
-          summaryUpdate: '',
           modelMetadata: const <String, dynamic>{},
           providerRequestId: providerRequestId,
         );

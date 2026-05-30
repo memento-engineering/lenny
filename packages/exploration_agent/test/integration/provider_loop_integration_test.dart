@@ -337,14 +337,10 @@ Future<void> expectScenario({
   List<ToolDescriptor> tools = const <ToolDescriptor>[],
 }) async {
   Future<Map<String, dynamic>> run() async {
+    final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
     final ModelDecision d = await provider.decide(
-      PromptPayload(
-        systemMessage: 'sys',
-        userMessages: <Map<String, dynamic>>[
-          <String, dynamic>{'type': 'text', 'text': 'go'},
-        ],
-        tools: tools,
-      ),
+      builder.snapshot(),
       ActionSchema.fromToolList(tools),
     );
     return session.act(<String, dynamic>{

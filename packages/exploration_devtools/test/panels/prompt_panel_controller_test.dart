@@ -48,10 +48,8 @@ class _FakeSession implements ExplorationSession {
     required LoopHost host,
     required ModelProvider provider,
     required TrajectoryWriter writer,
-    PromptAssembler? assembler,
+    ConversationBuilder? conversation,
     ActionValidator? validator,
-    RunningSummary? summary,
-    ActionRing? actions,
   }) {
     runCalls += 1;
     capturedHost = host;
@@ -59,9 +57,7 @@ class _FakeSession implements ExplorationSession {
     capturedWriter = writer;
     final c = runCompleter ?? Completer<SessionTermination>();
     if (runCompleter == null) {
-      c.complete(
-        const SessionTermination(SessionOutcome.done, finalSummary: ''),
-      );
+      c.complete(const SessionTermination(SessionOutcome.done));
     }
     runCompleter = c;
     return c.future;
@@ -100,7 +96,8 @@ class _DummyProvider implements ModelProvider {
       );
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) =>
+  Future<ModelDecision> decide(
+          ConversationSnapshot snapshot, ActionSchema schema) =>
       throw UnimplementedError();
 
   @override
@@ -292,7 +289,6 @@ void main() {
       validation: <String, dynamic>{},
       executedAction: <String, dynamic>{},
       diff: <String, dynamic>{},
-      summaryUpdate: '',
       modelMetadata: <String, dynamic>{},
     ));
     await Future<void>.delayed(Duration.zero);

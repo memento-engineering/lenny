@@ -33,11 +33,11 @@ void main() {
   test('ModelDecision carries action+optional fields', () {
     const d = ModelDecision(
       action: (tool: 'core.tap', args: <String, dynamic>{'node_id': 42}),
-      summaryUpdate: 'tapped login',
+      thinking: 'tap the login button',
     );
     expect(d.action.tool, 'core.tap');
     expect(d.action.args['node_id'], 42);
-    expect(d.summaryUpdate, 'tapped login');
+    expect(d.thinking, 'tap the login button');
     expect(d.rationale, isNull);
     expect(d.waitStrategy, isNull);
   });

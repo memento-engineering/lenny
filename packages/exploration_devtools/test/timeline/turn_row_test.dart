@@ -7,7 +7,7 @@ TurnRecord _turn({
   int index = 0,
   Map<String, dynamic> executedAction = const {'tool': 'core.tap', 'args': <String, dynamic>{}},
   Map<String, dynamic> diff = const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-  String summary = 'tapped',
+  String? thinking,
 }) =>
     TurnRecord(
       index: index,
@@ -17,7 +17,7 @@ TurnRecord _turn({
       validation: const {'result': 'ok', 'retries': 0},
       executedAction: executedAction,
       diff: diff,
-      summaryUpdate: summary,
+      thinking: thinking,
       modelMetadata: const {},
     );
 
@@ -132,7 +132,7 @@ void main() {
           },
           'plugins': <String, dynamic>{},
         },
-        summary: 'submitted login form',
+        thinking: 'submitted login form',
       );
       await tester.pumpWidget(_wrap(TurnRow(
         record: record,

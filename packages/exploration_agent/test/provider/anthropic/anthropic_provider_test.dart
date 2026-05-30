@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:http/http.dart' as http;
@@ -19,14 +18,17 @@ ToolDescriptor _t(String n) => ToolDescriptor(
       },
     );
 
-PromptPayload _prompt({List<Map<String, dynamic>>? user}) => PromptPayload(
-      systemMessage: 'sys',
-      userMessages: user ??
-          <Map<String, dynamic>>[
-            <String, dynamic>{'type': 'text', 'text': 'hi'},
-          ],
-      tools: <ToolDescriptor>[_t('core.tap')],
-    );
+ConversationSnapshot _prompt({Observation? observation}) {
+  final builder = ConversationBuilder(
+    systemMessage: 'sys',
+    tools: <ToolDescriptor>[_t('core.tap')],
+  );
+  builder.appendUserTurn(
+    observation ?? Observation.empty(),
+    ObservationDiff.empty(),
+  );
+  return builder.snapshot();
+}
 
 AnthropicModelProvider _p(MockClient m, {String model = 'claude-sonnet-4-6'}) =>
     AnthropicModelProvider(model: model, apiKey: 'k', client: m);
@@ -188,14 +190,13 @@ void main() {
       capture: (_, bytes) => captured = _decodeBody(bytes),
     );
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    final img = VisionImage.fromPngBytes(Uint8List.fromList(<int>[1, 2, 3]));
-    await _p(m).decide(
-      _prompt(user: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'look'},
-        img.toAnthropicBlock(),
-      ]),
-      s,
-    );
+    // Observation.screenshot is the chat-shape vehicle for vision
+    // (lenny-wisp-cl4); the provider gates on capabilities.vision and
+    // emits a native Anthropic image content block.
+    final obs = Observation.fromJson(<String, dynamic>{
+      'screenshot_png_b64': 'AQID',
+    });
+    await _p(m).decide(_prompt(observation: obs), s);
     final messages = captured!['messages'] as List;
     final content = (messages[0] as Map)['content'] as List;
     final block = content.firstWhere(
@@ -223,13 +224,9 @@ void main() {
     ));
     final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
     final s = ActionSchema.fromToolList(tools);
-    final prompt = PromptPayload(
-      systemMessage: 'sys',
-      userMessages: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'go'},
-      ],
-      tools: tools,
-    );
+    final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    final prompt = builder.snapshot();
     await expectLater(
       _p(m).decide(prompt, s),
       throwsA(

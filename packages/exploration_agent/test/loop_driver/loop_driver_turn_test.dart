@@ -29,6 +29,11 @@ class _FakeProvider extends ModelProvider {
   int _i = 0;
   final List<String> calls = <String>[];
 
+  /// Snapshots passed to [decide], in order. Tests assert on these to
+  /// verify the loop driver's conversation-builder bookkeeping (e.g.
+  /// failed-action toolResult carry-forward).
+  final List<ConversationSnapshot> seenSnapshots = <ConversationSnapshot>[];
+
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
         vision: false,
@@ -41,8 +46,10 @@ class _FakeProvider extends ModelProvider {
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     calls.add('decide');
+    seenSnapshots.add(snapshot);
     if (_i >= script.length) {
       throw StateError('no more scripted decisions');
     }
@@ -170,16 +177,16 @@ LoopDriver _newDriver({
   required _FakeProvider provider,
   required TrajectoryWriter writer,
   Duration turnBudget = const Duration(seconds: 30),
-  ActionRing? actions,
 }) {
   return LoopDriver(
     host: host,
     provider: provider,
-    assembler: const PromptAssembler(),
+    conversation: ConversationBuilder(
+      systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+      tools: host.mergedTools(),
+    ),
     validator: const ActionValidator(),
     writer: writer,
-    summary: RunningSummary(counter: WhitespaceTokenCounter()),
-    actions: actions ?? ActionRing(),
     turnBudget: turnBudget,
   );
 }
@@ -255,12 +262,23 @@ void main() {
       // load-bearing part.
       final calls = host.calls;
       // Drop bookkeeping calls (activePluginNamespaces) for ordering check.
+      // Also drop the one-shot mergedTools() call from driver construction
+      // (the conversation builder needs the tool list to compose the
+      // system message); the per-turn mergedTools() inside runTurn is
+      // what the test asserts is still load-bearing.
+      final firstMergedToolsConsumed = calls.indexOf('mergedTools');
       final ordered = calls
-          .where((c) =>
-              c == 'observe' ||
-              c == 'mergedTools' ||
-              c.startsWith('executeAction') ||
-              c.startsWith('notifyPlugins'))
+          .asMap()
+          .entries
+          .where((e) {
+            if (e.key == firstMergedToolsConsumed) return false;
+            final c = e.value;
+            return c == 'observe' ||
+                c == 'mergedTools' ||
+                c.startsWith('executeAction') ||
+                c.startsWith('notifyPlugins');
+          })
+          .map((e) => e.value)
           .toList();
       expect(
         ordered,
@@ -282,11 +300,12 @@ void main() {
       expect(last['validation']['ok'], isTrue);
     });
 
-    test('failed action: error reaches the action ring (lenny-jfh)', () async {
+    test('failed action: error carries forward as toolResult on next turn (lenny-jfh / lenny-wisp-cl4)',
+        () async {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       final host = _FakeHost(
-        observations: <Observation>[_emptyObs()],
+        observations: <Observation>[_emptyObs(), _emptyObs()],
         tools: <ToolDescriptor>[_coreDone(), _coreWait()],
         executeFn: (tool, args) async => <String, dynamic>{
           'ok': false,
@@ -297,24 +316,29 @@ void main() {
         ModelDecision(
           action: (tool: 'core.wait', args: <String, dynamic>{}),
         ),
+        ModelDecision(
+          action: (tool: 'core.wait', args: <String, dynamic>{}),
+        ),
       ]);
-      final ring = ActionRing();
-      final driver = _newDriver(
-        host: host,
-        provider: provider,
-        writer: writer,
-        actions: ring,
-      );
+      final driver = _newDriver(host: host, provider: provider, writer: writer);
 
-      await driver.runTurn();
+      await driver.runTurn(); // turn 0 — fails
+      await driver.runTurn(); // turn 1 — picks up the carry-forward
 
-      expect(ring.entries, hasLength(1));
+      // The second turn's snapshot starts with the turn-1 UserTurn,
+      // which should carry the previous turn's failure as toolResult.
+      // (Turn 0's snapshot has a single UserTurn with no toolResult;
+      // turn 1's snapshot has 3 turns: UserTurn(turn 0, no toolResult)
+      // + AssistantTurn(turn 0) + UserTurn(turn 1, toolResult set).)
+      expect(provider.seenSnapshots, hasLength(2));
+      final ConversationSnapshot second = provider.seenSnapshots[1];
+      final UserTurn carryUserTurn = second.turns.last as UserTurn;
+      expect(carryUserTurn.toolResult, isNotNull);
       expect(
-        ring.entries.single,
-        'core.wait: failed — provider_id (string) required',
-        reason: 'the action ring is the model\'s only view of past turns; '
-            'a bare "failed" with no reason leaves it unable to '
-            'self-correct, so it retries the same losing call',
+        carryUserTurn.toolResult!['error'],
+        'provider_id (string) required',
+        reason: 'a bare "failed" with no reason leaves the model unable to '
+            'self-correct; the error must reach the next turn',
       );
     });
 

@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 /// Line 1: tool name + first three args, single-line ellipsised.
 /// Line 2: diff summary derived from `diff.core` (nodes added/removed,
 ///         route change) and any plugin-namespaced diff fragments.
-/// Line 3: running summary at this turn (`summary_update`).
+/// Line 3: thinking trace truncated for the row (full text shown in
+///         the turn detail view).
 class TurnRow extends StatelessWidget {
   const TurnRow({super.key, required this.record, required this.onTap});
 
@@ -18,7 +19,12 @@ class TurnRow extends StatelessWidget {
     final theme = Theme.of(context);
     final actionLine = describeAction(record.executedAction, index: record.index);
     final diffLine = describeDiff(record.diff);
-    final summary = record.summaryUpdate.isEmpty ? '(no summary)' : record.summaryUpdate;
+    final thinking = record.thinking;
+    final summary = (thinking == null || thinking.isEmpty)
+        ? '(no thinking)'
+        : thinking.length > 80
+            ? '${thinking.substring(0, 80)}…'
+            : thinking;
 
     return InkWell(
       onTap: onTap,

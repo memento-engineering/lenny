@@ -20,9 +20,16 @@ abstract class ModelProvider {
   /// Live thinking/reasoning stream for the DevTools thinking panel.
   Stream<ThinkingDelta> thinking();
 
-  /// Run one decision turn against [prompt], constrained by [schema].
+  /// Run one decision turn against the chat-shape [snapshot],
+  /// constrained by [schema]. Renders the snapshot into the provider's
+  /// native multi-turn message shape, returns a [ModelDecision] whose
+  /// `thinking` field carries any reasoning text the model produced
+  /// (for carry-forward into the next assistant turn).
   ///
   /// Throws [SchemaRejection] when the model output cannot be parsed
   /// against [schema]. The caller (.18) retries once on rejection.
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema);
+  Future<ModelDecision> decide(
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  );
 }

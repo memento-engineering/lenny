@@ -49,10 +49,8 @@ class _FakeSession implements ExplorationSession {
     required LoopHost host,
     required ModelProvider provider,
     required TrajectoryWriter writer,
-    PromptAssembler? assembler,
+    ConversationBuilder? conversation,
     ActionValidator? validator,
-    RunningSummary? summary,
-    ActionRing? actions,
   }) {
     runCompleter ??= Completer<SessionTermination>();
     return runCompleter!.future;
@@ -83,7 +81,8 @@ class _DummyProvider implements ModelProvider {
       );
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) =>
+  Future<ModelDecision> decide(
+          ConversationSnapshot snapshot, ActionSchema schema) =>
       throw UnimplementedError();
 
   @override

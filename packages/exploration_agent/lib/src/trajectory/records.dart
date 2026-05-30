@@ -73,6 +73,12 @@ class SessionHeader implements TrajectoryRecord {
   final List<PluginManifestRecord> plugins;
   final Map<String, dynamic> config;
 
+  /// Trajectory schema version. New writers emit 2 (chat-shape rebuild,
+  /// lenny-wisp-cl4: `TurnRecord.thinking` replaces `summary_update`,
+  /// `SessionFooter.final_summary` dropped). v1 readers tolerate the
+  /// new shape; v2 readers tolerate v1 by defaulting absent fields.
+  final int schemaVersion;
+
   const SessionHeader({
     required this.goal,
     required this.agentsMdHash,
@@ -81,6 +87,7 @@ class SessionHeader implements TrajectoryRecord {
     required this.harnessVersion,
     required this.plugins,
     required this.config,
+    this.schemaVersion = 2,
   });
 
   factory SessionHeader.fromJson(Map<String, dynamic> j) => SessionHeader(
@@ -94,10 +101,12 @@ class SessionHeader implements TrajectoryRecord {
             PluginManifestRecord.fromJson(p as Map<String, dynamic>),
         ],
         config: Map<String, dynamic>.from(j['config'] as Map? ?? const {}),
+        schemaVersion: (j['schema_version'] as num?)?.toInt() ?? 1,
       );
 
   Map<String, dynamic> toJson() => {
         'type': 'header',
+        'schema_version': schemaVersion,
         'goal': goal,
         'agents_md_hash': agentsMdHash,
         'build_identifier': buildIdentifier,
@@ -117,7 +126,13 @@ class TurnRecord implements TrajectoryRecord {
   final Map<String, dynamic> validation;
   final Map<String, dynamic> executedAction;
   final Map<String, dynamic> diff;
-  final String summaryUpdate;
+
+  /// Captured thinking/reasoning text from the model for this turn.
+  /// Null when the provider elides thinking (OpenAI) or the model
+  /// produced none. Round-trips as snake_case `thinking`; omitted from
+  /// [toJson] when null/empty.
+  final String? thinking;
+
   final Map<String, dynamic> modelMetadata;
 
   /// Optional provider-side request id (e.g. Anthropic/swift-infer
@@ -133,8 +148,8 @@ class TurnRecord implements TrajectoryRecord {
     required this.validation,
     required this.executedAction,
     required this.diff,
-    required this.summaryUpdate,
     required this.modelMetadata,
+    this.thinking,
     this.providerRequestId,
   });
 
@@ -148,7 +163,7 @@ class TurnRecord implements TrajectoryRecord {
         executedAction:
             Map<String, dynamic>.from(j['executed_action'] as Map? ?? const {}),
         diff: Map<String, dynamic>.from(j['diff'] as Map? ?? const {}),
-        summaryUpdate: (j['summary_update'] as String?) ?? '',
+        thinking: j['thinking'] as String?,
         modelMetadata:
             Map<String, dynamic>.from(j['model_metadata'] as Map? ?? const {}),
         providerRequestId: j['provider_request_id'] as String?,
@@ -163,7 +178,7 @@ class TurnRecord implements TrajectoryRecord {
         'validation': validation,
         'executed_action': executedAction,
         'diff': diff,
-        'summary_update': summaryUpdate,
+        if (thinking != null && thinking!.isNotEmpty) 'thinking': thinking,
         'model_metadata': modelMetadata,
         if (providerRequestId != null)
           'provider_request_id': providerRequestId,
@@ -202,14 +217,12 @@ enum SessionOutcome { done, budgetExhausted, harnessError }
 @immutable
 class SessionFooter implements TrajectoryRecord {
   final SessionOutcome outcome;
-  final String finalSummary;
   final int totalTurns;
   final int totalDurationMs;
   final String? harnessError;
 
   const SessionFooter({
     required this.outcome,
-    required this.finalSummary,
     required this.totalTurns,
     required this.totalDurationMs,
     this.harnessError,
@@ -222,7 +235,6 @@ class SessionFooter implements TrajectoryRecord {
           'harness_error' => SessionOutcome.harnessError,
           _ => SessionOutcome.harnessError,
         },
-        finalSummary: (j['final_summary'] as String?) ?? '',
         totalTurns: (j['total_turns'] as num?)?.toInt() ?? 0,
         totalDurationMs: (j['total_duration_ms'] as num?)?.toInt() ?? 0,
         harnessError: j['harness_error'] as String?,
@@ -235,7 +247,6 @@ class SessionFooter implements TrajectoryRecord {
           SessionOutcome.budgetExhausted => 'budget_exhausted',
           SessionOutcome.harnessError => 'harness_error',
         },
-        'final_summary': finalSummary,
         'total_turns': totalTurns,
         'total_duration_ms': totalDurationMs,
         if (harnessError != null) 'harness_error': harnessError,

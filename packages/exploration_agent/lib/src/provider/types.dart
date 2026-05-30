@@ -3,6 +3,9 @@
 /// Web-compatible: pure Dart, no `dart:io`.
 library;
 
+import '../observation/diff_models.dart';
+import '../observation/models.dart';
+
 /// Description of a single tool available to the model on a given turn.
 ///
 /// `inputSchema` is a JSON Schema (draft-07) fragment describing the
@@ -24,23 +27,75 @@ class ToolDescriptor {
   final Map<String, dynamic> inputSchema;
 }
 
-/// Prompt payload handed to a [ModelProvider] for a single turn.
-class PromptPayload {
-  const PromptPayload({
+/// Sealed turn hierarchy for the append-only chat conversation
+/// (lenny-wisp-cl4 chat-shape rebuild).
+sealed class ConversationTurn {
+  const ConversationTurn();
+}
+
+/// A user-role turn: one observation + diff from the loop driver, plus
+/// an optional tool-result map for error feedback (schema/validation retry
+/// or failed action). [trimmed] is set by
+/// `ConversationBuilder.trimIfOverBudget`.
+class UserTurn extends ConversationTurn {
+  const UserTurn({
+    required this.observation,
+    required this.diff,
+    this.toolResult,
+    this.trimmed = false,
+  });
+
+  final Observation observation;
+  final ObservationDiff diff;
+  final Map<String, dynamic>? toolResult;
+  final bool trimmed;
+
+  UserTurn copyWith({Observation? observation, bool? trimmed}) => UserTurn(
+        observation: observation ?? this.observation,
+        diff: diff,
+        toolResult: toolResult,
+        trimmed: trimmed ?? this.trimmed,
+      );
+}
+
+/// An assistant-role turn: the thinking trace (empty when absent) and
+/// the tool call the model chose.
+class AssistantTurn extends ConversationTurn {
+  const AssistantTurn({
+    required this.thinking,
+    required this.action,
+  });
+
+  final String thinking;
+  final ({String tool, Map<String, dynamic> args}) action;
+}
+
+/// Immutable snapshot of a chat-shape conversation at a point in time.
+///
+/// Replaces [PromptPayload] for providers built against the
+/// lenny-wisp-cl4 chat-shape rebuild.
+class ConversationSnapshot {
+  const ConversationSnapshot({
     required this.systemMessage,
-    required this.userMessages,
+    required this.turns,
     required this.tools,
   });
 
-  /// System-level instructions.
   final String systemMessage;
-
-  /// User-role messages — each entry is a provider-agnostic content map
-  /// (e.g. `{type: 'text', text: ...}`, `{type: 'image', ...}`).
-  final List<Map<String, dynamic>> userMessages;
-
-  /// Tools available on this turn — drives [ActionSchema] composition.
+  final List<ConversationTurn> turns;
   final List<ToolDescriptor> tools;
+
+  /// Returns a copy with [extraTurn] appended. The original is not mutated.
+  /// Used by validation-retry to feed back schema/validation errors.
+  ConversationSnapshot withAppended(ConversationTurn extraTurn) =>
+      ConversationSnapshot(
+        systemMessage: systemMessage,
+        turns: List<ConversationTurn>.unmodifiable(<ConversationTurn>[
+          ...turns,
+          extraTurn,
+        ]),
+        tools: tools,
+      );
 }
 
 /// Capabilities advertised by a [ModelProvider].
@@ -72,7 +127,7 @@ class ModelCapabilities {
 class ModelDecision {
   const ModelDecision({
     required this.action,
-    this.summaryUpdate,
+    this.thinking,
     this.rationale,
     this.waitStrategy,
     this.providerRequestId,
@@ -82,8 +137,11 @@ class ModelDecision {
   /// validated argument map for that tool.
   final ({String tool, Map<String, dynamic> args}) action;
 
-  /// Optional update to the running run summary.
-  final String? summaryUpdate;
+  /// Captured thinking/reasoning text for carry-forward to the next
+  /// turn's [AssistantTurn]. Providers populate this from native
+  /// thinking blocks (Anthropic), `<think>` tags (SwiftInfer), or
+  /// leave it null (OpenAI).
+  final String? thinking;
 
   /// Optional rationale string (free-form; not used for control flow).
   final String? rationale;

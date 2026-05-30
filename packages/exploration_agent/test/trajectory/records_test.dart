@@ -53,7 +53,7 @@ void main() {
   });
 
   group('TurnRecord', () {
-    test('emits turn type and PRD §14 snake_case keys', () {
+    test('emits turn type and PRD §14 snake_case keys (v2 schema)', () {
       const t = TurnRecord(
         index: 3,
         observation: {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
@@ -62,7 +62,7 @@ void main() {
         validation: {'result': 'ok', 'retries': 0},
         executedAction: {'tool': 'core.tap'},
         diff: {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-        summaryUpdate: 'tapped',
+        thinking: 'I should tap the button',
         modelMetadata: {
           'tokens_in': 10,
           'tokens_out': 5,
@@ -78,12 +78,60 @@ void main() {
       expect(j['validation'], {'result': 'ok', 'retries': 0});
       expect(j['executed_action'], {'tool': 'core.tap'});
       expect(j['diff'], {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}});
-      expect(j['summary_update'], 'tapped');
+      // v2 (lenny-wisp-cl4): summary_update key is dropped from JSON;
+      // thinking takes its place.
+      expect(j.containsKey('summary_update'), isFalse);
+      expect(j['thinking'], 'I should tap the button');
       expect(j['model_metadata'], {
         'tokens_in': 10,
         'tokens_out': 5,
         'duration_ms': 200,
       });
+    });
+
+    test('toJson omits thinking key when null or empty (v2 schema)', () {
+      const tNull = TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{},
+        validation: <String, dynamic>{'ok': true},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        modelMetadata: <String, dynamic>{},
+      );
+      expect(tNull.toJson().containsKey('thinking'), isFalse);
+
+      const tEmpty = TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{},
+        validation: <String, dynamic>{'ok': true},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        thinking: '',
+        modelMetadata: <String, dynamic>{},
+      );
+      expect(tEmpty.toJson().containsKey('thinking'), isFalse);
+    });
+
+    test('fromJson tolerantly ignores legacy summary_update key', () {
+      // The summary_update key is no longer part of the schema; fromJson
+      // must still accept v1 records carrying it (the key is ignored).
+      final TurnRecord rec = TurnRecord.fromJson(<String, dynamic>{
+        'type': 'turn',
+        'index': 1,
+        'observation': <String, dynamic>{},
+        'stability': <String, dynamic>{},
+        'proposed_action': <String, dynamic>{},
+        'validation': <String, dynamic>{},
+        'executed_action': <String, dynamic>{},
+        'diff': <String, dynamic>{},
+        'summary_update': 'legacy text',
+        'model_metadata': <String, dynamic>{},
+      });
+      expect(rec.thinking, isNull);
     });
   });
 
@@ -97,7 +145,6 @@ void main() {
         validation: <String, dynamic>{'ok': true},
         executedAction: <String, dynamic>{},
         diff: <String, dynamic>{},
-        summaryUpdate: '',
         modelMetadata: <String, dynamic>{},
         providerRequestId: 'msg_5C16E942855',
       );
@@ -116,7 +163,6 @@ void main() {
         validation: <String, dynamic>{'ok': true},
         executedAction: <String, dynamic>{},
         diff: <String, dynamic>{},
-        summaryUpdate: '',
         modelMetadata: <String, dynamic>{},
       );
       expect(rec.toJson().containsKey('provider_request_id'), isFalse);
@@ -140,18 +186,18 @@ void main() {
   });
 
   group('SessionFooter', () {
-    test('budgetExhausted -> budget_exhausted; harnessError omitted when null',
+    test('budgetExhausted -> budget_exhausted; harnessError omitted when null (v2 schema)',
         () {
       const f = SessionFooter(
         outcome: SessionOutcome.budgetExhausted,
-        finalSummary: 'ran out of turns',
         totalTurns: 25,
         totalDurationMs: 30000,
       );
       final j = f.toJson();
       expect(j['type'], 'footer');
       expect(j['outcome'], 'budget_exhausted');
-      expect(j['final_summary'], 'ran out of turns');
+      // v2 (lenny-wisp-cl4): final_summary key is dropped from JSON.
+      expect(j.containsKey('final_summary'), isFalse);
       expect(j['total_turns'], 25);
       expect(j['total_duration_ms'], 30000);
       expect(j.containsKey('harness_error'), isFalse);
@@ -160,7 +206,6 @@ void main() {
     test('done outcome maps to "done"', () {
       const f = SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'goal achieved',
         totalTurns: 12,
         totalDurationMs: 12000,
       );
@@ -170,7 +215,6 @@ void main() {
     test('harnessError outcome includes harness_error key', () {
       const f = SessionFooter(
         outcome: SessionOutcome.harnessError,
-        finalSummary: 'crashed',
         totalTurns: 4,
         totalDurationMs: 5000,
         harnessError: 'connection_lost',

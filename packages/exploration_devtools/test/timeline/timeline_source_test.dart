@@ -23,7 +23,6 @@ TurnRecord _turn(int i) => TurnRecord(
       validation: const {'result': 'ok', 'retries': 0},
       executedAction: const {'tool': 'core.tap'},
       diff: const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-      summaryUpdate: 'tapped #$i',
       modelMetadata: const {},
     );
 

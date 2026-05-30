@@ -28,10 +28,7 @@ import '../loop_driver/loop_driver.dart';
 import '../loop_driver/loop_host.dart';
 import '../loop_driver/types.dart';
 import '../session_bringup.dart' show bringUpSession;
-import '../memory/action_ring.dart';
-import '../memory/running_summary.dart';
-import '../memory/token_counter.dart';
-import '../prompt/prompt_assembler.dart';
+import '../prompt/conversation_builder.dart';
 import '../loop_driver/default_loop_host.dart';
 import '../provider/swift_infer/swift_infer_config.dart';
 import '../provider/swift_infer/swift_infer_provider.dart';
@@ -230,11 +227,12 @@ class AgentDogfoodHarness {
       final LoopDriver driver = LoopDriver(
         host: countingHost,
         provider: provider,
-        assembler: const PromptAssembler(),
+        conversation: ConversationBuilder(
+          systemMessage: '${countingHost.agentsMd}\n\n## Goal\n${countingHost.goal}',
+          tools: countingHost.mergedTools(),
+        ),
         validator: const ActionValidator(),
         writer: interceptor,
-        summary: RunningSummary(counter: WhitespaceTokenCounter()),
-        actions: ActionRing(),
         turnBudget: Duration(milliseconds: maxTurnBudgetMs),
         sessionBudget: totalBudget,
         maxTurns: maxTurns,

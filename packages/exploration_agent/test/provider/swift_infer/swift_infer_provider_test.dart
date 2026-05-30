@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:http/http.dart' as http;
@@ -19,14 +18,17 @@ ToolDescriptor _t(String n) => ToolDescriptor(
       },
     );
 
-PromptPayload _prompt({List<Map<String, dynamic>>? user}) => PromptPayload(
-      systemMessage: 'sys',
-      userMessages: user ??
-          <Map<String, dynamic>>[
-            <String, dynamic>{'type': 'text', 'text': 'hi'},
-          ],
-      tools: <ToolDescriptor>[_t('core.tap')],
-    );
+ConversationSnapshot _prompt({Observation? observation}) {
+  final builder = ConversationBuilder(
+    systemMessage: 'sys',
+    tools: <ToolDescriptor>[_t('core.tap')],
+  );
+  builder.appendUserTurn(
+    observation ?? Observation.empty(),
+    ObservationDiff.empty(),
+  );
+  return builder.snapshot();
+}
 
 SwiftInferConfig _cfg({
   bool vision = false,
@@ -140,18 +142,16 @@ void main() {
       _toolUseSse(),
       capture: (_, bytes) => body = _decodeBody(bytes),
     );
-    final img = VisionImage.fromPngBytes(Uint8List.fromList(<int>[1, 2, 3]));
+    final obs = Observation.fromJson(<String, dynamic>{
+      'screenshot_png_b64': 'AQID',
+    });
     await SwiftInferModelProvider(config: _cfg(vision: false), client: m)
         .decide(
-      _prompt(user: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'look'},
-        img.toAnthropicBlock(),
-      ]),
+      _prompt(observation: obs),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
     final content = (body!['messages'] as List)[0]['content'] as List;
     expect(content.where((b) => (b as Map)['type'] == 'image'), isEmpty);
-    expect(content.where((b) => (b as Map)['type'] == 'text').length, 1);
   });
 
   test('vision=true forwards image blocks', () async {
@@ -160,13 +160,12 @@ void main() {
       _toolUseSse(),
       capture: (_, bytes) => body = _decodeBody(bytes),
     );
-    final img = VisionImage.fromPngBytes(Uint8List.fromList(<int>[1, 2, 3]));
+    final obs = Observation.fromJson(<String, dynamic>{
+      'screenshot_png_b64': 'AQID',
+    });
     await SwiftInferModelProvider(config: _cfg(vision: true), client: m)
         .decide(
-      _prompt(user: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'look'},
-        img.toAnthropicBlock(),
-      ]),
+      _prompt(observation: obs),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
     final content = (body!['messages'] as List)[0]['content'] as List;
@@ -313,13 +312,9 @@ void main() {
       )),
     );
     final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
-    final prompt = PromptPayload(
-      systemMessage: 'sys',
-      userMessages: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'hi'},
-      ],
-      tools: tools,
-    );
+    final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
+    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+    final prompt = builder.snapshot();
     await expectLater(
       p.decide(prompt, ActionSchema.fromToolList(tools)),
       throwsA(

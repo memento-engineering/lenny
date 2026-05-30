@@ -3,10 +3,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../prompt/observation_renderer.dart';
 import '../action_schema.dart';
 import '../frontier/frontier_defaults.dart';
 import '../frontier/thinking_decoder.dart';
 import '../frontier/tool_helpers.dart';
+import '../frontier/vision_image.dart';
 import '../model_provider.dart';
 import '../types.dart';
 
@@ -79,32 +81,78 @@ class AnthropicModelProvider implements ModelProvider {
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
 
+  /// Renderer used to flatten an [Observation] into the text of a
+  /// user-role message. Constant default; future bead can make this
+  /// configurable if alternative renderings emerge.
+  static const ObservationRenderer _renderer = JsonObservationRenderer();
+
   @override
   Future<ModelDecision> decide(
-    PromptPayload prompt,
+    ConversationSnapshot snapshot,
     ActionSchema schema,
   ) async {
+    final List<Map<String, dynamic>> messages = <Map<String, dynamic>>[];
+    for (final ConversationTurn turn in snapshot.turns) {
+      if (turn is UserTurn) {
+        final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
+        if (turn.toolResult != null) {
+          content.add(<String, dynamic>{
+            'type': 'text',
+            'text': jsonEncode(turn.toolResult),
+          });
+        }
+        final String obsText = turn.trimmed
+            ? '{"trimmed":true}'
+            : _renderer.render(turn.observation);
+        content.add(<String, dynamic>{
+          'type': 'text',
+          'text': 'Observation:\n$obsText',
+        });
+        content.add(<String, dynamic>{
+          'type': 'text',
+          'text': 'Diff since last turn:\n${jsonEncode(turn.diff.toJson())}',
+        });
+        // Vision gate (defensive — host gate is in cx6.7; provider
+        // re-checks capability so trajectory-replay or test injection
+        // can't smuggle an image through a vision-blind model).
+        final String? shot = turn.observation.screenshot;
+        if (!turn.trimmed && capabilities.vision && shot != null) {
+          content.add(VisionImage.fromBase64(shot).toAnthropicBlock());
+        }
+        messages.add(<String, dynamic>{'role': 'user', 'content': content});
+      } else if (turn is AssistantTurn) {
+        final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
+        if (turn.thinking.isNotEmpty) {
+          content.add(<String, dynamic>{
+            'type': 'thinking',
+            'thinking': turn.thinking,
+          });
+        }
+        content.add(<String, dynamic>{
+          'type': 'tool_use',
+          'id': 'toolu_carry',
+          'name': encodeToolName(turn.action.tool),
+          'input': turn.action.args,
+        });
+        messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
+      }
+    }
+
     final body = <String, dynamic>{
       'model': model,
       'max_tokens': FrontierDefaults.maxTokens,
       'temperature': FrontierDefaults.temperature,
       'stream': true,
-      'system': prompt.systemMessage,
-      'tools': prompt.tools
-          .map((t) => <String, dynamic>{
+      'system': snapshot.systemMessage,
+      'tools': snapshot.tools
+          .map((ToolDescriptor t) => <String, dynamic>{
                 'name': encodeToolName(t.name),
                 'description': t.description,
                 'input_schema': t.inputSchema,
               })
           .toList(),
-      // Force a tool call every turn. The exploration agent must always
-      // act (an action tool, or core.done). Without this the API
-      // defaults to tool_choice:auto and the model may answer in prose,
-      // which `decide` rejects as 'no tool_use block in response'.
       'tool_choice': const <String, dynamic>{'type': 'any'},
-      'messages': <Map<String, dynamic>>[
-        <String, dynamic>{'role': 'user', 'content': prompt.userMessages},
-      ],
+      'messages': messages,
     };
 
     final req = http.Request('POST', endpoint)
@@ -115,15 +163,14 @@ class AnthropicModelProvider implements ModelProvider {
         'anthropic-version': '2023-06-01',
       })
       ..body = jsonEncode(body);
-    // Per-call diagnostics — captured across every exit path and emitted
-    // exactly once in `finally`, so a failed call is as visible as a
-    // good one (lenny-ahz). `_onCallDiagnostics` is the host's sink.
+
     final Stopwatch stopwatch = Stopwatch()..start();
     int? httpStatus;
     String? stopReason;
     Map<String, dynamic>? toolUse;
     String? providerRequestId;
     Object? failure;
+    final StringBuffer thinkingText = StringBuffer();
     try {
       final streamed = await _client.send(req);
       httpStatus = streamed.statusCode;
@@ -162,6 +209,8 @@ class AnthropicModelProvider implements ModelProvider {
               inputJsonBuf.write(delta['partial_json'] as String? ?? '');
             } else if (dtype == 'text_delta') {
               raw.write(delta['text'] as String? ?? '');
+            } else if (dtype == 'thinking_delta') {
+              thinkingText.write(delta['thinking'] as String? ?? '');
             }
           } else if (type == 'message_delta') {
             final delta = (evt['delta'] as Map?)?.cast<String, dynamic>();
@@ -185,11 +234,11 @@ class AnthropicModelProvider implements ModelProvider {
       final args = inputJson.isEmpty
           ? <String, dynamic>{}
           : (jsonDecode(inputJson) as Map).cast<String, dynamic>();
-      final tool = lookupTool(prompt.tools, wireName);
+      final tool = lookupTool(snapshot.tools, wireName);
       if (tool == null) {
         throw unknownToolRejection(
           wireName,
-          prompt.tools,
+          snapshot.tools,
           rawPayload: <String, Object?>{'name': wireName, 'input': args},
         );
       }
@@ -200,11 +249,13 @@ class AnthropicModelProvider implements ModelProvider {
       });
       final validated = schema.validate(envelope);
       final action = (validated['action'] as Map).cast<String, dynamic>();
+      final String thinking = thinkingText.toString();
       return ModelDecision(
         action: (
           tool: action['tool'] as String,
           args: (action['args'] as Map).cast<String, dynamic>(),
         ),
+        thinking: thinking.isEmpty ? null : thinking,
         providerRequestId: providerRequestId,
       );
     } catch (e) {
