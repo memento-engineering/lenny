@@ -92,10 +92,26 @@ class AnthropicModelProvider implements ModelProvider {
     ActionSchema schema,
   ) async {
     final List<Map<String, dynamic>> messages = <Map<String, dynamic>>[];
+    String? pendingToolUseId;
+    int assistantIndex = 0;
     for (final ConversationTurn turn in snapshot.turns) {
       if (turn is UserTurn) {
         final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
-        if (turn.toolResult != null) {
+        if (pendingToolUseId != null) {
+          // Emit the mandatory tool_result that pairs with the preceding
+          // assistant tool_use block.  Anthropic requires this immediately
+          // after an assistant message that contained a tool_use block.
+          final String resultContent = turn.toolResult != null
+              ? jsonEncode(turn.toolResult)
+              : 'ok';
+          content.add(<String, dynamic>{
+            'type': 'tool_result',
+            'tool_use_id': pendingToolUseId,
+            'content': resultContent,
+          });
+          pendingToolUseId = null;
+        } else if (turn.toolResult != null) {
+          // First turn or consecutive retry turn: no preceding tool_use.
           content.add(<String, dynamic>{
             'type': 'text',
             'text': jsonEncode(turn.toolResult),
@@ -122,18 +138,18 @@ class AnthropicModelProvider implements ModelProvider {
         messages.add(<String, dynamic>{'role': 'user', 'content': content});
       } else if (turn is AssistantTurn) {
         final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
-        if (turn.thinking.isNotEmpty) {
-          content.add(<String, dynamic>{
-            'type': 'thinking',
-            'thinking': turn.thinking,
-          });
-        }
+        // Drop historical thinking blocks: Anthropic requires a cryptographic
+        // signature on thinking content blocks; unsigned blocks cause HTTP 400.
+        // When signature carry-forward is implemented, revisit this guard.
+        final String toolUseId = 'toolu_turn_$assistantIndex';
+        assistantIndex += 1;
         content.add(<String, dynamic>{
           'type': 'tool_use',
-          'id': 'toolu_carry',
+          'id': toolUseId,
           'name': encodeToolName(turn.action.tool),
           'input': turn.action.args,
         });
+        pendingToolUseId = toolUseId;
         messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
       }
     }
