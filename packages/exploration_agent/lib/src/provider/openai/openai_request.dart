@@ -49,10 +49,27 @@ Map<String, dynamic> buildOpenAiRequest({
     });
   }
 
+  String? pendingToolCallId;
+  int assistantIndex = 0;
   for (final ConversationTurn turn in snapshot.turns) {
     if (turn is UserTurn) {
+      if (pendingToolCallId != null) {
+        // OpenAI requires a {role:tool} message (not a user content block)
+        // to answer a preceding tool_calls entry.
+        final String resultContent = turn.toolResult != null
+            ? jsonEncode(turn.toolResult)
+            : 'ok';
+        messages.add(<String, dynamic>{
+          'role': 'tool',
+          'tool_call_id': pendingToolCallId,
+          'content': resultContent,
+        });
+        pendingToolCallId = null;
+      }
       final List<Map<String, dynamic>> parts = <Map<String, dynamic>>[];
-      if (turn.toolResult != null) {
+      if (turn.toolResult != null && pendingToolCallId == null) {
+        // First turn or consecutive retry (no preceding tool_call to pair):
+        // render as a text part so schema/validation errors surface.
         parts.add(<String, dynamic>{
           'type': 'text',
           'text': jsonEncode(turn.toolResult),
@@ -75,13 +92,13 @@ Map<String, dynamic> buildOpenAiRequest({
       }
       messages.add(<String, dynamic>{'role': 'user', 'content': parts});
     } else if (turn is AssistantTurn) {
-      // OpenAI: assistant carries the prior decision as a tool_call entry.
-      // No native thinking surface — thinking is intentionally elided.
+      final String callId = 'call_$assistantIndex';
+      assistantIndex += 1;
       messages.add(<String, dynamic>{
         'role': 'assistant',
         'tool_calls': <Map<String, dynamic>>[
           <String, dynamic>{
-            'id': 'call_carry',
+            'id': callId,
             'type': 'function',
             'function': <String, dynamic>{
               'name': turn.action.tool,
@@ -90,6 +107,7 @@ Map<String, dynamic> buildOpenAiRequest({
           },
         ],
       });
+      pendingToolCallId = callId;
     }
   }
 
