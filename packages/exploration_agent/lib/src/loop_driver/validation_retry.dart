@@ -2,20 +2,21 @@
 ///
 /// Two independent retry budgets:
 ///   * **Schema budget = 1**. On [SchemaRejection] from the provider,
-///     retry once with the schema validation error spliced into the
-///     prompt. A second `SchemaRejection` throws [SchemaExhausted].
+///     retry once with the schema validation error appended as a
+///     synthetic [UserTurn] to a snapshot copy. A second
+///     `SchemaRejection` throws [SchemaExhausted].
 ///   * **Validator budget = 3**. On [ValidationReject] from the
 ///     validator, retry up to three times against the same observation
-///     with the rejection's structured JSON spliced into the prompt.
-///     The fourth reject throws [InvalidActionExhausted].
+///     with the rejection's structured JSON appended as a synthetic
+///     [UserTurn]. The fourth reject throws [InvalidActionExhausted].
 ///
-/// "Splicing" is implemented by appending the error message as an
-/// extra user-message entry on a freshly-constructed [PromptPayload]
-/// — the base prompt is left immutable so the caller can re-use it.
+/// "Splicing" is implemented by [ConversationSnapshot.withAppended]
+/// — the base snapshot is left immutable so the caller can re-use it.
 library;
 
 import 'package:meta/meta.dart';
 
+import '../observation/diff_models.dart';
 import '../observation/models.dart';
 import '../provider/action_schema.dart';
 import '../provider/model_provider.dart';
@@ -51,8 +52,7 @@ class ValidationLoopResult {
 }
 
 /// Thrown by [decideAndValidate] when the validator rejected the model
-/// output [PluginFailureTracker.autoDisableThreshold]-equivalent times
-/// (default 3 — PRD §17). Carries the structured rejection messages
+/// output 3 times (PRD §17). Carries the structured rejection messages
 /// the driver writes into the failed-turn record.
 class InvalidActionExhausted implements Exception {
   const InvalidActionExhausted(this.rejections);
@@ -75,7 +75,13 @@ class SchemaExhausted implements Exception {
   String toString() => 'SchemaExhausted: ${cause.validationError}';
 }
 
-/// Run one decide-and-validate cycle for a single turn.
+/// Run one decide-and-validate cycle for a single turn against a
+/// chat-shape [ConversationSnapshot].
+///
+/// Schema/validator retries append synthetic [UserTurn]s carrying a
+/// `toolResult` map (`{schema_error: ...}` or `{validation_error: ...}`)
+/// to a copy of [baseSnapshot] via [ConversationSnapshot.withAppended].
+/// The base snapshot is left untouched.
 ///
 /// On success returns a [ValidationLoopResult] with the accepted
 /// [ModelDecision]. On exhausted budgets throws either
@@ -86,7 +92,7 @@ class SchemaExhausted implements Exception {
 /// always one (PRD §17).
 Future<ValidationLoopResult> decideAndValidate({
   required ModelProvider provider,
-  required PromptPayload basePrompt,
+  required ConversationSnapshot baseSnapshot,
   required ActionSchema schema,
   required ActionValidator validator,
   required Observation observation,
@@ -94,27 +100,25 @@ Future<ValidationLoopResult> decideAndValidate({
   int maxValidationRetries = _kDefaultMaxValidationRetries,
 }) async {
   final List<String> rejections = <String>[];
-  PromptPayload prompt = basePrompt;
+  ConversationSnapshot snapshot = baseSnapshot;
 
-  // --- one decide call (with at most one schema retry) ---
-  // schemaRetries accumulates across the lifetime of this call (PRD §17
-  // schema budget = 1 *total*, not per-validator-attempt).
   int schemaRetries = 0;
   Future<ModelDecision> decideWithSchemaRetry() async {
-    Future<ModelDecision> attempt() => provider.decide(prompt, schema);
+    Future<ModelDecision> attempt() => provider.decide(snapshot, schema);
     try {
       return await attempt();
     } on SchemaRejection catch (first) {
       if (schemaRetries >= 1) {
-        // Already used our one schema retry on a previous attempt —
-        // a further schema violation is fatal.
         throw SchemaExhausted(first);
       }
       schemaRetries = 1;
-      prompt = _withRetryMessage(
-        prompt,
-        'schema_violation: ${first.validationError}',
-      );
+      snapshot = snapshot.withAppended(UserTurn(
+        observation: Observation.empty(),
+        diff: ObservationDiff.empty(),
+        toolResult: <String, dynamic>{
+          'schema_error': first.validationError,
+        },
+      ));
       try {
         return await attempt();
       } on SchemaRejection catch (second) {
@@ -123,10 +127,6 @@ Future<ValidationLoopResult> decideAndValidate({
     }
   }
 
-  // --- the validator-retry outer loop ---
-  // The decide() call always happens fresh inside the loop so that any
-  // additional rejection messages spliced into [prompt] are visible to
-  // the model on the next attempt.
   for (int attempt = 0; attempt <= maxValidationRetries; attempt++) {
     final ModelDecision decision = await decideWithSchemaRetry();
     final ValidationResult result = validator.validate(
@@ -145,25 +145,15 @@ Future<ValidationLoopResult> decideAndValidate({
     final ValidationReject reject = result as ValidationReject;
     rejections.add(reject.toModelMessage());
     if (rejections.length >= maxValidationRetries + 1) {
-      // We've exceeded the budget — throw with the collected messages.
       throw InvalidActionExhausted(List<String>.unmodifiable(rejections));
     }
-    prompt = _withRetryMessage(prompt, reject.toModelMessage());
-  }
-  // Loop exits via either return or throw above; this is unreachable.
-  throw StateError('decideAndValidate fell through retry loop');
-}
-
-PromptPayload _withRetryMessage(PromptPayload base, String message) {
-  return PromptPayload(
-    systemMessage: base.systemMessage,
-    userMessages: List<Map<String, dynamic>>.unmodifiable(<Map<String, dynamic>>[
-      ...base.userMessages,
-      <String, dynamic>{
-        'type': 'text',
-        'text': 'previous_attempt_rejected: $message',
+    snapshot = snapshot.withAppended(UserTurn(
+      observation: Observation.empty(),
+      diff: ObservationDiff.empty(),
+      toolResult: <String, dynamic>{
+        'validation_error': reject.toModelMessage(),
       },
-    ]),
-    tools: base.tools,
-  );
+    ));
+  }
+  throw StateError('decideAndValidate fell through retry loop');
 }

@@ -61,25 +61,26 @@ class OpenAiModelProvider implements ModelProvider {
 
   @override
   Future<ModelDecision> decide(
-    PromptPayload prompt,
+    ConversationSnapshot snapshot,
     ActionSchema schema,
   ) async {
     try {
-      return await _attempt(prompt, schema, null);
+      return await _attempt(snapshot, schema, null);
     } on SchemaRejection catch (e) {
-      return await _attempt(prompt, schema, e.validationError);
+      return await _attempt(snapshot, schema, e.validationError);
     }
   }
 
   Future<ModelDecision> _attempt(
-    PromptPayload prompt,
+    ConversationSnapshot snapshot,
     ActionSchema schema,
     String? schemaErrorNote,
   ) async {
     final Map<String, dynamic> body = buildOpenAiRequest(
       model: modelId,
-      prompt: prompt,
+      snapshot: snapshot,
       schema: schema,
+      visionEnabled: capabilities.vision,
       schemaErrorNote: schemaErrorNote,
     );
 
@@ -98,7 +99,17 @@ class OpenAiModelProvider implements ModelProvider {
 
     final Map<String, dynamic> decoded =
         (jsonDecode(res.body) as Map).cast<String, dynamic>();
-    return parseOpenAiResponse(decoded, schema: schema, tools: prompt.tools);
+    // OpenAI elides thinking from history — parseOpenAiResponse may pick
+    // up rationale / wait_strategy sibling JSON; thinking stays null.
+    final ModelDecision parsed =
+        parseOpenAiResponse(decoded, schema: schema, tools: snapshot.tools);
+    return ModelDecision(
+      action: parsed.action,
+      thinking: null,
+      rationale: parsed.rationale,
+      waitStrategy: parsed.waitStrategy,
+      providerRequestId: parsed.providerRequestId,
+    );
   }
 
   /// Stream incremental `delta.content` chunks from the SSE chat
@@ -106,13 +117,14 @@ class OpenAiModelProvider implements ModelProvider {
   /// emits `data: [DONE]`, at which point a final `isFinal: true` delta
   /// is published.
   Future<void> streamThinking(
-    PromptPayload prompt,
+    ConversationSnapshot snapshot,
     ActionSchema schema,
   ) async {
     final Map<String, dynamic> body = buildOpenAiRequest(
       model: modelId,
-      prompt: prompt,
+      snapshot: snapshot,
       schema: schema,
+      visionEnabled: capabilities.vision,
       stream: true,
     );
 

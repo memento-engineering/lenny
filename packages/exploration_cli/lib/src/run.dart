@@ -102,7 +102,6 @@ Future<int> runCli(
     stderr.writeln('error: ${e.message}');
     await writer.close(SessionFooter(
       outcome: SessionOutcome.harnessError,
-      finalSummary: '',
       totalTurns: 0,
       totalDurationMs: 0,
       harnessError: 'config_error',
@@ -118,7 +117,6 @@ Future<int> runCli(
     stderr.writeln('error: failed to connect to ${args.vmUri}: $e');
     await writer.close(SessionFooter(
       outcome: SessionOutcome.harnessError,
-      finalSummary: '',
       totalTurns: 0,
       totalDurationMs: 0,
       harnessError: 'connection_lost',

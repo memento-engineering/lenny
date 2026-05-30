@@ -93,7 +93,6 @@ ModelDecision parseOpenAiResponse(
       (validated['action'] as Map).cast<String, dynamic>();
 
   // Optional sibling JSON content carrying decision metadata.
-  String? summaryUpdate;
   String? rationale;
   String? waitStrategy;
   final dynamic content = message['content'];
@@ -102,8 +101,6 @@ ModelDecision parseOpenAiResponse(
       final dynamic parsed = jsonDecode(content);
       if (parsed is Map) {
         final m = parsed.cast<String, dynamic>();
-        final dynamic s = m['summary_update'];
-        if (s is String) summaryUpdate = s;
         final dynamic r = m['rationale'];
         if (r is String) rationale = r;
         final dynamic w = m['wait_strategy'];
@@ -119,7 +116,6 @@ ModelDecision parseOpenAiResponse(
       tool: action['tool'] as String,
       args: (action['args'] as Map).cast<String, dynamic>(),
     ),
-    summaryUpdate: summaryUpdate,
     rationale: rationale,
     waitStrategy: waitStrategy,
   );

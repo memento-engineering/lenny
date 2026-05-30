@@ -20,15 +20,13 @@ library;
 
 import 'dart:async';
 
-import '../memory/action_ring.dart';
-import '../memory/running_summary.dart';
 import '../observation/diff_models.dart';
 import '../observation/models.dart';
 import '../observation/observation_differ.dart';
-import '../prompt/prompt_assembler.dart';
-import '../provider/types.dart';
+import '../prompt/conversation_builder.dart';
 import '../provider/action_schema.dart';
 import '../provider/model_provider.dart';
+import '../provider/types.dart';
 import '../session/turn_event.dart';
 import '../trajectory/records.dart';
 import '../trajectory/writer.dart';
@@ -62,11 +60,9 @@ class LoopDriver {
   LoopDriver({
     required LoopHost host,
     required ModelProvider provider,
-    required PromptAssembler assembler,
+    required ConversationBuilder conversation,
     required ActionValidator validator,
     required TrajectoryWriter writer,
-    required RunningSummary summary,
-    required ActionRing actions,
     Duration turnBudget = _kDefaultTurnBudget,
     Duration sessionBudget = _kDefaultSessionBudget,
     int maxTurns = _kDefaultMaxTurns,
@@ -74,11 +70,9 @@ class LoopDriver {
     void Function(TurnEvent)? onTurnEvent,
   })  : _host = host,
         _provider = provider,
-        _assembler = assembler,
+        _conversation = conversation,
         _validator = validator,
         _writer = writer,
-        _summary = summary,
-        _actions = actions,
         _turnBudget = turnBudget,
         _sessionBudget = sessionBudget,
         _maxTurns = maxTurns,
@@ -87,11 +81,9 @@ class LoopDriver {
 
   final LoopHost _host;
   final ModelProvider _provider;
-  final PromptAssembler _assembler;
+  final ConversationBuilder _conversation;
   final ActionValidator _validator;
   final TrajectoryWriter _writer;
-  final RunningSummary _summary;
-  final ActionRing _actions;
   final Duration _turnBudget;
   final Duration _sessionBudget;
   final int _maxTurns;
@@ -108,6 +100,12 @@ class LoopDriver {
   bool _doneRequested = false;
   String? _doneReason;
   DateTime? _sessionStart;
+
+  /// Failed-action carry-forward. When the previous turn's executed
+  /// action returned `{ok: false}`, the error map is staged here; the
+  /// next turn's [UserTurn] receives it as `toolResult` so the model
+  /// sees the structured failure on its next decide call.
+  Map<String, dynamic>? _pendingToolResult;
 
   /// Plugin auto-disable counter (PRD §17, threshold = 3).
   final PluginFailureTracker pluginFailures = PluginFailureTracker();
@@ -180,17 +178,13 @@ class LoopDriver {
     final ObservationDiff diff = ObservationDiffer.diff(_prev, curr);
 
     // step 5: build prompt against the CURRENT merged tool list
-    // (auto-disabled plugins already excluded).
+    // (auto-disabled plugins already excluded). Append a UserTurn
+    // carrying any pending failed-action carry-forward, then snapshot
+    // for the provider.
     final List<ToolDescriptor> mergedTools = _host.mergedTools();
-    final PromptPayload prompt = _assembler.assemble(
-      agentsMd: _host.agentsMd,
-      goal: _host.goal,
-      summary: _summary,
-      actionRing: _actions,
-      observation: curr,
-      diff: diff,
-      mergedTools: mergedTools,
-    );
+    _conversation.appendUserTurn(curr, diff, toolResult: _pendingToolResult);
+    _pendingToolResult = null;
+    final ConversationSnapshot snapshot = _conversation.snapshot();
     final ActionSchema schema = ActionSchema.fromToolList(mergedTools);
 
     // Forward provider thinking deltas to the session's turnEvents
@@ -209,7 +203,7 @@ class LoopDriver {
       // steps 6+7: decide + validate (with retry budgets).
       v = await decideAndValidate(
         provider: _provider,
-        basePrompt: prompt,
+        baseSnapshot: snapshot,
         schema: schema,
         validator: _validator,
         observation: curr,
@@ -267,7 +261,7 @@ class LoopDriver {
         'result': exec,
       },
       diff: diff.toJson(),
-      summaryUpdate: v.decision.summaryUpdate ?? '',
+      thinking: v.decision.thinking,
       modelMetadata: <String, dynamic>{
         if (v.decision.rationale != null) 'rationale': v.decision.rationale,
         if (v.decision.waitStrategy != null) 'wait_strategy': v.decision.waitStrategy,
@@ -276,15 +270,18 @@ class LoopDriver {
     );
     await _writer.writeTurn(rec);
 
-    // post-persist memory updates — failures here don't fail the turn.
-    if (v.decision.summaryUpdate != null) {
-      try {
-        _summary.update(v.decision.summaryUpdate!);
-      } on SummaryOversizeError catch (_) {
-        // Surface via summary state next turn — see PRD §13.
-      }
+    // Append the assistant turn to the conversation; stash any failed-
+    // action error for the next turn's user-turn toolResult.
+    _conversation.appendAssistantTurn(
+      v.decision.thinking ?? '',
+      v.decision.action,
+    );
+    if (exec['ok'] == false) {
+      final Object? err = exec['error'];
+      _pendingToolResult = <String, dynamic>{
+        'error': err is String ? err : err?.toString() ?? 'unknown',
+      };
     }
-    _actions.push(_actionLine(v.decision.action.tool, exec));
     _prev = curr;
 
     // step 10 (cont.): turn boundary marker for downstream consumers.
@@ -316,7 +313,6 @@ class LoopDriver {
       },
       executedAction: const <String, dynamic>{},
       diff: const <String, dynamic>{},
-      summaryUpdate: '',
       modelMetadata: const <String, dynamic>{},
     );
     await _writer.writeTurn(rec);
@@ -345,22 +341,6 @@ class LoopDriver {
         ));
       }
     }
-  }
-
-  /// One-line outcome of an executed action for the [ActionRing] — the
-  /// model's only window onto its own past turns. On failure the
-  /// result's `error` is appended verbatim: without it the model sees a
-  /// bare `failed` with no reason and cannot self-correct, so it retries
-  /// the same losing call until the budget is exhausted.
-  String _actionLine(String tool, Map<String, dynamic> result) {
-    final Object? ok = result['ok'];
-    if (ok == false) {
-      final Object? error = result['error'];
-      return error is String && error.isNotEmpty
-          ? '$tool: failed — $error'
-          : '$tool: failed';
-    }
-    return ok is bool ? '$tool: ok' : '$tool: done';
   }
 
   // ===== session loop =====
@@ -420,7 +400,6 @@ class LoopDriver {
           termination ?? const SessionTermination(SessionOutcome.harnessError);
       await _writer.close(SessionFooter(
         outcome: t.outcome,
-        finalSummary: t.finalSummary ?? _summary.text,
         totalTurns: _turnIndex,
         totalDurationMs: _sessionStart == null
             ? 0

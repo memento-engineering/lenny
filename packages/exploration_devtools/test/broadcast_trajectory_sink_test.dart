@@ -68,7 +68,6 @@ void main() {
       validation: <String, dynamic>{},
       executedAction: <String, dynamic>{},
       diff: <String, dynamic>{},
-      summaryUpdate: '',
       modelMetadata: <String, dynamic>{},
     ));
     await Future<void>.delayed(Duration.zero);
@@ -80,7 +79,6 @@ void main() {
     await sub.cancel();
     await writer.close(const SessionFooter(
       outcome: SessionOutcome.done,
-      finalSummary: '',
       totalTurns: 1,
       totalDurationMs: 0,
     ));

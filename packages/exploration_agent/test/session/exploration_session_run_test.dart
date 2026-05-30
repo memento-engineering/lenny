@@ -51,7 +51,8 @@ class _StubProvider extends ModelProvider {
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     return ModelDecision(
       action: (
         tool: 'core.done',

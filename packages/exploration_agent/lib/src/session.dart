@@ -13,13 +13,10 @@ import 'package:vm_service/vm_service.dart' show VmService;
 import 'loop_driver/loop_driver.dart';
 import 'loop_driver/loop_host.dart';
 import 'loop_driver/types.dart';
-import 'memory/action_ring.dart';
-import 'memory/running_summary.dart';
-import 'memory/token_counter.dart';
 import 'observation/diff_models.dart';
 import 'observation/models.dart';
 import 'observation/observation_differ.dart';
-import 'prompt/prompt_assembler.dart';
+import 'prompt/conversation_builder.dart';
 import 'provider/model_provider.dart';
 import 'session/observation_puller.dart';
 import 'session/turn_event.dart';
@@ -248,20 +245,20 @@ class ExplorationSession {
     required LoopHost host,
     required ModelProvider provider,
     required TrajectoryWriter writer,
-    PromptAssembler? assembler,
+    ConversationBuilder? conversation,
     ActionValidator? validator,
-    RunningSummary? summary,
-    ActionRing? actions,
   }) async {
     _ensureStarted('run');
     final driver = LoopDriver(
       host: host,
       provider: provider,
-      assembler: assembler ?? const PromptAssembler(),
+      conversation: conversation ??
+          ConversationBuilder(
+            systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+            tools: host.mergedTools(),
+          ),
       validator: validator ?? const ActionValidator(),
       writer: writer,
-      summary: summary ?? RunningSummary(counter: WhitespaceTokenCounter()),
-      actions: actions ?? ActionRing(),
       onTurnEvent: emitTurnEvent,
     );
     return driver.runSession();

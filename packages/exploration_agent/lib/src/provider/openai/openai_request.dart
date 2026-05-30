@@ -3,36 +3,41 @@
 /// Web-compatible: pure Dart, no `dart:io`.
 library;
 
+import 'dart:convert';
+
+import '../../prompt/observation_renderer.dart';
 import '../action_schema.dart';
 import '../frontier/frontier_defaults.dart';
 import '../frontier/vision_image.dart';
 import '../types.dart';
 
-/// Build the request body for `POST /v1/chat/completions`.
+/// Build the request body for `POST /v1/chat/completions` from a
+/// [ConversationSnapshot].
 ///
-/// `prompt.userMessages` entries may contain:
-///   - `text` (String) — added as a `{type: 'text', text: ...}` content part
-///   - `screenshot` ([VisionImage]) — added as an `{type: 'image_url', ...}`
-///     content part using [VisionImage.toOpenAiPart]
-///   - any pre-shaped OpenAI content part — passed through verbatim
+/// Vision is gated on [visionEnabled] — the provider passes its
+/// `capabilities.vision` here so trajectory replay / test injection
+/// can't smuggle an image through a vision-blind model.
+///
+/// Thinking is NOT propagated into history — OpenAI's chat-completions
+/// API has no first-class thinking content type, so historical
+/// assistant turns are rendered as plain `tool_calls` only.
 ///
 /// When [schemaErrorNote] is non-null a system note is appended instructing
 /// the model to retry with a tool_call matching the declared tools (.18's
 /// retry-once contract via [SchemaRejection]).
 Map<String, dynamic> buildOpenAiRequest({
   required String model,
-  required PromptPayload prompt,
+  required ConversationSnapshot snapshot,
   required ActionSchema schema,
+  required bool visionEnabled,
+  ObservationRenderer renderer = const JsonObservationRenderer(),
   bool stream = false,
   String? schemaErrorNote,
 }) {
-  // Use schema reference so analyzer doesn't flag it as unused — the schema
-  // is part of the public surface so callers can compose it once and pass it
-  // into both the request builder and the response parser.
   assert(schema.jsonSchema.isNotEmpty);
 
   final List<Map<String, dynamic>> messages = <Map<String, dynamic>>[
-    <String, dynamic>{'role': 'system', 'content': prompt.systemMessage},
+    <String, dynamic>{'role': 'system', 'content': snapshot.systemMessage},
   ];
 
   if (schemaErrorNote != null) {
@@ -44,32 +49,52 @@ Map<String, dynamic> buildOpenAiRequest({
     });
   }
 
-  for (final um in prompt.userMessages) {
-    final List<Map<String, dynamic>> parts = <Map<String, dynamic>>[];
-
-    final dynamic text = um['text'];
-    if (text is String) {
-      parts.add(<String, dynamic>{'type': 'text', 'text': text});
+  for (final ConversationTurn turn in snapshot.turns) {
+    if (turn is UserTurn) {
+      final List<Map<String, dynamic>> parts = <Map<String, dynamic>>[];
+      if (turn.toolResult != null) {
+        parts.add(<String, dynamic>{
+          'type': 'text',
+          'text': jsonEncode(turn.toolResult),
+        });
+      }
+      final String obsText = turn.trimmed
+          ? '{"trimmed":true}'
+          : renderer.render(turn.observation);
+      parts.add(<String, dynamic>{
+        'type': 'text',
+        'text': 'Observation:\n$obsText',
+      });
+      parts.add(<String, dynamic>{
+        'type': 'text',
+        'text': 'Diff since last turn:\n${jsonEncode(turn.diff.toJson())}',
+      });
+      final String? shot = turn.observation.screenshot;
+      if (!turn.trimmed && visionEnabled && shot != null) {
+        parts.add(VisionImage.fromBase64(shot).toOpenAiPart());
+      }
+      messages.add(<String, dynamic>{'role': 'user', 'content': parts});
+    } else if (turn is AssistantTurn) {
+      // OpenAI: assistant carries the prior decision as a tool_call entry.
+      // No native thinking surface — thinking is intentionally elided.
+      messages.add(<String, dynamic>{
+        'role': 'assistant',
+        'tool_calls': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'call_carry',
+            'type': 'function',
+            'function': <String, dynamic>{
+              'name': turn.action.tool,
+              'arguments': jsonEncode(turn.action.args),
+            },
+          },
+        ],
+      });
     }
-
-    final dynamic shot = um['screenshot'];
-    if (shot is VisionImage) {
-      parts.add(shot.toOpenAiPart());
-    } else if (um['type'] == 'image_url') {
-      // pre-shaped OpenAI image part — passthrough
-      parts.add(um);
-    }
-
-    if (parts.isEmpty) {
-      // Fallback: stringify the whole map so we don't drop content silently.
-      parts.add(<String, dynamic>{'type': 'text', 'text': um.toString()});
-    }
-
-    messages.add(<String, dynamic>{'role': 'user', 'content': parts});
   }
 
-  final List<Map<String, dynamic>> tools = prompt.tools
-      .map((t) => <String, dynamic>{
+  final List<Map<String, dynamic>> tools = snapshot.tools
+      .map((ToolDescriptor t) => <String, dynamic>{
             'type': 'function',
             'function': <String, dynamic>{
               'name': t.name,

@@ -174,7 +174,7 @@ class _FakeProvider extends ModelProvider {
 
   @override
   Future<ModelDecision> decide(
-    PromptPayload prompt,
+    ConversationSnapshot snapshot,
     ActionSchema schema,
   ) async =>
       _decision;

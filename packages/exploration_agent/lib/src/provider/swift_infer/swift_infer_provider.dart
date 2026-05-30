@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../prompt/observation_renderer.dart';
 import '../action_schema.dart';
 import '../frontier/thinking_decoder.dart';
 import '../frontier/tool_helpers.dart';
+import '../frontier/vision_image.dart';
 import '../model_provider.dart';
 import '../types.dart';
 import 'swift_infer_config.dart';
@@ -48,48 +50,71 @@ class SwiftInferModelProvider implements ModelProvider {
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
 
-  /// Build the outgoing header set.
-  ///
-  /// Mirrors the wire contract enforced by `fs agent`
-  /// (`factoryskills/internal/agent/agent.go`): Bearer auth, SSE accept,
-  /// per-conversation/session/capture-bodies trace headers. The
-  /// well-known headers always win — `extraHeaders` is merged in first
-  /// then overwritten by the well-known set so a misconfigured
-  /// `extraHeaders` cannot smuggle in a different `Authorization` or
-  /// trace header.
-  Map<String, String> _headers() {
-    final h = <String, String>{}..addAll(config.extraHeaders);
-    h['content-type'] = 'application/json';
-    h['accept'] = 'text/event-stream';
-    h['anthropic-version'] = '2023-06-01';
-    final tok = config.bearerToken;
-    if (tok != null && tok.isNotEmpty) {
-      h['authorization'] = 'Bearer $tok';
+  /// Renderer used to flatten an [Observation] into the text of a
+  /// user-role message. Constant default.
+  static const ObservationRenderer _renderer = JsonObservationRenderer();
+
+  /// Build the multi-turn `messages` array for the swift-infer Anthropic-
+  /// compat endpoint. Vision is gated on [SwiftInferConfig.enableVision]
+  /// per spec — the host-side capability check (cx6.7) is re-asserted
+  /// at the provider so trajectory replay / test injection can't smuggle
+  /// an image through a vision-disabled config.
+  List<Map<String, dynamic>> _buildMessages(ConversationSnapshot snapshot) {
+    final List<Map<String, dynamic>> messages = <Map<String, dynamic>>[];
+    for (final ConversationTurn turn in snapshot.turns) {
+      if (turn is UserTurn) {
+        final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
+        if (turn.toolResult != null) {
+          content.add(<String, dynamic>{
+            'type': 'text',
+            'text': jsonEncode(turn.toolResult),
+          });
+        }
+        final String obsText = turn.trimmed
+            ? '{"trimmed":true}'
+            : _renderer.render(turn.observation);
+        content.add(<String, dynamic>{
+          'type': 'text',
+          'text': 'Observation:\n$obsText',
+        });
+        content.add(<String, dynamic>{
+          'type': 'text',
+          'text': 'Diff since last turn:\n${jsonEncode(turn.diff.toJson())}',
+        });
+        final String? shot = turn.observation.screenshot;
+        if (!turn.trimmed && config.enableVision && shot != null) {
+          content.add(VisionImage.fromBase64(shot).toAnthropicBlock());
+        }
+        messages.add(<String, dynamic>{'role': 'user', 'content': content});
+      } else if (turn is AssistantTurn) {
+        // SwiftInfer/Qwen3 don't accept native thinking blocks like
+        // Anthropic — instead the model emits `<think>...</think>` inline
+        // text and consumes the same when carrying thinking forward.
+        final List<Map<String, dynamic>> content = <Map<String, dynamic>>[];
+        if (turn.thinking.isNotEmpty) {
+          content.add(<String, dynamic>{
+            'type': 'text',
+            'text': '<think>${turn.thinking}</think>',
+          });
+        }
+        content.add(<String, dynamic>{
+          'type': 'tool_use',
+          'id': 'toolu_carry',
+          'name': encodeToolName(turn.action.tool),
+          'input': turn.action.args,
+        });
+        messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
+      }
     }
-    if (config.captureBodies) {
-      h['x-swift-infer-capture-bodies'] = 'true';
-    }
-    final cid = config.conversationId;
-    if (cid != null && cid.isNotEmpty) {
-      h['x-conversation-id'] = cid;
-    }
-    final sid = config.sessionId;
-    if (sid != null && sid.isNotEmpty) {
-      h['x-session-id'] = sid;
-    }
-    return h;
+    return messages;
   }
 
-  Map<String, dynamic> _buildBody(
-    PromptPayload prompt, {
-    required bool stream,
-  }) {
-    final content = config.enableVision
-        ? prompt.userMessages
-        : prompt.userMessages
-            .where((b) => b['type'] != 'image')
-            .toList();
-    return <String, dynamic>{
+  @override
+  Future<ModelDecision> decide(
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async {
+    final body = <String, dynamic>{
       'model': config.model,
       'max_tokens': config.maxTokens,
       'temperature': config.temperature,
@@ -98,30 +123,21 @@ class SwiftInferModelProvider implements ModelProvider {
       'presence_penalty': config.presencePenalty,
       'repetition_penalty': config.repetitionPenalty,
       'preserve_thinking': config.preserveThinking,
-      'stream': stream,
-      'system': prompt.systemMessage,
-      'tools': prompt.tools
-          .map((t) => <String, dynamic>{
+      'stream': true,
+      'system': snapshot.systemMessage,
+      'tools': snapshot.tools
+          .map((ToolDescriptor t) => <String, dynamic>{
                 'name': encodeToolName(t.name),
                 'description': t.description,
                 'input_schema': t.inputSchema,
               })
           .toList(),
-      'messages': <Map<String, dynamic>>[
-        <String, dynamic>{'role': 'user', 'content': content},
-      ],
+      'messages': _buildMessages(snapshot),
     };
-  }
-
-  @override
-  Future<ModelDecision> decide(
-    PromptPayload prompt,
-    ActionSchema schema,
-  ) async {
     final endpoint = config.baseUrl.resolve('/v1/messages');
     final req = http.Request('POST', endpoint)
       ..headers.addAll(_headers())
-      ..body = jsonEncode(_buildBody(prompt, stream: true));
+      ..body = jsonEncode(body);
     final streamed = await _client.send(req);
 
     final raw = StringBuffer();
@@ -130,6 +146,7 @@ class SwiftInferModelProvider implements ModelProvider {
     String? providerRequestId;
     var inThink = false;
     final thinkingDecoder = ThinkingSseDecoder(_thinking);
+    final StringBuffer thinkingText = StringBuffer();
 
     try {
       await for (final line in streamed.stream
@@ -161,6 +178,8 @@ class SwiftInferModelProvider implements ModelProvider {
             final text = delta['text'] as String;
             raw.write(text);
             inThink = _emitThinking(text, inThink: inThink);
+            inThink = _accumulateThinking(text,
+                inThink: inThink, sink: thinkingText);
           } else if (dtype == 'input_json_delta' && inputJsonBuf != null) {
             inputJsonBuf.write(delta['partial_json'] as String? ?? '');
           }
@@ -182,11 +201,11 @@ class SwiftInferModelProvider implements ModelProvider {
     final args = inputJson.isEmpty
         ? <String, dynamic>{}
         : (jsonDecode(inputJson) as Map).cast<String, dynamic>();
-    final tool = lookupTool(prompt.tools, wireName);
+    final tool = lookupTool(snapshot.tools, wireName);
     if (tool == null) {
       throw unknownToolRejection(
         wireName,
-        prompt.tools,
+        snapshot.tools,
         rawPayload: <String, Object?>{'name': wireName, 'input': args},
       );
     }
@@ -197,13 +216,79 @@ class SwiftInferModelProvider implements ModelProvider {
     });
     final validated = schema.validate(envelope);
     final action = (validated['action'] as Map).cast<String, dynamic>();
+    final String thinking = thinkingText.toString();
     return ModelDecision(
       action: (
         tool: action['tool'] as String,
         args: (action['args'] as Map).cast<String, dynamic>(),
       ),
+      thinking: thinking.isEmpty ? null : thinking,
       providerRequestId: providerRequestId,
     );
+  }
+
+  /// Same `<think>` boundary walk as [_emitThinking], but writes to a
+  /// passed-in [sink] instead of the live stream — used by
+  /// [decideForConversation] to capture full thinking text for
+  /// carry-forward into the next [AssistantTurn].
+  bool _accumulateThinking(
+    String text, {
+    required bool inThink,
+    required StringBuffer sink,
+  }) {
+    var i = 0;
+    var state = inThink;
+    while (i < text.length) {
+      if (!state) {
+        final open = text.indexOf('<think>', i);
+        if (open < 0) break;
+        i = open + '<think>'.length;
+        state = true;
+      } else {
+        final close = text.indexOf('</think>', i);
+        if (close < 0) {
+          sink.write(text.substring(i));
+          i = text.length;
+        } else {
+          if (close > i) sink.write(text.substring(i, close));
+          i = close + '</think>'.length;
+          state = false;
+        }
+      }
+    }
+    return state;
+  }
+
+  /// Build the outgoing header set.
+  ///
+  /// Mirrors the wire contract enforced by `fs agent`
+  /// (`factoryskills/internal/agent/agent.go`): Bearer auth, SSE accept,
+  /// per-conversation/session/capture-bodies trace headers. The
+  /// well-known headers always win — `extraHeaders` is merged in first
+  /// then overwritten by the well-known set so a misconfigured
+  /// `extraHeaders` cannot smuggle in a different `Authorization` or
+  /// trace header.
+  Map<String, String> _headers() {
+    final h = <String, String>{}..addAll(config.extraHeaders);
+    h['content-type'] = 'application/json';
+    h['accept'] = 'text/event-stream';
+    h['anthropic-version'] = '2023-06-01';
+    final tok = config.bearerToken;
+    if (tok != null && tok.isNotEmpty) {
+      h['authorization'] = 'Bearer $tok';
+    }
+    if (config.captureBodies) {
+      h['x-swift-infer-capture-bodies'] = 'true';
+    }
+    final cid = config.conversationId;
+    if (cid != null && cid.isNotEmpty) {
+      h['x-conversation-id'] = cid;
+    }
+    final sid = config.sessionId;
+    if (sid != null && sid.isNotEmpty) {
+      h['x-session-id'] = sid;
+    }
+    return h;
   }
 
   /// Walk [text] looking for `<think>` / `</think>` boundaries, emitting

@@ -45,7 +45,6 @@ TurnRecord _turn(int i) => TurnRecord(
       validation: const {'result': 'ok', 'retries': 0},
       executedAction: const {'tool': 'core.tap'},
       diff: const {'core': <String, dynamic>{}, 'plugins': <String, dynamic>{}},
-      summaryUpdate: 'tapped #$i',
       modelMetadata: const {
         'tokens_in': 10,
         'tokens_out': 5,
@@ -67,7 +66,6 @@ void main() {
       ));
       await w.close(const SessionFooter(
         outcome: SessionOutcome.done,
-        finalSummary: 'goal achieved',
         totalTurns: 1,
         totalDurationMs: 1234,
       ));
@@ -86,7 +84,7 @@ void main() {
       expect(records[1], isA<TurnRecord>());
       final turn = records[1] as TurnRecord;
       expect(turn.index, 0);
-      expect(turn.summaryUpdate, 'tapped #0');
+      expect(turn.thinking, isNull);
       expect(turn.executedAction['tool'], 'core.tap');
 
       expect(records[2], isA<PluginDisabledEvent>());

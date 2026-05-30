@@ -41,7 +41,6 @@ TurnRecord _syntheticTurn(int i) {
       },
       'plugins': <String, dynamic>{},
     },
-    summaryUpdate: 'tapped item $i',
     modelMetadata: const {'tokens_in': 32, 'tokens_out': 8},
   );
 }

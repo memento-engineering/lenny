@@ -42,9 +42,6 @@ class ActionSchema {
         'action': <String, dynamic>{
           'oneOf': tools.map(variant).toList(),
         },
-        'summary_update': <String, dynamic>{
-          'type': <String>['string', 'null'],
-        },
         'rationale': <String, dynamic>{
           'type': <String>['string', 'null'],
         },

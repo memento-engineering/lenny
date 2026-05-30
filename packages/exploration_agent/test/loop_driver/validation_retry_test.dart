@@ -20,7 +20,8 @@ class _ScriptedProvider extends ModelProvider {
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     if (_i >= _script.length) {
       throw StateError('no more scripted decisions');
     }
@@ -34,13 +35,14 @@ class _ScriptedProvider extends ModelProvider {
 ModelDecision _decision(String tool, [Map<String, dynamic>? args]) =>
     ModelDecision(action: (tool: tool, args: args ?? const <String, dynamic>{}));
 
-PromptPayload _basePrompt(List<ToolDescriptor> tools) => PromptPayload(
-      systemMessage: 'sys',
-      userMessages: const <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': 'observation'},
-      ],
-      tools: tools,
-    );
+ConversationSnapshot _baseSnapshot(List<ToolDescriptor> tools) {
+  final builder = ConversationBuilder(
+    systemMessage: 'sys',
+    tools: tools,
+  );
+  builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+  return builder.snapshot();
+}
 
 ToolDescriptor _coreDone() => const ToolDescriptor(
       name: 'core.done',
@@ -75,7 +77,7 @@ void main() {
       final provider = _ScriptedProvider(<Object>[_decision('core.done')]);
       final r = await decideAndValidate(
         provider: provider,
-        basePrompt: _basePrompt(tools),
+        baseSnapshot: _baseSnapshot(tools),
         schema: schema,
         validator: validator,
         observation: observation,
@@ -99,7 +101,7 @@ void main() {
       ]);
       final r = await decideAndValidate(
         provider: provider,
-        basePrompt: _basePrompt(tools),
+        baseSnapshot: _baseSnapshot(tools),
         schema: schema,
         validator: validator,
         observation: observation,
@@ -122,7 +124,7 @@ void main() {
       try {
         await decideAndValidate(
           provider: provider,
-          basePrompt: _basePrompt(tools),
+          baseSnapshot: _baseSnapshot(tools),
           schema: schema,
           validator: validator,
           observation: observation,
@@ -145,7 +147,7 @@ void main() {
       ]);
       final r = await decideAndValidate(
         provider: provider,
-        basePrompt: _basePrompt(tools),
+        baseSnapshot: _baseSnapshot(tools),
         schema: schema,
         validator: validator,
         observation: observation,
@@ -170,7 +172,7 @@ void main() {
       try {
         await decideAndValidate(
           provider: provider,
-          basePrompt: _basePrompt(tools),
+          baseSnapshot: _baseSnapshot(tools),
           schema: schema,
           validator: validator,
           observation: observation,

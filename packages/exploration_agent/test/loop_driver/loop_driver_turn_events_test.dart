@@ -39,7 +39,8 @@ class _ThinkingProvider extends ModelProvider {
   }
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     // Yield enough microtasks for the listener subscribed to `thinking()`
     // to drain its pending deltas before we return the decision.
     for (int i = 0; i < chunks.length + 2; i++) {
@@ -130,11 +131,12 @@ void main() {
       final driver = LoopDriver(
         host: host,
         provider: provider,
-        assembler: const PromptAssembler(),
+        conversation: ConversationBuilder(
+          systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+          tools: host.mergedTools(),
+        ),
         validator: const ActionValidator(),
         writer: writer,
-        summary: RunningSummary(counter: WhitespaceTokenCounter()),
-        actions: ActionRing(),
         onTurnEvent: events.add,
       );
 
@@ -200,11 +202,12 @@ void main() {
       final driver = LoopDriver(
         host: host,
         provider: provider,
-        assembler: const PromptAssembler(),
+        conversation: ConversationBuilder(
+          systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+          tools: host.mergedTools(),
+        ),
         validator: const ActionValidator(),
         writer: writer,
-        summary: RunningSummary(counter: WhitespaceTokenCounter()),
-        actions: ActionRing(),
         onTurnEvent: events.add,
       );
 
@@ -254,7 +257,8 @@ class _ControllableThinkingProvider extends ModelProvider {
   Stream<ThinkingDelta> thinking() => _ctl.stream;
 
   @override
-  Future<ModelDecision> decide(PromptPayload prompt, ActionSchema schema) async {
+  Future<ModelDecision> decide(
+      ConversationSnapshot snapshot, ActionSchema schema) async {
     // Give the thinking listener a chance to drain pending deltas
     // before decide returns.
     await Future<void>.delayed(Duration.zero);
