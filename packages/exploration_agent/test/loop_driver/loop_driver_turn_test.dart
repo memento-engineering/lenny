@@ -534,4 +534,64 @@ void main() {
       expect(host.disabledPlugins, isEmpty);
     });
   });
+
+  group(
+      'LoopDriver._accountPluginStrikes core-namespace exemption (lenny-4jn)',
+      () {
+    test(
+        'core is never disabled even after 4 turns with no curr.plugins[core]',
+        () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      // 'core' is in activePluginNamespaces; curr.plugins never has 'core'.
+      // 'dio' is also active but also always absent from plugins.
+      final host = _FakeHost(
+        observations: List.generate(
+          6,
+          (_) => _obsWithPlugins(const <String, Map<String, dynamic>>{}),
+        ),
+        tools: <ToolDescriptor>[
+          _coreDone(),
+          _coreWait(),
+          const ToolDescriptor(
+            name: 'dio.fetch',
+            description: 'fetch',
+            inputSchema: <String, dynamic>{'type': 'object'},
+          ),
+        ],
+      );
+      host.setActiveNamespaces(<String>{'core', 'dio'});
+      final provider = _FakeProvider(
+        script: List.generate(
+          4,
+          (_) => ModelDecision(
+            action: (tool: 'core.wait', args: <String, dynamic>{}),
+          ),
+        ),
+      );
+      final driver = _newDriver(host: host, provider: provider, writer: writer);
+
+      for (var i = 0; i < 4; i++) {
+        await driver.runTurn();
+      }
+
+      expect(
+        host.disabledPlugins,
+        isNot(contains('core')),
+        reason: 'core must never be auto-disabled regardless of how many '
+            'turns pass without a curr.plugins[core] entry',
+      );
+      expect(
+        host.mergedTools().map((t) => t.name),
+        contains('core.wait'),
+        reason: 'core tools must remain in mergedTools after 4 turns',
+      );
+      expect(
+        host.disabledPlugins,
+        contains('dio'),
+        reason: 'non-core plugin with persistent observe failure must still '
+            'be disabled after 3 turns (auto-disable regression check)',
+      );
+    });
+  });
 }

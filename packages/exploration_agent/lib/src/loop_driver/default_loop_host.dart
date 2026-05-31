@@ -38,6 +38,10 @@ import 'types.dart';
 /// when its socket layer is torn down mid-call.
 const Set<int> _kTransportRpcCodes = <int>{-32000, -32603};
 
+/// The core namespace must never be disabled — its tools are essential
+/// for every agent action. Disabling it collapses the action-schema oneOf.
+const String _kCoreNamespace = 'core';
+
 class DefaultLoopHost implements LoopHost {
   /// Build a host on top of an already-`start()`ed [ExplorationSession].
   ///
@@ -102,6 +106,11 @@ class DefaultLoopHost implements LoopHost {
 
   @override
   void disablePlugin(String namespace, String reason) {
+    // Defense-in-depth: core is essential and must never be removed.
+    // The primary guard lives in LoopDriver._accountPluginStrikes, but
+    // we reject any call here too to prevent future callers from
+    // accidentally stripping core tools (lenny-4jn).
+    if (namespace == _kCoreNamespace) return;
     if (_disabled.add(namespace)) {
       _session.disablePlugin(namespace, reason);
     }
