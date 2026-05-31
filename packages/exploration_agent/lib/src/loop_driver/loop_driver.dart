@@ -40,6 +40,13 @@ import 'validation_retry.dart';
 /// (PRD §10, cx6.6 core action set).
 const String _kCoreDoneTool = 'core.done';
 
+/// Reserved namespace for built-in core actions (tap/enter_text/done/etc.).
+/// Core's observation health is carried in [CoreFragment] (curr.core), NOT
+/// in curr.plugins['core'] — so core must be exempt from the plugin-strike
+/// mechanism. Value must match [CorePlugin.namespace] == 'core'
+/// (packages/exploration_flutter/lib/src/core_tools/core_plugin.dart:87).
+const String _kCoreNamespace = 'core';
+
 /// Wire string used for the trajectory footer's `outcome` field when
 /// the session terminates with [SessionOutcome.budgetExhausted].
 const String _kBudgetExhaustedWire = 'budget_exhausted';
@@ -320,6 +327,11 @@ class LoopDriver {
 
   Future<void> _accountPluginStrikes(Observation curr) async {
     for (final String ns in _host.activePluginNamespaces()) {
+      // 'core' is exempt: its health is tracked via curr.core (nodes/
+      // routeStack/errors), not curr.plugins['core'], which is always null
+      // by design (CorePlugin.observe() returns null). Auto-disabling core
+      // would collapse the action-schema oneOf and stall the agent (lenny-4jn).
+      if (ns == _kCoreNamespace) continue;
       final PluginFragment? frag = curr.plugins[ns];
       // "Success" = fragment is present and reports no error. The
       // binding signals plugin-side errors via an `error` key in the
