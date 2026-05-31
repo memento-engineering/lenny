@@ -83,6 +83,46 @@ void main() {
       );
       expect(out.keys, <String>['router']);
     });
+
+    test('core tools are always included regardless of --plugins value', () {
+      const List<PluginManifestEntry> handshake = <PluginManifestEntry>[
+        PluginManifestEntry(namespace: 'core', tools: <String>[
+          'tap', 'long_press', 'enter_text', 'scroll', 'scroll_until_visible',
+          'gesture', 'system_back', 'wait', 'inspect_widget', 'done',
+        ]),
+        PluginManifestEntry(namespace: 'router', tools: <String>['navigate']),
+      ];
+      // Simulate the fixed CLI call: args.plugins = ['router'], union 'core'.
+      final Map<String, List<ToolDescriptor>> out = buildPluginTools(
+        requested: <String>{'router', 'core'},
+        handshake: handshake,
+      );
+      expect(out.containsKey('core'), isTrue,
+          reason: 'core namespace must always be projected');
+      expect(out['core'], hasLength(10));
+      final List<String> coreNames =
+          out['core']!.map((t) => t.name).toList();
+      expect(coreNames, containsAll(<String>[
+        'core.tap', 'core.enter_text', 'core.done',
+        'core.scroll', 'core.scroll_until_visible', 'core.long_press',
+        'core.gesture', 'core.system_back', 'core.wait', 'core.inspect_widget',
+      ]));
+    });
+
+    test('core tools present even when --plugins is empty (empty requested union core)', () {
+      const List<PluginManifestEntry> handshake = <PluginManifestEntry>[
+        PluginManifestEntry(namespace: 'core', tools: <String>[
+          'tap', 'long_press', 'enter_text', 'scroll', 'scroll_until_visible',
+          'gesture', 'system_back', 'wait', 'inspect_widget', 'done',
+        ]),
+      ];
+      final Map<String, List<ToolDescriptor>> out = buildPluginTools(
+        requested: <String>{'core'},   // args.plugins=[] union 'core'
+        handshake: handshake,
+      );
+      expect(out.containsKey('core'), isTrue);
+      expect(out['core'], hasLength(10));
+    });
   });
 
   group('unknownPluginNamespaces', () {

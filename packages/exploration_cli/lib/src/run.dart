@@ -143,8 +143,10 @@ Future<int> runCli(
         'report a plugin with that namespace; ignoring.',
       );
     }
+    // 'core' is unconditionally projected so the model always has action tools.
+    // unknownPluginNamespaces still uses args.plugins (no 'core' warning).
     final Map<String, List<ToolDescriptor>> pluginTools = buildPluginTools(
-      requested: args.plugins,
+      requested: <String>{...args.plugins, 'core'},
       handshake: session.handshake.plugins,
     );
 
