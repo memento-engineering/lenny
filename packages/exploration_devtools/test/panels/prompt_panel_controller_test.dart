@@ -206,8 +206,10 @@ void main() {
       handshakeResult: const HandshakeResult(
         contractVersion: '1.0',
         plugins: <PluginManifestEntry>[
-          PluginManifestEntry(namespace: 'router', tools: <String>['router.go']),
-          PluginManifestEntry(namespace: 'dio', tools: <String>['dio.cancel']),
+          // Handshake carries BARE tool names; buildPluginTools prefixes
+          // the namespace to produce the qualified ToolDescriptor.name.
+          PluginManifestEntry(namespace: 'router', tools: <String>['go']),
+          PluginManifestEntry(namespace: 'dio', tools: <String>['cancel']),
         ],
       ),
     );

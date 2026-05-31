@@ -126,8 +126,10 @@ class PromptPanelController {
       },
     ));
 
+    // 'core' is unconditionally projected so the model always has action tools.
+    // coreTools param stays const <ToolDescriptor>[] — core travels via pluginTools['core'].
     final Map<String, List<ToolDescriptor>> pluginTools = buildPluginTools(
-      requested: panelCfg.enabledPluginNamespaces,
+      requested: <String>{...panelCfg.enabledPluginNamespaces, 'core'},
       handshake: handshake.plugins,
     );
     final DefaultLoopHost host = DefaultLoopHost.fromSession(
