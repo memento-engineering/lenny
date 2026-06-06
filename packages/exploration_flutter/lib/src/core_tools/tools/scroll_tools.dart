@@ -185,7 +185,7 @@ class ScrollUntilVisibleTool extends CoreTool {
 
     for (int i = 0; i < maxIters; i++) {
       // Re-walk semantics; if target is present, we're done.
-      final List<Map<String, Object>> recs = plugin.snapshotSemantics();
+      final List<Map<String, Object>> recs = await plugin.snapshotSemanticsAsync();
       final bool present = recs.any(
         (Map<String, Object> r) => (r['id'] as int) == targetId,
       );

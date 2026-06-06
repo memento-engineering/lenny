@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Walks Flutter's semantics tree and emits compact JSON-friendly records
@@ -27,16 +29,59 @@ class SemanticsCapture {
   int _nextId = 1;
   SemanticsHandle? _semanticsHandle;
 
+  /// Test seam: when set, the next [_findRootSemanticsNode] returns null
+  /// exactly once and then clears itself.
+  ///
+  /// This deterministically reproduces the on-device cold-start race — where
+  /// `ensureSemantics()` has scheduled the semantics flush but it has not yet
+  /// completed on the first read, so the root is momentarily null. The
+  /// `flutter_test` harness cannot reproduce that race naturally (its semantics
+  /// root is always synchronously available after layout), so a seam is the
+  /// only way to exercise the recovery path in a CI widget test. [captureAsync]
+  /// recovers by awaiting `endOfFrame` and re-reading; the deprecated [capture]
+  /// does not. See lenny-whn and `semantics_capture_racing_test.dart`.
+  @visibleForTesting
+  bool debugRaceNextRootLookup = false;
+
   int _stableIdFor(SemanticsNode n) =>
       _stableIds.putIfAbsent(n.id, () => _nextId++);
 
-  /// Walks the live semantics tree and returns a list of compact records.
-  ///
-  /// Returns an empty list if no semantics tree is available (e.g. before
-  /// the first frame). Calls [SemanticsBinding.ensureSemantics] on first
-  /// invocation so a host that has never opened a screen reader still
-  /// produces a tree. The acquired [SemanticsHandle] is held for the
-  /// lifetime of this [SemanticsCapture]; call [dispose] to release it.
+  /// Async-safe form of [capture]. Awaits [SchedulerBinding.instance.endOfFrame]
+  /// (with a 250 ms timeout) when [_findRootSemanticsNode] returns null on the
+  /// first call, so the semantics flush triggered by [ensureSemantics] can
+  /// complete before the tree is walked. On timeout (occluded / non-pumping
+  /// window) returns [].
+  Future<List<Map<String, Object>>> captureAsync() async {
+    _semanticsHandle ??= SemanticsBinding.instance.ensureSemantics();
+    SemanticsNode? root = _findRootSemanticsNode();
+    if (root == null) {
+      try {
+        await SchedulerBinding.instance.endOfFrame
+            .timeout(const Duration(milliseconds: 250));
+      } on TimeoutException {
+        return const <Map<String, Object>>[];
+      }
+      root = _findRootSemanticsNode();
+    }
+    if (root == null) return const <Map<String, Object>>[];
+    final ui.FlutterView v =
+        WidgetsBinding.instance.platformDispatcher.views.first;
+    final Rect viewport = Offset.zero & v.physicalSize;
+    final List<_Rec> recs = <_Rec>[];
+    _walk(root, recs, viewport);
+    _filterObscured(recs);
+    return recs
+        .where((_Rec r) => !r.dropped)
+        .map((_Rec r) => r.toJson())
+        .toList(growable: false);
+  }
+
+  /// Retained for backward compat; races the initial semantics flush.
+  @Deprecated(
+    'Use captureAsync() — the synchronous form races the initial semantics '
+    'flush and returns [] on first call on a real device. '
+    'Will be removed when all call sites are migrated.',
+  )
   List<Map<String, Object>> capture() {
     _semanticsHandle ??= SemanticsBinding.instance.ensureSemantics();
     final SemanticsNode? root = _findRootSemanticsNode();
@@ -60,6 +105,10 @@ class SemanticsCapture {
   /// `rootSemanticsNode` encountered. The framework attaches a child
   /// pipeline owner per `RenderView`; in single-view apps there is one.
   SemanticsNode? _findRootSemanticsNode() {
+    if (debugRaceNextRootLookup) {
+      debugRaceNextRootLookup = false;
+      return null;
+    }
     SemanticsNode? found;
     void visit(PipelineOwner owner) {
       if (found != null) return;

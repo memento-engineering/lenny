@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/semantics.dart';
 
@@ -79,8 +78,17 @@ class CorePlugin extends ExplorationPlugin {
   /// Internal: lookup a live [SemanticsNode] by stable id, or null.
   SemanticsNode? lookupNode(int stableId) => _semantics.lookup(stableId);
 
-  /// Internal: snapshot the current semantics tree (used by
-  /// [ScrollUntilVisibleTool] and [InspectWidgetTool]).
+  /// Async snapshot; awaits the first semantics frame when needed.
+  /// Use this instead of [snapshotSemantics] at all production call sites.
+  Future<List<Map<String, Object>>> snapshotSemanticsAsync() =>
+      _semantics.captureAsync();
+
+  /// Deprecated synchronous snapshot. Races initial semantics flush on device.
+  @Deprecated(
+    'Use snapshotSemanticsAsync() — this form returns [] on first call on '
+    'a real device before the semantics tree is materialized. '
+    'Will be removed when all call sites are migrated.',
+  )
   List<Map<String, Object>> snapshotSemantics() => _semantics.capture();
 
   @override
