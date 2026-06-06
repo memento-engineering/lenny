@@ -118,7 +118,7 @@ class GestureTool extends CoreTool {
 
     final SemanticsNode? node = plugin.lookupNode(id);
     if (node == null) return targetNotFound(id);
-    final Rect rect = globalRectOf(node);
+    final Rect rect = logicalRectOf(node);
 
     switch (kind) {
       case 'pan':

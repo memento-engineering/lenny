@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 
 import '../contract/plugin.dart';
 import '../contract/types.dart';
@@ -44,6 +45,26 @@ Rect globalRectOf(SemanticsNode node) {
   return MatrixUtils.transformRect(m, node.rect);
 }
 
+/// Convert the physical-pixel global rect of [node] to logical pixels by
+/// dividing by the view's [devicePixelRatio].
+///
+/// [globalRectOf] walks the full semantics parent chain, which includes the
+/// semantics-root DPR transform, so it returns physical pixels. Synthesized
+/// [PointerEvent.position] values are interpreted as logical pixels by
+/// [GestureBinding] (the engine divides by DPR before delivery). All
+/// pointer-synthesis call sites must use this function, not [globalRectOf].
+Rect logicalRectOf(SemanticsNode node) {
+  final double dpr =
+      WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+  final Rect physical = globalRectOf(node);
+  return Rect.fromLTRB(
+    physical.left / dpr,
+    physical.top / dpr,
+    physical.right / dpr,
+    physical.bottom / dpr,
+  );
+}
+
 /// Dispatch [action] on [node] via its [SemanticsOwner.performAction].
 /// Returns `false` if the node has no live owner (e.g. detached).
 bool ownerPerformAction(
@@ -76,7 +97,7 @@ Future<ToolResult> dispatchSemanticsActionOrFallback(
     }
     // No owner — fall through to hit-test.
   }
-  await fallback(globalRectOf(node));
+  await fallback(logicalRectOf(node));
   return const ToolResult(ok: true, value: <String, Object?>{});
 }
 
