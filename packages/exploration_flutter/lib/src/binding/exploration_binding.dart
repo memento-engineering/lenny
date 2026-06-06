@@ -385,7 +385,11 @@ class ExplorationBinding extends WidgetsFlutterBinding
     _registerExtension(
       '$kExplorationExtensionPrefix.core.get_semantics',
       (String method, Map<String, String> parameters) async {
-        final List<Map<String, Object>> recs = _semanticsCapture.capture();
+        // captureAsync (not the deprecated sync capture) so the agent's
+        // primary perception path waits out the first-frame semantics-flush
+        // race instead of returning [] on a cold start (lenny-whn).
+        final List<Map<String, Object>> recs =
+            await _semanticsCapture.captureAsync();
         return developer.ServiceExtensionResponse.result(
           jsonEncode(<String, Object>{
             'semantics': recs,
@@ -620,7 +624,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
     }
 
     final Map<String, Object?> core = await buildCoreFragment(
-      captureSemantics: () async => _semanticsCapture.capture(),
+      captureSemantics: _semanticsCapture.captureAsync,
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
       stability: stability,
       includeScreenshot: req.includeScreenshot,
