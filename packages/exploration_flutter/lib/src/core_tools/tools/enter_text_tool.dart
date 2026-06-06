@@ -56,7 +56,7 @@ class EnterTextTool extends CoreTool {
     if ((data.actions & SemanticsAction.focus.index) != 0) {
       ownerPerformAction(node, SemanticsAction.focus);
     } else {
-      await hitTestTap(globalRectOf(node));
+      await hitTestTap(logicalRectOf(node));
     }
 
     // Step 2: setText. Pass the text payload as the action argument.
