@@ -5,66 +5,78 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-    'core.enter_text dispatches setText via SemanticsAction.setText',
+    'core.enter_text sets controller text via widget-tree path when called on wrapper node',
     (WidgetTester tester) async {
       final SemanticsHandle h = tester.ensureSemantics();
-      String? received;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Semantics(
-            container: true,
-            textField: true,
-            label: 'Name',
-            onSetText: (String v) {
-              received = v;
-            },
-            // Provide focus so the focus step is satisfied without the
-            // hit-test fallback.
-            onTap: () {},
-            child: const SizedBox(width: 200, height: 40),
+      final TextEditingController ctrl = TextEditingController();
+      addTearDown(ctrl.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Semantics(
+              label: 'email',
+              textField: true,
+              child: TextField(controller: ctrl),
+            ),
           ),
         ),
-      ));
+      );
+      // Force a frame so the element tree is fully built.
+      await tester.pump();
+
       final SemanticsCapture cap = SemanticsCapture();
       final List<Map<String, Object>> recs = cap.capture();
-      final Map<String, Object> tf = recs.firstWhere(
-        (Map<String, Object> r) => r['role'] == 'textfield',
+      // Target the WRAPPER node (label == 'email', role == 'textfield',
+      // which advertises NO actions — exactly the failure mode on device).
+      final Map<String, Object> wrapper = recs.firstWhere(
+        (Map<String, Object> r) =>
+            r['role'] == 'textfield' && r['label'] == 'email',
       );
-      final int id = tf['id']! as int;
+      final int id = wrapper['id']! as int;
+
       final CorePlugin plugin = CorePlugin(semantics: cap);
-      final ExplorationTool t = plugin.tools
-          .firstWhere((ExplorationTool x) => x.name == 'enter_text');
+      final ExplorationTool t = plugin.tools.firstWhere(
+        (ExplorationTool x) => x.name == 'enter_text',
+      );
       final ToolResult r = await t.call(<String, Object?>{
         'node_id': id,
-        'text': 'hello world',
+        'text': 'hello@test.com',
       });
-      await tester.pump();
+
       expect(r.ok, isTrue, reason: r.error);
-      expect(received, 'hello world');
+      expect(ctrl.text, 'hello@test.com');
+      expect(ctrl.selection, const TextSelection.collapsed(offset: 14));
       cap.dispose();
       h.dispose();
     },
   );
 
   testWidgets(
-    'core.enter_text returns target_unreachable when node has no setText',
+    'core.enter_text returns target_unreachable when semantics node has no matching EditableText',
     (WidgetTester tester) async {
       final SemanticsHandle h = tester.ensureSemantics();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ElevatedButton(
-            onPressed: () {},
-            child: const Text('not a textfield'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ElevatedButton(
+              onPressed: () {},
+              child: const Text('not a textfield'),
+            ),
           ),
         ),
-      ));
+      );
+      await tester.pump();
       final SemanticsCapture cap = SemanticsCapture();
-      final int id = cap.capture().firstWhere(
-              (Map<String, Object> r) => r['role'] == 'button')['id']!
-          as int;
+      final int id =
+          cap.capture().firstWhere(
+                (Map<String, Object> r) => r['role'] == 'button',
+              )['id']!
+              as int;
       final CorePlugin plugin = CorePlugin(semantics: cap);
-      final ExplorationTool t = plugin.tools
-          .firstWhere((ExplorationTool x) => x.name == 'enter_text');
+      final ExplorationTool t = plugin.tools.firstWhere(
+        (ExplorationTool x) => x.name == 'enter_text',
+      );
       final ToolResult r = await t.call(<String, Object?>{
         'node_id': id,
         'text': 'x',
@@ -79,8 +91,9 @@ void main() {
   test('schema_violation when text missing', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CorePlugin plugin = CorePlugin(semantics: cap);
-    final ExplorationTool t = plugin.tools
-        .firstWhere((ExplorationTool x) => x.name == 'enter_text');
+    final ExplorationTool t = plugin.tools.firstWhere(
+      (ExplorationTool x) => x.name == 'enter_text',
+    );
     final ToolResult r = await t.call(<String, Object?>{'node_id': 1});
     expect(r.ok, isFalse);
     expect(r.error, contains('schema_violation'));
@@ -90,8 +103,9 @@ void main() {
   test('target_not_found on unknown id', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CorePlugin plugin = CorePlugin(semantics: cap);
-    final ExplorationTool t = plugin.tools
-        .firstWhere((ExplorationTool x) => x.name == 'enter_text');
+    final ExplorationTool t = plugin.tools.firstWhere(
+      (ExplorationTool x) => x.name == 'enter_text',
+    );
     final ToolResult r = await t.call(<String, Object?>{
       'node_id': 9999,
       'text': 'x',
