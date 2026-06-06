@@ -1,12 +1,11 @@
 import 'package:flutter/semantics.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../contract/types.dart';
 import '../core_plugin.dart';
 import '../dispatch.dart';
+import '../editable_resolver.dart';
 
-/// `core.enter_text` — focuses the target then delivers [text] via
-/// `SemanticsAction.setText`. Falls back to a synthesized tap when the
-/// node does not advertise `focus`.
 class EnterTextTool extends CoreTool {
   EnterTextTool(super.plugin);
 
@@ -15,21 +14,19 @@ class EnterTextTool extends CoreTool {
 
   @override
   String get description =>
-      'Focus a target semantics node and replace its text contents.';
+      'Resolve the EditableText widget under the target semantics node '
+      'and set its controller value directly.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-          'text': <String, Object?>{
-            'type': 'string',
-            'maxLength': 4096,
-          },
-        },
-        'required': <String>['node_id', 'text'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'text': <String, Object?>{'type': 'string', 'maxLength': 4096},
+    },
+    'required': <String>['node_id', 'text'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -44,36 +41,26 @@ class EnterTextTool extends CoreTool {
     if (text.length > 4096) {
       return ToolResult(
         ok: false,
-        error:
-            '${CoreToolErrorCode.schemaViolation}: text exceeds 4096 chars',
+        error: '${CoreToolErrorCode.schemaViolation}: text exceeds 4096 chars',
       );
     }
     final SemanticsNode? node = plugin.lookupNode(id);
     if (node == null) return targetNotFound(id);
 
-    // Step 1: focus. Prefer SemanticsAction.focus, then tap fallback.
-    final SemanticsData data = node.getSemanticsData();
-    if ((data.actions & SemanticsAction.focus.index) != 0) {
-      ownerPerformAction(node, SemanticsAction.focus);
-    } else {
-      await hitTestTap(logicalRectOf(node));
-    }
-
-    // Step 2: setText. Pass the text payload as the action argument.
-    if ((data.actions & SemanticsAction.setText.index) != 0) {
-      ownerPerformAction(node, SemanticsAction.setText, text);
-    } else {
+    final Rect physicalRect = globalRectOf(node);
+    final EditableTextState? editable = resolveEditableText(physicalRect);
+    if (editable == null) {
       return ToolResult(
         ok: false,
         error:
-            '${CoreToolErrorCode.targetUnreachable}: node $id does not '
-            'advertise SemanticsAction.setText',
+            '${CoreToolErrorCode.targetUnreachable}: node $id has no '
+            'matching EditableText in the widget tree',
       );
     }
-
-    return const ToolResult(
-      ok: true,
-      value: <String, Object?>{},
+    editable.widget.controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
+    return const ToolResult(ok: true, value: <String, Object?>{});
   }
 }
