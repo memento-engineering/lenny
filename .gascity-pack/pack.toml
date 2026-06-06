@@ -1,0 +1,25 @@
+# lenny's OWN rig pack — Dart/Flutter-stack opinions for developing lenny.
+#
+# ADR 0012 rig overlay: the generic factoryskills pack ships stack-NEUTRAL
+# rubrics (they say "run the project's build/test/format command named in the
+# bead's Validation Plan", never `dart test`). This rig pack overlays
+# Dart-flavored code rubrics (`melos run analyze`, `melos run test`,
+# `melos run format`) that shadow the neutral defaults — but ONLY for the lenny
+# rig. lenny runs the generic factoryskills pack on itself and injects its
+# Dart/Flutter stack opinions through this rig. The opinions live in the rubric
+# BODIES here, not inferred from a Validation Plan.
+#
+# Mirrors factoryskills/.gascity-pack/ (the Go template). lenny is a Dart melos
+# workspace (`lenny_workspace`); the canonical validation commands are the melos
+# scripts defined in pubspec.yaml:
+#   analyze → dart analyze
+#   test    → dart test (pure-Dart pkgs) + flutter test (Flutter pkgs)
+#   format  → dart format --output=none --set-exit-if-changed .
+#
+# Convention: every rig keeps its rig-specific pack config in a committed
+# `.gascity-pack/` and joins the city with `gc rig add <repo> --include .gascity-pack`.
+[pack]
+name        = "lenny-dart"
+schema      = 2
+version     = "0.1.0"
+description = "lenny rig overlay: Dart/Flutter-stack code rubrics (melos run analyze/test/format) layered over the generic factoryskills pack. Second-rig dogfood of ADR 0012/0013 multi-rig committee resolution."
