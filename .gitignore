@@ -39,3 +39,40 @@ site/.astro/
 
 # Beads / Dolt files (added by bd init)
 .beads/proxieddb/
+lenny-whn/
+
+# Gas City
+.beads/*
+!.beads/config.yaml
+!.beads/metadata.json
+!.beads/identity.toml
+
+# Gas City factory committee — DERIVED artifacts composed by
+# scripts/install-rig-committee.sh (the neutral factoryskills pack + the
+# .gascity-pack Dart overlay). Source of truth is .gascity-pack/ (tracked); the
+# composed copies are reproducible, so they are not committed. lenny's own
+# skills (beads, debug-inference, harden, predictable-flutter) stay tracked.
+.agents/agents/
+.claude/agents/
+.agents/skills/critique/
+.agents/skills/deliberate/
+.agents/skills/discover/
+.agents/skills/factory/
+.agents/skills/factoryskills/
+.agents/skills/forge/
+.agents/skills/land/
+.agents/skills/marshal/
+.agents/skills/merge/
+.agents/skills/route/
+.agents/skills/specify/
+.claude/skills/critique/
+.claude/skills/deliberate/
+.claude/skills/discover/
+.claude/skills/factory/
+.claude/skills/factoryskills/
+.claude/skills/forge/
+.claude/skills/land/
+.claude/skills/marshal/
+.claude/skills/merge/
+.claude/skills/route/
+.claude/skills/specify/

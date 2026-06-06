@@ -54,3 +54,9 @@
 # - github.repo
 
 sync.remote: "git+ssh://git@github.com/nicholasspencer/lenny.git"
+issue_prefix: lenny
+issue-prefix: lenny
+dolt.auto-start: false
+export.auto: false
+gc.endpoint_origin: inherited_city
+gc.endpoint_status: verified
