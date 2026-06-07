@@ -201,19 +201,30 @@ class _Rec {
 }
 
 extension _SemanticsCaptureWalk on SemanticsCapture {
-  void _walk(SemanticsNode n, List<_Rec> out, Rect viewport) {
+  void _walk(
+    SemanticsNode n,
+    List<_Rec> out,
+    Rect viewport, [
+    Matrix4? parentTransform,
+  ]) {
     final SemanticsData d = n.getSemanticsData();
     if (d.flagsCollection.isHidden) return;
-    final Rect r = MatrixUtils.transformRect(
-      n.transform ?? Matrix4.identity(),
-      n.rect,
-    );
+    // SemanticsNode.transform maps a node's local rect into its PARENT's
+    // space, not the device's. Applying only the node's own transform
+    // collapses every nested row to its parent-local origin — e.g. all
+    // list rows resolve to [0,0,w,56], so sibling SwitchListTiles share one
+    // rect and _filterObscured drops the actionable ones (lenny-a3s).
+    // Accumulate ancestor transforms to get true device-space rects,
+    // matching globalRectOf (dispatch.dart).
+    final Matrix4 global = (parentTransform ?? Matrix4.identity())
+        .multiplied(n.transform ?? Matrix4.identity());
+    final Rect r = MatrixUtils.transformRect(global, n.rect);
     if (!r.overlaps(viewport)) return;
     out.add(
       _Rec(_stableIdFor(n), _role(d), d.label, _state(d), _actions(d), r),
     );
     n.visitChildren((SemanticsNode c) {
-      _walk(c, out, viewport);
+      _walk(c, out, viewport, global);
       return true;
     });
   }
