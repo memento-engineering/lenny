@@ -47,8 +47,12 @@ class EnterTextTool extends CoreTool {
     final SemanticsNode? node = plugin.lookupNode(id);
     if (node == null) return targetNotFound(id);
 
-    final Rect physicalRect = globalRectOf(node);
-    final EditableTextState? editable = resolveEditableText(physicalRect);
+    // resolveEditableText intersects against RenderBox.localToGlobal rects,
+    // which are logical pixels; globalRectOf returns physical pixels (it walks
+    // the semantics-root DPR transform). Convert via logicalRectOf so the
+    // intersection works on DPR>1 devices (lenny-8k3; same class as lenny-22f).
+    final Rect logicalRect = logicalRectOf(node);
+    final EditableTextState? editable = resolveEditableText(logicalRect);
     if (editable == null) {
       return ToolResult(
         ok: false,
