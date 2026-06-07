@@ -333,11 +333,14 @@ class LoopDriver {
       // would collapse the action-schema oneOf and stall the agent (lenny-4jn).
       if (ns == _kCoreNamespace) continue;
       final PluginFragment? frag = curr.plugins[ns];
-      // "Success" = fragment is present and reports no error. The
-      // binding signals plugin-side errors via an `error` key in the
-      // fragment data map (PRD §17 plugin isolation contract).
-      final bool ok = frag != null && frag.data['error'] == null;
-      if (ok) {
+      // A strike is an actual observe() failure, signalled by the binding as
+      // an `error` key in the fragment data map (PRD §17 plugin isolation
+      // contract). A null/absent fragment means the plugin simply had nothing
+      // to report this turn (e.g. dio with no in-flight or recent requests) —
+      // that is healthy, not a failure. Conflating "no data" with "errored"
+      // auto-disabled dio after 3 quiet turns (lenny-jox).
+      final bool errored = frag != null && frag.data['error'] != null;
+      if (!errored) {
         pluginFailures.recordSuccess(ns);
         continue;
       }
