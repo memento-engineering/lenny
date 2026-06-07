@@ -544,7 +544,9 @@ void main() {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       // 'core' is in activePluginNamespaces; curr.plugins never has 'core'.
-      // 'dio' is also active but also always absent from plugins.
+      // 'dio' is also active but always absent from plugins — a healthy plugin
+      // that simply has nothing to report (no in-flight/recent requests), NOT
+      // a failure (lenny-jox).
       final host = _FakeHost(
         observations: List.generate(
           6,
@@ -588,9 +590,11 @@ void main() {
       );
       expect(
         host.disabledPlugins,
-        contains('dio'),
-        reason: 'non-core plugin with persistent observe failure must still '
-            'be disabled after 3 turns (auto-disable regression check)',
+        isNot(contains('dio')),
+        reason: 'a plugin that is merely absent from curr.plugins (null '
+            'fragment = nothing to report) is healthy and must NOT be '
+            'auto-disabled; only an explicit error fragment is a strike '
+            '(lenny-jox)',
       );
     });
   });
