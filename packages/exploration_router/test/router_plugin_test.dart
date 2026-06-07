@@ -83,6 +83,56 @@ void main() {
     expect(r.error, contains('/nope'));
   });
 
+  test('navigate uses the navigation seam when provided (lenny-18q)', () async {
+    String? gotName;
+    Map<String, Object?>? gotArgs;
+    final p = RouterPlugin(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      navigate: (name, args) async {
+        gotName = name;
+        gotArgs = args;
+      },
+    );
+    final r = await p.tools.single.call({
+      'route_name': 'settings',
+      'arguments': {'tab': 'profile'},
+    });
+    expect(r.ok, isTrue);
+    expect(r.value, {'route_name': 'settings'});
+    expect(gotName, 'settings');
+    expect(gotArgs, {'tab': 'profile'});
+  });
+
+  test('navigate seam errors surface as ok:false', () async {
+    final p = RouterPlugin(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      navigate: (name, args) async =>
+          throw StateError('no GoRoute named "$name"'),
+    );
+    final r = await p.tools.single.call({'route_name': 'nope'});
+    expect(r.ok, isFalse);
+    expect(r.error, contains('nope'));
+  });
+
+  testWidgets('seam is preferred over Navigator pushNamed when both present',
+      (t) async {
+    final k = GlobalKey<NavigatorState>();
+    await t.pumpWidget(_app(k));
+    var seamCalled = false;
+    final p = RouterPlugin(
+      navigatorKey: k,
+      navigate: (name, args) async => seamCalled = true,
+    );
+    final r = await p.tools.single.call({'route_name': '/settings'});
+    expect(r.ok, isTrue);
+    expect(seamCalled, isTrue);
+    // The seam handled navigation; Navigator-1.0 pushNamed must NOT have run,
+    // so the Navigator stack is untouched (still at root).
+    await t.pumpAndSettle();
+    final f = await p.observe(_ctx);
+    expect(f!['current_route_name'], '/');
+  });
+
   test('declarative-only: observe reads RouterDelegate.currentConfiguration',
       () async {
     final p = RouterPlugin(

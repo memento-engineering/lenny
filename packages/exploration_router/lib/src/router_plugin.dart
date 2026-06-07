@@ -5,10 +5,19 @@ import 'package:exploration_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
 
 class RouterPlugin extends ExplorationPlugin {
-  RouterPlugin({required this.navigatorKey, this.routerDelegate});
+  RouterPlugin({required this.navigatorKey, this.routerDelegate, this.navigate});
 
   final GlobalKey<NavigatorState> navigatorKey;
   final RouterDelegate<Object>? routerDelegate;
+
+  /// App-provided navigation seam for Router-API apps. When set, [_NavigateTool]
+  /// drives navigation through this callback (e.g. go_router's `goNamed`)
+  /// instead of Navigator-1.0 `pushNamed`, which requires an
+  /// `onGenerateRoute` handler that is null under `MaterialApp.router`
+  /// (lenny-18q). Left null, the plugin falls back to `pushNamed` so
+  /// Navigator-1.0 apps keep working unchanged.
+  final Future<void> Function(String routeName, Map<String, Object?>? arguments)?
+      navigate;
 
   static const int _budgetBytes = 1024;
 
@@ -119,6 +128,23 @@ class _NavigateTool extends ExplorationTool {
         error: 'route_name is required and must be a String',
       );
     }
+    final raw = args['arguments'];
+    final routeArgs = raw is Map<String, Object?> ? raw : null;
+
+    // Prefer the app-provided navigation seam (Router-API apps such as
+    // go_router, where Navigator.onGenerateRoute is null and pushNamed cannot
+    // resolve a named route — lenny-18q).
+    final navigate = _plugin.navigate;
+    if (navigate != null) {
+      try {
+        await navigate(rn, routeArgs);
+        return ToolResult(ok: true, value: {'route_name': rn});
+      } catch (e) {
+        return ToolResult(ok: false, error: 'unknown route "$rn": $e');
+      }
+    }
+
+    // Fallback: Navigator-1.0 named routes (apps that supply onGenerateRoute).
     final state = _plugin.navigatorKey.currentState;
     if (state == null) {
       return const ToolResult(
@@ -126,8 +152,6 @@ class _NavigateTool extends ExplorationTool {
         error: 'NavigatorState is not currently mounted',
       );
     }
-    final raw = args['arguments'];
-    final routeArgs = raw is Map<String, Object?> ? raw : null;
     try {
       // Don't await: pushNamed's Future only resolves when the route is
       // popped, but the tool's contract is to return as soon as navigation
