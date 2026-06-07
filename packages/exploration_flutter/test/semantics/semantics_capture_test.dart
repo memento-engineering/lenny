@@ -126,4 +126,66 @@ void main() {
     cap.dispose();
     h.dispose();
   });
+
+  testWidgets(
+    'nested rows get distinct device-space rects; stacked SwitchListTiles are '
+    'captured as actionable switch nodes at DPR>1 (lenny-a3s)',
+    (WidgetTester tester) async {
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final SemanticsHandle h = tester.ensureSemantics();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: AppBar(title: const Text('Settings')),
+            body: ListView(
+              children: <Widget>[
+                SwitchListTile(
+                  title: const Text('Dark Theme'),
+                  value: false,
+                  onChanged: (_) {},
+                ),
+                SwitchListTile(
+                  title: const Text('Notifications'),
+                  value: true,
+                  onChanged: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final SemanticsCapture cap = SemanticsCapture();
+      final List<Map<String, Object>> recs = cap.capture();
+
+      Map<String, Object> sw(String label) => recs.firstWhere(
+            (Map<String, Object> r) =>
+                r['role'] == 'switch' && r['label'] == label,
+          );
+      final Map<String, Object> dark = sw('Dark Theme');
+      final Map<String, Object> notif = sw('Notifications');
+
+      // Both switches must be actionable, not dropped or demoted to text.
+      expect(dark['actions'], contains('tap'));
+      expect(notif['actions'], contains('tap'));
+
+      // The defect (applying only the node's own transform) collapsed every
+      // row to its parent-local origin, so both switches shared one rect and
+      // _filterObscured dropped them. With ancestor transforms accumulated,
+      // Notifications sits strictly below Dark Theme.
+      final List<int> dr = (dark['rect']! as List).cast<int>();
+      final List<int> nr = (notif['rect']! as List).cast<int>();
+      expect(
+        nr[1],
+        greaterThan(dr[1]),
+        reason: 'Notifications.top must be below Dark Theme.top; equal tops '
+            'mean the rects collapsed (the bug). dark=$dr notif=$nr',
+      );
+      expect(dr, isNot(equals(nr)));
+
+      cap.dispose();
+      h.dispose();
+    },
+  );
 }
