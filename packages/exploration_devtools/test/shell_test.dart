@@ -1,17 +1,9 @@
 import 'dart:async';
 
 import 'package:exploration_agent/exploration_agent.dart'
-    show
-        BindingNotInitializedError,
-        ExplorationSession,
-        PluginManifestEntry,
-        TrajectoryRecord,
-        TurnEvent;
+    show BindingNotInitializedError, ExplorationSession, PluginManifestEntry;
 import 'package:exploration_devtools/src/exploration_shell.dart';
-import 'package:exploration_devtools/src/panel_host.dart'
-    show ExplorationPanelHost, ExplorationPanelHostState;
 import 'package:exploration_devtools/src/manifest_probe.dart';
-import 'package:exploration_devtools/src/panels/timeline_panel_mount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,66 +18,7 @@ ManifestProbe _throwingProbe(Object error) {
 Future<ExplorationSession> _noSession() async =>
     throw StateError('no session in this test');
 
-class _SessionWithEmptyTurnEvents implements ExplorationSession {
-  @override
-  Stream<TurnEvent> get turnEvents => const Stream.empty();
-
-  @override
-  Future<void> end() async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 void main() {
-  testWidgets('tabs render three tabs with Prompt selected', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ExplorationShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Prompt'), findsOneWidget);
-    expect(find.text('Thinking'), findsOneWidget);
-    expect(find.text('Timeline'), findsOneWidget);
-    // The Prompt tab is selected by default — its real PromptPanel
-    // (cx6.22) is mounted, so its goal field is visible.
-    expect(find.byKey(const Key('prompt.goal')), findsOneWidget);
-  });
-
-  testWidgets('renders one toggle per plugin namespace from probe',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ExplorationShell(
-        manifestProbe: _staticProbe(const [
-          PluginManifestEntry(namespace: 'router', tools: ['router.go']),
-          PluginManifestEntry(namespace: 'dio', tools: ['dio.respondNext']),
-        ]),
-        sessionFactory: _noSession,
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('prompt.plugin.router')), findsOneWidget);
-    expect(find.byKey(const Key('prompt.plugin.dio')), findsOneWidget);
-    expect(find.byKey(const Key('prompt.pluginsEmpty')), findsNothing);
-  });
-
-  testWidgets('empty plugin list renders empty-state hint', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ExplorationShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('prompt.pluginsEmpty')), findsOneWidget);
-    expect(find.byKey(const Key('prompt.bindingNotDetected')), findsNothing);
-  });
-
   testWidgets('binding missing renders prompt.bindingNotDetected',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
@@ -97,7 +30,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('prompt.bindingNotDetected')), findsOneWidget);
-    expect(find.byKey(const Key('prompt.pluginsEmpty')), findsNothing);
     expect(find.byKey(const Key('prompt.goal')), findsNothing);
   });
 
@@ -119,71 +51,6 @@ void main() {
     // Drain by completing.
     completer.complete(const <PluginManifestEntry>[]);
     await tester.pumpAndSettle();
-  });
-
-  testWidgets(
-      'TimelinePanelMount.trajectoryStream is null before a session starts',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ExplorationShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    // Activate the Timeline tab so the mount widget is built.
-    await tester.tap(find.text('Timeline'));
-    await tester.pumpAndSettle();
-
-    final TimelinePanelMount mount =
-        tester.widget<TimelinePanelMount>(find.byType(TimelinePanelMount));
-    expect(mount.trajectoryStream, isNull,
-        reason: 'no controller has been created yet — no stream to forward');
-  });
-
-  testWidgets(
-      'TimelinePanelMount.trajectoryStream rebuilds when the trajectory '
-      'notifier publishes a stream', (tester) async {
-    // This test verifies the shell's ValueListenableBuilder wiring:
-    // when the trajectory notifier fires, the Timeline tab rebuilds
-    // with the new stream. Mounting a real session is exercised by
-    // the controller test; here we only assert the structural seam.
-    final controller = StreamController<TrajectoryRecord>.broadcast();
-    addTearDown(controller.close);
-    final stream = controller.stream;
-
-    final notifier = ValueNotifier<Stream<TrajectoryRecord>?>(null);
-    addTearDown(notifier.dispose);
-
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ValueListenableBuilder<Stream<TrajectoryRecord>?>(
-          valueListenable: notifier,
-          builder: (context, stream, _) =>
-              TimelinePanelMount(trajectoryStream: stream),
-        ),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(
-      tester
-          .widget<TimelinePanelMount>(find.byType(TimelinePanelMount))
-          .trajectoryStream,
-      isNull,
-    );
-
-    notifier.value = stream;
-    await tester.pumpAndSettle();
-
-    expect(
-      tester
-          .widget<TimelinePanelMount>(find.byType(TimelinePanelMount))
-          .trajectoryStream,
-      same(stream),
-      reason: 'shell re-renders TimelinePanelMount with the published stream',
-    );
   });
 
   testWidgets('probeRetrigger change triggers re-probe', (tester) async {
@@ -209,42 +76,37 @@ void main() {
     expect(calls, 2);
   });
 
-  testWidgets(
-      'host.session set by ensureSession; Thinking tab shows ThinkingPanel',
+  testWidgets('idle screen shows idle hint before session starts',
       (tester) async {
-    // Validates the session-ownership invariant: once host.ensureSession() is
-    // called, ThinkingPlaceholder (a host-scoped consumer) switches from its
-    // placeholder text to ThinkingPanel — the same transition that the fixed
-    // PromptPanelController triggers in production.
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
         manifestProbe: _staticProbe(const []),
-        sessionFactory: () async => _SessionWithEmptyTurnEvents(),
+        sessionFactory: _noSession,
       ),
     ));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('transcript.idle')), findsOneWidget);
+  });
 
-    // Navigate to Thinking tab.
-    await tester.tap(find.text('Thinking'));
+  testWidgets('no tab bar in single-screen layout', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: ExplorationShell(
+        manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
+      ),
+    ));
     await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsNothing);
+  });
 
-    expect(find.text('No active session'), findsOneWidget,
-        reason: 'before session: placeholder shown');
-
-    // Simulate what the fixed PromptPanelController now does.
-    final host = tester.state<ExplorationPanelHostState>(
-      find.byType(ExplorationPanelHost),
-    );
-    await host.ensureSession();
-    await tester.pump();
-
-    expect(find.text('No active session'), findsNothing,
-        reason: 'session active: ThinkingPanel replaces placeholder');
-
-    await host.endSession();
-    await tester.pump();
-
-    expect(find.text('No active session'), findsOneWidget,
-        reason: 'after endSession: placeholder shown again');
+  testWidgets('goal field is visible in the composer', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: ExplorationShell(
+        manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('prompt.goal')), findsOneWidget);
   });
 }

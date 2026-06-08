@@ -2,6 +2,8 @@ import 'package:exploration_agent/exploration_agent.dart'
     show TrajectoryRecord;
 import 'package:flutter/material.dart';
 
+import 'conversation/conversation_view_model.dart';
+import 'conversation/transcript_list.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
@@ -10,8 +12,6 @@ import 'panels/prompt_panel_controller.dart'
     show PromptPanelController, SessionFactory;
 import 'panels/prompt_tab_mount.dart';
 import 'panels/provider_config_store.dart';
-import 'panels/thinking_placeholder.dart';
-import 'panels/timeline_panel_mount.dart';
 
 /// The visible content of the extension: panel host + tabbed Scaffold.
 ///
@@ -76,15 +76,18 @@ class _ExplorationShellState extends State<ExplorationShell> {
       GlobalKey<ExplorationPanelHostState>();
 
   /// Holds the controller's live trajectory stream once the prompt
-  /// tab starts a session. The Timeline tab reads through this so
-  /// records the loop emits during a run are rendered in real time.
+  /// composer starts a session. The TranscriptList reads through the
+  /// ViewModel which subscribes to this stream.
   final ValueNotifier<Stream<TrajectoryRecord>?> _trajectory =
       ValueNotifier<Stream<TrajectoryRecord>?>(null);
+
+  ConversationViewModel? _conversationVm;
 
   @override
   void initState() {
     super.initState();
     widget.probeRetrigger?.addListener(_onRetrigger);
+    _trajectory.addListener(_onTrajectoryChanged);
   }
 
   @override
@@ -99,7 +102,9 @@ class _ExplorationShellState extends State<ExplorationShell> {
   @override
   void dispose() {
     widget.probeRetrigger?.removeListener(_onRetrigger);
+    _trajectory.removeListener(_onTrajectoryChanged);
     _trajectory.dispose();
+    _conversationVm?.dispose();
     super.dispose();
   }
 
@@ -108,42 +113,51 @@ class _ExplorationShellState extends State<ExplorationShell> {
     _hostKey.currentState?.refreshManifest();
   }
 
+  void _onTrajectoryChanged() {
+    final stream = _trajectory.value;
+    if (stream == null) return;
+    final session = _hostKey.currentState?.session;
+    if (session == null) return;
+    final vm = ConversationViewModel(
+      turnEvents: session.turnEvents,
+      trajectory: stream,
+    );
+    setState(() {
+      _conversationVm?.dispose();
+      _conversationVm = vm;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ExplorationPanelHost(
       key: _hostKey,
       manifestProbe: widget.manifestProbe,
       sessionFactory: widget.sessionFactory,
-      child: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Exploration'),
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Prompt'),
-                Tab(text: 'Thinking'),
-                Tab(text: 'Timeline'),
-              ],
+      child: Scaffold(
+        body: Column(
+          children: [
+            const SizedBox.shrink(), // S4/S5 status header zone
+            Expanded(
+              child: _conversationVm != null
+                  ? TranscriptList(viewModel: _conversationVm!)
+                  : const Center(
+                      child: Text(
+                        'Start a session to see the transcript.',
+                        key: Key('transcript.idle'),
+                      ),
+                    ),
             ),
-          ),
-          body: TabBarView(
-            children: [
-              _PromptTabBody(
+            Expanded(
+              child: _PromptTabBody(
                 hostKey: _hostKey,
                 store: widget.store,
                 catalog: widget.catalog,
                 promptConfigStore: widget.promptConfigStore,
                 trajectorySink: _trajectory,
               ),
-              const ThinkingPlaceholder(),
-              ValueListenableBuilder<Stream<TrajectoryRecord>?>(
-                valueListenable: _trajectory,
-                builder: (context, stream, _) =>
-                    TimelinePanelMount(trajectoryStream: stream),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
