@@ -1,0 +1,95 @@
+description = """
+PRIVATE to the lenny rig — a quick integration-check suite that drives the
+bundled `sample_app` through the core interaction types with the exploration
+agent. This is lenny's own dogfood harness; it is NOT shipped in the shareable
+`lenny-e2e` pack (which stays app-agnostic).
+
+It runs the generic `lenny-e2e-session` atom (imported via lenny-e2e) once per
+scenario, sequentially — the scenarios share one wired device, so each step
+relaunches the app fresh (a prior `core.done` leaves the binding sticky). Goals
+are CREDS-AWARE (sample_app accepts only demo@example.com / password and
+auth-guards Settings), the form proven on-device 2026-06-07 with --model
+qwen-mlx after the lenny-cx6.50/.52/.53 fixes.
+"""
+formula  = "lenny-e2e-sample-suite"
+version  = 1
+contract = "graph.v2"
+type     = "workflow"
+pour     = true
+
+[metadata]
+kind = "mission"
+
+# Table style so `bd mol pour` applies defaults (the [[variables]] array style
+# does not). Both vars default — this suite is poured with no required args.
+[vars]
+
+[vars.model]
+description = "Model tier to exercise: claude | qwen-mlx | openai. Use qwen-mlx to validate the local swift-infer gateway."
+default     = "claude"
+
+[vars.app_dir]
+description = "Path to the bundled sample_app (the Flutter app under test)."
+default     = "packages/exploration_flutter/example/sample_app"
+
+[[steps]]
+id       = "login"
+title    = "Scenario 1 — text-entry login"
+type     = "task"
+priority = 2
+description = """
+Run one `lenny-e2e-session` for the login scenario.
+
+- goal: `Log in by typing the email demo@example.com and password password, then sign in`
+- model: `{{model}}`  · app_dir: `{{app_dir}}`
+
+Follow the lenny-e2e-session steps (preflight -> launch -> run -> inspect ->
+triage). Relaunch the app fresh first. PASS = footer.outcome==done and
+routeStack reaches `home`. Record the verdict (PASS/FAIL, turns, trajectory).
+"""
+
+[[steps]]
+id       = "navigate"
+title    = "Scenario 2 — navigation to Settings"
+type     = "task"
+priority = 2
+needs    = ["login"]
+description = """
+Run one `lenny-e2e-session` for the navigation scenario.
+
+- goal: `Sign in with email demo@example.com and password password, then open the Settings screen`
+- model: `{{model}}`  · app_dir: `{{app_dir}}`
+
+Settings is auth-guarded, hence the creds in the goal. Relaunch fresh first.
+PASS = footer.outcome==done and routeStack reaches `settings`. Record the
+verdict.
+"""
+
+[[steps]]
+id       = "state_change"
+title    = "Scenario 3 — state change (Dark Theme)"
+type     = "task"
+priority = 2
+needs    = ["navigate"]
+description = """
+Run one `lenny-e2e-session` for the state-change scenario.
+
+- goal: `Sign in with email demo@example.com and password password, then open Settings and turn on Dark Theme`
+- model: `{{model}}`  · app_dir: `{{app_dir}}`
+
+Relaunch fresh first. PASS = footer.outcome==done and the `Dark Theme` switch
+node's state shows `on` in the final observation. Record the verdict.
+"""
+
+[[steps]]
+id       = "report"
+title    = "Aggregate the suite verdict"
+type     = "task"
+priority = 2
+needs    = ["state_change"]
+description = """
+Summarize the three scenario verdicts into one suite result: per-scenario
+PASS/FAIL with turns + trajectory path, and an overall PASS (all three done) or
+FAIL. File any FAIL's root cause per the atom's triage step (debug-inference for
+swift-infer models). Note the model and the git sha under test.
+"""

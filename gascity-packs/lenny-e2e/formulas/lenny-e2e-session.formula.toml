@@ -1,0 +1,167 @@
+description = """
+Run ONE live-device exploration-agent E2E against a Flutter app and verify it
+drives the app to goal completion.
+
+This is the generic atom: one supplied goal -> one trajectory -> a PASS/FAIL
+verdict. Pour it with your own goal/model/app, or compose a suite formula that
+pours it once per scenario. The variable-length perception-action loop stays
+inside exploration_cli / LoopDriver; the steps here are the OUTER orchestration
+(pre-flight -> launch -> run -> inspect -> triage) — agent contracts a worker
+executes by reading each step body.
+
+Prereqs: a wired iOS device (USB, not wireless) with the target Flutter app
+built from your working tree, exploration_cli available, and — for
+--model qwen-mlx — SWIFT_INFER_ENDPOINT + SWIFT_INFER_AGENT_TOKEN in the env.
+"""
+formula  = "lenny-e2e-session"
+version  = 1
+contract = "graph.v2"
+type     = "workflow"
+pour     = true
+
+[metadata]
+kind = "mission"
+
+# Table style ([vars.<name>]) so `bd mol pour` applies `default` — the
+# [[variables]] array style does NOT honor defaults on pour (it treated every
+# var as required). Only goal + app_dir are required; the rest default.
+[vars]
+
+[vars.goal]
+description = "The exploration goal — the prompt the agent drives toward. Make it sufficiently specified: include any credentials or target state the agent cannot infer from the screen (e.g. 'Log in with email demo@example.com and password password, then ...')."
+required    = true
+
+[vars.app_dir]
+description = "Absolute path to the Flutter app under test (the directory containing pubspec.yaml and an ios/ project)."
+required    = true
+
+[vars.model]
+description = "Model tier: claude | qwen-mlx | openai."
+default     = "claude"
+
+[vars.device]
+description = "Target device id passed to `flutter -d <id>`. Empty = use the single attached non-wireless device."
+default     = ""
+
+[vars.plugins]
+description = "Comma-separated exploration plugin namespaces to enable."
+default     = "router,riverpod,dio"
+
+[vars.cli]
+description = "Invocation prefix for exploration_cli — e.g. 'dart run bin/exploration_cli.dart' from the exploration_cli package, or a globally-activated binary."
+default     = "dart run bin/exploration_cli.dart"
+
+[[steps]]
+id       = "preflight"
+title    = "Pre-flight: device, env, build"
+type     = "task"
+priority = 2
+description = """
+Confirm the run can proceed before launching anything. Abort with a clear
+message if any check fails.
+
+1. **Device.** `flutter devices` lists `{{device}}` (or, when `{{device}}` is
+   empty, exactly one attached **non-wireless** device — capture its id as
+   DEVICE and use it for the rest of the run). Reject a `(wireless)` device: the
+   VM-service tunnel needs USB.
+2. **Model env** (for `{{model}}`):
+   - `qwen-mlx`: `SWIFT_INFER_ENDPOINT` set and reachable (`GET /v1/models`
+     returns 200), `SWIFT_INFER_AGENT_TOKEN` set, and the served model id
+     matches the CLI's configured swift-infer model.
+   - `claude`: `ANTHROPIC_API_KEY` set.
+   - `openai`: `OPENAI_API_KEY` set.
+3. **App.** `{{app_dir}}` exists and contains `pubspec.yaml` + an `ios/` project
+   (run `flutter create --platforms=ios .` there first if missing), built from
+   the working tree you intend to test.
+
+Record a one-line pre-flight summary: DEVICE, `{{model}}`, `{{app_dir}}`, short
+git sha.
+"""
+
+[[steps]]
+id       = "launch"
+title    = "Launch the app on the device"
+type     = "task"
+priority = 2
+needs    = ["preflight"]
+description = """
+Bring the app up fresh and capture the VM-service URI.
+
+1. Kill any stale launcher for this device (a leftover iproxy tunnel makes the
+   next launch hang on mDNS):
+   `pkill -f "run -d <DEVICE>"` and `pkill -f "iproxy.*<DEVICE>"`.
+2. From `{{app_dir}}`:
+   `flutter run -d <DEVICE> --no-devtools > /tmp/lenny_e2e_run.log 2>&1 &`
+3. Wait for `grep "Dart VM Service on" /tmp/lenny_e2e_run.log`, take the
+   `http://127.0.0.1:<PORT>/<TOKEN>/` URI and convert it to
+   `ws://127.0.0.1:<PORT>/<TOKEN>/ws` -> VM_URI.
+
+Relaunch discipline: a prior session that ended via `core.done` can leave the
+binding sticky — always launch fresh per session.
+"""
+
+[[steps]]
+id       = "run"
+title    = "Run the exploration agent against the goal"
+type     = "task"
+priority = 2
+needs    = ["launch"]
+description = """
+Drive one agent session toward the goal and capture the trajectory.
+
+```
+{{cli}} \\
+  --vm-uri '<VM_URI>' \\
+  --goal '{{goal}}' \\
+  --plugins {{plugins}} \\
+  --model {{model}} \\
+  --policy action-relative
+```
+
+The newest file under the exploration_cli package's `trajectories/<UTC>.jsonl`
+is this run's record -> TRAJECTORY. (The CLI loads its AGENTS.md operating
+guide into the system prompt; confirm the stderr `info: loaded AGENTS.md ...`
+line appears.)
+"""
+
+[[steps]]
+id       = "inspect"
+title    = "Inspect the trajectory against pass criteria"
+type     = "task"
+priority = 2
+needs    = ["run"]
+description = """
+Parse TRAJECTORY and decide PASS/FAIL.
+
+PASS requires:
+- `footer.outcome == done`;
+- `header.model_identifier` matches `{{model}}` (qwenMlx | claude | openai);
+- every `executed_action.result.ok == true` (a single recovered failure is
+  acceptable; a terminal repeat loop is not);
+- the goal's success state is visible in the final observation (e.g. routeStack
+  reached the target route; a toggled switch shows the expected state).
+
+Record a verdict line: PASS/FAIL, turns, duration, TRAJECTORY path, and — when
+present — a non-null `provider_request_id`.
+"""
+
+[[steps]]
+id       = "triage"
+title    = "Triage failures and record results"
+type     = "task"
+priority = 2
+needs    = ["inspect"]
+description = """
+On PASS: record the trajectory path + a one-line summary. Done.
+
+On FAIL: triage before filing.
+- If `{{model}}` is a swift-infer model (e.g. `qwen-mlx`): use the
+  `debug-inference` skill to fetch the raw gateway request/response — by
+  `provider_request_id` if present, else by time window — and inspect what the
+  model actually emitted (tool_calls arguments, raw content).
+- Classify the root cause: model behaviour (bad tool args, no tool call, wrong
+  target), goal under-specification (the agent could not know something it was
+  never told), or a harness/plugin defect.
+- File each distinct defect as its own bead with the TRAJECTORY path and the
+  request id. Do NOT retrofit findings onto unrelated fixes.
+"""
