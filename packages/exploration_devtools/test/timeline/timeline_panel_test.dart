@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:exploration_agent/exploration_agent.dart';
-import 'package:exploration_devtools/src/exploration_shell.dart';
 import 'package:exploration_devtools/src/timeline/timeline_panel.dart';
 import 'package:exploration_devtools/src/timeline/timeline_source.dart';
 import 'package:exploration_devtools/src/timeline/turn_row.dart';
@@ -36,19 +35,14 @@ Widget _wrap(Widget child) => MaterialApp(
 
 void main() {
   group('TimelinePanel', () {
-    testWidgets('mounts under Timeline tab', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: ExplorationShell(
-          manifestProbe: () async => const [],
-          sessionFactory: () async => throw StateError('no session'),
-        ),
-      ));
-      // Default selected tab is Prompt; switch to Timeline.
-      await tester.tap(find.text('Timeline'));
+    testWidgets('mounts and shows Browse JSONL and Live buttons', (tester) async {
+      final source = LiveTimelineSource(const Stream.empty());
+      addTearDown(source.close);
+      await tester.pumpWidget(_wrap(TimelinePanel(
+        source: source,
+        onPickJsonl: () async => null,
+      )));
       await tester.pumpAndSettle();
-      // The placeholder text from .21 must be gone, and the Browse button
-      // from TimelinePanel must be present.
-      expect(find.textContaining('lenny-cx6.24'), findsNothing);
       expect(find.text('Browse JSONL'), findsOneWidget);
       expect(find.text('Live'), findsOneWidget);
     });

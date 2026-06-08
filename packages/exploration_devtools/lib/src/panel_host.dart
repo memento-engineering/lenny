@@ -60,7 +60,7 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
 
   /// Listenable that fires whenever the active session changes.
   /// Sub-panels should use [ValueListenableBuilder] on this to rebuild
-  /// reactively (e.g. [ThinkingPlaceholder]).
+  /// reactively (e.g. [TranscriptList] via [ConversationViewModel]).
   ValueListenable<ExplorationSession?> get sessionListenable => _sessionNotifier;
 
   /// Latest manifest probe state. Sub-panels listen via
