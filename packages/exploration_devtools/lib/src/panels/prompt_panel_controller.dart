@@ -29,11 +29,14 @@ typedef SessionFactory = Future<ExplorationSession> Function();
 class PromptPanelController {
   PromptPanelController({
     required SessionFactory factory,
+    Future<void> Function()? onStop,
     PanelProviderFactory? providerFactory,
   })  : _factory = factory,
+        _onStop = onStop,
         _providerFactory = providerFactory ?? buildPanelProvider;
 
   final SessionFactory _factory;
+  final Future<void> Function()? _onStop;
   final PanelProviderFactory _providerFactory;
   final StreamController<SessionProgressEvent> _events =
       StreamController<SessionProgressEvent>.broadcast();
@@ -159,7 +162,11 @@ class PromptPanelController {
         // Surface via runFuture / progress events; teardown proceeds.
       }
     }
-    await session.end();
+    if (_onStop != null) {
+      await _onStop();
+    } else {
+      await session.end();
+    }
     await _sub?.cancel();
     _sub = null;
     _session = null;

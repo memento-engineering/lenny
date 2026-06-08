@@ -334,4 +334,42 @@ void main() {
 
     await c.dispose();
   });
+
+  test('factory routes through ensureSession; onStop invoked instead of session.end',
+      () async {
+    ExplorationSession? storedSession;
+    var stopCalled = false;
+
+    final fake = _FakeSession();
+    Future<ExplorationSession> ensureSession() async {
+      storedSession = fake;
+      return fake;
+    }
+
+    Future<void> endSession() async {
+      stopCalled = true;
+      storedSession = null;
+      // Production host.endSession() calls session.end(); we intentionally skip it
+      // here to prove the controller does NOT double-end.
+    }
+
+    final c = PromptPanelController(
+      factory: ensureSession,
+      onStop: endSession,
+      providerFactory: (_, __, ___) => _DummyProvider(),
+    );
+
+    await c.start(_cfg, providerCfg: _providerCfg());
+    expect(storedSession, isNotNull, reason: 'ensureSession was invoked');
+    expect(c.running, isTrue);
+
+    await c.stop();
+    expect(stopCalled, isTrue, reason: 'onStop callback was invoked');
+    expect(storedSession, isNull, reason: 'onStop cleared the host-side session ref');
+    expect(fake.ended, isFalse,
+        reason: 'controller did not call session.end() directly when onStop provided');
+    expect(c.running, isFalse);
+
+    await c.dispose();
+  });
 }

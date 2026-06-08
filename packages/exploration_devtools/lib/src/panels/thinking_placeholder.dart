@@ -1,3 +1,4 @@
+import 'package:exploration_agent/exploration_agent.dart' show ExplorationSession;
 import 'package:flutter/material.dart';
 
 import '../panel_host.dart';
@@ -13,10 +14,14 @@ class ThinkingPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final host = ExplorationPanelHost.of(context);
-    final session = host.session;
-    if (session == null) {
-      return const Center(child: Text('No active session'));
-    }
-    return ThinkingPanel(session: session);
+    return ValueListenableBuilder<ExplorationSession?>(
+      valueListenable: host.sessionListenable,
+      builder: (context, session, _) {
+        if (session == null) {
+          return const Center(child: Text('No active session'));
+        }
+        return ThinkingPanel(session: session);
+      },
+    );
   }
 }

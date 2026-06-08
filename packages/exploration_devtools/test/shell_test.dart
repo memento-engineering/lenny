@@ -5,8 +5,11 @@ import 'package:exploration_agent/exploration_agent.dart'
         BindingNotInitializedError,
         ExplorationSession,
         PluginManifestEntry,
-        TrajectoryRecord;
+        TrajectoryRecord,
+        TurnEvent;
 import 'package:exploration_devtools/src/exploration_shell.dart';
+import 'package:exploration_devtools/src/panel_host.dart'
+    show ExplorationPanelHost, ExplorationPanelHostState;
 import 'package:exploration_devtools/src/manifest_probe.dart';
 import 'package:exploration_devtools/src/panels/timeline_panel_mount.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +25,17 @@ ManifestProbe _throwingProbe(Object error) {
 
 Future<ExplorationSession> _noSession() async =>
     throw StateError('no session in this test');
+
+class _SessionWithEmptyTurnEvents implements ExplorationSession {
+  @override
+  Stream<TurnEvent> get turnEvents => const Stream.empty();
+
+  @override
+  Future<void> end() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   testWidgets('tabs render three tabs with Prompt selected', (tester) async {
@@ -193,5 +207,44 @@ void main() {
     notifier.value = 1;
     await tester.pumpAndSettle();
     expect(calls, 2);
+  });
+
+  testWidgets(
+      'host.session set by ensureSession; Thinking tab shows ThinkingPanel',
+      (tester) async {
+    // Validates the session-ownership invariant: once host.ensureSession() is
+    // called, ThinkingPlaceholder (a host-scoped consumer) switches from its
+    // placeholder text to ThinkingPanel — the same transition that the fixed
+    // PromptPanelController triggers in production.
+    await tester.pumpWidget(MaterialApp(
+      home: ExplorationShell(
+        manifestProbe: _staticProbe(const []),
+        sessionFactory: () async => _SessionWithEmptyTurnEvents(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Navigate to Thinking tab.
+    await tester.tap(find.text('Thinking'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No active session'), findsOneWidget,
+        reason: 'before session: placeholder shown');
+
+    // Simulate what the fixed PromptPanelController now does.
+    final host = tester.state<ExplorationPanelHostState>(
+      find.byType(ExplorationPanelHost),
+    );
+    await host.ensureSession();
+    await tester.pump();
+
+    expect(find.text('No active session'), findsNothing,
+        reason: 'session active: ThinkingPanel replaces placeholder');
+
+    await host.endSession();
+    await tester.pump();
+
+    expect(find.text('No active session'), findsOneWidget,
+        reason: 'after endSession: placeholder shown again');
   });
 }
