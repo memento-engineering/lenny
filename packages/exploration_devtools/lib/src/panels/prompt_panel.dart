@@ -31,6 +31,7 @@ class PromptPanel extends StatefulWidget {
     this.pluginGuideUrl =
         'https://example.com/exploration-agent/plugin-authoring',
     this.onUseFallback,
+    this.initialConfig,
   });
 
   /// Snapshot of the model catalog (provider config + resolved
@@ -74,6 +75,11 @@ class PromptPanel extends StatefulWidget {
   /// `null` disables the link.
   final void Function(String modelId)? onUseFallback;
 
+  /// Pre-fills the form from the last-used config. Null on first-ever load
+  /// (form shows defaults). Applied in [State.initState] if already set, or in
+  /// [State.didUpdateWidget] when the async bootstrap delivers it after mount.
+  final PromptPanelConfig? initialConfig;
+
   @override
   State<PromptPanel> createState() => _PromptPanelState();
 }
@@ -84,12 +90,20 @@ class _PromptPanelState extends State<PromptPanel> {
   String? _modelId;
   int _maxTurns = 50;
   Duration _budget = const Duration(minutes: 15);
-  late final Set<String> _enabled =
-      widget.plugins.map((p) => p.namespace).toSet();
+  Set<String> _enabled = const <String>{};
 
   @override
   void initState() {
     super.initState();
+    final ic = widget.initialConfig;
+    if (ic != null) {
+      _goal.text = ic.goal;
+      _maxTurns = ic.maxTurns;
+      _budget = ic.wallClockBudget;
+      _enabled = ic.enabledPluginNamespaces.toSet();
+    } else {
+      _enabled = widget.plugins.map((p) => p.namespace).toSet();
+    }
     _modelId = widget.modelsState.models.isNotEmpty
         ? widget.modelsState.models.first.id
         : null;
@@ -98,6 +112,15 @@ class _PromptPanelState extends State<PromptPanel> {
   @override
   void didUpdateWidget(covariant PromptPanel old) {
     super.didUpdateWidget(old);
+    if (old.initialConfig == null && widget.initialConfig != null) {
+      final ic = widget.initialConfig!;
+      setState(() {
+        _goal.text = ic.goal;
+        _maxTurns = ic.maxTurns;
+        _budget = ic.wallClockBudget;
+        _enabled = ic.enabledPluginNamespaces.toSet();
+      });
+    }
     final models = widget.modelsState.models;
     if (_modelId == null && models.isNotEmpty) {
       _modelId = models.first.id;

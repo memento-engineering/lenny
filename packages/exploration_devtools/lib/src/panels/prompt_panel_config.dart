@@ -42,6 +42,29 @@ class PromptPanelConfig {
         sessionBudget: wallClockBudget,
       );
 
+  /// Serializes form-level fields. [modelId] is intentionally absent —
+  /// model selection is owned by the provider-config layer (lenny-0wd).
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'goal': goal,
+        'maxTurns': maxTurns,
+        'wallClockBudgetMinutes': wallClockBudget.inMinutes,
+        'enabledPluginNamespaces': enabledPluginNamespaces.toList(),
+      };
+
+  factory PromptPanelConfig.fromJson(Map<String, dynamic> json) =>
+      PromptPanelConfig(
+        goal: (json['goal'] as String?) ?? '',
+        modelId: '', // not persisted; resolved from model dropdown at mount
+        maxTurns: (json['maxTurns'] as int?) ?? 50,
+        wallClockBudget: Duration(
+          minutes: (json['wallClockBudgetMinutes'] as int?) ?? 15,
+        ),
+        enabledPluginNamespaces: Set<String>.from(
+          (json['enabledPluginNamespaces'] as List<dynamic>?) ??
+              const <dynamic>[],
+        ),
+      );
+
   @override
   bool operator ==(Object other) =>
       other is PromptPanelConfig &&

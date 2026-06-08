@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'model_catalog.dart';
 import 'prompt_panel.dart';
 import 'prompt_panel_config.dart';
+import 'prompt_panel_config_store.dart';
 import 'prompt_panel_controller.dart';
 import 'provider_config.dart';
 import 'provider_config_store.dart';
@@ -31,6 +32,7 @@ class PromptTabMount extends StatefulWidget {
     required this.store,
     required this.catalog,
     required this.controllerFactory,
+    required this.promptConfigStore,
     this.trajectorySink,
     this.initialProviderId = 'swift-infer',
   });
@@ -53,6 +55,9 @@ class PromptTabMount extends StatefulWidget {
   /// `'swift-infer'`.
   final String initialProviderId;
 
+  /// Persists and restores last-used form state across reloads.
+  final PromptPanelConfigStore promptConfigStore;
+
   /// Builds the [PromptPanelController] for this mount. The shell wires
   /// `() => PromptPanelController(factory: <closure over serviceManager>)`;
   /// tests inject a fake.
@@ -70,6 +75,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
   final ValueNotifier<ModelCatalogState> _state =
       ValueNotifier<ModelCatalogState>(const ModelCatalogState());
   String _conversationId = '';
+  PromptPanelConfig? _initialPromptConfig;
 
   @override
   void initState() {
@@ -79,9 +85,19 @@ class _PromptTabMountState extends State<PromptTabMount> {
 
   Future<void> _bootstrap() async {
     final loaded = await widget.store.load(widget.initialProviderId);
-    if (loaded == null) return;
-    _state.value = _state.value.copyWith(config: loaded);
-    await _refresh(reload: false);
+    if (loaded != null) {
+      if (!mounted) return;
+      _state.value = _state.value.copyWith(config: loaded);
+      await _refresh(reload: false);
+    }
+    if (!mounted) return;
+    final liveNamespaces = widget.plugins.map((p) => p.namespace).toSet();
+    final promptCfg = await widget.promptConfigStore.load(
+      liveNamespaces: liveNamespaces,
+    );
+    if (promptCfg != null && mounted) {
+      setState(() => _initialPromptConfig = promptCfg);
+    }
   }
 
   Future<void> _refresh({required bool reload}) async {
@@ -135,6 +151,11 @@ class _PromptTabMountState extends State<PromptTabMount> {
   }
 
   Future<void> _onStart(PromptPanelConfig cfg) async {
+    // Persist before starting so the config survives even if start fails.
+    unawaited(widget.promptConfigStore.save(
+      cfg,
+      knownNamespaces: widget.plugins.map((p) => p.namespace).toSet(),
+    ));
     final c = _ensureController();
     await c.start(cfg, providerCfg: _state.value.config);
     // Re-enable the form when the loop terminates naturally (vs.
@@ -199,6 +220,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
           catalog: widget.catalog,
           conversationId: _conversationId,
           onUseFallback: _onUseFallback,
+          initialConfig: _initialPromptConfig,
         ),
       );
 }
