@@ -70,3 +70,32 @@ PASS criteria:
 - Headers include `X-Conversation-Id` and `X-Swift-Infer-Capture-Bodies:
   true`.
 - No bearer token leaks into DevTools console logs.
+
+## Manual: Provider config persistence across DevTools reloads (lenny-r8f)
+
+Goal: verify that provider config (bearer token, base URL, model id) survives
+a DevTools reload without re-entry.
+
+Prerequisite: in-DevTools mode with a real DTD connection (i.e., a running app
+with `ExplorationBinding.ensureInitialized()` attached in Chrome DevTools).
+
+Steps:
+
+1. Build and open the DevTools extension in a real DevTools instance.
+2. In the Prompt panel, configure any provider (e.g. swift-infer: bearer token +
+   endpoint; or anthropic: API key).
+3. Reload DevTools (browser Refresh / DevTools reload button).
+4. Re-open the Exploration extension → Prompt panel.
+
+PASS criteria:
+- Previously entered values re-render (secrets masked as ****) without prompting
+  for re-entry.
+- Config survives a `flutter hot restart` of the target app (DTD stays connected).
+
+Secret-storage note (DTD 4.x has no encrypted store):
+Config JSON — including unredacted bearer tokens and API keys — is written to
+plain-text files at:
+  <workspace_root>/.dart_tool/lenny.providerConfig.<providerId>.json
+These are local-machine files equivalent to `.env` or `~/.netrc`. Do not commit
+them to version control (add `lenny.providerConfig.*` or `.dart_tool/` to
+`.gitignore`). Rotate credentials after sessions where these are high-value.
