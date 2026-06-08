@@ -42,6 +42,7 @@ Widget _host({
   void Function(ProviderConfig)? onProviderConfigChanged,
   VoidCallback? onReload,
   ModelCatalog? catalog,
+  PromptPanelConfig? initialConfig,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -57,6 +58,7 @@ Widget _host({
           onProviderConfigChanged: onProviderConfigChanged ?? (_) {},
           onReloadModels: onReload ?? () {},
           catalog: catalog ?? _emptyCatalog(),
+          initialConfig: initialConfig,
         ),
       ),
     );
@@ -231,6 +233,93 @@ void main() {
     await tester.tap(find.byKey(const Key('prompt.modelsReload')));
     await tester.pump();
     expect(calls, 1);
+  });
+
+  testWidgets('initialConfig pre-fills goal, maxTurns, budget, plugin toggles',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      running: false,
+      plugins: const [
+        PluginManifestEntry(namespace: 'router', tools: []),
+        PluginManifestEntry(namespace: 'dio', tools: []),
+      ],
+      initialConfig: PromptPanelConfig(
+        goal: 'prefill',
+        modelId: '',
+        maxTurns: 30,
+        wallClockBudget: const Duration(minutes: 8),
+        enabledPluginNamespaces: {'router'},
+      ),
+    ));
+    await tester.pump();
+
+    final goalField = tester.widget<TextFormField>(
+      find.byKey(const Key('prompt.goal')),
+    );
+    expect(goalField.controller!.text, 'prefill');
+
+    // 'router' enabled → checked; 'dio' NOT in enabled set → unchecked.
+    final routerTile = tester.widget<CheckboxListTile>(
+      find.byKey(const Key('prompt.plugin.router')),
+    );
+    expect(routerTile.value, isTrue);
+
+    final dioTile = tester.widget<CheckboxListTile>(
+      find.byKey(const Key('prompt.plugin.dio')),
+    );
+    expect(dioTile.value, isFalse);
+  });
+
+  testWidgets('didUpdateWidget applies config when null → non-null',
+      (tester) async {
+    final notifier = ValueNotifier<PromptPanelConfig?>(null);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<PromptPanelConfig?>(
+            valueListenable: notifier,
+            builder: (_, ic, __) => PromptPanel(
+              modelsState: _state(models: const [
+                ResolvedModel(id: 'mlx', label: 'MLX'),
+              ]),
+              plugins: const [
+                PluginManifestEntry(namespace: 'router', tools: []),
+              ],
+              running: false,
+              onStart: (_) {},
+              onStop: () {},
+              onProviderConfigChanged: (_) {},
+              onReloadModels: () {},
+              catalog: _emptyCatalog(),
+              initialConfig: ic,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Before: goal empty (defaults).
+    final goalBefore = tester.widget<TextFormField>(
+      find.byKey(const Key('prompt.goal')),
+    );
+    expect(goalBefore.controller!.text, '');
+
+    // Deliver async config (simulates bootstrap completing after mount).
+    notifier.value = PromptPanelConfig(
+      goal: 'async goal',
+      modelId: '',
+      maxTurns: 20,
+      wallClockBudget: const Duration(minutes: 5),
+      enabledPluginNamespaces: const <String>{},
+    );
+    await tester.pumpAndSettle();
+
+    final goalAfter = tester.widget<TextFormField>(
+      find.byKey(const Key('prompt.goal')),
+    );
+    expect(goalAfter.controller!.text, 'async goal');
   });
 }
 

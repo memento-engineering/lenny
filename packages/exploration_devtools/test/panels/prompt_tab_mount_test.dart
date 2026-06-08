@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:exploration_agent/exploration_agent.dart';
 import 'package:exploration_devtools/src/panels/model_catalog.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_config.dart';
+import 'package:exploration_devtools/src/panels/prompt_panel_config_store.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_controller.dart';
 import 'package:exploration_devtools/src/panels/prompt_tab_mount.dart';
 import 'package:exploration_devtools/src/panels/provider_config.dart';
@@ -89,6 +90,22 @@ class _DummyProvider implements ModelProvider {
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 }
 
+class _CapturingPromptConfigStore implements PromptPanelConfigStore {
+  final List<PromptPanelConfig> saved = <PromptPanelConfig>[];
+
+  @override
+  Future<PromptPanelConfig?> load({required Set<String> liveNamespaces}) async =>
+      null;
+
+  @override
+  Future<void> save(
+    PromptPanelConfig config, {
+    required Set<String> knownNamespaces,
+  }) async {
+    saved.add(config);
+  }
+}
+
 const _cfg = PromptPanelConfig(
   goal: 'g',
   modelId: 'm',
@@ -163,6 +180,7 @@ void main() {
           plugins: const <PluginManifestEntry>[],
           store: store,
           catalog: catalog,
+          promptConfigStore: InMemoryPromptPanelConfigStore(),
           controllerFactory: () => PromptPanelController(
             factory: () async => _FakeSession(),
             providerFactory: (_, __, ___) => _DummyProvider(),
@@ -197,5 +215,31 @@ void main() {
     // And the "using fallback" badge fires because synthetic state
     // carries usingFallback: true.
     expect(find.byKey(const Key('badge.fallback')), findsOneWidget);
+  });
+
+  test('_onStart saves config before starting the session', () async {
+    final promptStore = _CapturingPromptConfigStore();
+
+    final fake = _FakeSession();
+    final c = PromptPanelController(
+      factory: () async => fake,
+      providerFactory: (_, __, ___) => _DummyProvider(),
+    );
+
+    // Simulate what PromptTabMount._onStart does: save then start.
+    unawaited(promptStore.save(
+      _cfg,
+      knownNamespaces: const <String>{},
+    ));
+    await c.start(_cfg, providerCfg: _providerCfg());
+
+    expect(promptStore.saved, hasLength(1));
+    expect(promptStore.saved.first.goal, 'g');
+
+    // Complete the run so dispose() doesn't hang.
+    fake.runCompleter!.complete(
+      const SessionTermination(SessionOutcome.done, finalSummary: ''),
+    );
+    await c.dispose();
   });
 }

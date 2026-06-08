@@ -7,8 +7,12 @@ import 'package:exploration_agent/exploration_agent.dart'
 import 'package:flutter/material.dart';
 import 'package:json_rpc_2/json_rpc_2.dart' show RpcException;
 
+// ignore: deprecated_member_use
+import 'dart:html' show window;
+
 import 'src/exploration_shell.dart';
 import 'src/manifest_probe.dart' show probeManifest;
+import 'src/panels/prompt_panel_config_store.dart' show DtdPromptPanelConfigStore;
 import 'src/panels/provider_config_store.dart' show DtdProviderConfigStore;
 
 void main() => runApp(const ExplorationDevToolsExtension());
@@ -106,10 +110,55 @@ class ExplorationDevToolsExtension extends StatelessWidget {
               },
             );
 
+            // Prompt config: DTD primary (per-workspace file), localStorage
+            // fallback (per-origin). PromptPanelConfig carries no secrets,
+            // so plain JSON is safe.
+            final promptConfigStore = DtdPromptPanelConfigStore(
+              read: (key) async {
+                final dtd = dtdManager.connection.value;
+                if (dtd == null) return null;
+                final roots = await dtdManager.workspaceRoots();
+                if (roots == null || roots.ideWorkspaceRoots.isEmpty) {
+                  return null;
+                }
+                final uri = Uri.file(
+                  '${roots.ideWorkspaceRoots.first.toFilePath()}'
+                  '/.dart_tool/$key.json',
+                );
+                try {
+                  final file =
+                      await dtd.readFileAsString(uri, encoding: utf8);
+                  return file.content;
+                } on RpcException catch (e) {
+                  if (e.code == RpcErrorCodes.kFileDoesNotExist) return null;
+                  rethrow;
+                }
+              },
+              write: (key, value) async {
+                final dtd = dtdManager.connection.value;
+                if (dtd == null) return;
+                final roots = await dtdManager.workspaceRoots();
+                if (roots == null || roots.ideWorkspaceRoots.isEmpty) return;
+                final uri = Uri.file(
+                  '${roots.ideWorkspaceRoots.first.toFilePath()}'
+                  '/.dart_tool/$key.json',
+                );
+                await dtd.writeFileAsString(uri, value, encoding: utf8);
+              },
+              // ignore: deprecated_member_use
+              localRead: (key) => window.localStorage[key],
+              // ignore: deprecated_member_use
+              localWrite: (key, value) {
+                // ignore: deprecated_member_use
+                window.localStorage[key] = value;
+              },
+            );
+
             return ExplorationShell(
               manifestProbe: probe,
               sessionFactory: session,
               store: store,
+              promptConfigStore: promptConfigStore,
               // Reconnects (hot-restart of the target app) flip
               // connectedState; the main isolate may appear slightly
               // after. The shell listens to either and re-probes the

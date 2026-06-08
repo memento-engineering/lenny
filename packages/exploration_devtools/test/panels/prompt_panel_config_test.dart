@@ -22,6 +22,49 @@ void main() {
     expect(a.hashCode, b.hashCode);
   });
 
+  test('toJson round-trips through fromJson', () {
+    final cfg = PromptPanelConfig(
+      goal: 'test goal',
+      modelId: 'ignored',
+      maxTurns: 25,
+      wallClockBudget: const Duration(minutes: 10),
+      enabledPluginNamespaces: {'router', 'dio'},
+    );
+    final json = cfg.toJson();
+    expect(json.containsKey('modelId'), isFalse);
+    expect(json['goal'], 'test goal');
+    expect(json['maxTurns'], 25);
+    expect(json['wallClockBudgetMinutes'], 10);
+    final restored = PromptPanelConfig.fromJson(json);
+    expect(restored.goal, 'test goal');
+    expect(restored.maxTurns, 25);
+    expect(restored.wallClockBudget, const Duration(minutes: 10));
+    expect(restored.enabledPluginNamespaces, {'router', 'dio'});
+  });
+
+  test('fromJson uses defaults for missing fields', () {
+    final cfg = PromptPanelConfig.fromJson(const <String, dynamic>{});
+    expect(cfg.goal, '');
+    expect(cfg.maxTurns, 50);
+    expect(cfg.wallClockBudget, const Duration(minutes: 15));
+    expect(cfg.enabledPluginNamespaces, isEmpty);
+  });
+
+  test('toJson output contains no secret fields', () {
+    final cfg = PromptPanelConfig(
+      goal: 'g',
+      modelId: 'secret-model',
+      maxTurns: 50,
+      wallClockBudget: const Duration(minutes: 15),
+      enabledPluginNamespaces: const {},
+    );
+    final json = cfg.toJson();
+    expect(json.containsKey('apiKey'), isFalse);
+    expect(json.containsKey('bearerToken'), isFalse);
+    expect(json.containsKey('password'), isFalse);
+    expect(json.containsKey('modelId'), isFalse);
+  });
+
   test('toExplorationConfig propagates budgets', () {
     final cfg = PromptPanelConfig(
       goal: 'log in',

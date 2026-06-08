@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
+import 'panels/prompt_panel_config_store.dart';
 import 'panels/prompt_panel_controller.dart' show PromptPanelController,
     SessionFactory;
 import 'panels/prompt_tab_mount.dart';
@@ -35,8 +36,11 @@ class ExplorationShell extends StatefulWidget {
     this.probeRetrigger,
     ProviderConfigStore? store,
     ModelCatalog? catalog,
+    PromptPanelConfigStore? promptConfigStore,
   })  : store = store ?? InMemoryProviderConfigStore(),
-        catalog = catalog ?? ModelCatalog();
+        catalog = catalog ?? ModelCatalog(),
+        promptConfigStore =
+            promptConfigStore ?? InMemoryPromptPanelConfigStore();
 
   /// Loads the active plugin manifest for [ExplorationPanelHost].
   /// Production wires a closure over `serviceManager.service` + the main
@@ -59,6 +63,9 @@ class ExplorationShell extends StatefulWidget {
 
   /// Shared model catalog.
   final ModelCatalog catalog;
+
+  /// Persists and restores last-used prompt form state across reloads.
+  final PromptPanelConfigStore promptConfigStore;
 
   @override
   State<ExplorationShell> createState() => _ExplorationShellState();
@@ -127,6 +134,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
                 store: widget.store,
                 catalog: widget.catalog,
                 sessionFactory: widget.sessionFactory,
+                promptConfigStore: widget.promptConfigStore,
                 trajectorySink: _trajectory,
               ),
               const ThinkingPlaceholder(),
@@ -154,6 +162,7 @@ class _PromptTabBody extends StatelessWidget {
     required this.store,
     required this.catalog,
     required this.sessionFactory,
+    required this.promptConfigStore,
     required this.trajectorySink,
   });
 
@@ -161,6 +170,7 @@ class _PromptTabBody extends StatelessWidget {
   final ProviderConfigStore store;
   final ModelCatalog catalog;
   final SessionFactory sessionFactory;
+  final PromptPanelConfigStore promptConfigStore;
 
   /// Write-side seam — the prompt tab assigns the controller's live
   /// trajectory stream here when a session starts; the Timeline tab
@@ -196,6 +206,7 @@ class _PromptTabBody extends StatelessWidget {
               plugins: plugins,
               store: store,
               catalog: catalog,
+              promptConfigStore: promptConfigStore,
               controllerFactory: () =>
                   PromptPanelController(factory: sessionFactory),
               trajectorySink: trajectorySink,
