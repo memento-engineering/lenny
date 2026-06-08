@@ -150,6 +150,10 @@ Future<int> runCli(
       handshake: session.handshake.plugins,
     );
 
+    // ----- load the AGENTS.md operating guide (system prompt) ----------
+    final ({String content, String hash}) agents =
+        _loadAgentsMd(args.agentsMdPath, stderr);
+
     // ----- shared bring-up helper (replaces header build + host compose) -----
     final (:header, :host) = await bringUpSession(
       session: session,
@@ -160,7 +164,8 @@ Future<int> runCli(
       harnessVersion: _kHarnessVersion,
       coreTools: const <ToolDescriptor>[],
       pluginTools: pluginTools,
-      agentsMd: '',
+      agentsMd: agents.content,
+      agentsMdHash: agents.hash,
       extraConfig: <String, dynamic>{
         'policy': args.policy.wireName,
         'requested_plugins': args.plugins,
@@ -203,4 +208,58 @@ void _render(Stdout out, SessionProgressEvent e) {
       '[plugin] auto-disabled $namespace ($reason)',
     SessionEnded() => '[session] ended',
   });
+}
+
+/// Load the AGENTS.md operating guide that gets pinned to the model's
+/// system prompt (`'<agentsMd>\n\n## Goal\n<goal>'`).
+///
+/// Resolution order: an explicit [path] (`--agents-md`) wins; otherwise
+/// the bundled template is resolved relative to the running script, then a
+/// couple of cwd-relative fallbacks. Returns `('', '')` (empty prompt,
+/// empty hash) when nothing is found — the harness then runs goal-only,
+/// the historical behaviour. See lenny-cx6.53.
+({String content, String hash}) _loadAgentsMd(String? path, IOSink stderr) {
+  final List<String> candidates = <String>[];
+  if (path != null && path.isNotEmpty) {
+    candidates.add(path);
+  } else {
+    try {
+      candidates.add(
+        Platform.script.resolve('../templates/AGENTS.md').toFilePath(),
+      );
+    } on Object {
+      // Non-file script URIs (e.g. data:) — skip script-relative resolve.
+    }
+    candidates.add('templates/AGENTS.md');
+    candidates.add(kAgentsMdRelativePath);
+  }
+  for (final String c in candidates) {
+    final File f = File(c);
+    if (f.existsSync()) {
+      final String content = f.readAsStringSync();
+      stderr.writeln(
+        'info: loaded AGENTS.md system prompt from $c '
+        '(${content.length} chars).',
+      );
+      return (content: content, hash: _fnv1aHex(content));
+    }
+  }
+  stderr.writeln(
+    path != null && path.isNotEmpty
+        ? 'warning: --agents-md "$path" not found; empty system prompt.'
+        : 'warning: bundled AGENTS.md not found; empty system prompt.',
+  );
+  return (content: '', hash: '');
+}
+
+/// Dependency-free, stable 64-bit FNV-1a hash (hex) of [s]. Stamped into
+/// the trajectory header `agents_md_hash` for provenance so the loaded
+/// guide is identifiable across runs.
+String _fnv1aHex(String s) {
+  var hash = 0xcbf29ce484222325;
+  const int prime = 0x100000001b3;
+  for (final int cu in s.codeUnits) {
+    hash = (hash ^ cu) * prime; // 64-bit two's-complement wrap on native
+  }
+  return (hash & 0x7fffffffffffffff).toRadixString(16);
 }

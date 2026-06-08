@@ -136,6 +136,22 @@ void main() {
     expect((body!['tools'] as List).length, 1);
   });
 
+  test('tool_choice:any forces a tool call (parity with anthropic, '
+      'lenny-cx6.52)', () async {
+    Map<String, dynamic>? body;
+    final m = _stream(
+      _toolUseSse(),
+      capture: (_, bytes) => body = _decodeBody(bytes),
+    );
+    await SwiftInferModelProvider(config: _cfg(), client: m).decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    // Without tool_choice the gateway lets the model answer with prose,
+    // which the provider rejects as "no tool_use block" — a wasted turn.
+    expect(body!['tool_choice'], <String, dynamic>{'type': 'any'});
+  });
+
   test('vision=false strips image blocks from request', () async {
     Map<String, dynamic>? body;
     final m = _stream(

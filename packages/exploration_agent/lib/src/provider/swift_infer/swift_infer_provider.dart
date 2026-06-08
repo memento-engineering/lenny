@@ -144,6 +144,12 @@ class SwiftInferModelProvider implements ModelProvider {
                 'input_schema': t.inputSchema,
               })
           .toList(),
+      // Force a tool call every turn — parity with the Anthropic provider
+      // (anthropic_provider.dart sends the same). Without it the gateway
+      // lets the model answer with prose, which surfaces here as a
+      // "no tool_use block" SchemaRejection and a wasted turn (weaker
+      // models like qwen do this often). See lenny-cx6.52.
+      'tool_choice': const <String, dynamic>{'type': 'any'},
       'messages': _buildMessages(snapshot),
     };
     final endpoint = config.baseUrl.resolve('/v1/messages');

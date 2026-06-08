@@ -22,6 +22,7 @@ class CliArgs {
     required this.outputPath,
     required this.policy,
     required this.plugins,
+    this.agentsMdPath,
   });
 
   /// Exploration goal supplied via `--goal`. `null` means "read from
@@ -45,6 +46,12 @@ class CliArgs {
   /// Plugin namespaces requested via `--plugins`. Empty when not
   /// supplied.
   final List<String> plugins;
+
+  /// Optional `--agents-md` path override for the system-prompt operating
+  /// guide. When `null` the CLI loads the bundled template (resolved
+  /// relative to the running script); a missing bundled template falls
+  /// back to an empty system prompt.
+  final String? agentsMdPath;
 }
 
 /// Thrown by [parseCliArgs] for any user-facing argument error. The
@@ -89,6 +96,11 @@ ArgParser buildParser() => ArgParser()
     'plugins',
     defaultsTo: '',
     help: 'Comma-separated plugin namespaces (e.g. router,riverpod,dio).',
+  )
+  ..addOption(
+    'agents-md',
+    help: 'Path to an AGENTS.md operating guide pinned to the system '
+        'prompt. Defaults to the bundled template; missing => empty.',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this help.');
 
@@ -155,5 +167,6 @@ CliArgs parseCliArgs(List<String> argv) {
     outputPath: res['output'] as String?,
     policy: policy,
     plugins: plugins,
+    agentsMdPath: res['agents-md'] as String?,
   );
 }

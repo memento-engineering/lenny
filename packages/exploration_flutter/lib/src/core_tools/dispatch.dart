@@ -280,13 +280,37 @@ ToolResult? requireField(
           '${CoreToolErrorCode.schemaViolation}: field "$key" must be $type',
     );
   }
-  // Accept int and double interchangeably when the schema asks for num.
+  // Accept the declared primitive — with lenient coercion for numeric
+  // fields. Some model backends (notably qwen via swift-infer) emit
+  // integer/number arguments as JSON strings ("5") or as whole-valued
+  // doubles (5.0). The model is *told* the field is an integer via the
+  // tool `input_schema` and ignores it — it repeats the string-typed
+  // call without self-correcting (the failed result is in its action
+  // history, yet it does not adapt), so coercing here is more robust than
+  // rejecting. We mutate `args` in place to the schema's expected numeric
+  // type so downstream reads (`args[key]! as int`) succeed unchanged.
+  // See lenny-cx6.50.
   if (type == num) {
     if (v is num) return null;
+    final num? c = _coerceNum(v);
+    if (c != null) {
+      args[key] = c;
+      return null;
+    }
   } else if (type == int) {
     if (v is int) return null;
+    final int? c = _coerceInt(v);
+    if (c != null) {
+      args[key] = c;
+      return null;
+    }
   } else if (type == double) {
     if (v is num) return null;
+    final num? c = _coerceNum(v);
+    if (c != null) {
+      args[key] = c.toDouble();
+      return null;
+    }
   } else if (type == String) {
     if (v is String) return null;
   } else if (type == bool) {
@@ -298,6 +322,33 @@ ToolResult? requireField(
         '${CoreToolErrorCode.schemaViolation}: field "$key" must be $type, '
         'got ${v.runtimeType}',
   );
+}
+
+/// Coerce a JSON value to an `int` for lenient numeric validation.
+///
+/// Accepts an actual `int`, a whole-valued finite `double` (`5.0`), or a
+/// numeric string (`"5"`, `"5.0"`). Returns `null` when the value cannot
+/// losslessly represent an integer (e.g. `"5.5"`, `"abc"`). See
+/// [requireField] / lenny-cx6.50.
+int? _coerceInt(Object? v) {
+  if (v is int) return v;
+  if (v is double && v.isFinite && v == v.roundToDouble()) return v.toInt();
+  if (v is String) {
+    final String s = v.trim();
+    final int? i = int.tryParse(s);
+    if (i != null) return i;
+    final double? d = double.tryParse(s);
+    if (d != null && d.isFinite && d == d.roundToDouble()) return d.toInt();
+  }
+  return null;
+}
+
+/// Coerce a JSON value to a `num`: accepts any `num` or a numeric string.
+/// Returns `null` when the string is not parseable. See [requireField].
+num? _coerceNum(Object? v) {
+  if (v is num) return v;
+  if (v is String) return num.tryParse(v.trim());
+  return null;
 }
 
 /// Build a `target_not_found` [ToolResult] for an unknown semantics id.
