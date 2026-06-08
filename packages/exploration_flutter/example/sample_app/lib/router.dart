@@ -7,6 +7,7 @@ import 'screens/home_screen.dart';
 import 'screens/items_list_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/terms_screen.dart';
 import 'state/auth_provider.dart';
 
 /// Root navigator key shared with the Exploration Router plugin so the
@@ -57,6 +58,11 @@ GoRouter buildRouter(ProviderContainer container) {
         path: '/settings',
         name: 'settings',
         builder: (_, __) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/terms',
+        name: 'terms',
+        builder: (_, __) => const TermsScreen(),
       ),
     ],
   );
