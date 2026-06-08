@@ -45,6 +45,12 @@ class HomeScreen extends ConsumerWidget {
               label: const Text('Settings'),
               onPressed: () => context.go('/settings'),
             ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              icon: const Icon(Icons.description),
+              label: const Text('Terms'),
+              onPressed: () => context.go('/terms'),
+            ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.logout),

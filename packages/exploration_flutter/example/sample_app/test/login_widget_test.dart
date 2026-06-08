@@ -38,7 +38,10 @@ void main() {
 
     expect(find.widgetWithText(ElevatedButton, 'Sign In'), findsOneWidget);
 
-    // Demo credentials are pre-filled by LoginScreen; just tap Sign In.
+    // Fields start EMPTY (lenny-cx6.55) — type the valid demo credentials,
+    // then tap Sign In.
+    await tester.enterText(find.byType(TextField).at(0), 'demo@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password');
     await tester.tap(find.widgetWithText(ElevatedButton, 'Sign In'));
     await tester.pumpAndSettle();
 
@@ -56,9 +59,9 @@ void main() {
     addTearDown(container.dispose);
     await _pumpApp(tester, container);
 
-    // Replace the password to force a 401.
-    final passwordField = find.byType(TextField).at(1);
-    await tester.enterText(passwordField, 'wrong-password');
+    // Valid email but a wrong password forces a 401.
+    await tester.enterText(find.byType(TextField).at(0), 'demo@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'wrong-password');
     await tester.pump();
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Sign In'));

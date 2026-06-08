@@ -82,14 +82,35 @@ node's state shows `on` in the final observation. Record the verdict.
 """
 
 [[steps]]
-id       = "report"
-title    = "Aggregate the suite verdict"
+id       = "scroll"
+title    = "Scenario 4 — scroll-view swipe (Accept Terms)"
 type     = "task"
 priority = 2
 needs    = ["state_change"]
 description = """
-Summarize the three scenario verdicts into one suite result: per-scenario
-PASS/FAIL with turns + trajectory path, and an overall PASS (all three done) or
+Run one `lenny-e2e-session` for the scroll scenario.
+
+- goal: `Sign in with email demo@example.com and password password, open the Terms screen, scroll down to the bottom, and turn on Accept Terms`
+- model: `{{model}}`  · app_dir: `{{app_dir}}`
+
+The Terms screen (Home -> Terms) stacks 12 fixed-height sections (~2400px)
+above an `Accept Terms` SwitchListTile, so the switch is off-screen until the
+agent scrolls — this is the scenario that actually exercises `core.scroll`
+(axis=vertical, signed delta_pixels) on-device. Watch for the qwen arg-guessing
+failure mode (lenny-cx6.54: missing `axis` / wrong field names) in triage.
+Relaunch fresh first. PASS = footer.outcome==done and the `Accept Terms` switch
+node's state shows `on` in the final observation. Record the verdict.
+"""
+
+[[steps]]
+id       = "report"
+title    = "Aggregate the suite verdict"
+type     = "task"
+priority = 2
+needs    = ["scroll"]
+description = """
+Summarize the four scenario verdicts into one suite result: per-scenario
+PASS/FAIL with turns + trajectory path, and an overall PASS (all four done) or
 FAIL. File any FAIL's root cause per the atom's triage step (debug-inference for
 swift-infer models). Note the model and the git sha under test.
 """
