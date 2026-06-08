@@ -62,8 +62,10 @@ real `session.run` end-to-end. This runs the compiled bundle inside a
 real DevTools instance attached to `sample_app`.
 
 - VS Code: launch the **`Dogfood: sample_app + exploration_cli`** compound
-  (it runs the `Build DevTools Extension` preLaunchTask first), then open
-  DevTools -> **Exploration** tab.
+  (it runs the `Build DevTools Extension` preLaunchTask first). This starts
+  the target app and CLI; **open DevTools separately** — click the DevTools
+  URL printed in the Run console (or run `dart devtools --vm-service-uri=<uri>`)
+  and open the **Exploration** tab.
 
 ### Attaching a debugger
 

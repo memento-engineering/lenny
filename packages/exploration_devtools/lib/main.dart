@@ -1,10 +1,15 @@
+import 'dart:convert' show utf8;
+
 import 'package:devtools_extensions/devtools_extensions.dart';
+import 'package:dtd/dtd.dart';
 import 'package:exploration_agent/exploration_agent.dart'
     show BindingNotInitializedError, ExplorationSession, PluginManifestEntry;
 import 'package:flutter/material.dart';
+import 'package:json_rpc_2/json_rpc_2.dart' show RpcException;
 
 import 'src/exploration_shell.dart';
 import 'src/manifest_probe.dart' show probeManifest;
+import 'src/panels/provider_config_store.dart' show DtdProviderConfigStore;
 
 void main() => runApp(const ExplorationDevToolsExtension());
 
@@ -63,9 +68,48 @@ class ExplorationDevToolsExtension extends StatelessWidget {
               return ExplorationSession.fromVmService(vm, id);
             }
 
+            // Config files land at <workspaceRoot>/.dart_tool/<key>.json.
+            // When DTD is not connected (standalone web / simulated env)
+            // reads return null and writes are no-ops, leaving the panel
+            // functional on the in-memory default.
+            final store = DtdProviderConfigStore(
+              read: (key) async {
+                final dtd = dtdManager.connection.value;
+                if (dtd == null) return null;
+                final roots = await dtdManager.workspaceRoots();
+                if (roots == null || roots.ideWorkspaceRoots.isEmpty) {
+                  return null;
+                }
+                final uri = Uri.file(
+                  '${roots.ideWorkspaceRoots.first.toFilePath()}'
+                  '/.dart_tool/$key.json',
+                );
+                try {
+                  final file =
+                      await dtd.readFileAsString(uri, encoding: utf8);
+                  return file.content;
+                } on RpcException catch (e) {
+                  if (e.code == RpcErrorCodes.kFileDoesNotExist) return null;
+                  rethrow;
+                }
+              },
+              write: (key, value) async {
+                final dtd = dtdManager.connection.value;
+                if (dtd == null) return;
+                final roots = await dtdManager.workspaceRoots();
+                if (roots == null || roots.ideWorkspaceRoots.isEmpty) return;
+                final uri = Uri.file(
+                  '${roots.ideWorkspaceRoots.first.toFilePath()}'
+                  '/.dart_tool/$key.json',
+                );
+                await dtd.writeFileAsString(uri, value, encoding: utf8);
+              },
+            );
+
             return ExplorationShell(
               manifestProbe: probe,
               sessionFactory: session,
+              store: store,
               // Reconnects (hot-restart of the target app) flip
               // connectedState; the main isolate may appear slightly
               // after. The shell listens to either and re-probes the

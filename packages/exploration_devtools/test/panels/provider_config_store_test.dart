@@ -69,5 +69,17 @@ void main() {
       expect((await store.load('anthropic') as AnthropicUiConfig).apiKey, 'A');
       expect((await store.load('openai') as OpenAiUiConfig).apiKey, 'O');
     });
+
+    test('null-connection callbacks: read returns null, write is a no-op',
+        () async {
+      // Mirrors main.dart production callbacks when dtdManager.connection.value
+      // is null (standalone web / simulated env with no real DTD connection).
+      final store = DtdProviderConfigStore(
+        read: (_) async => null,
+        write: (_, __) async {},
+      );
+      await store.save(AnthropicUiConfig(apiKey: 'k'));
+      expect(await store.load('anthropic'), isNull);
+    });
   });
 }
