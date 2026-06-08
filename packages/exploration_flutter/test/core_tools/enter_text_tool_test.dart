@@ -53,6 +53,53 @@ void main() {
   );
 
   testWidgets(
+    'core.enter_text coerces a string node_id ("5") to int — regression: '
+    'qwen-mlx emits integer args as JSON strings (lenny-cx6.50)',
+    (WidgetTester tester) async {
+      final SemanticsHandle h = tester.ensureSemantics();
+      final TextEditingController ctrl = TextEditingController();
+      addTearDown(ctrl.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Semantics(
+              label: 'email',
+              textField: true,
+              child: TextField(controller: ctrl),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final SemanticsCapture cap = SemanticsCapture();
+      final List<Map<String, Object>> recs = cap.capture();
+      final Map<String, Object> wrapper = recs.firstWhere(
+        (Map<String, Object> r) =>
+            r['role'] == 'textfield' && r['label'] == 'email',
+      );
+      final int id = wrapper['id']! as int;
+
+      final CorePlugin plugin = CorePlugin(semantics: cap);
+      final ExplorationTool t = plugin.tools.firstWhere(
+        (ExplorationTool x) => x.name == 'enter_text',
+      );
+      // node_id passed as a STRING — the exact shape qwen-mlx emits.
+      // Pre-fix, requireField rejected this as schema_violation.
+      final ToolResult r = await t.call(<String, Object?>{
+        'node_id': '$id',
+        'text': 'coerced@test.com',
+      });
+
+      expect(r.ok, isTrue, reason: r.error);
+      expect(ctrl.text, 'coerced@test.com');
+      cap.dispose();
+      h.dispose();
+    },
+  );
+
+  testWidgets(
     'core.enter_text resolves the EditableText at devicePixelRatio>1 '
     '(regression: physical-px target rect vs logical-px render boxes, lenny-8k3)',
     (WidgetTester tester) async {
