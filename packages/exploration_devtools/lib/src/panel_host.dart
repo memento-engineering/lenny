@@ -48,12 +48,20 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
   final ValueNotifier<ManifestProbeResult> _manifest =
       ValueNotifier<ManifestProbeResult>(const ManifestProbeLoading());
 
+  final ValueNotifier<ExplorationSession?> _sessionNotifier =
+      ValueNotifier<ExplorationSession?>(null);
+
   /// Monotonically increasing counter used to drop stale probe results
   /// (the latest call to [refreshManifest] is the only one allowed to
   /// publish).
   int _probeGen = 0;
 
   ExplorationSession? get session => _session;
+
+  /// Listenable that fires whenever the active session changes.
+  /// Sub-panels should use [ValueListenableBuilder] on this to rebuild
+  /// reactively (e.g. [ThinkingPlaceholder]).
+  ValueListenable<ExplorationSession?> get sessionListenable => _sessionNotifier;
 
   /// Latest manifest probe state. Sub-panels listen via
   /// `ValueListenableBuilder` to react to (re)connects.
@@ -100,6 +108,7 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
       throw StateError('Panel host disposed during connect');
     }
     setState(() => _session = created);
+    _sessionNotifier.value = created;
     return created;
   }
 
@@ -109,12 +118,14 @@ class ExplorationPanelHostState extends State<ExplorationPanelHost> {
     await s.end();
     if (!mounted) return;
     setState(() => _session = null);
+    _sessionNotifier.value = null;
   }
 
   @override
   void dispose() {
     _session?.end();
     _manifest.dispose();
+    _sessionNotifier.dispose();
     super.dispose();
   }
 

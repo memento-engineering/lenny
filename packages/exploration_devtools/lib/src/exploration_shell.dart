@@ -6,8 +6,8 @@ import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
 import 'panels/prompt_panel_config_store.dart';
-import 'panels/prompt_panel_controller.dart' show PromptPanelController,
-    SessionFactory;
+import 'panels/prompt_panel_controller.dart'
+    show PromptPanelController, SessionFactory;
 import 'panels/prompt_tab_mount.dart';
 import 'panels/provider_config_store.dart';
 import 'panels/thinking_placeholder.dart';
@@ -133,7 +133,6 @@ class _ExplorationShellState extends State<ExplorationShell> {
                 hostKey: _hostKey,
                 store: widget.store,
                 catalog: widget.catalog,
-                sessionFactory: widget.sessionFactory,
                 promptConfigStore: widget.promptConfigStore,
                 trajectorySink: _trajectory,
               ),
@@ -161,7 +160,6 @@ class _PromptTabBody extends StatelessWidget {
     required this.hostKey,
     required this.store,
     required this.catalog,
-    required this.sessionFactory,
     required this.promptConfigStore,
     required this.trajectorySink,
   });
@@ -169,7 +167,6 @@ class _PromptTabBody extends StatelessWidget {
   final GlobalKey<ExplorationPanelHostState> hostKey;
   final ProviderConfigStore store;
   final ModelCatalog catalog;
-  final SessionFactory sessionFactory;
   final PromptPanelConfigStore promptConfigStore;
 
   /// Write-side seam — the prompt tab assigns the controller's live
@@ -207,8 +204,10 @@ class _PromptTabBody extends StatelessWidget {
               store: store,
               catalog: catalog,
               promptConfigStore: promptConfigStore,
-              controllerFactory: () =>
-                  PromptPanelController(factory: sessionFactory),
+              controllerFactory: () => PromptPanelController(
+                factory: hostState.ensureSession,
+                onStop: hostState.endSession,
+              ),
               trajectorySink: trajectorySink,
             ),
         };
