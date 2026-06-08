@@ -1,0 +1,21 @@
+# lenny-e2e — shareable Gas City pack.
+#
+# Run a live-device exploration-agent E2E against ANY Flutter app and verify the
+# agent drives it to goal completion. Generic by design: the
+# `lenny-e2e-session` formula is parameterized by goal / model / app_dir /
+# device / plugins. Inject your own values when you pour it, or compose your own
+# suite formula that pours it once per scenario.
+#
+# Mirrors factoryskills/packs/ (authored, shareable packs). lenny's own
+# sample_app integration suite is kept PRIVATE (not shipped here).
+#
+# Import into a workspace pack.toml:
+#   [imports.lenny-e2e]
+#   source = "../gascity-packs/lenny-e2e"
+# then:
+#   bd mol pour lenny-e2e-session --var goal="..." --var model=qwen-mlx --var app_dir=/abs/path/to/app
+[pack]
+name        = "lenny-e2e"
+schema      = 2
+version     = "0.1.0"
+description = "Live-device exploration-agent E2E: pour lenny-e2e-session with a goal+model+app to drive a Flutter app to goal completion and verify the trajectory."

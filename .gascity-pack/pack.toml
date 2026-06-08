@@ -23,3 +23,10 @@ name        = "lenny-dart"
 schema      = 2
 version     = "0.1.0"
 description = "lenny rig overlay: Dart/Flutter-stack code rubrics (melos run analyze/test/format) layered over the generic factoryskills pack. Second-rig dogfood of ADR 0012/0013 multi-rig committee resolution."
+
+# Local authored pack: the live-device exploration-agent E2E formula
+# (gascity-packs/lenny-e2e, source-relative to this pack dir). Imported here so
+# the generic `lenny-e2e-session` atom — and lenny's private
+# `lenny-e2e-sample-suite` below (formulas/) — are pourable in the lenny rig.
+[imports.lenny-e2e]
+source = "../gascity-packs/lenny-e2e"
