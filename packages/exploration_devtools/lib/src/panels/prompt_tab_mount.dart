@@ -76,6 +76,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
       ValueNotifier<ModelCatalogState>(const ModelCatalogState());
   String _conversationId = '';
   PromptPanelConfig? _initialPromptConfig;
+  bool _configLoaded = false;
 
   @override
   void initState() {
@@ -95,9 +96,11 @@ class _PromptTabMountState extends State<PromptTabMount> {
     final promptCfg = await widget.promptConfigStore.load(
       liveNamespaces: liveNamespaces,
     );
-    if (promptCfg != null && mounted) {
-      setState(() => _initialPromptConfig = promptCfg);
-    }
+    if (!mounted) return;
+    setState(() {
+      _configLoaded = true;
+      if (promptCfg != null) _initialPromptConfig = promptCfg;
+    });
   }
 
   Future<void> _refresh({required bool reload}) async {
@@ -221,6 +224,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
           conversationId: _conversationId,
           onUseFallback: _onUseFallback,
           initialConfig: _initialPromptConfig,
+          configLoaded: _configLoaded,
         ),
       );
 }

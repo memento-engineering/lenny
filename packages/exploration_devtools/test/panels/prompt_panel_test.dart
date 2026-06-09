@@ -43,6 +43,7 @@ Widget _host({
   VoidCallback? onReload,
   ModelCatalog? catalog,
   PromptPanelConfig? initialConfig,
+  bool configLoaded = false,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -59,6 +60,7 @@ Widget _host({
           onReloadModels: onReload ?? () {},
           catalog: catalog ?? _emptyCatalog(),
           initialConfig: initialConfig,
+          configLoaded: configLoaded,
         ),
       ),
     );
@@ -229,6 +231,9 @@ void main() {
       onReload: () => calls++,
     ));
     await tester.pump();
+    // Open settings so the reload button is interactive.
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('prompt.modelsReload')));
     await tester.tap(find.byKey(const Key('prompt.modelsReload')));
     await tester.pump();
@@ -268,6 +273,127 @@ void main() {
       find.byKey(const Key('prompt.plugin.dio')),
     );
     expect(dioTile.value, isFalse);
+  });
+
+  testWidgets('settings gear is present in composer row', (tester) async {
+    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pump();
+    expect(find.byKey(const Key('prompt.settingsGear')), findsOneWidget);
+  });
+
+  testWidgets('settings are collapsed by default', (tester) async {
+    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pump();
+    final crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showFirst);
+  });
+
+  testWidgets('tapping gear opens settings section', (tester) async {
+    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    final crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showSecond);
+  });
+
+  testWidgets('tapping gear again closes settings section', (tester) async {
+    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('prompt.settingsGear')));
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    final crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showFirst);
+  });
+
+  testWidgets(
+      'configLoaded false→true with no saved config auto-opens settings',
+      (tester) async {
+    final configLoadedNotifier = ValueNotifier<bool>(false);
+    addTearDown(configLoadedNotifier.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: configLoadedNotifier,
+            builder: (_, configLoaded, __) => PromptPanel(
+              modelsState: _state(),
+              plugins: const [],
+              running: false,
+              onStart: (_) {},
+              onStop: () {},
+              onProviderConfigChanged: (_) {},
+              onReloadModels: () {},
+              catalog: _emptyCatalog(),
+              configLoaded: configLoaded,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    var crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showFirst);
+
+    configLoadedNotifier.value = true;
+    await tester.pumpAndSettle();
+
+    crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showSecond);
+  });
+
+  testWidgets(
+      'configLoaded false→true with saved initialConfig keeps settings closed',
+      (tester) async {
+    final configLoadedNotifier = ValueNotifier<bool>(false);
+    addTearDown(configLoadedNotifier.dispose);
+    final savedConfig = PromptPanelConfig(
+      goal: 'existing goal',
+      modelId: 'mlx',
+      maxTurns: 50,
+      wallClockBudget: const Duration(minutes: 15),
+      enabledPluginNamespaces: const <String>{},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: configLoadedNotifier,
+            builder: (_, configLoaded, __) => PromptPanel(
+              modelsState: _state(),
+              plugins: const [],
+              running: false,
+              onStart: (_) {},
+              onStop: () {},
+              onProviderConfigChanged: (_) {},
+              onReloadModels: () {},
+              catalog: _emptyCatalog(),
+              configLoaded: configLoaded,
+              initialConfig: savedConfig,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    configLoadedNotifier.value = true;
+    await tester.pumpAndSettle();
+
+    final crossFade =
+        tester.widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade));
+    expect(crossFade.crossFadeState, CrossFadeState.showFirst);
   });
 
   testWidgets('didUpdateWidget applies config when null → non-null',

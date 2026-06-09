@@ -32,6 +32,7 @@ class PromptPanel extends StatefulWidget {
         'https://example.com/exploration-agent/plugin-authoring',
     this.onUseFallback,
     this.initialConfig,
+    this.configLoaded = false,
   });
 
   /// Snapshot of the model catalog (provider config + resolved
@@ -80,6 +81,12 @@ class PromptPanel extends StatefulWidget {
   /// [State.didUpdateWidget] when the async bootstrap delivers it after mount.
   final PromptPanelConfig? initialConfig;
 
+  /// True once the async config load in [PromptTabMount] completes.
+  /// When this transitions false→true and [initialConfig] is null (no saved
+  /// config), the settings section auto-opens so the user can enter their
+  /// keys on first launch.
+  final bool configLoaded;
+
   @override
   State<PromptPanel> createState() => _PromptPanelState();
 }
@@ -91,6 +98,7 @@ class _PromptPanelState extends State<PromptPanel> {
   int _maxTurns = 50;
   Duration _budget = const Duration(minutes: 15);
   Set<String> _enabled = const <String>{};
+  bool _settingsOpen = false;
 
   @override
   void initState() {
@@ -103,6 +111,7 @@ class _PromptPanelState extends State<PromptPanel> {
       _enabled = ic.enabledPluginNamespaces.toSet();
     } else {
       _enabled = widget.plugins.map((p) => p.namespace).toSet();
+      if (widget.configLoaded) _settingsOpen = true;
     }
     _modelId = widget.modelsState.models.isNotEmpty
         ? widget.modelsState.models.first.id
@@ -120,6 +129,9 @@ class _PromptPanelState extends State<PromptPanel> {
         _budget = ic.wallClockBudget;
         _enabled = ic.enabledPluginNamespaces.toSet();
       });
+    }
+    if (!old.configLoaded && widget.configLoaded && widget.initialConfig == null) {
+      setState(() => _settingsOpen = true);
     }
     final models = widget.modelsState.models;
     if (_modelId == null && models.isNotEmpty) {
@@ -164,173 +176,160 @@ class _PromptPanelState extends State<PromptPanel> {
     return out;
   }
 
+  Widget _buildSettingsSection(ModelCatalogState state, bool running) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        ProviderConfigForm(
+          initial: state.config,
+          onChanged: widget.onProviderConfigChanged,
+          conversationId: widget.conversationId,
+          catalog: widget.catalog,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                key: const Key('prompt.model'),
+                initialValue: _modelId,
+                items: state.models
+                    .map(
+                      (m) => DropdownMenuItem<String>(
+                        value: m.id,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(m.label),
+                            ..._badges(m).map((b) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 2),
+                                  child: b,
+                                )),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: running
+                    ? null
+                    : (v) => setState(() => _modelId = v ?? _modelId),
+              ),
+            ),
+            IconButton(
+              key: const Key('prompt.modelsReload'),
+              tooltip: 'Reload models',
+              icon: state.loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              onPressed: state.loading ? null : widget.onReloadModels,
+            ),
+          ],
+        ),
+        if (state.error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Container(
+              key: const Key('prompt.modelsError'),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                border: Border.all(color: Colors.red.shade400),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          state.error.toString(),
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                        if (_fallbackModelIdFor(state.config) != null)
+                          ...<Widget>[
+                            const SizedBox(height: 8),
+                            InkWell(
+                              key: const Key('prompt.modelsError.useFallback'),
+                              onTap: widget.onUseFallback == null
+                                  ? null
+                                  : () => widget.onUseFallback!(
+                                        _fallbackModelIdFor(state.config)!,
+                                      ),
+                              child: Text(
+                                'Use fallback model: '
+                                '${_fallbackModelIdFor(state.config)}',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        TextFormField(
+          key: const Key('prompt.maxTurns'),
+          initialValue: '$_maxTurns',
+          enabled: !running,
+          decoration: const InputDecoration(labelText: 'Max turns'),
+          onChanged: (v) => _maxTurns = int.tryParse(v) ?? _maxTurns,
+        ),
+        TextFormField(
+          key: const Key('prompt.wallMinutes'),
+          initialValue: '${_budget.inMinutes}',
+          enabled: !running,
+          decoration:
+              const InputDecoration(labelText: 'Wall-clock budget (minutes)'),
+          onChanged: (v) =>
+              _budget = Duration(minutes: int.tryParse(v) ?? 15),
+        ),
+        if (widget.plugins.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'No plugins registered. See ${widget.pluginGuideUrl}',
+              key: const Key('prompt.pluginsEmpty'),
+            ),
+          )
+        else
+          ...widget.plugins.map(
+            (p) => CheckboxListTile(
+              key: Key('prompt.plugin.${p.namespace}'),
+              title: Text(p.namespace),
+              value: _enabled.contains(p.namespace),
+              onChanged: running
+                  ? null
+                  : (v) => setState(() {
+                        if (v == true) {
+                          _enabled.add(p.namespace);
+                        } else {
+                          _enabled.remove(p.namespace);
+                        }
+                      }),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final running = widget.running;
     final state = widget.modelsState;
-    final children = <Widget>[
-      ProviderConfigForm(
-        initial: state.config,
-        onChanged: widget.onProviderConfigChanged,
-        conversationId: widget.conversationId,
-        catalog: widget.catalog,
-      ),
-      const SizedBox(height: 12),
-      TextFormField(
-        key: const Key('prompt.goal'),
-        controller: _goal,
-        enabled: !running,
-        maxLines: 4,
-        decoration: const InputDecoration(labelText: 'Goal'),
-        validator: (v) =>
-            (v == null || v.trim().isEmpty) ? 'Goal required' : null,
-      ),
-      Row(
-        children: <Widget>[
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              key: const Key('prompt.model'),
-              initialValue: _modelId,
-              items: state.models
-                  .map(
-                    (m) => DropdownMenuItem<String>(
-                      value: m.id,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(m.label),
-                          ..._badges(m).map((b) => Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2),
-                                child: b,
-                              )),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: running
-                  ? null
-                  : (v) => setState(() => _modelId = v ?? _modelId),
-            ),
-          ),
-          IconButton(
-            key: const Key('prompt.modelsReload'),
-            tooltip: 'Reload models',
-            icon: state.loading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            onPressed: state.loading ? null : widget.onReloadModels,
-          ),
-        ],
-      ),
-      if (state.error != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Container(
-            key: const Key('prompt.modelsError'),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade100,
-              border: Border.all(color: Colors.red.shade400),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Icon(Icons.error_outline,
-                    color: Colors.red, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        state.error.toString(),
-                        style: const TextStyle(color: Colors.black87),
-                      ),
-                      if (_fallbackModelIdFor(state.config) != null) ...<Widget>[
-                        const SizedBox(height: 8),
-                        InkWell(
-                          key: const Key('prompt.modelsError.useFallback'),
-                          onTap: widget.onUseFallback == null
-                              ? null
-                              : () => widget.onUseFallback!(
-                                    _fallbackModelIdFor(state.config)!,
-                                  ),
-                          child: Text(
-                            'Use fallback model: '
-                            '${_fallbackModelIdFor(state.config)}',
-                            style: const TextStyle(
-                              color: Colors.blue,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      TextFormField(
-        key: const Key('prompt.maxTurns'),
-        initialValue: '$_maxTurns',
-        enabled: !running,
-        decoration: const InputDecoration(labelText: 'Max turns'),
-        onChanged: (v) => _maxTurns = int.tryParse(v) ?? _maxTurns,
-      ),
-      TextFormField(
-        key: const Key('prompt.wallMinutes'),
-        initialValue: '${_budget.inMinutes}',
-        enabled: !running,
-        decoration:
-            const InputDecoration(labelText: 'Wall-clock budget (minutes)'),
-        onChanged: (v) => _budget = Duration(minutes: int.tryParse(v) ?? 15),
-      ),
-      if (widget.plugins.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            'No plugins registered. See ${widget.pluginGuideUrl}',
-            key: const Key('prompt.pluginsEmpty'),
-          ),
-        )
-      else
-        ...widget.plugins.map(
-          (p) => CheckboxListTile(
-            key: Key('prompt.plugin.${p.namespace}'),
-            title: Text(p.namespace),
-            value: _enabled.contains(p.namespace),
-            onChanged: running
-                ? null
-                : (v) => setState(() {
-                      if (v == true) {
-                        _enabled.add(p.namespace);
-                      } else {
-                        _enabled.remove(p.namespace);
-                      }
-                    }),
-          ),
-        ),
-      running
-          ? ElevatedButton(
-              key: const Key('prompt.stop'),
-              onPressed: widget.onStop,
-              child: const Text('Stop'),
-            )
-          : ElevatedButton(
-              key: const Key('prompt.start'),
-              onPressed: _submit,
-              child: const Text('Start'),
-            ),
-    ];
 
     return Form(
       key: _formKey,
@@ -338,7 +337,51 @@ class _PromptPanelState extends State<PromptPanel> {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
+          children: <Widget>[
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: _buildSettingsSection(state, running),
+              crossFadeState: _settingsOpen
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: TextFormField(
+                    key: const Key('prompt.goal'),
+                    controller: _goal,
+                    enabled: !running,
+                    maxLines: 4,
+                    decoration: const InputDecoration(labelText: 'Goal'),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Goal required'
+                        : null,
+                  ),
+                ),
+                IconButton(
+                  key: const Key('prompt.settingsGear'),
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Settings',
+                  onPressed: () =>
+                      setState(() => _settingsOpen = !_settingsOpen),
+                ),
+                running
+                    ? ElevatedButton(
+                        key: const Key('prompt.stop'),
+                        onPressed: widget.onStop,
+                        child: const Text('Stop'),
+                      )
+                    : ElevatedButton(
+                        key: const Key('prompt.start'),
+                        onPressed: _submit,
+                        child: const Text('Start'),
+                      ),
+              ],
+            ),
+          ],
         ),
       ),
     );
