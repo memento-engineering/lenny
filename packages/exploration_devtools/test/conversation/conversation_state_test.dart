@@ -10,6 +10,7 @@ void main() {
       expect(state.currentTurn, -1);
       expect(state.maxTurns, isNull);
       expect(state.usage, isNull);
+      expect(state.startedAt, isNull);
     });
 
     test('copyWith replaces individual fields', () {
@@ -30,6 +31,12 @@ void main() {
       final updated = snap.copyWith(estimatedTokens: 200, trimThreshold: 8000);
       expect(updated.estimatedTokens, 200);
       expect(updated.trimThreshold, 8000);
+    });
+
+    test('copyWith preserves startedAt', () {
+      final t = DateTime.utc(2026, 1, 1);
+      final state = ConversationState(startedAt: t);
+      expect(state.copyWith(status: RunStatus.running).startedAt, t);
     });
 
     test('ConversationEntry copyWith with sentinel for nullable toolArgs', () {

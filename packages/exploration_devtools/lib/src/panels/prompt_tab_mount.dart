@@ -4,12 +4,15 @@ import 'package:exploration_agent/exploration_agent.dart'
     show
         PluginManifestEntry,
         SessionEnded,
+        SessionOutcome,
         SessionProgressEvent,
         SessionStarted,
+        SessionTermination,
         TrajectoryRecord,
         capabilitiesFor;
 import 'package:flutter/material.dart';
 
+import '../conversation/conversation_state.dart' show RunStatus;
 import 'model_catalog.dart';
 import 'prompt_panel.dart';
 import 'prompt_panel_config.dart';
@@ -34,6 +37,7 @@ class PromptTabMount extends StatefulWidget {
     required this.controllerFactory,
     required this.promptConfigStore,
     this.trajectorySink,
+    this.completionSink,
     this.initialProviderId = 'swift-infer',
   });
 
@@ -50,6 +54,10 @@ class PromptTabMount extends StatefulWidget {
   /// assigns the controller's live trajectory stream to this notifier
   /// so the Timeline tab can render records emitted during the run.
   final ValueNotifier<Stream<TrajectoryRecord>?>? trajectorySink;
+
+  /// When set, written with the terminal [RunStatus] when the run future
+  /// resolves (done / error) or the user presses Stop (stopped).
+  final ValueNotifier<RunStatus?>? completionSink;
 
   /// Provider id loaded from [store] at mount. Defaults to
   /// `'swift-infer'`.
@@ -71,6 +79,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
   PromptPanelController? _controller;
   StreamSubscription<SessionProgressEvent>? _sub;
   bool _running = false;
+  bool _stoppedByUser = false;
 
   final ValueNotifier<ModelCatalogState> _state =
       ValueNotifier<ModelCatalogState>(const ModelCatalogState());
@@ -153,26 +162,40 @@ class _PromptTabMountState extends State<PromptTabMount> {
     return c;
   }
 
+  RunStatus _termToRunStatus(SessionTermination t) {
+    if (_stoppedByUser) return RunStatus.stopped;
+    return switch (t.outcome) {
+      SessionOutcome.done => RunStatus.done,
+      SessionOutcome.budgetExhausted => RunStatus.done,
+      SessionOutcome.harnessError => RunStatus.error,
+    };
+  }
+
   Future<void> _onStart(PromptPanelConfig cfg) async {
     // Persist before starting so the config survives even if start fails.
     unawaited(widget.promptConfigStore.save(
       cfg,
       knownNamespaces: widget.plugins.map((p) => p.namespace).toSet(),
     ));
+    _stoppedByUser = false;
     final c = _ensureController();
     await c.start(cfg, providerCfg: _state.value.config);
     // Re-enable the form when the loop terminates naturally (vs.
     // user pressing Stop). LoopDriver's finally block closes the
     // writer; we also need to flip _running back so the UI restores
-    // the Start button. We use whenComplete so cancellation / errors
-    // still tear down the controller state.
-    unawaited(c.runFuture?.whenComplete(() {
+    // the Start button. We use then().whenComplete() so we can signal
+    // the completionSink with the terminal status before tearing down.
+    unawaited(c.runFuture?.then((t) {
+      if (!mounted) return;
+      widget.completionSink?.value = _termToRunStatus(t);
+    }).whenComplete(() {
       if (!mounted) return;
       unawaited(c.stop());
     }));
   }
 
   Future<void> _onStop() async {
+    _stoppedByUser = true;
     await _controller?.stop();
   }
 

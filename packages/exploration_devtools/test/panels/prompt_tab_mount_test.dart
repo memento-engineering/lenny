@@ -9,6 +9,8 @@ library;
 import 'dart:async';
 
 import 'package:exploration_agent/exploration_agent.dart';
+import 'package:exploration_devtools/src/conversation/conversation_state.dart'
+    show RunStatus;
 import 'package:exploration_devtools/src/panels/model_catalog.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_config.dart';
 import 'package:exploration_devtools/src/panels/prompt_panel_config_store.dart';
@@ -240,6 +242,42 @@ void main() {
     fake.runCompleter!.complete(
       const SessionTermination(SessionOutcome.done, finalSummary: ''),
     );
+    await c.dispose();
+  });
+
+  test('completionSink receives RunStatus.done on natural run end', () async {
+    final sink = ValueNotifier<RunStatus?>(null);
+    addTearDown(sink.dispose);
+
+    final fake = _FakeSession();
+    final c = PromptPanelController(
+      factory: () async => fake,
+      providerFactory: (_, __, ___) => _DummyProvider(),
+    );
+
+    // Before start, sink is null.
+    expect(sink.value, isNull);
+
+    await c.start(_cfg, providerCfg: _providerCfg());
+
+    // Mirror the PromptTabMount._onStart hook with completionSink.
+    final stopped = Completer<void>();
+    unawaited(c.runFuture?.then((t) {
+      sink.value = switch (t.outcome) {
+        SessionOutcome.done => RunStatus.done,
+        SessionOutcome.budgetExhausted => RunStatus.done,
+        SessionOutcome.harnessError => RunStatus.error,
+      };
+    }).whenComplete(() async {
+      await c.stop();
+      stopped.complete();
+    }));
+
+    fake.runCompleter!
+        .complete(const SessionTermination(SessionOutcome.done, finalSummary: ''));
+    await stopped.future;
+
+    expect(sink.value, RunStatus.done);
     await c.dispose();
   });
 }

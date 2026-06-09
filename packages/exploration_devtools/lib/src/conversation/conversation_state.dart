@@ -61,12 +61,16 @@ class ConversationState {
     this.usage,
     this.currentTurn = -1,
     this.maxTurns,
+    this.startedAt,
   });
   final List<ConversationEntry> entries; // unmodifiable; keyed by turnIndex
   final RunStatus status;
   final UsageSnapshot? usage;
   final int currentTurn; // -1 when idle
   final int? maxTurns; // from PromptPanelConfig.maxTurns
+  /// Wall-clock instant when the session started. Set by ConversationViewModel
+  /// on construction; null when status is idle (no active VM).
+  final DateTime? startedAt;
 
   ConversationState copyWith({
     List<ConversationEntry>? entries,
@@ -74,6 +78,7 @@ class ConversationState {
     UsageSnapshot? usage,
     int? currentTurn,
     int? maxTurns,
+    DateTime? startedAt,
   }) =>
       ConversationState(
         entries: entries ?? this.entries,
@@ -81,5 +86,6 @@ class ConversationState {
         usage: usage ?? this.usage,
         currentTurn: currentTurn ?? this.currentTurn,
         maxTurns: maxTurns ?? this.maxTurns,
+        startedAt: startedAt ?? this.startedAt,
       );
 }

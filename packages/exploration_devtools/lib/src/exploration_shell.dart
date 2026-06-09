@@ -2,7 +2,9 @@ import 'package:exploration_agent/exploration_agent.dart'
     show TrajectoryRecord;
 import 'package:flutter/material.dart';
 
+import 'conversation/conversation_state.dart' show RunStatus;
 import 'conversation/conversation_view_model.dart';
+import 'conversation/run_status_header.dart';
 import 'conversation/transcript_list.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
@@ -81,6 +83,9 @@ class _ExplorationShellState extends State<ExplorationShell> {
   final ValueNotifier<Stream<TrajectoryRecord>?> _trajectory =
       ValueNotifier<Stream<TrajectoryRecord>?>(null);
 
+  final ValueNotifier<RunStatus?> _completionStatus =
+      ValueNotifier<RunStatus?>(null);
+
   ConversationViewModel? _conversationVm;
 
   @override
@@ -88,6 +93,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
     super.initState();
     widget.probeRetrigger?.addListener(_onRetrigger);
     _trajectory.addListener(_onTrajectoryChanged);
+    _completionStatus.addListener(_onCompletionStatusChanged);
   }
 
   @override
@@ -103,6 +109,8 @@ class _ExplorationShellState extends State<ExplorationShell> {
   void dispose() {
     widget.probeRetrigger?.removeListener(_onRetrigger);
     _trajectory.removeListener(_onTrajectoryChanged);
+    _completionStatus.removeListener(_onCompletionStatusChanged);
+    _completionStatus.dispose();
     _trajectory.dispose();
     _conversationVm?.dispose();
     super.dispose();
@@ -111,6 +119,11 @@ class _ExplorationShellState extends State<ExplorationShell> {
   void _onRetrigger() {
     // ignore: unawaited_futures
     _hostKey.currentState?.refreshManifest();
+  }
+
+  void _onCompletionStatusChanged() {
+    final status = _completionStatus.value;
+    if (status != null) _conversationVm?.complete(status);
   }
 
   void _onTrajectoryChanged() {
@@ -137,7 +150,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
       child: Scaffold(
         body: Column(
           children: [
-            const SizedBox.shrink(), // S4/S5 status header zone
+            RunStatusHeader(vm: _conversationVm),
             Expanded(
               child: _conversationVm != null
                   ? TranscriptList(viewModel: _conversationVm!)
@@ -155,6 +168,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
                 catalog: widget.catalog,
                 promptConfigStore: widget.promptConfigStore,
                 trajectorySink: _trajectory,
+                completionSink: _completionStatus,
               ),
             ),
           ],
@@ -176,6 +190,7 @@ class _PromptTabBody extends StatelessWidget {
     required this.catalog,
     required this.promptConfigStore,
     required this.trajectorySink,
+    required this.completionSink,
   });
 
   final GlobalKey<ExplorationPanelHostState> hostKey;
@@ -187,6 +202,8 @@ class _PromptTabBody extends StatelessWidget {
   /// trajectory stream here when a session starts; the Timeline tab
   /// reads through this notifier.
   final ValueNotifier<Stream<TrajectoryRecord>?> trajectorySink;
+
+  final ValueNotifier<RunStatus?> completionSink;
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +240,7 @@ class _PromptTabBody extends StatelessWidget {
                 onStop: hostState.endSession,
               ),
               trajectorySink: trajectorySink,
+              completionSink: completionSink,
             ),
         };
       },

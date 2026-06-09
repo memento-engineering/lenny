@@ -88,6 +88,17 @@ void main() {
     expect(find.byKey(const Key('transcript.idle')), findsOneWidget);
   });
 
+  testWidgets('shows runStatus.idle chip before session starts', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: ExplorationShell(
+        manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('runStatus.idle')), findsOneWidget);
+  });
+
   testWidgets('no tab bar in single-screen layout', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: ExplorationShell(
