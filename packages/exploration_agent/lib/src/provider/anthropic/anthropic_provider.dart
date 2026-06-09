@@ -177,6 +177,13 @@ class AnthropicModelProvider implements ModelProvider {
         'accept': 'text/event-stream',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        // When the exploration loop runs inside the DevTools **web** build, this
+        // POST is a browser fetch; api.anthropic.com blocks cross-origin browser
+        // requests by default (CORS preflight has no Access-Control-Allow-Origin).
+        // This opt-in header makes Anthropic answer the preflight. No-op on
+        // native (CLI) runs. It ships the key to the browser — the durable fix
+        // is to run provider HTTP app-side over the VM service (see lenny-vgu8).
+        'anthropic-dangerous-direct-browser-access': 'true',
       })
       ..body = jsonEncode(body);
 
