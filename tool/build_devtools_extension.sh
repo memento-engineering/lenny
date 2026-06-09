@@ -19,6 +19,20 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/packages/exploration_devtools"
+
+# This repo is a Dart pub *workspace* (root `lenny_workspace`, members use
+# `resolution: workspace`) whose members require the Flutter SDK
+# (exploration_dio et al. declare `flutter: sdk: flutter`). On a fresh clone the
+# workspace is unresolved — pubspec.lock and .dart_tool are gitignored — so the
+# `dart run` calls below would trigger an implicit `dart pub get` at the
+# workspace root, which fails:
+#   "Because exploration_dio requires the Flutter SDK, version solving failed.
+#    Flutter users should use `flutter pub` instead of `dart pub`."
+# Resolve the whole workspace with Flutter's pub up front (running it from a
+# member resolves every package); the build_and_copy `dart run` calls then reuse
+# the valid package_config instead of re-solving with the wrong tool.
+flutter pub get
+
 dart run devtools_extensions build_and_copy \
   --source=. \
   --dest=extension/devtools
