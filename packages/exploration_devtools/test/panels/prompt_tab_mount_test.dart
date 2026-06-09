@@ -54,6 +54,7 @@ class _FakeSession implements ExplorationSession {
     required TrajectoryWriter writer,
     ConversationBuilder? conversation,
     ActionValidator? validator,
+    int tokenBudget = 32000,
   }) {
     runCompleter ??= Completer<SessionTermination>();
     return runCompleter!.future;

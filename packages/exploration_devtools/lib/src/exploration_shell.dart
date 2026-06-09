@@ -2,7 +2,8 @@ import 'package:exploration_agent/exploration_agent.dart'
     show TrajectoryRecord;
 import 'package:flutter/material.dart';
 
-import 'conversation/conversation_state.dart' show RunStatus;
+import 'conversation/context_meter.dart';
+import 'conversation/conversation_state.dart' show ConversationState, RunStatus;
 import 'conversation/conversation_view_model.dart';
 import 'conversation/run_status_header.dart';
 import 'conversation/transcript_list.dart';
@@ -151,6 +152,13 @@ class _ExplorationShellState extends State<ExplorationShell> {
         body: Column(
           children: [
             RunStatusHeader(vm: _conversationVm),
+            _conversationVm != null
+                ? ValueListenableBuilder<ConversationState>(
+                    valueListenable: _conversationVm!,
+                    builder: (_, state, __) =>
+                        ContextMeter(usage: state.usage),
+                  )
+                : const SizedBox.shrink(),
             Expanded(
               child: _conversationVm != null
                   ? TranscriptList(viewModel: _conversationVm!)

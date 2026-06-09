@@ -165,6 +165,7 @@ void main() {
           equals(<String>[
             'TurnActionDecided',
             'TurnValidation',
+            'TurnUsage',
             'TurnComplete',
           ]));
 
@@ -175,7 +176,12 @@ void main() {
       final validation = tail[1] as TurnValidation;
       expect(validation.ok, isTrue);
 
-      final complete = tail[2] as TurnComplete;
+      final usage = tail[2] as TurnUsage;
+      expect(usage.turn, equals(0));
+      expect(usage.estimatedTokens, greaterThan(0));
+      expect(usage.trimBudget, equals(32000));
+
+      final complete = tail[3] as TurnComplete;
       expect(complete.turn, equals(0));
     },
   );
