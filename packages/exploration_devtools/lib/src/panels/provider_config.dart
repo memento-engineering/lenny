@@ -200,6 +200,17 @@ class AnthropicUiConfig extends ProviderConfig {
         'accept': 'application/json',
         'x-api-key': _apiKey,
         'anthropic-version': '2023-06-01',
+        // The DevTools extension is a Flutter **web** build, so the model-list
+        // (`GET /v1/models`) and Test-connection calls originate from a browser.
+        // api.anthropic.com refuses cross-origin browser requests by default
+        // ("No 'Access-Control-Allow-Origin' header"). This opt-in header makes
+        // Anthropic answer the CORS preflight. It is "dangerous" because it
+        // ships the API key to the browser — acceptable here only because this
+        // is a local, single-user dev tool that already holds the key panel-side.
+        // The durable fix is to proxy this fetch through the target app over the
+        // VM service (see the CORS follow-up bead) so no key/provider call ever
+        // leaves the browser.
+        'anthropic-dangerous-direct-browser-access': 'true',
       };
 
   @override
