@@ -31,9 +31,9 @@ class PromptPanelController {
     required SessionFactory factory,
     Future<void> Function()? onStop,
     PanelProviderFactory? providerFactory,
-  })  : _factory = factory,
-        _onStop = onStop,
-        _providerFactory = providerFactory ?? buildPanelProvider;
+  }) : _factory = factory,
+       _onStop = onStop,
+       _providerFactory = providerFactory ?? buildPanelProvider;
 
   final SessionFactory _factory;
   final Future<void> Function()? _onStop;
@@ -110,24 +110,26 @@ class PromptPanelController {
     _sink = sink;
 
     final handshake = session.handshake;
-    await writer.writeHeader(SessionHeader(
-      goal: panelCfg.goal,
-      agentsMdHash: '',
-      buildIdentifier: 'devtools',
-      modelIdentifier: panelCfg.modelId,
-      harnessVersion: 'devtools-ch8',
-      plugins: <PluginManifestRecord>[
-        for (final PluginManifestEntry p in handshake.plugins)
-          PluginManifestRecord(
-            namespace: p.namespace,
-            packageVersion: 'unknown',
-            contractVersion: handshake.contractVersion,
-          ),
-      ],
-      config: <String, dynamic>{
-        'enabled_plugins': panelCfg.enabledPluginNamespaces.toList()..sort(),
-      },
-    ));
+    await writer.writeHeader(
+      SessionHeader(
+        goal: panelCfg.goal,
+        agentsMdHash: kDefaultAgentsMdHash,
+        buildIdentifier: 'devtools',
+        modelIdentifier: panelCfg.modelId,
+        harnessVersion: 'devtools-ch8',
+        plugins: <PluginManifestRecord>[
+          for (final PluginManifestEntry p in handshake.plugins)
+            PluginManifestRecord(
+              namespace: p.namespace,
+              packageVersion: 'unknown',
+              contractVersion: handshake.contractVersion,
+            ),
+        ],
+        config: <String, dynamic>{
+          'enabled_plugins': panelCfg.enabledPluginNamespaces.toList()..sort(),
+        },
+      ),
+    );
 
     // 'core' is unconditionally projected so the model always has action tools.
     // coreTools param stays const <ToolDescriptor>[] — core travels via pluginTools['core'].
@@ -140,7 +142,13 @@ class PromptPanelController {
       coreTools: const <ToolDescriptor>[],
       pluginTools: pluginTools,
       goal: panelCfg.goal,
-      agentsMd: '',
+      // The model needs the operating guide (methodology + the "Finishing"
+      // rule that gates core.done on a VISIBLE success state). Shipping an
+      // empty prompt here caused premature core.done on multi-step goals
+      // (lenny-wisp-0go2a.4). The CLI loads the same guide from
+      // templates/AGENTS.md; the web panel can't read files, so it uses the
+      // bundled const.
+      agentsMd: kDefaultAgentsMd,
     );
 
     _run = session.run(host: host, provider: provider, writer: writer);
