@@ -32,6 +32,31 @@ void main() {
       expect(vm.value.currentTurn, -1);
     });
 
+    test('initial state has startedAt set', () {
+      final before = DateTime.now().subtract(const Duration(seconds: 1));
+      final after = DateTime.now().add(const Duration(seconds: 1));
+      expect(vm.value.startedAt, isNotNull);
+      expect(vm.value.startedAt!.isAfter(before), isTrue);
+      expect(vm.value.startedAt!.isBefore(after), isTrue);
+    });
+
+    test('accepts injected startedAt for deterministic tests', () {
+      final t = DateTime.utc(2026, 6, 1);
+      final events2 = StreamController<TurnEvent>.broadcast();
+      final traj2 = StreamController<TrajectoryRecord>.broadcast();
+      final vm2 = ConversationViewModel(
+        turnEvents: events2.stream,
+        trajectory: traj2.stream,
+        startedAt: t,
+      );
+      addTearDown(() async {
+        vm2.dispose();
+        await events2.close();
+        await traj2.close();
+      });
+      expect(vm2.value.startedAt, t);
+    });
+
     test('TurnThinking creates entry and updates AppendOnlyTextController',
         () async {
       events.add(const TurnThinking(0, ThinkingDelta(text: 'hello ', isFinal: false)));

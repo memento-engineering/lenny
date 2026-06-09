@@ -11,9 +11,11 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
     required Stream<TurnEvent> turnEvents,
     required Stream<TrajectoryRecord> trajectory,
     int? maxTurns,
+    DateTime? startedAt,
   }) : super(ConversationState(
           status: RunStatus.running,
           maxTurns: maxTurns,
+          startedAt: startedAt ?? DateTime.now(),
         )) {
     _turnSub = turnEvents.listen(_onTurnEvent);
     _trajSub = trajectory.listen(_onTrajectoryRecord);
