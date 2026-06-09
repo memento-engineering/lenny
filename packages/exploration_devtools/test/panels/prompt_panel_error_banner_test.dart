@@ -102,6 +102,9 @@ void main() {
         findsOneWidget);
     expect(find.text('Use fallback model: qwen3.6-35b-a3b-8bit'),
         findsOneWidget);
+    // Error banner is in the settings section — open it first.
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
     await tester
         .ensureVisible(find.byKey(const Key('prompt.modelsError.useFallback')));
     await tester
