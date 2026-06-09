@@ -53,11 +53,12 @@ const String _kBudgetExhaustedWire = 'budget_exhausted';
 
 /// Default budgets — overridable for tests via [LoopDriver]'s
 /// constructor.
-const Duration _kDefaultTurnBudget = Duration(seconds: 30);
+const Duration _kDefaultTurnBudget = Duration(seconds: 120);
 const Duration _kDefaultSessionBudget = Duration(minutes: 15);
 const int _kDefaultMaxTurns = 50;
 const int _kDefaultTokenBudget = 32000;
 const int _kMaxConsecutiveFailedTurns = 3;
+const int _kMaxConsecutiveTurnTimeouts = 5;
 
 /// Function returning the current wall-clock time. Tests inject a
 /// fake clock to advance the per-session 15-min budget without
@@ -108,6 +109,7 @@ class LoopDriver {
   Observation _prev = Observation.empty();
   int _turnIndex = 0;
   int _consecutiveFailedTurns = 0;
+  int _consecutiveTurnTimeouts = 0;
   bool _doneRequested = false;
   String? _doneReason;
   DateTime? _sessionStart;
@@ -124,6 +126,7 @@ class LoopDriver {
   // ---- introspection (visible for tests / wiring) ----
   int get turnIndex => _turnIndex;
   int get consecutiveFailedTurns => _consecutiveFailedTurns;
+  int get consecutiveTurnTimeouts => _consecutiveTurnTimeouts;
   bool get doneRequested => _doneRequested;
   String? get doneReason => _doneReason;
   Duration get turnBudget => _turnBudget;
@@ -144,6 +147,7 @@ class LoopDriver {
         onTimeout: () => throw TurnTimeoutError(idx),
       );
       _consecutiveFailedTurns = 0;
+      _consecutiveTurnTimeouts = 0;
       _turnIndex++;
       return r;
     } on TurnTimeoutError catch (_) {
@@ -151,7 +155,7 @@ class LoopDriver {
       _emitTurnEvent(TurnValidation(idx, false, 'turn_timeout'));
       _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
       _emitTurnEvent(TurnComplete(idx));
-      _consecutiveFailedTurns++;
+      _consecutiveTurnTimeouts++;
       _turnIndex++;
       throw TurnFailure(idx, 'turn_timeout');
     } on InvalidActionExhausted catch (e) {
@@ -397,6 +401,13 @@ class LoopDriver {
           );
           return termination;
         }
+        if (_consecutiveTurnTimeouts >= _kMaxConsecutiveTurnTimeouts) {
+          termination = const SessionTermination(
+            SessionOutcome.budgetExhausted,
+            terminationDetail: 'inference_latency',
+          );
+          return termination;
+        }
         try {
           await runTurn();
           if (_doneRequested) {
@@ -429,6 +440,7 @@ class LoopDriver {
             ? 0
             : _clock().difference(_sessionStart!).inMilliseconds,
         harnessError: t.harnessError?.wireName,
+        terminationDetail: t.terminationDetail,
       ));
     }
   }

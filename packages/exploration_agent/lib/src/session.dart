@@ -248,8 +248,11 @@ class ExplorationSession {
     ConversationBuilder? conversation,
     ActionValidator? validator,
     int tokenBudget = 32000,
+    Duration? turnBudget,
   }) async {
     _ensureStarted('run');
+    final Duration effectiveTurnBudget =
+        turnBudget ?? const Duration(seconds: 120); // matches _kDefaultTurnBudget
     final driver = LoopDriver(
       host: host,
       provider: provider,
@@ -262,6 +265,7 @@ class ExplorationSession {
       writer: writer,
       onTurnEvent: emitTurnEvent,
       tokenBudget: tokenBudget,
+      turnBudget: effectiveTurnBudget,
     );
     return driver.runSession();
   }

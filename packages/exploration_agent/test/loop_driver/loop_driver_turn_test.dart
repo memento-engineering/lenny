@@ -388,13 +388,42 @@ void main() {
       } on TurnFailure catch (e) {
         expect(e.reason, 'turn_timeout');
       }
-      expect(driver.consecutiveFailedTurns, 1);
+      expect(driver.consecutiveTurnTimeouts, 1);
+      expect(driver.consecutiveFailedTurns, 0);
       // The failed-turn record was awaited before the throw — i.e. the
       // last sink line is a turn record with validation.ok=false.
       final last = jsonDecode(sink.lines.last) as Map<String, dynamic>;
       expect(last['type'], 'turn');
       expect(last['validation']['ok'], isFalse);
       expect(last['validation']['reason'], 'turn_timeout');
+    });
+
+    test('turn_timeout increments consecutiveTurnTimeouts only, not consecutiveFailedTurns',
+        () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        observations: <Observation>[_emptyObs()],
+        tools: <ToolDescriptor>[_coreWait()],
+        executeFn: (tool, args) => Completer<Map<String, dynamic>>().future,
+      );
+      final provider = _FakeProvider(script: <ModelDecision>[
+        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+      ]);
+      final driver = _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+        turnBudget: const Duration(milliseconds: 50),
+      );
+      try {
+        await driver.runTurn();
+        fail('expected TurnFailure');
+      } on TurnFailure catch (e) {
+        expect(e.reason, 'turn_timeout');
+      }
+      expect(driver.consecutiveTurnTimeouts, 1);
+      expect(driver.consecutiveFailedTurns, 0);
     });
 
     test('core.done sets done state and writes turn normally', () async {

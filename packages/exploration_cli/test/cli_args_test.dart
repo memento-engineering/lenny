@@ -63,5 +63,28 @@ void main() {
       expect(args.tier, ModelTier.claude);
       expect(args.policy, StabilityPolicy.actionRelative);
     });
+
+    test('--turn-budget 60 sets turnBudget to Duration(seconds: 60)', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri', 'ws://h/ws',
+        '--turn-budget', '60',
+      ]);
+      expect(args.turnBudget, const Duration(seconds: 60));
+    });
+
+    test('--turn-budget 0 throws CliUsageError', () {
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri', 'ws://h/ws',
+          '--turn-budget', '0',
+        ]),
+        throwsA(isA<CliUsageError>()),
+      );
+    });
+
+    test('--turn-budget absent leaves turnBudget null', () {
+      final args = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);
+      expect(args.turnBudget, isNull);
+    });
   });
 }

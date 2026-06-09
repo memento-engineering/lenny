@@ -59,6 +59,8 @@ class _FakeHost implements LoopHost {
 
   final List<ToolDescriptor> tools;
   Future<Observation> Function()? observeFn;
+  Future<Map<String, dynamic>> Function(String tool, Map<String, dynamic> args)?
+      executeFn;
   Set<String> _activeNamespaces = <String>{};
   final Set<String> _disabled = <String>{};
 
@@ -83,6 +85,7 @@ class _FakeHost implements LoopHost {
     String tool,
     Map<String, dynamic> args,
   ) async {
+    if (executeFn != null) return executeFn!(tool, args);
     return <String, dynamic>{'ok': true};
   }
 
@@ -378,6 +381,71 @@ void main() {
       // 6 turns ran; budget exhausted, NOT agent_stuck.
       expect(t.outcome, SessionOutcome.budgetExhausted);
       expect(driver.turnIndex, 6);
+    });
+
+    test('5 consecutive turn_timeouts → budget_exhausted + termination_detail=inference_latency',
+        () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        tools: <ToolDescriptor>[_coreWait()],
+        observeFn: () async => Observation.empty(),
+      );
+      // executeAction never completes → budget fires every turn.
+      host.executeFn = (tool, args) => Completer<Map<String, dynamic>>().future;
+      final provider = _FakeProvider(script: <ModelDecision>[
+        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+      ]);
+      final driver = _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+        turnBudget: const Duration(milliseconds: 50),
+      );
+      final t = await driver.runSession();
+      expect(t.outcome, SessionOutcome.budgetExhausted);
+      expect(t.terminationDetail, 'inference_latency');
+      expect(driver.turnIndex, 5);
+      expect(driver.consecutiveFailedTurns, 0);
+      final footer = _lastFooter(sink);
+      expect(footer['outcome'], 'budget_exhausted');
+      expect(footer['termination_detail'], 'inference_latency');
+    });
+
+    test('turn_timeout→turn_timeout→success resets both counters; no premature termination',
+        () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      int turnCall = 0;
+      final host = _FakeHost(
+        tools: <ToolDescriptor>[_coreWait()],
+        observeFn: () async => Observation.empty(),
+      );
+      host.executeFn = (tool, args) async {
+        turnCall++;
+        if (turnCall <= 2) {
+          // Delay past the 50ms budget so the turn times out.
+          await Future<void>.delayed(const Duration(seconds: 10));
+        }
+        return <String, dynamic>{'ok': true};
+      };
+      final provider = _FakeProvider(script: <ModelDecision>[
+        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+      ]);
+      final driver = _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+        turnBudget: const Duration(milliseconds: 50),
+        maxTurns: 4,
+      );
+      final t = await driver.runSession();
+      // After 2 timeouts + 1 success, consecutiveTurnTimeouts is reset.
+      // Session runs to maxTurns (4), not terminated early by the threshold.
+      expect(t.outcome, SessionOutcome.budgetExhausted);
+      expect(t.terminationDetail, isNull);
+      expect(driver.consecutiveTurnTimeouts, 0);
+      expect(driver.consecutiveFailedTurns, 0);
     });
   });
 }
