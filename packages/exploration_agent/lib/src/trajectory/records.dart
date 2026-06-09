@@ -220,12 +220,14 @@ class SessionFooter implements TrajectoryRecord {
   final int totalTurns;
   final int totalDurationMs;
   final String? harnessError;
+  final String? terminationDetail;
 
   const SessionFooter({
     required this.outcome,
     required this.totalTurns,
     required this.totalDurationMs,
     this.harnessError,
+    this.terminationDetail,
   });
 
   factory SessionFooter.fromJson(Map<String, dynamic> j) => SessionFooter(
@@ -238,6 +240,7 @@ class SessionFooter implements TrajectoryRecord {
         totalTurns: (j['total_turns'] as num?)?.toInt() ?? 0,
         totalDurationMs: (j['total_duration_ms'] as num?)?.toInt() ?? 0,
         harnessError: j['harness_error'] as String?,
+        terminationDetail: j['termination_detail'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -250,5 +253,6 @@ class SessionFooter implements TrajectoryRecord {
         'total_turns': totalTurns,
         'total_duration_ms': totalDurationMs,
         if (harnessError != null) 'harness_error': harnessError,
+        if (terminationDetail != null) 'termination_detail': terminationDetail,
       };
 }

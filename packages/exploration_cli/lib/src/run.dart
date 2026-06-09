@@ -178,6 +178,7 @@ Future<int> runCli(
       host: host,
       provider: provider,
       writer: writer,
+      turnBudget: args.turnBudget,
     );
 
     // ----- translate to exit code -----------------------------------

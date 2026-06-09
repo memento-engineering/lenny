@@ -40,6 +40,7 @@ class SessionTermination {
     this.outcome, {
     this.harnessError,
     this.finalSummary,
+    this.terminationDetail,
   });
 
   /// Top-level outcome enum (mirrors trajectory footer).
@@ -52,20 +53,28 @@ class SessionTermination {
   /// from the `core.done` action.
   final String? finalSummary;
 
+  /// Optional sub-reason for the termination. Carried through to the
+  /// trajectory footer as `termination_detail`. Example:
+  /// `'inference_latency'` when consecutive turn-timeouts exhausted the
+  /// separate timeout tolerance.
+  final String? terminationDetail;
+
   @override
   bool operator ==(Object other) =>
       other is SessionTermination &&
       outcome == other.outcome &&
       harnessError == other.harnessError &&
-      finalSummary == other.finalSummary;
+      finalSummary == other.finalSummary &&
+      terminationDetail == other.terminationDetail;
 
   @override
-  int get hashCode => Object.hash(outcome, harnessError, finalSummary);
+  int get hashCode =>
+      Object.hash(outcome, harnessError, finalSummary, terminationDetail);
 
   @override
   String toString() =>
       'SessionTermination($outcome, harnessError: $harnessError, '
-      'finalSummary: $finalSummary)';
+      'finalSummary: $finalSummary, terminationDetail: $terminationDetail)';
 }
 
 /// Thrown by the per-turn budget when a single turn exceeds the wall-
@@ -80,12 +89,15 @@ class TurnTimeoutError implements Exception {
 }
 
 /// Thrown by [LoopDriver.runTurn] when a turn fails for a reason that
-/// counts toward the consecutive-failed-turns budget (PRD §17).
+/// counts toward a failure budget (PRD §17).
 ///
 /// `reason` is one of:
-///   * `'invalid_action_exhausted'` — validator rejected three times.
-///   * `'schema_exhausted'` — provider raised [SchemaRejection] twice.
-///   * `'turn_timeout'` — per-turn 30s budget expired.
+///   * `'invalid_action_exhausted'` — validator rejected three times;
+///     counts toward consecutive-failed-turns.
+///   * `'schema_exhausted'` — provider raised [SchemaRejection] twice;
+///     counts toward consecutive-failed-turns.
+///   * `'turn_timeout'` — per-turn 120s budget expired; counts toward
+///     the separate consecutive-turn-timeouts counter.
 @immutable
 class TurnFailure implements Exception {
   const TurnFailure(this.turnIndex, this.reason, [this.cause]);

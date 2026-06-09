@@ -23,6 +23,7 @@ class CliArgs {
     required this.policy,
     required this.plugins,
     this.agentsMdPath,
+    this.turnBudget,
   });
 
   /// Exploration goal supplied via `--goal`. `null` means "read from
@@ -52,6 +53,10 @@ class CliArgs {
   /// relative to the running script); a missing bundled template falls
   /// back to an empty system prompt.
   final String? agentsMdPath;
+
+  /// Optional `--turn-budget` override. `null` means use the LoopDriver
+  /// default (120 s).
+  final Duration? turnBudget;
 }
 
 /// Thrown by [parseCliArgs] for any user-facing argument error. The
@@ -101,6 +106,10 @@ ArgParser buildParser() => ArgParser()
     'agents-md',
     help: 'Path to an AGENTS.md operating guide pinned to the system '
         'prompt. Defaults to the bundled template; missing => empty.',
+  )
+  ..addOption(
+    'turn-budget',
+    help: 'Per-turn inference timeout in seconds (default: 120).',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this help.');
 
@@ -160,6 +169,18 @@ CliArgs parseCliArgs(List<String> argv) {
           .where((s) => s.isNotEmpty)
           .toList(growable: false);
 
+  final String? rawTurnBudget = res['turn-budget'] as String?;
+  Duration? turnBudget;
+  if (rawTurnBudget != null) {
+    final int? secs = int.tryParse(rawTurnBudget);
+    if (secs == null || secs <= 0) {
+      throw CliUsageError(
+        '--turn-budget must be a positive integer (seconds); got "$rawTurnBudget"',
+      );
+    }
+    turnBudget = Duration(seconds: secs);
+  }
+
   return CliArgs(
     goal: res['goal'] as String?,
     vmUri: vmUri,
@@ -168,5 +189,6 @@ CliArgs parseCliArgs(List<String> argv) {
     policy: policy,
     plugins: plugins,
     agentsMdPath: res['agents-md'] as String?,
+    turnBudget: turnBudget,
   );
 }
