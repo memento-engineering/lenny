@@ -72,6 +72,13 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
         value = value.copyWith(
           entries: _updateEntry(turn, (e) => e.copyWith(validationOk: ok)),
         );
+      case TurnUsage(:final estimatedTokens, :final trimBudget):
+        value = value.copyWith(
+          usage: UsageSnapshot(
+            estimatedTokens: estimatedTokens,
+            trimThreshold: trimBudget,
+          ),
+        );
       case TurnComplete():
         break; // lifecycle managed by complete() callback from screen
     }

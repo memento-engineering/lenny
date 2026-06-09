@@ -61,12 +61,12 @@ class ConversationBuilder {
       );
 
   /// Drop observation from the oldest non-trimmed [UserTurn] until
-  /// [_estimatedTokens] is `<= threshold` or no trimmable turns remain.
+  /// [estimatedTokens] is `<= threshold` or no trimmable turns remain.
   /// Trimmed turns keep their [UserTurn.diff] intact so the model still
   /// sees the delta sequence; only the heavy observation body is
   /// replaced with [Observation.empty].
   void trimIfOverBudget(int threshold) {
-    while (_estimatedTokens() > threshold) {
+    while (estimatedTokens() > threshold) {
       final int idx =
           _turns.indexWhere((ConversationTurn t) => t is UserTurn && !t.trimmed);
       if (idx < 0) break;
@@ -75,7 +75,7 @@ class ConversationBuilder {
     }
   }
 
-  int _estimatedTokens() {
+  int estimatedTokens() {
     // Whitespace-split token estimate. Same logic as the deleted
     // WhitespaceTokenCounter.count() (cx6.13) — the counter abstraction
     // had exactly one consumer (PromptAssembler, also deleted), so

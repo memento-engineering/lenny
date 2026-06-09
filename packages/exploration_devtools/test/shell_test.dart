@@ -120,4 +120,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('prompt.goal')), findsOneWidget);
   });
+
+  testWidgets('no context meter before session starts', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: ExplorationShell(
+        manifestProbe: _staticProbe(const []),
+        sessionFactory: _noSession,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('contextMeter.text')), findsNothing);
+  });
 }

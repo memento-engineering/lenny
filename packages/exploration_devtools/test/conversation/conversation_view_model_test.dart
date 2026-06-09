@@ -133,6 +133,15 @@ void main() {
       expect(vm.value.entries, hasLength(1));
     });
 
+    test('TurnUsage updates ConversationState.usage', () async {
+      events.add(const TurnUsage(0, 1500, 32000));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(vm.value.usage, isNotNull);
+      expect(vm.value.usage!.estimatedTokens, 1500);
+      expect(vm.value.usage!.trimThreshold, 32000);
+    });
+
     test('complete() transitions status and freezes further updates', () async {
       events.add(const TurnThinking(0, ThinkingDelta(text: 'x', isFinal: false)));
       await Future<void>.delayed(Duration.zero);

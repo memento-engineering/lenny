@@ -56,6 +56,7 @@ const String _kBudgetExhaustedWire = 'budget_exhausted';
 const Duration _kDefaultTurnBudget = Duration(seconds: 30);
 const Duration _kDefaultSessionBudget = Duration(minutes: 15);
 const int _kDefaultMaxTurns = 50;
+const int _kDefaultTokenBudget = 32000;
 const int _kMaxConsecutiveFailedTurns = 3;
 
 /// Function returning the current wall-clock time. Tests inject a
@@ -73,6 +74,7 @@ class LoopDriver {
     Duration turnBudget = _kDefaultTurnBudget,
     Duration sessionBudget = _kDefaultSessionBudget,
     int maxTurns = _kDefaultMaxTurns,
+    int tokenBudget = _kDefaultTokenBudget,
     Clock? clock,
     void Function(TurnEvent)? onTurnEvent,
   })  : _host = host,
@@ -83,6 +85,7 @@ class LoopDriver {
         _turnBudget = turnBudget,
         _sessionBudget = sessionBudget,
         _maxTurns = maxTurns,
+        _tokenBudget = tokenBudget,
         _clock = clock ?? DateTime.now,
         _onTurnEvent = onTurnEvent;
 
@@ -94,6 +97,7 @@ class LoopDriver {
   final Duration _turnBudget;
   final Duration _sessionBudget;
   final int _maxTurns;
+  final int _tokenBudget;
   final Clock _clock;
 
   /// Optional sink for [TurnEvent]s — wired by `ExplorationSession.run`
@@ -145,6 +149,7 @@ class LoopDriver {
     } on TurnTimeoutError catch (_) {
       await _writeFailedTurn(idx, reason: 'turn_timeout');
       _emitTurnEvent(TurnValidation(idx, false, 'turn_timeout'));
+      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
@@ -158,6 +163,7 @@ class LoopDriver {
       _emitTurnEvent(
         TurnValidation(idx, false, 'invalid_action_exhausted'),
       );
+      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
@@ -169,6 +175,7 @@ class LoopDriver {
         schemaError: e.cause.validationError,
       );
       _emitTurnEvent(TurnValidation(idx, false, 'schema_exhausted'));
+      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
@@ -186,11 +193,12 @@ class LoopDriver {
 
     // step 5: build prompt against the CURRENT merged tool list
     // (auto-disabled plugins already excluded). Append a UserTurn
-    // carrying any pending failed-action carry-forward, then snapshot
-    // for the provider.
+    // carrying any pending failed-action carry-forward, trim stale
+    // observations to stay under the token budget, then snapshot.
     final List<ToolDescriptor> mergedTools = _host.mergedTools();
     _conversation.appendUserTurn(curr, diff, toolResult: _pendingToolResult);
     _pendingToolResult = null;
+    _conversation.trimIfOverBudget(_tokenBudget);
     final ConversationSnapshot snapshot = _conversation.snapshot();
     final ActionSchema schema = ActionSchema.fromToolList(mergedTools);
 
@@ -291,7 +299,8 @@ class LoopDriver {
     }
     _prev = curr;
 
-    // step 10 (cont.): turn boundary marker for downstream consumers.
+    // step 10 (cont.): usage snapshot + turn boundary marker.
+    _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
     _emitTurnEvent(TurnComplete(idx));
     return rec;
   }

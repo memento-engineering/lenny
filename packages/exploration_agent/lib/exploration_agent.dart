@@ -58,6 +58,7 @@ export 'src/session/turn_event.dart'
         TurnComplete,
         TurnEvent,
         TurnThinking,
+        TurnUsage,
         TurnValidation;
 export 'src/validation/action_validator.dart'
     show ActionValidator, ValidatorAction;

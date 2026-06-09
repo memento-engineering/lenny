@@ -50,6 +50,24 @@ class TurnValidation extends TurnEvent {
   final String? rejectReason;
 }
 
+/// Per-turn token-usage snapshot. Emitted just before [TurnComplete] at
+/// each turn boundary. Carries the whitespace-split estimate and the
+/// trim-budget ceiling so DevTools consumers can display used/ceiling
+/// without reading internal [ConversationBuilder] state.
+class TurnUsage extends TurnEvent {
+  const TurnUsage(super.turn, this.estimatedTokens, this.trimBudget);
+
+  /// Whitespace-split token estimate for the current conversation
+  /// (system message + all turns). This is an approximation; the tilde
+  /// prefix in the UI signals it is not exact.
+  final int estimatedTokens;
+
+  /// Token budget passed to [ConversationBuilder.trimIfOverBudget].
+  /// This is the trim threshold — the point at which old observations
+  /// start being dropped — NOT the model's maximum context window.
+  final int trimBudget;
+}
+
 /// End-of-turn marker.
 class TurnComplete extends TurnEvent {
   const TurnComplete(super.turn);

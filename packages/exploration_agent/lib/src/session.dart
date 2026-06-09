@@ -247,6 +247,7 @@ class ExplorationSession {
     required TrajectoryWriter writer,
     ConversationBuilder? conversation,
     ActionValidator? validator,
+    int tokenBudget = 32000,
   }) async {
     _ensureStarted('run');
     final driver = LoopDriver(
@@ -260,6 +261,7 @@ class ExplorationSession {
       validator: validator ?? const ActionValidator(),
       writer: writer,
       onTurnEvent: emitTurnEvent,
+      tokenBudget: tokenBudget,
     );
     return driver.runSession();
   }
