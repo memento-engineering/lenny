@@ -76,8 +76,7 @@ class _FakeSession implements ExplorationSession {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 const _cfg = PromptPanelConfig(
@@ -91,16 +90,17 @@ const _cfg = PromptPanelConfig(
 class _DummyProvider implements ModelProvider {
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 1,
-        supportsToolUse: false,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 1,
+    supportsToolUse: false,
+  );
 
   @override
   Future<ModelDecision> decide(
-          ConversationSnapshot snapshot, ActionSchema schema) =>
-      throw UnimplementedError();
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) => throw UnimplementedError();
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
@@ -127,6 +127,28 @@ void main() {
 
     await c.dispose();
   });
+
+  test(
+    'start pins the default operating guide as the loop host agentsMd',
+    () async {
+      // Regression for lenny-wisp-0go2a.4: the panel used to pass agentsMd:'',
+      // shipping the model a bare goal with no methodology / Finishing rule,
+      // which caused premature core.done on multi-step goals.
+      final fake = _FakeSession();
+      final c = PromptPanelController(
+        factory: () async => fake,
+        providerFactory: (_, __, ___) => _DummyProvider(),
+      );
+
+      await c.start(_cfg, providerCfg: _providerCfg());
+
+      expect(fake.capturedHost, isNotNull);
+      expect(fake.capturedHost!.agentsMd, equals(kDefaultAgentsMd));
+      expect(fake.capturedHost!.agentsMd, contains('## Finishing'));
+
+      await c.dispose();
+    },
+  );
 
   test('stop ends session and clears running flag', () async {
     final fake = _FakeSession();
@@ -160,21 +182,26 @@ void main() {
     await c.dispose();
   });
 
-  test('missing providerCfg throws StateError before any session.run',
-      () async {
-    final fake = _FakeSession();
-    final c = PromptPanelController(
-      factory: () async => fake,
-      providerFactory: (_, __, ___) => _DummyProvider(),
-    );
+  test(
+    'missing providerCfg throws StateError before any session.run',
+    () async {
+      final fake = _FakeSession();
+      final c = PromptPanelController(
+        factory: () async => fake,
+        providerFactory: (_, __, ___) => _DummyProvider(),
+      );
 
-    await expectLater(() => c.start(_cfg), throwsStateError);
-    expect(fake.runCalls, 0,
-        reason: 'session.run must not be reached without providerCfg');
-    expect(c.running, isFalse);
+      await expectLater(() => c.start(_cfg), throwsStateError);
+      expect(
+        fake.runCalls,
+        0,
+        reason: 'session.run must not be reached without providerCfg',
+      );
+      expect(c.running, isFalse);
 
-    await c.dispose();
-  });
+      await c.dispose();
+    },
+  );
 
   test('providerFactory receives ProviderConfig + modelId', () async {
     final fake = _FakeSession();
@@ -202,50 +229,53 @@ void main() {
     await c.dispose();
   });
 
-  test('start invokes session.run with merged tools, dummy provider, writer',
-      () async {
-    final fake = _FakeSession(
-      handshakeResult: const HandshakeResult(
-        contractVersion: '1.0',
-        plugins: <PluginManifestEntry>[
-          // Handshake carries BARE tool names; buildPluginTools prefixes
-          // the namespace to produce the qualified ToolDescriptor.name.
-          PluginManifestEntry(namespace: 'router', tools: <String>['go']),
-          PluginManifestEntry(namespace: 'dio', tools: <String>['cancel']),
-        ],
-      ),
-    );
-    final provider = _DummyProvider();
-    final c = PromptPanelController(
-      factory: () async => fake,
-      providerFactory: (_, __, ___) => provider,
-    );
+  test(
+    'start invokes session.run with merged tools, dummy provider, writer',
+    () async {
+      final fake = _FakeSession(
+        handshakeResult: const HandshakeResult(
+          contractVersion: '1.0',
+          plugins: <PluginManifestEntry>[
+            // Handshake carries BARE tool names; buildPluginTools prefixes
+            // the namespace to produce the qualified ToolDescriptor.name.
+            PluginManifestEntry(namespace: 'router', tools: <String>['go']),
+            PluginManifestEntry(namespace: 'dio', tools: <String>['cancel']),
+          ],
+        ),
+      );
+      final provider = _DummyProvider();
+      final c = PromptPanelController(
+        factory: () async => fake,
+        providerFactory: (_, __, ___) => provider,
+      );
 
-    await c.start(
-      const PromptPanelConfig(
-        goal: 'g',
-        modelId: 'm',
-        maxTurns: 1,
-        wallClockBudget: Duration(minutes: 1),
-        enabledPluginNamespaces: <String>{'router'},
-      ),
-      providerCfg: _providerCfg(),
-    );
+      await c.start(
+        const PromptPanelConfig(
+          goal: 'g',
+          modelId: 'm',
+          maxTurns: 1,
+          wallClockBudget: Duration(minutes: 1),
+          enabledPluginNamespaces: <String>{'router'},
+        ),
+        providerCfg: _providerCfg(),
+      );
 
-    expect(fake.runCalls, 1);
-    expect(fake.capturedProvider, same(provider));
-    expect(fake.capturedWriter, isA<TrajectoryWriter>());
-    expect(fake.capturedHost, isA<DefaultLoopHost>());
+      expect(fake.runCalls, 1);
+      expect(fake.capturedProvider, same(provider));
+      expect(fake.capturedWriter, isA<TrajectoryWriter>());
+      expect(fake.capturedHost, isA<DefaultLoopHost>());
 
-    // mergedTools() must reflect enabledPluginNamespaces ∩ handshake.plugins.
-    final host = fake.capturedHost!;
-    final names = host.mergedTools().map((t) => t.name).toSet();
-    expect(names, <String>{'router.go'},
-        reason: 'only router (enabled & in handshake) tools should appear');
-    expect(host.activePluginNamespaces(), <String>{'router'});
+      // mergedTools() must reflect enabledPluginNamespaces ∩ handshake.plugins.
+      final host = fake.capturedHost!;
+      final names = host.mergedTools().map((t) => t.name).toSet();
+      expect(names, <String>{
+        'router.go',
+      }, reason: 'only router (enabled & in handshake) tools should appear');
+      expect(host.activePluginNamespaces(), <String>{'router'});
 
-    await c.dispose();
-  });
+      await c.dispose();
+    },
+  );
 
   test('runFuture resolves before stop() returns', () async {
     final fake = _FakeSession();
@@ -268,8 +298,7 @@ void main() {
     await c.dispose();
   });
 
-  test('trajectory stream emits the SessionHeader written in start',
-      () async {
+  test('trajectory stream emits the SessionHeader written in start', () async {
     final fake = _FakeSession();
     final c = PromptPanelController(
       factory: () async => fake,
@@ -285,16 +314,18 @@ void main() {
     // observability for *future* records, write one through the
     // captured writer.
     final writer = fake.capturedWriter!;
-    await writer.writeTurn(const TurnRecord(
-      index: 0,
-      observation: <String, dynamic>{},
-      stability: <String, dynamic>{},
-      proposedAction: <String, dynamic>{},
-      validation: <String, dynamic>{},
-      executedAction: <String, dynamic>{},
-      diff: <String, dynamic>{},
-      modelMetadata: <String, dynamic>{},
-    ));
+    await writer.writeTurn(
+      const TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{},
+        validation: <String, dynamic>{},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        modelMetadata: <String, dynamic>{},
+      ),
+    );
     await Future<void>.delayed(Duration.zero);
 
     expect(emitted, hasLength(1));
@@ -304,74 +335,84 @@ void main() {
     await c.dispose();
   });
 
-  test('swift-infer provider carries Bearer + conversation id via real factory',
-      () async {
-    final fake = _FakeSession();
-    final c = PromptPanelController(
-      factory: () async => fake,
-    );
+  test(
+    'swift-infer provider carries Bearer + conversation id via real factory',
+    () async {
+      final fake = _FakeSession();
+      final c = PromptPanelController(factory: () async => fake);
 
-    final cfg = SwiftInferUiConfig(
-      bearerToken: 'tok',
-      endpoint: Uri.parse('http://localhost:8080'),
-      captureBodies: true,
-    );
-    await c.start(
-      const PromptPanelConfig(
-        goal: 'g',
-        modelId: 'qwen3.6-35b-a3b-8bit',
-        maxTurns: 1,
-        wallClockBudget: Duration(minutes: 1),
-        enabledPluginNamespaces: <String>{},
-      ),
-      providerCfg: cfg,
-    );
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 'tok',
+        endpoint: Uri.parse('http://localhost:8080'),
+        captureBodies: true,
+      );
+      await c.start(
+        const PromptPanelConfig(
+          goal: 'g',
+          modelId: 'qwen3.6-35b-a3b-8bit',
+          maxTurns: 1,
+          wallClockBudget: Duration(minutes: 1),
+          enabledPluginNamespaces: <String>{},
+        ),
+        providerCfg: cfg,
+      );
 
-    final provider = c.activeProvider as SwiftInferModelProvider;
-    expect(provider.config.bearerToken, 'tok');
-    expect(provider.config.captureBodies, isTrue);
-    expect(provider.config.conversationId, startsWith('exploration-panel-'));
-    expect(provider.capabilities.vision, isTrue);
-    expect(provider.capabilities.preserveThinking, isTrue);
+      final provider = c.activeProvider as SwiftInferModelProvider;
+      expect(provider.config.bearerToken, 'tok');
+      expect(provider.config.captureBodies, isTrue);
+      expect(provider.config.conversationId, startsWith('exploration-panel-'));
+      expect(provider.capabilities.vision, isTrue);
+      expect(provider.capabilities.preserveThinking, isTrue);
 
-    await c.dispose();
-  });
+      await c.dispose();
+    },
+  );
 
-  test('factory routes through ensureSession; onStop invoked instead of session.end',
-      () async {
-    ExplorationSession? storedSession;
-    var stopCalled = false;
+  test(
+    'factory routes through ensureSession; onStop invoked instead of session.end',
+    () async {
+      ExplorationSession? storedSession;
+      var stopCalled = false;
 
-    final fake = _FakeSession();
-    Future<ExplorationSession> ensureSession() async {
-      storedSession = fake;
-      return fake;
-    }
+      final fake = _FakeSession();
+      Future<ExplorationSession> ensureSession() async {
+        storedSession = fake;
+        return fake;
+      }
 
-    Future<void> endSession() async {
-      stopCalled = true;
-      storedSession = null;
-      // Production host.endSession() calls session.end(); we intentionally skip it
-      // here to prove the controller does NOT double-end.
-    }
+      Future<void> endSession() async {
+        stopCalled = true;
+        storedSession = null;
+        // Production host.endSession() calls session.end(); we intentionally skip it
+        // here to prove the controller does NOT double-end.
+      }
 
-    final c = PromptPanelController(
-      factory: ensureSession,
-      onStop: endSession,
-      providerFactory: (_, __, ___) => _DummyProvider(),
-    );
+      final c = PromptPanelController(
+        factory: ensureSession,
+        onStop: endSession,
+        providerFactory: (_, __, ___) => _DummyProvider(),
+      );
 
-    await c.start(_cfg, providerCfg: _providerCfg());
-    expect(storedSession, isNotNull, reason: 'ensureSession was invoked');
-    expect(c.running, isTrue);
+      await c.start(_cfg, providerCfg: _providerCfg());
+      expect(storedSession, isNotNull, reason: 'ensureSession was invoked');
+      expect(c.running, isTrue);
 
-    await c.stop();
-    expect(stopCalled, isTrue, reason: 'onStop callback was invoked');
-    expect(storedSession, isNull, reason: 'onStop cleared the host-side session ref');
-    expect(fake.ended, isFalse,
-        reason: 'controller did not call session.end() directly when onStop provided');
-    expect(c.running, isFalse);
+      await c.stop();
+      expect(stopCalled, isTrue, reason: 'onStop callback was invoked');
+      expect(
+        storedSession,
+        isNull,
+        reason: 'onStop cleared the host-side session ref',
+      );
+      expect(
+        fake.ended,
+        isFalse,
+        reason:
+            'controller did not call session.end() directly when onStop provided',
+      );
+      expect(c.running, isFalse);
 
-    await c.dispose();
-  });
+      await c.dispose();
+    },
+  );
 }
