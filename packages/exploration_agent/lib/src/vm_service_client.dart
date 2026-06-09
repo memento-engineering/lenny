@@ -37,7 +37,8 @@ const String _extHandshake = 'ext.flutter.exploration.core.handshake';
 ///
 /// Tests inject a fake via [VmServiceClient.forTest].
 class VmServiceClient {
-  VmServiceClient._(this._vm, this._isolateId);
+  VmServiceClient._(this._vm, this._isolateId, {bool ownsConnection = false})
+    : _ownsConnection = ownsConnection;
 
   /// Wrap an already-connected [VmService] and pin [isolateId] as the
   /// binding's home isolate.
@@ -45,22 +46,33 @@ class VmServiceClient {
   /// Web-safe: pulls in only `package:vm_service/vm_service.dart` — no
   /// `dart:io`. The DevTools extension uses this to reuse the live
   /// `serviceManager.service` connection rather than opening its own.
-  /// The caller owns the connection's lifetime; [dispose] still
-  /// forwards to [VmService.dispose], so callers that did not create
-  /// the connection should not call [dispose].
+  /// The caller owns the connection's lifetime, so a client built this
+  /// way is BORROWED: [dispose] is a no-op and will NOT tear down a
+  /// connection it did not create (lenny-wisp-0go2a.3).
   factory VmServiceClient.fromVmService(VmService vm, String isolateId) {
     return VmServiceClient._(vm, isolateId);
   }
 
   /// Test-only alias for [fromVmService]. Retained so existing tests
-  /// compile unchanged; new code should use [fromVmService].
+  /// compile unchanged; new code should use [fromVmService]. Pass
+  /// `ownsConnection: true` to exercise the owning ([connect]) path.
   @visibleForTesting
-  factory VmServiceClient.forTest(VmService vm, String isolateId) {
-    return VmServiceClient.fromVmService(vm, isolateId);
+  factory VmServiceClient.forTest(
+    VmService vm,
+    String isolateId, {
+    bool ownsConnection = false,
+  }) {
+    return VmServiceClient._(vm, isolateId, ownsConnection: ownsConnection);
   }
 
   final VmService _vm;
   final String _isolateId;
+
+  /// Whether this client created [_vm] (via [connect]) and therefore owns
+  /// its lifetime. Borrowed connections ([fromVmService]) set this false
+  /// so [dispose] never tears down a shared connection (e.g. DevTools'
+  /// `serviceManager.service`).
+  final bool _ownsConnection;
 
   /// Connect to a running app's VM service `wsUri` and pin the first
   /// isolate as the binding's home.
@@ -84,7 +96,7 @@ class VmServiceClient {
     if (id == null) {
       throw StateError('First isolate has no id.');
     }
-    return VmServiceClient._(vm, id);
+    return VmServiceClient._(vm, id, ownsConnection: true);
   }
 
   /// Exchange the `ext.flutter.exploration.core.handshake` contract
@@ -93,9 +105,12 @@ class VmServiceClient {
   /// Throws [BindingNotInitializedError] when the extension is absent
   /// (RPC error code `-32601`, "method not found").
   Future<HandshakeResult> handshake() async {
-    final Map<String, dynamic> json =
-        await _safeCall(_extHandshake, const <String, dynamic>{});
-    final Object? rawVersion = json['protocolVersion'] ?? json['contractVersion'];
+    final Map<String, dynamic> json = await _safeCall(
+      _extHandshake,
+      const <String, dynamic>{},
+    );
+    final Object? rawVersion =
+        json['protocolVersion'] ?? json['contractVersion'];
     final Object? rawPlugins = json['plugins'];
     if (rawVersion is! String) {
       throw StateError(
@@ -115,9 +130,7 @@ class VmServiceClient {
             if (tool is String) toolList.add(tool);
           }
         }
-        plugins.add(
-          PluginManifestEntry(namespace: namespace, tools: toolList),
-        );
+        plugins.add(PluginManifestEntry(namespace: namespace, tools: toolList));
       }
     }
     return HandshakeResult(contractVersion: rawVersion, plugins: plugins);
@@ -164,11 +177,16 @@ class VmServiceClient {
   Future<Map<String, dynamic>> callExtension(
     String extension,
     Map<String, dynamic> args,
-  ) =>
-      _safeCall(extension, args);
+  ) => _safeCall(extension, args);
 
-  /// Tear down the underlying VM service connection.
-  Future<void> dispose() => _vm.dispose();
+  /// Dispose the VM-service connection — but ONLY if this client created
+  /// it (via [connect]). A client built from a BORROWED connection
+  /// ([fromVmService], e.g. DevTools' shared `serviceManager.service`)
+  /// must not tear down a connection it does not own, so dispose is a
+  /// no-op there. This is what stops a DevTools session teardown from
+  /// killing the panel's live link to the app (lenny-wisp-0go2a.3).
+  Future<void> dispose() =>
+      _ownsConnection ? _vm.dispose() : Future<void>.value();
 
   Future<Map<String, dynamic>> _safeCall(
     String ext,
