@@ -144,8 +144,6 @@ class _PromptTabMountState extends State<PromptTabMount> {
     final existing = _controller;
     if (existing != null) return existing;
     final c = widget.controllerFactory();
-    // Surface the controller's live trajectory to the Timeline tab.
-    widget.trajectorySink?.value = c.trajectory;
     _sub = c.events.listen((event) {
       if (!mounted) return;
       if (event is SessionStarted) {
@@ -173,25 +171,41 @@ class _PromptTabMountState extends State<PromptTabMount> {
 
   Future<void> _onStart(PromptPanelConfig cfg) async {
     // Persist before starting so the config survives even if start fails.
-    unawaited(widget.promptConfigStore.save(
-      cfg,
-      knownNamespaces: widget.plugins.map((p) => p.namespace).toSet(),
-    ));
+    unawaited(
+      widget.promptConfigStore.save(
+        cfg,
+        knownNamespaces: widget.plugins.map((p) => p.namespace).toSet(),
+      ),
+    );
     _stoppedByUser = false;
     final c = _ensureController();
     await c.start(cfg, providerCfg: _state.value.config);
+    if (!mounted) return;
+    // Publish the controller's live trajectory ONLY after start(). start()
+    // builds the BroadcastTrajectorySink (so `c.trajectory` is the live record
+    // stream, not the pre-start `Stream.empty()` placeholder) and creates the
+    // session via the host factory (so the shell's _onTrajectoryChanged finds a
+    // non-null session and can build the ConversationViewModel that drives the
+    // transcript + Timeline tab). Doing this pre-start in _ensureController is
+    // why the transcript never populated: the shell's listener fired once with
+    // an empty stream and a null session, then never again.
+    widget.trajectorySink?.value = c.trajectory;
     // Re-enable the form when the loop terminates naturally (vs.
     // user pressing Stop). LoopDriver's finally block closes the
     // writer; we also need to flip _running back so the UI restores
     // the Start button. We use then().whenComplete() so we can signal
     // the completionSink with the terminal status before tearing down.
-    unawaited(c.runFuture?.then((t) {
-      if (!mounted) return;
-      widget.completionSink?.value = _termToRunStatus(t);
-    }).whenComplete(() {
-      if (!mounted) return;
-      unawaited(c.stop());
-    }));
+    unawaited(
+      c.runFuture
+          ?.then((t) {
+            if (!mounted) return;
+            widget.completionSink?.value = _termToRunStatus(t);
+          })
+          .whenComplete(() {
+            if (!mounted) return;
+            unawaited(c.stop());
+          }),
+    );
   }
 
   Future<void> _onStop() async {
@@ -213,8 +227,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
         ResolvedModel(
           id: modelId,
           label: modelId,
-          capabilities:
-              cfg == null ? null : capabilitiesFor(cfg.id, modelId),
+          capabilities: cfg == null ? null : capabilitiesFor(cfg.id, modelId),
           usingFallback: true,
         ),
       ],
