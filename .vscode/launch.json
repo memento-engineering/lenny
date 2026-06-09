@@ -32,12 +32,11 @@
   ],
   "configurations": [
     {
-      "name": "sample_app (debug, macOS)",
+      "name": "sample_app (debug)",
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
       "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
-      "deviceId": "macos",
       "flutterMode": "debug",
       // Rebuild the DevTools extension bundle before launching so the
       // panel served to Chrome always reflects the current source
@@ -49,12 +48,11 @@
       }
     },
     {
-      "name": "sample_app (profile, macOS)",
+      "name": "sample_app (profile)",
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
       "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
-      "deviceId": "macos",
       "flutterMode": "profile",
       "preLaunchTask": "Build DevTools Extension",
       "presentation": {
@@ -63,12 +61,11 @@
       }
     },
     {
-      "name": "sample_app (release, macOS)",
+      "name": "sample_app (release)",
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
       "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
-      "deviceId": "macos",
       "flutterMode": "release",
       "presentation": {
         "group": "1_sample_app",
@@ -93,9 +90,12 @@
       "program": "bin/exploration_cli.dart",
       "cwd": "${workspaceFolder}/packages/exploration_cli",
       "args": [
-        "--vm-uri", "${input:vmServiceUri}",
-        "--goal", "${input:explorationGoal}",
-        "--plugins", "router,riverpod,dio"
+        "--vm-uri",
+        "${input:vmServiceUri}",
+        "--goal",
+        "${input:explorationGoal}",
+        "--plugins",
+        "router,riverpod,dio"
       ],
       "presentation": {
         "group": "2_exploration_cli",
@@ -126,7 +126,7 @@
     {
       "name": "Dogfood: sample_app + exploration_cli",
       "configurations": [
-        "sample_app (debug, macOS)",
+        "sample_app (debug)",
         "exploration_cli (attach to running app)"
       ],
       "stopAll": true,
