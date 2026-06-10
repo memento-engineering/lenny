@@ -9,7 +9,7 @@ class _P extends Perception {
 }
 
 class _E extends PerceptionElement {
-  _E(_P p) : super(p);
+  _E(super.p);
   final calls = <String>[];
   @override
   void mount(PerceptionElement? parent, Object? slot) {
@@ -77,10 +77,13 @@ void main() {
       expect(() => el.update(_P()), throwsA(isA<AssertionError>()));
     });
 
-    test('update: throws AssertionError when canUpdate=false (key mismatch)', () {
-      final el = _E(_P(key: 'a'))..mount(null, null);
-      expect(() => el.update(_P(key: 'b')), throwsA(isA<AssertionError>()));
-    });
+    test(
+      'update: throws AssertionError when canUpdate=false (key mismatch)',
+      () {
+        final el = _E(_P(key: 'a'))..mount(null, null);
+        expect(() => el.update(_P(key: 'b')), throwsA(isA<AssertionError>()));
+      },
+    );
   });
 
   group('updateChild (single-child reconciliation)', () {
@@ -100,17 +103,20 @@ void main() {
       expect(result!.mounted, isTrue);
     });
 
-    test('canUpdate=true: updates in place, same object, perceptionId preserved', () {
-      final child = _E(_P(tag: 'a'))..mount(root, 0);
-      final oldId = child.perceptionId;
-      final result = root.updateChild(child, _P(tag: 'b'), 0);
-      expect(result, same(child));
-      expect(result!.perceptionId, equals(oldId));
-      expect(child.calls, equals(['mount', 'update']));
-    });
+    test(
+      'canUpdate=true: updates in place, same object, perceptionId preserved',
+      () {
+        final child = _E(_P(tag: 'a'))..mount(root, 0);
+        final oldId = child.perceptionId;
+        final result = root.updateChild(child, _P(tag: 'b'), 0);
+        expect(result, same(child));
+        expect(result!.perceptionId, equals(oldId));
+        expect(child.calls, equals(['mount', 'update']));
+      },
+    );
 
     test('canUpdate=false (key mismatch): unmounts old, mounts new', () {
-      final child = (_P(key: 'x').createElement() as _E)..mount(root, 0);
+      final child = _P(key: 'x').createElement()..mount(root, 0);
       final result = root.updateChild(child, _P(key: 'y'), 0);
       expect(result, isNot(same(child)));
       expect(child.mounted, isFalse);
@@ -124,7 +130,7 @@ void main() {
 
     List<_E> mountAll(List<Perception> ps) {
       return ps.indexed
-          .map((r) => ps[r.$1].createElement() as _E ..mount(root, r.$1))
+          .map((r) => ps[r.$1].createElement() as _E..mount(root, r.$1))
           .toList();
     }
 
