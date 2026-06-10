@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'perception.dart';
 import 'perception_context.dart';
+import 'perception_owner.dart';
 
 /// Mounted, live node in the Perception tree — the Element analog.
 ///
@@ -47,14 +48,31 @@ abstract class PerceptionElement implements PerceptionContext {
   }
 
   @override
-  void markNeedsHarvest() => _needsHarvest = true;
+  void markNeedsHarvest() {
+    if (mounted && !_dirty) {
+      _dirty = true;
+      owner?.scheduleHarvestFor(this);
+    }
+  }
+
+  void rebuild() {
+    if (mounted && _dirty) {
+      _dirty = false;
+      performRebuild();
+    }
+  }
+
+  @protected
+  void performRebuild() {}
 
   // --- Internal state ---
 
   PerceptionElement? _parent;
   bool _mounted = false;
-  // ignore: unused_field
-  bool _needsHarvest = false;
+  bool _dirty = false;
+
+  PerceptionOwner? owner;
+  int depth = 0;
 
   bool get mounted => _mounted;
 
@@ -71,6 +89,8 @@ abstract class PerceptionElement implements PerceptionContext {
     );
     _parent = parent;
     _mounted = true;
+    depth = (parent?.depth ?? -1) + 1;
+    owner ??= parent?.owner;
   }
 
   /// Updates the config node when [Perception.canUpdate] is true.
