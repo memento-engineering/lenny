@@ -22,3 +22,9 @@ dev_dependencies:
     sdk: flutter
   lints: ^5.1.0
   test: any
+
+# Bundle the MaterialIcons font into the web build so glyphs like the settings
+# gear render instead of tofu boxes. devtools_extensions sets
+# uses-material-design: true; this package must match or icons are dropped.
+flutter:
+  uses-material-design: true

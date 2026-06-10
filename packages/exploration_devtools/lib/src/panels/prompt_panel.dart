@@ -130,14 +130,15 @@ class _PromptPanelState extends State<PromptPanel> {
         _enabled = ic.enabledPluginNamespaces.toSet();
       });
     }
-    if (!old.configLoaded && widget.configLoaded && widget.initialConfig == null) {
+    if (!old.configLoaded &&
+        widget.configLoaded &&
+        widget.initialConfig == null) {
       setState(() => _settingsOpen = true);
     }
     final models = widget.modelsState.models;
     if (_modelId == null && models.isNotEmpty) {
       _modelId = models.first.id;
-    } else if (_modelId != null &&
-        !models.any((m) => m.id == _modelId)) {
+    } else if (_modelId != null && !models.any((m) => m.id == _modelId)) {
       _modelId = models.isNotEmpty ? models.first.id : null;
     }
   }
@@ -152,13 +153,15 @@ class _PromptPanelState extends State<PromptPanel> {
     if (!_formKey.currentState!.validate()) return;
     final id = _modelId;
     if (id == null) return;
-    widget.onStart(PromptPanelConfig(
-      goal: _goal.text,
-      modelId: id,
-      maxTurns: _maxTurns,
-      wallClockBudget: _budget,
-      enabledPluginNamespaces: _enabled,
-    ));
+    widget.onStart(
+      PromptPanelConfig(
+        goal: _goal.text,
+        modelId: id,
+        maxTurns: _maxTurns,
+        wallClockBudget: _budget,
+        enabledPluginNamespaces: _enabled,
+      ),
+    );
   }
 
   List<Widget> _badges(ResolvedModel m) {
@@ -168,7 +171,9 @@ class _PromptPanelState extends State<PromptPanel> {
     }
     final c = m.capabilities;
     if (c == null) {
-      out.add(const _Badge(text: '⚠ unknown capabilities', key: Key('badge.unknown')));
+      out.add(
+        const _Badge(text: '⚠ unknown capabilities', key: Key('badge.unknown')),
+      );
       return out;
     }
     if (c.vision) out.add(const _Badge(text: 'vision'));
@@ -201,11 +206,14 @@ class _PromptPanelState extends State<PromptPanel> {
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             Text(m.label),
-                            ..._badges(m).map((b) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 2),
-                                  child: b,
-                                )),
+                            ..._badges(m).map(
+                              (b) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                child: b,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -254,26 +262,26 @@ class _PromptPanelState extends State<PromptPanel> {
                           state.error.toString(),
                           style: const TextStyle(color: Colors.black87),
                         ),
-                        if (_fallbackModelIdFor(state.config) != null)
-                          ...<Widget>[
-                            const SizedBox(height: 8),
-                            InkWell(
-                              key: const Key('prompt.modelsError.useFallback'),
-                              onTap: widget.onUseFallback == null
-                                  ? null
-                                  : () => widget.onUseFallback!(
-                                        _fallbackModelIdFor(state.config)!,
-                                      ),
-                              child: Text(
-                                'Use fallback model: '
-                                '${_fallbackModelIdFor(state.config)}',
-                                style: const TextStyle(
-                                  color: Colors.blue,
-                                  decoration: TextDecoration.underline,
-                                ),
+                        if (_fallbackModelIdFor(state.config) !=
+                            null) ...<Widget>[
+                          const SizedBox(height: 8),
+                          InkWell(
+                            key: const Key('prompt.modelsError.useFallback'),
+                            onTap: widget.onUseFallback == null
+                                ? null
+                                : () => widget.onUseFallback!(
+                                    _fallbackModelIdFor(state.config)!,
+                                  ),
+                            child: Text(
+                              'Use fallback model: '
+                              '${_fallbackModelIdFor(state.config)}',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
                               ),
                             ),
-                          ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -292,10 +300,10 @@ class _PromptPanelState extends State<PromptPanel> {
           key: const Key('prompt.wallMinutes'),
           initialValue: '${_budget.inMinutes}',
           enabled: !running,
-          decoration:
-              const InputDecoration(labelText: 'Wall-clock budget (minutes)'),
-          onChanged: (v) =>
-              _budget = Duration(minutes: int.tryParse(v) ?? 15),
+          decoration: const InputDecoration(
+            labelText: 'Wall-clock budget (minutes)',
+          ),
+          onChanged: (v) => _budget = Duration(minutes: int.tryParse(v) ?? 15),
         ),
         if (widget.plugins.isEmpty)
           Padding(
@@ -314,12 +322,12 @@ class _PromptPanelState extends State<PromptPanel> {
               onChanged: running
                   ? null
                   : (v) => setState(() {
-                        if (v == true) {
-                          _enabled.add(p.namespace);
-                        } else {
-                          _enabled.remove(p.namespace);
-                        }
-                      }),
+                      if (v == true) {
+                        _enabled.add(p.namespace);
+                      } else {
+                        _enabled.remove(p.namespace);
+                      }
+                    }),
             ),
           ),
       ],
@@ -333,56 +341,75 @@ class _PromptPanelState extends State<PromptPanel> {
 
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            AnimatedCrossFade(
-              firstChild: const SizedBox.shrink(),
-              secondChild: _buildSettingsSection(state, running),
-              crossFadeState: _settingsOpen
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 200),
+      // Column (not SingleChildScrollView) so the composer is a compact bar
+      // sized to its content and pinned to the bottom of the shell. The
+      // settings panel reveals on demand ABOVE the composer and is itself
+      // bounded + scrollable, so opening it never blows out the layout.
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _buildSettingsSection(state, running),
+              ),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  child: TextFormField(
-                    key: const Key('prompt.goal'),
-                    controller: _goal,
-                    enabled: !running,
-                    maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'Goal'),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Goal required'
-                        : null,
+            crossFadeState: _settingsOpen
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Expanded(
+                    child: TextFormField(
+                      key: const Key('prompt.goal'),
+                      controller: _goal,
+                      enabled: !running,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: const InputDecoration(labelText: 'Goal'),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Goal required'
+                          : null,
+                    ),
                   ),
-                ),
-                IconButton(
-                  key: const Key('prompt.settingsGear'),
-                  icon: const Icon(Icons.settings),
-                  tooltip: 'Settings',
-                  onPressed: () =>
-                      setState(() => _settingsOpen = !_settingsOpen),
-                ),
-                running
-                    ? ElevatedButton(
-                        key: const Key('prompt.stop'),
-                        onPressed: widget.onStop,
-                        child: const Text('Stop'),
-                      )
-                    : ElevatedButton(
-                        key: const Key('prompt.start'),
-                        onPressed: _submit,
-                        child: const Text('Start'),
-                      ),
-              ],
+                  IconButton(
+                    key: const Key('prompt.settingsGear'),
+                    icon: const Icon(Icons.settings),
+                    tooltip: 'Settings',
+                    onPressed: () =>
+                        setState(() => _settingsOpen = !_settingsOpen),
+                  ),
+                  running
+                      ? ElevatedButton(
+                          key: const Key('prompt.stop'),
+                          onPressed: widget.onStop,
+                          child: const Text('Stop'),
+                        )
+                      : ElevatedButton(
+                          key: const Key('prompt.start'),
+                          onPressed: _submit,
+                          child: const Text('Start'),
+                        ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -402,11 +429,11 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.blueGrey.shade100,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(text, style: const TextStyle(fontSize: 10)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: Colors.blueGrey.shade100,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(text, style: const TextStyle(fontSize: 10)),
+  );
 }
