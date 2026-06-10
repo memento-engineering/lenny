@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'perception.dart';
 import 'perception_context.dart';
 
@@ -24,22 +26,40 @@ abstract class PerceptionElement implements PerceptionContext {
   @override
   Object? get key => _perception.key;
 
+  // Providers (InheritedPerceptionBase ancestors) this element currently depends on.
+  final Set<InheritedPerceptionBase> _dependencies = {};
+
   @override
-  T? dependOnInheritedPerceptionOfExactType<T extends Object>() => null;
+  T? dependOnInheritedPerceptionOfExactType<T extends Object>() {
+    PerceptionElement? ancestor = _parent;
+    while (ancestor != null) {
+      if (ancestor is InheritedPerceptionBase) {
+        final value = ancestor.getValueAs<T>();
+        if (value != null) {
+          ancestor.addDependent(this);
+          _dependencies.add(ancestor);
+          return value;
+        }
+      }
+      ancestor = ancestor._parent;
+    }
+    return null;
+  }
 
   @override
   void markNeedsHarvest() => _needsHarvest = true;
 
   // --- Internal state ---
 
-  // ignore: unused_field
   PerceptionElement? _parent;
   bool _mounted = false;
   // ignore: unused_field
   bool _needsHarvest = false;
 
-  /// Whether this element is currently mounted in the tree.
   bool get mounted => _mounted;
+
+  // Exposed for testing. Do not use in production code.
+  Set<InheritedPerceptionBase> get dependencies => _dependencies;
 
   // --- Lifecycle ---
 
@@ -73,8 +93,16 @@ abstract class PerceptionElement implements PerceptionContext {
       _mounted,
       'unmount() called on already-unmounted element (id=$perceptionId).',
     );
+    for (final dep in List.of(_dependencies)) {
+      dep.removeDependent(this);
+    }
     _mounted = false;
     _parent = null;
+  }
+
+  /// Package-internal: called only by [InheritedPerceptionBase.removeDependent].
+  void removeDependency(InheritedPerceptionBase dep) {
+    _dependencies.remove(dep);
   }
 
   // --- Single-child reconciliation ---
@@ -150,4 +178,26 @@ abstract class PerceptionElement implements PerceptionContext {
 
     return result;
   }
+}
+
+/// Package-internal bridge. Defined alongside [PerceptionElement] so that
+/// [PerceptionElement._dependencies] can be typed `Set<InheritedPerceptionBase>`
+/// without importing `inherited_perception.dart` (which would create a
+/// problematic cross-library private-access cycle). Do not use or extend
+/// directly — use [InheritedPerception] instead.
+@internal
+abstract class InheritedPerceptionBase extends PerceptionElement {
+  InheritedPerceptionBase(super.perception);
+
+  /// Returns this element's wrapped value as [T] if its exact value-type equals
+  /// [T]; null otherwise. Used by the parent-walk in
+  /// [PerceptionElement.dependOnInheritedPerceptionOfExactType].
+  T? getValueAs<T extends Object>();
+
+  /// Registers [element] as a dependent. Idempotent (set-add).
+  void addDependent(PerceptionElement element);
+
+  /// Removes [element] from this element's dependent set and clears the
+  /// corresponding back-link in [element._dependencies].
+  void removeDependent(PerceptionElement element);
 }
