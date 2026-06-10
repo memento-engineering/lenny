@@ -3,6 +3,7 @@ publish_to: none
 environment:
   sdk: ^3.11.0
 workspace:
+  - packages/perception
   - packages/exploration_flutter
   - packages/exploration_flutter/example/diagnostic_fixture
   - packages/exploration_flutter/example/sample_app
