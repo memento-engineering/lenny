@@ -63,6 +63,9 @@ class InheritedPerceptionElement<T extends Object>
   // Exposed for testing. Do not use in production code.
   Set<PerceptionElement> get dependents => _dependents;
 
+  // Exposed for testing. Do not use in production code.
+  PerceptionElement? get childElement => _childElement;
+
   // --- Lifecycle ---
 
   @override
