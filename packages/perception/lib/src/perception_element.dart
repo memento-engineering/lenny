@@ -6,8 +6,8 @@ import 'perception_context.dart';
 /// Owns lifecycle (mount/update/unmount) and keyed reconciliation.
 abstract class PerceptionElement implements PerceptionContext {
   PerceptionElement(Perception perception)
-      : _perception = perception,
-        perceptionId = (_idCounter++).toString();
+    : _perception = perception,
+      perceptionId = (_idCounter++).toString();
 
   Perception _perception;
 
@@ -45,26 +45,34 @@ abstract class PerceptionElement implements PerceptionContext {
 
   /// Attaches this element into the tree under [parent] at [slot].
   void mount(PerceptionElement? parent, Object? slot) {
-    assert(!_mounted,
-        'mount() called on already-mounted element (id=$perceptionId).');
+    assert(
+      !_mounted,
+      'mount() called on already-mounted element (id=$perceptionId).',
+    );
     _parent = parent;
     _mounted = true;
   }
 
   /// Updates the config node when [Perception.canUpdate] is true.
   void update(Perception newPerception) {
-    assert(_mounted,
-        'update() called on unmounted element (id=$perceptionId).');
-    assert(Perception.canUpdate(_perception, newPerception),
-        'update() called with a Perception that fails canUpdate; '
-        'use unmount() + mount() for type/key changes.');
+    assert(
+      _mounted,
+      'update() called on unmounted element (id=$perceptionId).',
+    );
+    assert(
+      Perception.canUpdate(_perception, newPerception),
+      'update() called with a Perception that fails canUpdate; '
+      'use unmount() + mount() for type/key changes.',
+    );
     _perception = newPerception;
   }
 
   /// Detaches this element from the tree.
   void unmount() {
-    assert(_mounted,
-        'unmount() called on already-unmounted element (id=$perceptionId).');
+    assert(
+      _mounted,
+      'unmount() called on already-unmounted element (id=$perceptionId).',
+    );
     _mounted = false;
     _parent = null;
   }
@@ -73,7 +81,10 @@ abstract class PerceptionElement implements PerceptionContext {
 
   /// Reconciles [child] against [newPerception] at [slot].
   PerceptionElement? updateChild(
-      PerceptionElement? child, Perception? newPerception, Object? slot) {
+    PerceptionElement? child,
+    Perception? newPerception,
+    Object? slot,
+  ) {
     if (newPerception == null) {
       child?.unmount();
       return null;
@@ -94,7 +105,9 @@ abstract class PerceptionElement implements PerceptionContext {
 
   /// Reconciles [oldChildren] against [newPerceptions] by key identity.
   List<PerceptionElement> updateChildren(
-      List<PerceptionElement> oldChildren, List<Perception> newPerceptions) {
+    List<PerceptionElement> oldChildren,
+    List<Perception> newPerceptions,
+  ) {
     final Map<Object, PerceptionElement> keyedOld = {};
     final List<PerceptionElement> unkeyedOld = [];
     for (final el in oldChildren) {
