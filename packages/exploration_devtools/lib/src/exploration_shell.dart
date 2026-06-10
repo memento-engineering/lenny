@@ -1,5 +1,4 @@
-import 'package:exploration_agent/exploration_agent.dart'
-    show TrajectoryRecord;
+import 'package:exploration_agent/exploration_agent.dart' show TrajectoryRecord;
 import 'package:flutter/material.dart';
 
 import 'conversation/context_meter.dart';
@@ -40,10 +39,10 @@ class ExplorationShell extends StatefulWidget {
     ProviderConfigStore? store,
     ModelCatalog? catalog,
     PromptPanelConfigStore? promptConfigStore,
-  })  : store = store ?? InMemoryProviderConfigStore(),
-        catalog = catalog ?? ModelCatalog(),
-        promptConfigStore =
-            promptConfigStore ?? InMemoryPromptPanelConfigStore();
+  }) : store = store ?? InMemoryProviderConfigStore(),
+       catalog = catalog ?? ModelCatalog(),
+       promptConfigStore =
+           promptConfigStore ?? InMemoryPromptPanelConfigStore();
 
   /// Loads the active plugin manifest for [ExplorationPanelHost].
   /// Production wires a closure over `serviceManager.service` + the main
@@ -84,8 +83,9 @@ class _ExplorationShellState extends State<ExplorationShell> {
   final ValueNotifier<Stream<TrajectoryRecord>?> _trajectory =
       ValueNotifier<Stream<TrajectoryRecord>?>(null);
 
-  final ValueNotifier<RunStatus?> _completionStatus =
-      ValueNotifier<RunStatus?>(null);
+  final ValueNotifier<RunStatus?> _completionStatus = ValueNotifier<RunStatus?>(
+    null,
+  );
 
   ConversationViewModel? _conversationVm;
 
@@ -155,8 +155,7 @@ class _ExplorationShellState extends State<ExplorationShell> {
             _conversationVm != null
                 ? ValueListenableBuilder<ConversationState>(
                     valueListenable: _conversationVm!,
-                    builder: (_, state, __) =>
-                        ContextMeter(usage: state.usage),
+                    builder: (_, state, __) => ContextMeter(usage: state.usage),
                   )
                 : const SizedBox.shrink(),
             Expanded(
@@ -169,15 +168,16 @@ class _ExplorationShellState extends State<ExplorationShell> {
                       ),
                     ),
             ),
-            Expanded(
-              child: _PromptTabBody(
-                hostKey: _hostKey,
-                store: widget.store,
-                catalog: widget.catalog,
-                promptConfigStore: widget.promptConfigStore,
-                trajectorySink: _trajectory,
-                completionSink: _completionStatus,
-              ),
+            // Composer pinned to the bottom as a compact bar (NOT Expanded) so
+            // the transcript above fills all remaining space — no dead gap.
+            // Settings reveal on demand above the bar (see PromptPanel).
+            _PromptTabBody(
+              hostKey: _hostKey,
+              store: widget.store,
+              catalog: widget.catalog,
+              promptConfigStore: widget.promptConfigStore,
+              trajectorySink: _trajectory,
+              completionSink: _completionStatus,
             ),
           ],
         ),
@@ -227,29 +227,29 @@ class _PromptTabBody extends StatelessWidget {
       builder: (context, result, _) {
         return switch (result) {
           ManifestProbeLoading() => const Center(
-              child: CircularProgressIndicator(
-                key: Key('prompt.manifestLoading'),
-              ),
+            child: CircularProgressIndicator(
+              key: Key('prompt.manifestLoading'),
             ),
+          ),
           ManifestProbeBindingMissing() => const _BindingMissingBanner(
-              message:
-                  'Binding not detected. Add ExplorationBinding.ensureInitialized() to your app\'s main().',
-            ),
+            message:
+                'Binding not detected. Add ExplorationBinding.ensureInitialized() to your app\'s main().',
+          ),
           ManifestProbeFailed(:final message) => _BindingMissingBanner(
-              message: 'Binding not detected: $message',
-            ),
+            message: 'Binding not detected: $message',
+          ),
           ManifestProbeLoaded(:final plugins) => PromptTabMount(
-              plugins: plugins,
-              store: store,
-              catalog: catalog,
-              promptConfigStore: promptConfigStore,
-              controllerFactory: () => PromptPanelController(
-                factory: hostState.ensureSession,
-                onStop: hostState.endSession,
-              ),
-              trajectorySink: trajectorySink,
-              completionSink: completionSink,
+            plugins: plugins,
+            store: store,
+            catalog: catalog,
+            promptConfigStore: promptConfigStore,
+            controllerFactory: () => PromptPanelController(
+              factory: hostState.ensureSession,
+              onStop: hostState.endSession,
             ),
+            trajectorySink: trajectorySink,
+            completionSink: completionSink,
+          ),
         };
       },
     );
@@ -265,10 +265,7 @@ class _BindingMissingBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Text(
-        message,
-        key: const Key('prompt.bindingNotDetected'),
-      ),
+      child: Text(message, key: const Key('prompt.bindingNotDetected')),
     );
   }
 }
