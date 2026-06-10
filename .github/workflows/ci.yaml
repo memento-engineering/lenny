@@ -18,3 +18,16 @@ jobs:
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
       - run: melos run test --no-select
+  # Stable required-check name for branch protection. Pin protection to
+  # `ci-required` so renaming the jobs above never silently un-gates merges.
+  ci-required:
+    if: always()
+    needs: [analyze-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs succeeded
+        run: |
+          if [ "${{ needs.analyze-and-test.result }}" != "success" ]; then
+            echo "analyze-and-test did not succeed: ${{ needs.analyze-and-test.result }}"
+            exit 1
+          fi
