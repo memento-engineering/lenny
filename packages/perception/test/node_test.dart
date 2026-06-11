@@ -42,10 +42,14 @@ void main() {
     test('children are mounted on root mount', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a'),
-        const _Tagged('b'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [const _Tagged('a'), const _Tagged('b')],
+                ),
+              )
+              as NodeElement;
       expect(el.children.length, equals(2));
       expect(el.children.every((c) => c.mounted), isTrue);
     });
@@ -53,10 +57,14 @@ void main() {
     test('children receive distinct perceptionIds', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a'),
-        const _Tagged('b'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [const _Tagged('a'), const _Tagged('b')],
+                ),
+              )
+              as NodeElement;
       expect(el.children[0].perceptionId, isNotEmpty);
       expect(
         el.children[0].perceptionId,
@@ -69,18 +77,30 @@ void main() {
     test('keyed child identity preserved after reorder', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a', key: 'ka'),
-        const _Tagged('b', key: 'kb'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [
+                    const _Tagged('a', key: 'ka'),
+                    const _Tagged('b', key: 'kb'),
+                  ],
+                ),
+              )
+              as NodeElement;
 
       final idA = el.children[0].perceptionId;
       final idB = el.children[1].perceptionId;
 
-      el.update(Node('root', children: [
-        const _Tagged('b', key: 'kb'),
-        const _Tagged('a', key: 'ka'),
-      ]));
+      el.update(
+        Node(
+          'root',
+          children: [
+            const _Tagged('b', key: 'kb'),
+            const _Tagged('a', key: 'ka'),
+          ],
+        ),
+      );
 
       expect(el.children[0].perceptionId, equals(idB));
       expect(el.children[1].perceptionId, equals(idA));
@@ -90,10 +110,17 @@ void main() {
     test('removed keyed child is unmounted', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a', key: 'ka'),
-        const _Tagged('b', key: 'kb'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [
+                    const _Tagged('a', key: 'ka'),
+                    const _Tagged('b', key: 'kb'),
+                  ],
+                ),
+              )
+              as NodeElement;
 
       final removed = el.children[1];
       el.update(Node('root', children: [const _Tagged('a', key: 'ka')]));
@@ -105,14 +132,21 @@ void main() {
     test('new keyed child is freshly mounted', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a', key: 'ka'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node('root', children: [const _Tagged('a', key: 'ka')]),
+              )
+              as NodeElement;
 
-      el.update(Node('root', children: [
-        const _Tagged('a', key: 'ka'),
-        const _Tagged('b', key: 'kb'),
-      ]));
+      el.update(
+        Node(
+          'root',
+          children: [
+            const _Tagged('a', key: 'ka'),
+            const _Tagged('b', key: 'kb'),
+          ],
+        ),
+      );
 
       expect(el.children.length, equals(2));
       expect(el.children[1].mounted, isTrue);
@@ -124,18 +158,21 @@ void main() {
     test('unkeyed positional identity preserved across update', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a'),
-        const _Tagged('b'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [const _Tagged('a'), const _Tagged('b')],
+                ),
+              )
+              as NodeElement;
 
       final id0 = el.children[0].perceptionId;
       final id1 = el.children[1].perceptionId;
 
-      el.update(Node('root', children: [
-        const _Tagged('x'),
-        const _Tagged('y'),
-      ]));
+      el.update(
+        Node('root', children: [const _Tagged('x'), const _Tagged('y')]),
+      );
 
       expect(el.children[0].perceptionId, equals(id0));
       expect(el.children[1].perceptionId, equals(id1));
@@ -144,10 +181,14 @@ void main() {
     test('unkeyed excess child at tail is unmounted', () {
       final owner = PerceptionOwner();
       addTearDown(owner.dispose);
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a'),
-        const _Tagged('b'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [const _Tagged('a'), const _Tagged('b')],
+                ),
+              )
+              as NodeElement;
 
       final removed = el.children[1];
       el.update(Node('root', children: [const _Tagged('a')]));
@@ -160,10 +201,17 @@ void main() {
   group('NodeElement unmount', () {
     test('all children unmounted when node unmounts', () {
       final owner = PerceptionOwner();
-      final el = owner.mountRoot(Node('root', children: [
-        const _Tagged('a', key: 'ka'),
-        const _Tagged('b', key: 'kb'),
-      ])) as NodeElement;
+      final el =
+          owner.mountRoot(
+                Node(
+                  'root',
+                  children: [
+                    const _Tagged('a', key: 'ka'),
+                    const _Tagged('b', key: 'kb'),
+                  ],
+                ),
+              )
+              as NodeElement;
       final c0 = el.children[0];
       final c1 = el.children[1];
 

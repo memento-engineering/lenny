@@ -51,6 +51,11 @@ abstract class PerceptionElement implements PerceptionContext {
     }
   }
 
+  /// Called by [InheritedPerceptionBase] when a depended-on value changes.
+  /// Default: delegates to [markNeedsHarvest].
+  /// [StatefulElement] overrides this to set _needsDidChangeDependencies.
+  void dependencyChanged() => markNeedsHarvest();
+
   void rebuild() {
     if (mounted && _dirty) {
       _dirty = false;
