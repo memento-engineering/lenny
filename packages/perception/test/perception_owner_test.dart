@@ -39,6 +39,21 @@ class _SideEffectE extends PerceptionElement {
   }
 }
 
+class _RedirtyP extends Perception {
+  const _RedirtyP();
+  @override
+  _RedirtyE createElement() => _RedirtyE(this);
+}
+
+class _RedirtyE extends PerceptionElement {
+  _RedirtyE(super.p);
+
+  @override
+  void performRebuild() {
+    markNeedsHarvest(); // pathological: re-dirty self on every rebuild
+  }
+}
+
 class _ObservingP extends Perception {
   const _ObservingP();
   @override
@@ -171,6 +186,17 @@ void main() {
           target.buildCount,
           1,
         ); // dirtied mid-flush; rebuilt in the same pass
+        owner.dispose();
+      },
+    );
+
+    test(
+      'pathological re-dirty: performRebuild re-dirties self throws AssertionError',
+      () {
+        final owner = PerceptionOwner();
+        final root = owner.mountRoot(_RedirtyP());
+        root.markNeedsHarvest();
+        expect(() => owner.flushHarvest(), throwsA(isA<AssertionError>()));
         owner.dispose();
       },
     );
