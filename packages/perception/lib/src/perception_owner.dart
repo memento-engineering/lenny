@@ -17,6 +17,9 @@ class PerceptionOwner {
   PerceptionElement? _root;
   int _nextId = 0;
 
+  // null when idle; non-null during a flush pass (debug-only — always null in release)
+  Set<PerceptionElement>? _builtThisPass;
+
   String issueId() => (_nextId++).toString();
 
   PerceptionElement mountRoot(Perception perception) {
@@ -32,16 +35,37 @@ class PerceptionOwner {
   }
 
   void scheduleHarvestFor(PerceptionElement element) {
+    assert(
+      _builtThisPass == null || !_builtThisPass!.contains(element),
+      'element ${element.perceptionId} re-dirtied after it was already built '
+      'in this flushHarvest pass; performRebuild must not re-dirty an '
+      'already-built element',
+    );
     final wasEmpty = _dirty.isEmpty;
     _dirty.add(element);
     if (wasEmpty) onNeedsHarvest?.call();
   }
 
   void flushHarvest() {
-    while (_dirty.isNotEmpty) {
-      final el = _dirty.first;
-      _dirty.remove(el);
-      el.rebuild();
+    assert(() {
+      _builtThisPass = {};
+      return true;
+    }());
+    try {
+      while (_dirty.isNotEmpty) {
+        final el = _dirty.first;
+        _dirty.remove(el);
+        el.rebuild();
+        assert(() {
+          _builtThisPass!.add(el);
+          return true;
+        }());
+      }
+    } finally {
+      assert(() {
+        _builtThisPass = null;
+        return true;
+      }());
     }
   }
 
