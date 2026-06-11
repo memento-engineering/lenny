@@ -81,7 +81,7 @@ class InheritedPerceptionElement<T extends Object>
     _childElement = updateChild(_childElement, _typed.child, 0);
     if (_typed.updateShouldNotify(old)) {
       for (final dep in List.of(_dependents)) {
-        dep.markNeedsHarvest();
+        dep.dependencyChanged();
       }
     }
   }
