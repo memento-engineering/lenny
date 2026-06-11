@@ -22,16 +22,9 @@ scrolls, and looks — the way a person would — but it always waits for the fr
 settle first, and lets the app's own libraries report what's going on. The result
 is **one trustworthy observation per turn**.
 
-## Why "Lenny"?
-
 > Okay, so what am I doing? Oh, I'm chasing this guy. No, he's chasing me.
 >
-> — [Leonard Shelby](https://duckduckgo.com/?q=memenot)
-
-In *Memento*, Leonard "Lenny" Shelby has no short-term memory — he gets through the world
-on Polaroids and notes, acting and then reading back what he captured. An LLM agent works
-the same way: no memory between turns, only the last snapshot it took. Hence the icon: a
-Polaroid, still developing, of a running app.
+> — [Leonard Shelby](https://duckduckgo.com/?q=memento)
 
 ## The problem: agents look too early
 
