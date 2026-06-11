@@ -8,21 +8,17 @@ import 'perception_owner.dart';
 ///
 /// Owns lifecycle (mount/update/unmount) and keyed reconciliation.
 abstract class PerceptionElement implements PerceptionContext {
-  PerceptionElement(Perception perception)
-    : _perception = perception,
-      perceptionId = (_idCounter++).toString();
+  PerceptionElement(Perception perception) : _perception = perception;
 
   Perception _perception;
 
   /// The current [Perception] configuration for this element.
   Perception get perception => _perception;
 
-  static int _idCounter = 0;
-
   // --- PerceptionContext ---
 
   @override
-  final String perceptionId;
+  late final String perceptionId;
 
   @override
   Object? get key => _perception.key;
@@ -88,17 +84,20 @@ abstract class PerceptionElement implements PerceptionContext {
       'mount() called on already-mounted element (id=$perceptionId).',
     );
     _parent = parent;
+    owner ??= parent?.owner;
+    assert(
+      owner != null,
+      'mount() requires a non-null owner; call PerceptionOwner.mountRoot() '
+      'for root elements, or mount under a parent that has an owner.',
+    );
+    perceptionId = owner!.issueId();
     _mounted = true;
     depth = (parent?.depth ?? -1) + 1;
-    owner ??= parent?.owner;
   }
 
   /// Updates the config node when [Perception.canUpdate] is true.
   void update(Perception newPerception) {
-    assert(
-      _mounted,
-      'update() called on unmounted element (id=$perceptionId).',
-    );
+    assert(_mounted, 'update() called on unmounted element.');
     assert(
       Perception.canUpdate(_perception, newPerception),
       'update() called with a Perception that fails canUpdate; '
@@ -109,10 +108,7 @@ abstract class PerceptionElement implements PerceptionContext {
 
   /// Detaches this element from the tree.
   void unmount() {
-    assert(
-      _mounted,
-      'unmount() called on already-unmounted element (id=$perceptionId).',
-    );
+    assert(_mounted, 'unmount() called on already-unmounted element.');
     for (final dep in List.of(_dependencies)) {
       dep.removeDependent(this);
     }

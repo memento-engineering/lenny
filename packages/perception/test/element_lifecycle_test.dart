@@ -33,28 +33,39 @@ class _E extends PerceptionElement {
 void main() {
   group('PerceptionElement lifecycle', () {
     test('mount: sets mounted=true, perceptionId non-empty', () {
-      final el = _E(_P());
-      expect(el.mounted, isFalse);
-      el.mount(null, null);
+      final owner = PerceptionOwner();
+      addTearDown(owner.dispose);
+      final el = owner.mountRoot(_P()) as _E;
       expect(el.mounted, isTrue);
       expect(el.perceptionId, isNotEmpty);
       expect(el.calls, equals(['mount']));
     });
 
     test('mount: perceptionId is stable after update', () {
-      final el = _E(_P())..mount(null, null);
+      final owner = PerceptionOwner();
+      addTearDown(owner.dispose);
+      final el = owner.mountRoot(_P()) as _E;
       final id = el.perceptionId;
       el.update(_P(tag: 'x'));
       expect(el.perceptionId, equals(id));
     });
 
     test('mount: throws AssertionError on double-mount', () {
-      final el = _E(_P())..mount(null, null);
+      final owner = PerceptionOwner();
+      addTearDown(owner.dispose);
+      final el = owner.mountRoot(_P()) as _E;
+      expect(() => el.mount(null, null), throwsA(isA<AssertionError>()));
+    });
+
+    test('mount: throws AssertionError when no owner is available', () {
+      final el = _E(_P());
       expect(() => el.mount(null, null), throwsA(isA<AssertionError>()));
     });
 
     test('unmount: sets mounted=false', () {
-      final el = _E(_P())..mount(null, null);
+      final owner = PerceptionOwner();
+      addTearDown(owner.dispose);
+      final el = owner.mountRoot(_P()) as _E;
       el.unmount();
       expect(el.mounted, isFalse);
       expect(el.calls, equals(['mount', 'unmount']));
@@ -66,7 +77,9 @@ void main() {
     });
 
     test('update: replaces config, records call', () {
-      final el = _E(_P(tag: 'a'))..mount(null, null);
+      final owner = PerceptionOwner();
+      addTearDown(owner.dispose);
+      final el = owner.mountRoot(_P(tag: 'a')) as _E;
       el.update(_P(tag: 'b'));
       expect((el.perception as _P).tag, equals('b'));
       expect(el.calls, equals(['mount', 'update']));
@@ -80,15 +93,47 @@ void main() {
     test(
       'update: throws AssertionError when canUpdate=false (key mismatch)',
       () {
-        final el = _E(_P(key: 'a'))..mount(null, null);
+        final owner = PerceptionOwner();
+        addTearDown(owner.dispose);
+        final el = owner.mountRoot(_P(key: 'a')) as _E;
         expect(() => el.update(_P(key: 'b')), throwsA(isA<AssertionError>()));
       },
     );
   });
 
+  group('perceptionId: owner-scoped issuance', () {
+    test(
+      'root gets id 0, child mounted via mount() inherits owner and gets id 1',
+      () {
+        final owner = PerceptionOwner();
+        addTearDown(owner.dispose);
+        final root = owner.mountRoot(_P()) as _E;
+        final child = _E(_P())..mount(root, 0);
+        expect(root.perceptionId, equals('0'));
+        expect(child.perceptionId, equals('1'));
+      },
+    );
+
+    test('two owners issue independent id sequences (both roots get id 0)', () {
+      final owner1 = PerceptionOwner();
+      final owner2 = PerceptionOwner();
+      addTearDown(owner1.dispose);
+      addTearDown(owner2.dispose);
+      final el1 = owner1.mountRoot(_P()) as _E;
+      final el2 = owner2.mountRoot(_P()) as _E;
+      expect(el1.perceptionId, equals('0'));
+      expect(el2.perceptionId, equals('0'));
+    });
+  });
+
   group('updateChild (single-child reconciliation)', () {
+    late PerceptionOwner testOwner;
     late _E root;
-    setUp(() => root = _E(_P())..mount(null, null));
+    setUp(() {
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
+    });
+    tearDown(() => testOwner.dispose());
 
     test('null perception: unmounts child and returns null', () {
       final child = _E(_P())..mount(root, 0);
@@ -125,8 +170,13 @@ void main() {
   });
 
   group('updateChildren (multi-child keyed reconciliation)', () {
+    late PerceptionOwner testOwner;
     late _E root;
-    setUp(() => root = _E(_P())..mount(null, null));
+    setUp(() {
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
+    });
+    tearDown(() => testOwner.dispose());
 
     List<_E> mountAll(List<Perception> ps) {
       return ps.indexed
