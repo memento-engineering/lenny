@@ -44,8 +44,13 @@ void main() {
   });
 
   group('dependOnInheritedPerceptionOfExactType — lookup', () {
+    late PerceptionOwner testOwner;
     late _E root;
-    setUp(() => root = _E(_P())..mount(null, null));
+    setUp(() {
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
+    });
+    tearDown(() => testOwner.dispose());
 
     test('returns value from direct parent provider', () {
       final ip = _mountInherited(root, 'hello');
@@ -83,15 +88,18 @@ void main() {
   });
 
   group('dependency registration', () {
+    late PerceptionOwner testOwner;
     late _E root;
     late InheritedPerceptionElement<String> ip;
     late _E leaf;
 
     setUp(() {
-      root = _E(_P())..mount(null, null);
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
       ip = _mountInherited(root, 'v');
       leaf = _E(_P())..mount(ip, 0);
     });
+    tearDown(() => testOwner.dispose());
 
     test('lookup registers the caller as a dependent', () {
       leaf.dependOnInheritedPerceptionOfExactType<String>();
@@ -111,16 +119,19 @@ void main() {
   });
 
   group('invalidation', () {
+    late PerceptionOwner testOwner;
     late _E root;
     late InheritedPerceptionElement<String> ip;
     late _E leaf;
 
     setUp(() {
-      root = _E(_P())..mount(null, null);
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
       ip = _mountInherited(root, 'old');
       leaf = _E(_P())..mount(ip, 0);
       leaf.dependOnInheritedPerceptionOfExactType<String>();
     });
+    tearDown(() => testOwner.dispose());
 
     test(
       'value change (updateShouldNotify=true) marks dependent needsHarvest',
@@ -152,16 +163,19 @@ void main() {
   });
 
   group('dependent unmount cleanup', () {
+    late PerceptionOwner testOwner;
     late _E root;
     late InheritedPerceptionElement<String> ip;
     late _E leaf;
 
     setUp(() {
-      root = _E(_P())..mount(null, null);
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
       ip = _mountInherited(root, 'v');
       leaf = _E(_P())..mount(ip, 0);
       leaf.dependOnInheritedPerceptionOfExactType<String>();
     });
+    tearDown(() => testOwner.dispose());
 
     test('leaf unmount removes it from provider dependents (no leak)', () {
       expect(ip.dependents, contains(leaf));
@@ -177,16 +191,19 @@ void main() {
   });
 
   group('InheritedPerceptionElement unmount cleanup', () {
+    late PerceptionOwner testOwner;
     late _E root;
     late InheritedPerceptionElement<String> ip;
     late _E leaf;
 
     setUp(() {
-      root = _E(_P())..mount(null, null);
+      testOwner = PerceptionOwner();
+      root = testOwner.mountRoot(_P()) as _E;
       ip = _mountInherited(root, 'v');
       leaf = _E(_P())..mount(ip, 0);
       leaf.dependOnInheritedPerceptionOfExactType<String>();
     });
+    tearDown(() => testOwner.dispose());
 
     test(
       'provider unmount removes itself from dependent _dependencies (no leak)',

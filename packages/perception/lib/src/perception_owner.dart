@@ -15,6 +15,9 @@ class PerceptionOwner {
 
   VoidCallback? onNeedsHarvest;
   PerceptionElement? _root;
+  int _nextId = 0;
+
+  String issueId() => (_nextId++).toString();
 
   PerceptionElement mountRoot(Perception perception) {
     assert(
@@ -43,7 +46,7 @@ class PerceptionOwner {
   }
 
   void unmountRoot() {
-    _root?.unmount();
+    if (_root?.mounted == true) _root!.unmount();
     _root = null;
   }
 

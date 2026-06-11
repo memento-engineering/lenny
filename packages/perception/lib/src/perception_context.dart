@@ -2,8 +2,8 @@
 ///
 /// Pure Dart; zero Flutter imports. Runs in any Dart isolate. See ADR 0001.
 abstract class PerceptionContext {
-  /// Stable id for this mounted element; assigned in the PerceptionElement
-  /// constructor and never changes during the element's lifetime.
+  /// Stable id for this mounted element; assigned at mount time via
+  /// [PerceptionOwner.issueId] and never changes during the element's lifetime.
   String get perceptionId;
 
   /// The key of the underlying [Perception] config, or null if unkeyed.
