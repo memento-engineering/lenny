@@ -17,14 +17,14 @@
 
 ---
 
+> Okay, so what am I doing? Oh, I'm chasing this guy. No, he's chasing me.
+>
+> — [Leonard Shelby](https://duckduckgo.com/?q=memento)
+
 Lenny is an agent harness for running Flutter apps in debug mode. It taps, types,
 scrolls, and looks — the way a person would — but it always waits for the frame to
 settle first, and lets the app's own libraries report what's going on. The result
 is **one trustworthy observation per turn**.
-
-> Okay, so what am I doing? Oh, I'm chasing this guy. No, he's chasing me.
->
-> — [Leonard Shelby](https://duckduckgo.com/?q=memento)
 
 ## The problem: agents look too early
 
