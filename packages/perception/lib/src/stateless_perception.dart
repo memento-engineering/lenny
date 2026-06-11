@@ -16,6 +16,16 @@ abstract class ComponentElement extends PerceptionElement {
   Perception build(PerceptionContext context);
 
   @override
+  void mount(PerceptionElement? parent, Object? slot) {
+    super.mount(parent, slot);
+    // First build is unconditional (Flutter's _firstBuild): a freshly mounted
+    // ComponentElement builds its subtree immediately, so mountRoot(p) produces
+    // a tree without an external markNeedsHarvest. Subsequent rebuilds still
+    // flow through markNeedsHarvest + owner.flushHarvest.
+    performRebuild();
+  }
+
+  @override
   void performRebuild() {
     _child = updateChild(_child, build(this), 0);
   }

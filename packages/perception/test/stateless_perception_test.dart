@@ -17,7 +17,7 @@ class _Tracker {
 }
 
 class _ReadingP extends StatelessPerception {
-  _ReadingP(this.tracker, {super.key});
+  _ReadingP(this.tracker);
   final _Tracker tracker;
   @override
   Perception build(PerceptionContext ctx) {
@@ -28,7 +28,7 @@ class _ReadingP extends StatelessPerception {
 }
 
 class _SimpleP extends StatelessPerception {
-  const _SimpleP({this.child = const _Leaf(), super.key});
+  const _SimpleP({this.child = const _Leaf()});
   final Perception child;
   @override
   Perception build(PerceptionContext ctx) => child;
@@ -47,18 +47,16 @@ void main() {
     });
     tearDown(() => owner.dispose());
 
-    test('mounts child on first rebuild', () {
+    test('builds its child synchronously on mount (no external dirty)', () {
+      // mountRoot alone must produce the subtree — Flutter's _firstBuild.
+      // No markNeedsHarvest / flushHarvest required.
       final el = owner.mountRoot(_SimpleP()) as StatelessElement;
-      el.markNeedsHarvest();
-      owner.flushHarvest();
       expect(el.child, isNotNull);
       expect(el.child!.mounted, isTrue);
     });
 
-    test('child identity preserved when canUpdate=true', () {
+    test('child identity preserved across a rebuild when canUpdate=true', () {
       final el = owner.mountRoot(_SimpleP()) as StatelessElement;
-      el.markNeedsHarvest();
-      owner.flushHarvest();
       final first = el.child;
 
       el.markNeedsHarvest();
@@ -67,11 +65,9 @@ void main() {
     });
 
     test('child remounted when canUpdate=false (key change)', () {
-      final el = owner.mountRoot(
-        _SimpleP(child: const _Leaf(key: 'a')),
-      ) as StatelessElement;
-      el.markNeedsHarvest();
-      owner.flushHarvest();
+      final el =
+          owner.mountRoot(_SimpleP(child: const _Leaf(key: 'a')))
+              as StatelessElement;
       final oldChild = el.child!;
       expect(oldChild.mounted, isTrue);
 
@@ -86,8 +82,6 @@ void main() {
 
     test('unmounts child before clearing self', () {
       final el = owner.mountRoot(_SimpleP()) as StatelessElement;
-      el.markNeedsHarvest();
-      owner.flushHarvest();
       final child = el.child!;
 
       el.unmount();
@@ -105,15 +99,19 @@ void main() {
     });
     tearDown(() => owner.dispose());
 
-    test('re-reads new value after provider update', () {
+    test('reads provider on mount, re-reads after provider update', () {
       final tracker = _Tracker();
-      final ipEl = owner.mountRoot(
-        InheritedPerception<String>(value: 'a', child: _ReadingP(tracker)),
-      ) as InheritedPerceptionElement<String>;
-      final statelessEl = ipEl.childElement! as StatelessElement;
+      final ipEl =
+          owner.mountRoot(
+                InheritedPerception<String>(
+                  value: 'a',
+                  child: _ReadingP(tracker),
+                ),
+              )
+              as InheritedPerceptionElement<String>;
 
-      statelessEl.markNeedsHarvest();
-      owner.flushHarvest();
+      // Mounting drove the first build through the whole subtree — the
+      // dependency on the provider is registered and 'a' was read.
       expect(tracker.builds, 1);
       expect(tracker.lastValue, 'a');
 
@@ -126,15 +124,17 @@ void main() {
       expect(tracker.lastValue, 'b');
     });
 
-    test('no rebuild when value unchanged', () {
+    test('no rebuild when provider value unchanged', () {
       final tracker = _Tracker();
-      final ipEl = owner.mountRoot(
-        InheritedPerception<String>(value: 'a', child: _ReadingP(tracker)),
-      ) as InheritedPerceptionElement<String>;
-      final statelessEl = ipEl.childElement! as StatelessElement;
+      final ipEl =
+          owner.mountRoot(
+                InheritedPerception<String>(
+                  value: 'a',
+                  child: _ReadingP(tracker),
+                ),
+              )
+              as InheritedPerceptionElement<String>;
 
-      statelessEl.markNeedsHarvest();
-      owner.flushHarvest();
       expect(tracker.builds, 1);
 
       ipEl.update(
