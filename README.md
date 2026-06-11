@@ -24,21 +24,10 @@ is **one trustworthy observation per turn**.
 
 ## Why "Lenny"?
 
-In Christopher Nolan's *Memento*, **Leonard "Lenny" Shelby** can't form new memories.
-Every few minutes the slate wipes. To function, he runs a disciplined external-memory
-system: he **acts, then reconstructs reality from artifacts** — Polaroid photographs,
-handwritten notes, and the facts he can't afford to lose, tattooed permanently. His
-one rule: *don't trust a half-formed impression.* Wait, gather, write it down, verify,
-then move.
-
-That's this project. An LLM has no memory between turns, just like Leonard. So Lenny
-gives the agent the same discipline: a **stable, structured snapshot** each turn (the
-Polaroid), a **running summary** the model rewrites as it goes (the notes), and an
-append-only **trajectory log** (the permanent record). And the sharpest detail of all —
-a Polaroid isn't trustworthy *until it finishes developing*. Neither is Lenny's
-snapshot: it won't look until the framework says the app has settled.
-
-That's the icon: a Polaroid, still developing, of a running app.
+In *Memento*, Leonard "Lenny" Shelby has no short-term memory — he gets through the world
+on Polaroids and notes, acting and then reading back what he captured. An LLM agent works
+the same way: no memory between turns, only the last snapshot it took. Hence the icon: a
+Polaroid, still developing, of a running app.
 
 ## The problem: agents look too early
 
