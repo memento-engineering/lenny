@@ -1,5 +1,10 @@
 include: package:lints/recommended.yaml
 analyzer:
+  exclude:
+    # Untracked spike scratch (genesis de-risking, 2026-06-11) — reference
+    # implementations whose path deps went stale when perception moved to
+    # memento-engineering/genesis. Evidence snapshot: genesis docs/evidence/.
+    - spikes/**
   language:
     strict-casts: true
     strict-inference: true
