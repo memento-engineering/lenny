@@ -16,6 +16,18 @@ workspace:
 dev_dependencies:
   melos: ^7.7.0
 
+# genesis_perception (consumed by exploration_flutter) declares `genesis_tree: any`
+# under `resolution: workspace`. From outside the genesis workspace, pub resolves
+# that sibling to pub.dev (where it does not exist) and version-solving fails.
+# Pin genesis_tree to the same git ref here — dependency_overrides must live at the
+# workspace root. See docs/adrs/0002-perception-migration.md addendum (lenny-wisp-5h5).
+dependency_overrides:
+  genesis_tree:
+    git:
+      url: git@github.com:memento-engineering/genesis.git
+      ref: 41ec0ec
+      path: packages/tree
+
 melos:
   scripts:
     # ---------- primary scripts ----------

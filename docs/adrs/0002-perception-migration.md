@@ -112,6 +112,34 @@ The harness never notices, because of the firewall.
   model reads structure** — an open prompt-rendering question: does deeper structure help the model,
   or just cost tokens? Validate empirically during step 3 before committing the tree shape.
 
+## Addendum — genesis cutover & the external dependency edge (lenny-wisp-5h5, 2026-06-14)
+
+This ADR was written assuming `perception` would be extracted into an **in-repo** package
+(Zone 3, "extract the `perception` core … with its own tests, no app wiring"). That step is
+**superseded**: perception was instead extracted *out* of lenny entirely into
+`memento-engineering/genesis` (the genesis campaign, `lenny-s9jd`), rebuilt on the domain-free
+`tree` spine. lenny now **consumes** it rather than housing it.
+
+- **The edge:** `exploration_flutter` depends on `genesis_perception` via a **pinned git
+  dependency** (`git@github.com:memento-engineering/genesis.git`, `ref: 41ec0ec`,
+  `path: packages/perception`). The ref is pinned (not floating) because genesis is actively
+  churning (sibling packages `tree`/`taxonomy`/`typesetting`/`dialogue`/`consent`).
+- **Mandatory `genesis_tree` override:** `genesis_perception` declares `genesis_tree: any` under
+  `resolution: workspace`. From outside the genesis workspace, pub resolves that sibling to
+  pub.dev (where it does not exist) and version-solving fails. The transitive `genesis_tree` is
+  therefore pinned to the same git ref via `dependency_overrides` in the lenny **workspace-root**
+  pubspec (overrides are only honoured at the root).
+- **Barrel rename:** the public import is `package:genesis_perception/genesis_perception.dart`
+  (the old in-repo path was `package:perception/perception.dart`).
+- **API delta:** genesis rebuilt perception on the `tree` spine with A12 subclass mechanics, a new
+  `Field` leaf, and an A9 conformance delta. The full ledger lives in genesis
+  `docs/CONFORMANCE-DELTA.md`; downstream migration beads (`lenny-lwiy`, plugin conversions) must
+  account for it.
+
+Net effect on the migration sequence: ADR step "extract the core" is replaced by "wire the
+external edge" (this bead). The dual-path coexistence strategy (below) is unchanged — it now runs
+against an imported `genesis_perception` instead of an in-repo one.
+
 ## Consequences
 
 - `lenny-0d6v` (sink) becomes `PerceptionElement.markNeedsHarvest` — first-class, not bolted on.
