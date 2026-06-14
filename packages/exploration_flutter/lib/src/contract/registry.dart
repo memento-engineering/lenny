@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'perception_plugin.dart';
 import 'plugin.dart';
 import 'plugin_context.dart';
 import 'types.dart';
@@ -80,6 +81,23 @@ class PluginRegistry {
             ),
         ],
       );
+
+  /// Returns true iff the registered plugin for [namespace] mixes in
+  /// [PerceptionPlugin]. Returns false for unknown namespaces.
+  bool isPerceptionNative(String namespace) {
+    for (final _Entry e in _entries) {
+      if (e.plugin.namespace == namespace) return e.plugin is PerceptionPlugin;
+    }
+    return false;
+  }
+
+  /// All registered plugins that mix in [PerceptionPlugin], in
+  /// registration order.
+  List<ExplorationPlugin> get perceptionNativePlugins =>
+      List<ExplorationPlugin>.unmodifiable(<ExplorationPlugin>[
+        for (final _Entry e in _entries)
+          if (e.plugin is PerceptionPlugin) e.plugin,
+      ]);
 
   /// Register [p]. Order is preserved across every dispatch.
   ///
