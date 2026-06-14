@@ -3,9 +3,16 @@ import 'dart:convert';
 
 import 'package:exploration_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
-class RouterPlugin extends ExplorationPlugin {
-  RouterPlugin({required this.navigatorKey, this.routerDelegate, this.navigate});
+import 'router_perception.dart';
+
+class RouterPlugin extends ExplorationPlugin with PerceptionPlugin {
+  RouterPlugin({
+    required this.navigatorKey,
+    this.routerDelegate,
+    this.navigate,
+  });
 
   final GlobalKey<NavigatorState> navigatorKey;
   final RouterDelegate<Object>? routerDelegate;
@@ -16,8 +23,11 @@ class RouterPlugin extends ExplorationPlugin {
   /// `onGenerateRoute` handler that is null under `MaterialApp.router`
   /// (lenny-18q). Left null, the plugin falls back to `pushNamed` so
   /// Navigator-1.0 apps keep working unchanged.
-  final Future<void> Function(String routeName, Map<String, Object?>? arguments)?
-      navigate;
+  final Future<void> Function(
+    String routeName,
+    Map<String, Object?>? arguments,
+  )?
+  navigate;
 
   static const int _budgetBytes = 1024;
 
@@ -41,14 +51,28 @@ class RouterPlugin extends ExplorationPlugin {
 
   @override
   Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    final imp = _readNavigator();
-    if (imp != null) return _capped(imp);
-    final dec = _readRouterDelegate();
-    if (dec != null) return _capped(dec);
-    return null;
+    final s = _snapshot();
+    if (s == null) return null;
+    return _capped(<String, Object?>{
+      'current_route_name': s.currentRouteName,
+      'stack': s.stack,
+      'arguments': s.arguments,
+    });
   }
 
-  Map<String, Object?>? _readNavigator() {
+  /// Single source of truth for the route walk shared by legacy [observe] and
+  /// the perception path's [RouteSnapshotAnchor]. Returns null when neither the
+  /// Navigator nor the RouterDelegate yields a route — so [observe] and the
+  /// anchor can never drift. Public to the package so the anchor can read it.
+  RouteSnapshot? readSnapshot() => _snapshot();
+
+  RouteSnapshot? _snapshot() {
+    final imp = _readNavigator();
+    if (imp != null) return imp;
+    return _readRouterDelegate();
+  }
+
+  RouteSnapshot? _readNavigator() {
     final state = navigatorKey.currentState;
     if (state == null) return null;
     final stack = <String>[];
@@ -65,24 +89,24 @@ class RouterPlugin extends ExplorationPlugin {
       return true; // walk only; never pop
     });
     if (top == null) return null;
-    return {
-      'current_route_name': top,
-      'stack': stack,
-      'arguments': topArgs,
-    };
+    return RouteSnapshot(
+      currentRouteName: top,
+      stack: stack,
+      arguments: topArgs,
+    );
   }
 
-  Map<String, Object?>? _readRouterDelegate() {
+  RouteSnapshot? _readRouterDelegate() {
     final d = routerDelegate;
     if (d == null) return null;
     final c = d.currentConfiguration;
     if (c == null) return null;
     final n = c.toString();
-    return {
-      'current_route_name': n,
-      'stack': <String>[n],
-      'arguments': null,
-    };
+    return RouteSnapshot(
+      currentRouteName: n,
+      stack: <String>[n],
+      arguments: null,
+    );
   }
 
   static Map<String, Object?> _capped(Map<String, Object?> raw) {
@@ -94,6 +118,9 @@ class RouterPlugin extends ExplorationPlugin {
       '_truncated': true,
     };
   }
+
+  @override
+  Seed buildPerception() => RouterPerception(RouteSnapshotAnchor(this));
 }
 
 class _NavigateTool extends ExplorationTool {
@@ -110,14 +137,14 @@ class _NavigateTool extends ExplorationTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema({
-        'type': 'object',
-        'properties': {
-          'route_name': {'type': 'string'},
-          'arguments': {'type': 'object'},
-        },
-        'required': ['route_name'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': {
+      'route_name': {'type': 'string'},
+      'arguments': {'type': 'object'},
+    },
+    'required': ['route_name'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {

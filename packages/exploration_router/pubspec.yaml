@@ -11,6 +11,11 @@ dependencies:
   exploration_flutter: any
   flutter:
     sdk: flutter
+  genesis_perception:
+    git:
+      url: git@github.com:memento-engineering/genesis.git
+      ref: 41ec0ec
+      path: packages/perception
   meta: ^1.16.0
 
 dev_dependencies:
