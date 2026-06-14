@@ -60,3 +60,7 @@ dolt.auto-start: false
 export.auto: false
 gc.endpoint_origin: inherited_city
 gc.endpoint_status: verified
+dolt:
+  disable-event-flush: true
+types.custom: molecule,convoy,message,event,gate,merge-request,agent,role,rig,session,spec,convergence,step
+backup.enabled: false
