@@ -1,0 +1,17 @@
+{
+  "semantics": [
+    {"id": 1, "role": "text", "label": "Fetching users...", "rect": [0, 0, 320, 40]}
+  ],
+  "routes": ["home"],
+  "errors": [],
+  "stability": {"policy": "action_relative", "reason": "idle"},
+  "plugins": {
+    "dio": {
+      "in_flight": [],
+      "recent_completed": [
+        {"id": "req-1", "method": "GET", "host": "api.example.com",
+         "path": "/users", "status": 200, "duration_ms": 142}
+      ]
+    }
+  }
+}

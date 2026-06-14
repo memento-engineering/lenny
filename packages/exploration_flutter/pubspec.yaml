@@ -11,6 +11,8 @@ dependencies:
   exploration_agent: any
   flutter:
     sdk: flutter
+  flutter_test:
+    sdk: flutter
   # Perception framework — lives in memento-engineering/genesis post-cutover
   # (lenny ADR 0001 lineage). Pinned git dep; the transitive genesis_tree is
   # pinned via dependency_overrides at the workspace root. See ADR 0002
@@ -24,6 +26,4 @@ dependencies:
   vm_service: ^14.2.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
   lints: ^5.1.0
