@@ -106,4 +106,26 @@ void main() {
 
     await plugin.dispose();
   });
+
+  test('idle state: legacy observe() returns null (no dio key in observation)',
+      () async {
+    final _HangingAdapter adapter = _HangingAdapter();
+    final Dio testDio = Dio()..httpClientAdapter = adapter;
+    final ExplorationDioPlugin plugin = ExplorationDioPlugin(testDio);
+    await plugin.initialize(
+      PluginContext(namespace: 'dio', scheduler: SchedulerBinding.instance),
+    );
+
+    // No requests sent — plugin is completely idle.
+    final Map<String, Object?>? legacy = await plugin.observe(kCtx);
+    expect(legacy, isNull,
+        reason: 'legacy observe() must return null when idle');
+
+    // Perception fragment is non-null (empty lists) but the null-gate in the
+    // binding must suppress it — verify the gate logic: rawFragments[ns]==null
+    // means we skip. We can't exercise the binding directly here, but we assert
+    // that the legacy contract (null == idle) is stable so the gate is correct.
+    expect(adapter.pending, isEmpty);
+    await plugin.dispose();
+  });
 }
