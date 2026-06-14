@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:exploration_flutter/contract.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
+import 'dio_perception.dart';
 import 'dio_tracking_interceptor.dart';
 import 'observation_budget.dart';
 
@@ -13,7 +15,7 @@ import 'observation_budget.dart';
 /// * an observation fragment of in-flight + recent completions
 /// * a busy-state signal while requests are pending
 /// * the `dio.cancel_in_flight` tool for adversarial testing
-class ExplorationDioPlugin extends ExplorationPlugin {
+class ExplorationDioPlugin extends ExplorationPlugin with PerceptionPlugin {
   ExplorationDioPlugin(this._dio, {DateTime Function()? clock})
       : _clock = clock ?? DateTime.now,
         _interceptor = DioTrackingInterceptor(clock: clock);
@@ -88,6 +90,9 @@ class ExplorationDioPlugin extends ExplorationPlugin {
   Future<void> dispose() async {
     _dio.interceptors.remove(_interceptor);
   }
+
+  @override
+  Seed buildPerception() => DioPerception(_interceptor, _clock);
 }
 
 class _CancelInFlightTool extends ExplorationTool {

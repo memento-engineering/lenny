@@ -8,7 +8,7 @@ import 'package:exploration_flutter/exploration_flutter.dart';
 /// debugReset must restore `FlutterError.onError` and
 /// `PlatformDispatcher.onError` to the priors captured at install time.
 void main() {
-  test('debugReset restores priors and clears the singleton', () {
+  test('debugReset restores priors and clears the singleton', () async {
     // Capture priors BEFORE installing the binding so the test owns the
     // baseline. ensureInitialized then wraps these.
     final FlutterExceptionHandler? prePriorFlutter = FlutterError.onError;
@@ -22,7 +22,7 @@ void main() {
     expect(identical(FlutterError.onError, prePriorFlutter), isFalse,
         reason: 'install must replace FlutterError.onError');
 
-    ExplorationBinding.debugReset();
+    await ExplorationBinding.debugReset();
 
     // After reset, the priors are restored verbatim.
     expect(identical(FlutterError.onError, prePriorFlutter), isTrue,

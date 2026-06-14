@@ -4,6 +4,8 @@ import 'dart:developer' as developer;
 import 'dart:ui' show ErrorCallback, PlatformDispatcher;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:genesis_perception/genesis_perception.dart';
+import '../contract/perception_plugin.dart';
 import '../contract/plugin.dart';
 import '../contract/registry.dart';
 import '../contract/types.dart';
@@ -20,6 +22,7 @@ import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
 import 'exploration_app.dart';
+import 'perception_serializer.dart';
 
 /// Reserved prefix. Format:
 /// `ext.exploration.<core_or_plugin_namespace>.<suffix>`.
@@ -101,6 +104,10 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// Session-start anchor used to compute `wallClockOffsetMs` for error
   /// entries. Started in [ensureInitialized].
   late final Stopwatch _sessionClock;
+
+  /// Owns the perception tree for perception-native plugins. Mounted and
+  /// unmounted per observation turn; disposed via teardown in [_wirePlugins].
+  final PerceptionOwner _perceptionOwner = PerceptionOwner();
 
   /// Async teardown callbacks registered by user code via
   /// `ExplorationAppContext.onTeardown`. Drained LIFO from
@@ -212,6 +219,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
       }
     }
     _installErrorHooks();
+    _teardowns.add(() async => _perceptionOwner.dispose());
     _registerCoreExtensions();
     _registerDiagnosticsExtension();
     // Run plugin initialization in a microtask so it completes before the
@@ -376,6 +384,8 @@ class ExplorationBinding extends WidgetsFlutterBinding
                 <String, Object?>{
                   'namespace': m.namespace,
                   'tools': m.tools,
+                  if (_pluginRegistry.isPerceptionNative(m.namespace))
+                    'perception_native': true,
                 },
             ],
           }),
@@ -658,13 +668,38 @@ class ExplorationBinding extends WidgetsFlutterBinding
         await _pluginRegistry.observeAll(ctx);
 
     final Map<String, Object?> pluginsOut = <String, Object?>{};
+
+    // Legacy path — skip perception-native namespaces (handled below)
     for (final String ns in namespaces) {
+      if (_pluginRegistry.isPerceptionNative(ns)) continue;
       final Map<String, Object?>? frag = rawFragments[ns];
       if (frag == null) continue;
       final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
       if (enc.truncated) {
         developer.log(
           'plugin $ns fragment truncated '
+          '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
+          'budget ${budgets[ns]})',
+          name: 'exploration',
+        );
+        pluginsOut[ns] = jsonDecode(enc.json);
+      } else {
+        pluginsOut[ns] = frag;
+      }
+    }
+
+    // Perception-native path: mount → build → serialize → budget
+    for (final ExplorationPlugin plugin
+        in _pluginRegistry.perceptionNativePlugins) {
+      final String ns = plugin.namespace;
+      _perceptionOwner.unmountRoot();
+      final Branch root = _perceptionOwner
+          .mountRoot((plugin as PerceptionPlugin).buildPerception());
+      final Map<String, Object?> frag = serializePerceptionFragment(root);
+      final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
+      if (enc.truncated) {
+        developer.log(
+          'plugin $ns (perception-native) fragment truncated '
           '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
           'budget ${budgets[ns]})',
           name: 'exploration',

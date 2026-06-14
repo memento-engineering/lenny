@@ -4,6 +4,7 @@
 /// versioning posture documented on [ExplorationPlugin].
 library;
 
+export 'src/contract/perception_plugin.dart';
 export 'src/contract/plugin.dart';
 export 'src/contract/plugin_context.dart';
 export 'src/contract/registry.dart' show PluginRegistry;
