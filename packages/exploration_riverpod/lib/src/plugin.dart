@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:exploration_flutter/contract.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
 import 'internals.dart';
+import 'riverpod_perception.dart';
 
 class _InvalidateTool extends ExplorationTool {
   _InvalidateTool(this._c, this._o);
@@ -55,7 +57,7 @@ class _InvalidateTool extends ExplorationTool {
 /// AND pass that same container to this constructor; otherwise the
 /// plugin will report no providers and `invalidate_provider` will be a
 /// no-op.
-class RiverpodExplorationPlugin extends ExplorationPlugin {
+class RiverpodExplorationPlugin extends ExplorationPlugin with PerceptionPlugin {
   RiverpodExplorationPlugin({
     required ProviderContainer container,
     ExplorationProviderObserver? observer,
@@ -140,4 +142,7 @@ class RiverpodExplorationPlugin extends ExplorationPlugin {
     _initialized = false;
     _o.clear();
   }
+
+  @override
+  Seed buildPerception() => RiverpodPerception(_o);
 }
