@@ -30,7 +30,7 @@ import '../_support/exploration_vm_service_fake.dart';
 // ---------------------------------------------------------------------------
 
 const Map<String, dynamic> _kHandshake = <String, dynamic>{
-  'protocolVersion': '1',
+  'protocolVersion': '2',
   'plugins': <dynamic>[],
 };
 

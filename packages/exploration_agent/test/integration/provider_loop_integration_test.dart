@@ -373,7 +373,7 @@ void main() {
     routerCalls = <Map<String, dynamic>>[];
     fake = ExplorationVmServiceFake(
       handshakeResponse: <String, dynamic>{
-        'protocolVersion': '1',
+        'protocolVersion': '2',
         'plugins': <dynamic>[
           <String, dynamic>{
             'namespace': 'router',
@@ -392,7 +392,7 @@ void main() {
         'plugins': <String, dynamic>{},
       },
       handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-        'ext.flutter.exploration.router.navigate': (args) async {
+        'ext.exploration.router.navigate': (args) async {
           // args arrive JSON-encoded from VmServiceClient.executeAction;
           // decode the route_name value before storing.
           final String? raw = args?['route_name'] as String?;

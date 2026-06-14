@@ -48,7 +48,7 @@ class CoreToolError implements Exception {
 ///
 /// The binding registers a single instance of [CorePlugin] BEFORE any
 /// user-supplied plugin, which both (a) exposes the tools at
-/// `ext.flutter.exploration.core.<tool>` and (b) reserves the `core`
+/// `ext.exploration.core.<tool>` and (b) reserves the `core`
 /// namespace via [PluginRegistry]'s existing duplicate-namespace check
 /// (any user plugin claiming `core` will fail to register and be
 /// skipped).

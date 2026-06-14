@@ -49,11 +49,11 @@ void main() {
   });
 
   test('handshake extension is registered exactly once', () {
-    expect(kExplorationExtensionPrefix, 'ext.flutter.exploration');
+    expect(kExplorationExtensionPrefix, 'ext.exploration');
     // Re-registering the same name throws -> registration succeeded.
     expect(
       () => developer.registerExtension(
-          'ext.flutter.exploration.core.handshake',
+          'ext.exploration.core.handshake',
           (m, p) async => developer.ServiceExtensionResponse.result('{}')),
       throwsArgumentError,
     );
@@ -61,11 +61,11 @@ void main() {
 
   test('core.handshake payload carries the plugins manifest', () async {
     final String raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.handshake',
+      'ext.exploration.core.handshake',
       const <String, String>{},
     );
     final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
-    expect(json['protocolVersion'], '1');
+    expect(json['protocolVersion'], '2');
     expect(json['bindingType'], 'ExplorationBinding');
     expect(json['flutterMode'], 'debug');
     expect(json['pluginCount'], 1);

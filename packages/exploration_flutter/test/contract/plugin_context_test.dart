@@ -41,7 +41,7 @@ void main() {
   test('extension method is auto-namespaced', () {
     expect(
       PluginContext.buildExtensionMethodName('router', 'ping'),
-      'ext.flutter.exploration.router.ping',
+      'ext.exploration.router.ping',
     );
   });
 

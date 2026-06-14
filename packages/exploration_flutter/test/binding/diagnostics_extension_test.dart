@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _diagnosticsExt =
-    'ext.flutter.exploration.core.diagnostics_warnings';
+    'ext.exploration.core.diagnostics_warnings';
 
 /// All tests in this file run as plain `test()` (not `testWidgets`) so the
 /// process never installs `AutomatedTestWidgetsFlutterBinding` before our

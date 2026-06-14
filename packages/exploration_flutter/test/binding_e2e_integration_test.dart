@@ -126,7 +126,7 @@ void main() {
       final VmServiceClient client =
           VmServiceClient.fromVmService(fake, 'isolate-0');
       final HandshakeResult h = await client.handshake();
-      expect(h.contractVersion, '1');
+      expect(h.contractVersion, '2');
       final Map<String, List<String>> byNs = <String, List<String>>{
         for (final PluginManifestEntry p in h.plugins) p.namespace: p.tools,
       };
@@ -164,7 +164,7 @@ void main() {
   test('invokePluginTool rejects unknown tool', () async {
     expect(
       () => binding.invokePluginTool(
-        'ext.flutter.exploration.sample.does_not_exist',
+        'ext.exploration.sample.does_not_exist',
         const <String, String>{},
       ),
       throwsArgumentError,
@@ -181,7 +181,7 @@ void main() {
     );
     expect(
       () => binding.invokePluginTool(
-        'ext.flutter.exploration.sample.',
+        'ext.exploration.sample.',
         const <String, String>{},
       ),
       throwsArgumentError,

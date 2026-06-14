@@ -57,12 +57,12 @@ void main() {
   tearDownAll(() async => ExplorationBinding.debugReset());
 
   test(
-    'ext.flutter.exploration.testplugin.echo is in _extensionCallbacks '
+    'ext.exploration.testplugin.echo is in _extensionCallbacks '
     '(proves real _registerExtension path, not invokePluginTool bypass)',
     () {
       expect(
         binding.debugHasRegisteredExtension(
-            'ext.flutter.exploration.testplugin.echo'),
+            'ext.exploration.testplugin.echo'),
         isTrue,
         reason: 'plugin tool must be registered via _registerExtension '
             'so _extensionCallbacks is populated',
@@ -71,12 +71,12 @@ void main() {
   );
 
   test(
-    'ext.flutter.exploration.core.tap is in _extensionCallbacks '
+    'ext.exploration.core.tap is in _extensionCallbacks '
     '(CorePlugin tools registered by binding-level loop)',
     () {
       expect(
         binding.debugHasRegisteredExtension(
-            'ext.flutter.exploration.core.tap'),
+            'ext.exploration.core.tap'),
         isTrue,
       );
     },
@@ -86,7 +86,7 @@ void main() {
     'invokeServiceExtension dispatches testplugin.echo without invokePluginTool',
     () async {
       final String raw = await binding.invokeServiceExtension(
-        'ext.flutter.exploration.testplugin.echo',
+        'ext.exploration.testplugin.echo',
         {'text': jsonEncode('hello')},
       );
       final Map<String, dynamic> envelope =

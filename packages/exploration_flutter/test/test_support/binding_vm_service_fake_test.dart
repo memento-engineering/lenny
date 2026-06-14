@@ -3,7 +3,7 @@
 ///
 /// Proves that [BindingVmServiceFake] routes by
 /// `pluginRegistry.mergedTools()` and not by the literal
-/// `ext.flutter.exploration.core.*` URL prefix:
+/// `ext.exploration.core.*` URL prefix:
 ///
 ///   - a plugin registered under namespace `core` (deliberately
 ///     reusing the namespace that previously triggered the routing
@@ -12,7 +12,7 @@
 ///     which is NOT in `mergedTools()`, falls through to
 ///     `invokeServiceExtension`;
 ///   - any method that does not start with
-///     `ext.flutter.exploration.` still throws
+///     `ext.exploration.` still throws
 ///     `RPCError(..., -32601, ...)`.
 ///
 /// Fixture-serving paths (lenny-cx6.48) are also covered, using a
@@ -133,7 +133,7 @@ void main() {
     'core.tap routes via pluginRegistry.mergedTools -> invokePluginTool',
     () async {
       final Response r = await fake.callServiceExtension(
-        'ext.flutter.exploration.core.tap',
+        'ext.exploration.core.tap',
         args: <String, dynamic>{'x': 0.1, 'y': 0.2},
       );
       expect(tap.invoked, isTrue,
@@ -150,7 +150,7 @@ void main() {
     'falls through to invokeServiceExtension',
     () async {
       final Response r = await fake.callServiceExtension(
-        'ext.flutter.exploration.core.get_stable_observation',
+        'ext.exploration.core.get_stable_observation',
       );
       // The binding-owned extension wraps the result in
       // `{type: 'Observation', value: <bundle>}`; the plugin envelope
@@ -201,7 +201,7 @@ void main() {
         );
 
         final Response r = await fixtureFake.callServiceExtension(
-          'ext.flutter.exploration.core.get_stable_observation',
+          'ext.exploration.core.get_stable_observation',
           args: <String, dynamic>{'policy': 'action_relative'},
         );
 
@@ -230,7 +230,7 @@ void main() {
         );
 
         final Response r = await fixtureFake.callServiceExtension(
-          'ext.flutter.exploration.core.tap',
+          'ext.exploration.core.tap',
           args: <String, dynamic>{'x': 0.5, 'y': 0.5},
         );
 
@@ -255,7 +255,7 @@ void main() {
         final BindingVmServiceFake noFixtureFake =
             BindingVmServiceFake(binding);
         final Response r = await noFixtureFake.callServiceExtension(
-          'ext.flutter.exploration.core.get_stable_observation',
+          'ext.exploration.core.get_stable_observation',
         );
         final Map<String, dynamic> envelope = r.json!;
         expect(envelope['type'], 'Observation');

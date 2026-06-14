@@ -52,12 +52,12 @@ void main() {
         handshakeResponse: _handshake(version: '2'),
       );
       final r = await fake.callServiceExtension(
-        'ext.flutter.exploration.core.handshake',
+        'ext.exploration.core.handshake',
       );
       expect(r.json!['protocolVersion'], '2');
       expect(fake.calls, hasLength(1));
       expect(fake.calls.single.method,
-          'ext.flutter.exploration.core.handshake');
+          'ext.exploration.core.handshake');
     });
 
     test('observation returns {type: Observation, value: bundle}', () async {
@@ -66,7 +66,7 @@ void main() {
         observationBundle: _bundle(routes: <String>['/home']),
       );
       final r = await fake.callServiceExtension(
-        'ext.flutter.exploration.core.get_stable_observation',
+        'ext.exploration.core.get_stable_observation',
         args: <String, dynamic>{'policy': 'action-relative'},
       );
       expect(r.json!['type'], 'Observation');
@@ -82,7 +82,7 @@ void main() {
       );
       await expectLater(
         fake.callServiceExtension(
-          'ext.flutter.exploration.core.get_stable_observation',
+          'ext.exploration.core.get_stable_observation',
         ),
         throwsA(
           isA<RPCError>().having((e) => e.code, 'code', -32601),
@@ -95,12 +95,12 @@ void main() {
         handshakeResponse: _handshake(),
         handlers: <String,
             Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-          'ext.flutter.exploration.router.navigate': (args) async =>
+          'ext.exploration.router.navigate': (args) async =>
               <String, dynamic>{'ok': true, 'value': args?['route_name']},
         },
       );
       final r = await fake.callServiceExtension(
-        'ext.flutter.exploration.router.navigate',
+        'ext.exploration.router.navigate',
         args: <String, dynamic>{'route_name': '"settings"'},
       );
       expect(r.json!['ok'], true);
@@ -110,7 +110,7 @@ void main() {
     test('unknown method throws RPCError(-32601)', () async {
       final fake = ExplorationVmServiceFake(handshakeResponse: _handshake());
       await expectLater(
-        fake.callServiceExtension('ext.flutter.exploration.core.unknown'),
+        fake.callServiceExtension('ext.exploration.core.unknown'),
         throwsA(
           isA<RPCError>().having((e) => e.code, 'code', -32601),
         ),
@@ -123,14 +123,14 @@ void main() {
         observationBundle: _bundle(),
       );
       await fake.callServiceExtension(
-          'ext.flutter.exploration.core.handshake');
+          'ext.exploration.core.handshake');
       await fake.callServiceExtension(
-        'ext.flutter.exploration.core.get_stable_observation',
+        'ext.exploration.core.get_stable_observation',
         isolateId: 'iso-1',
         args: <String, dynamic>{'policy': 'action-relative'},
       );
       expect(fake.calls, hasLength(2));
-      expect(fake.calls[0].method, 'ext.flutter.exploration.core.handshake');
+      expect(fake.calls[0].method, 'ext.exploration.core.handshake');
       expect(fake.calls[1].isolateId, 'iso-1');
       expect(fake.calls[1].args?['policy'], 'action-relative');
     });

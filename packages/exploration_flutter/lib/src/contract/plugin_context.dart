@@ -15,7 +15,7 @@ typedef ExtensionHandler = Future<developer.ServiceExtensionResponse>
 /// Per-plugin context handed to [ExplorationPlugin.initialize].
 ///
 /// Auto-namespaces VM service extensions under
-/// `ext.flutter.exploration.<namespace>.<suffix>` and gates frame
+/// `ext.exploration.<namespace>.<suffix>` and gates frame
 /// callbacks through the host scheduler.
 class PluginContext {
   PluginContext({required this.namespace, required SchedulerBinding scheduler})
@@ -34,7 +34,7 @@ class PluginContext {
   /// given namespace and suffix.
   @visibleForTesting
   static String buildExtensionMethodName(String ns, String suffix) =>
-      'ext.flutter.exploration.$ns.$suffix';
+      'ext.exploration.$ns.$suffix';
 
   /// Append [handler] to this plugin's error handler chain.
   void registerErrorHandler(ErrorHandler handler) {
@@ -44,7 +44,7 @@ class PluginContext {
   /// Register a VM service extension under this plugin's namespace.
   ///
   /// The extension is exposed at
-  /// `ext.flutter.exploration.<namespace>.<suffix>`.
+  /// `ext.exploration.<namespace>.<suffix>`.
   void registerExtension(String suffix, ExtensionHandler handler) {
     developer.registerExtension(
       buildExtensionMethodName(namespace, suffix),

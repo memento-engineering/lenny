@@ -1,7 +1,7 @@
 /// Public DTOs and progress events for [ExplorationSession].
 library;
 
-/// Result of the `ext.flutter.exploration.core.handshake` exchange.
+/// Result of the `ext.exploration.core.handshake` exchange.
 class HandshakeResult {
   const HandshakeResult({
     required this.contractVersion,

@@ -2,7 +2,7 @@ import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter/material.dart';
 
 /// Fixture for cx6.10 — exercises the connect-time diagnostic
-/// `ext.flutter.exploration.core.diagnostics_warnings` from the host.
+/// `ext.exploration.core.diagnostics_warnings` from the host.
 /// `HitScreen` contains a bare `GestureDetector` (one warning expected);
 /// `CleanScreen` wraps the same gesture in a label-bearing `Semantics`
 /// (zero warnings expected).
