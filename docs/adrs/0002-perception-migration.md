@@ -97,7 +97,10 @@ handshake manifest marks which plugins are perception-native.
 1. Extract the `perception` core (the hard net-new reconciler) with its own tests, no app wiring.
 2. Stand up `PerceptionOwner` inside `ExplorationBinding` alongside the existing fragment path.
 3. Convert one plugin (a leaf like `dio`, or `core`) to `build()->Perception`; assert the serialized
-   output is equivalent to the old fragment.
+   output is equivalent to the old fragment. Use `assertObservationEquivalent(legacyJson, perceptionJson)` from
+   `package:exploration_flutter/test_support/observation_equivalence.dart` (lenny-lwiy) as
+   the conversion gate — golden baselines committed in
+   `packages/exploration_flutter/test/goldens/`.
 4. Migrate plugin-by-plugin behind the dual path.
 5. Retire the fragment path last; `observe()` is removed from the contract.
 
