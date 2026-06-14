@@ -1,7 +1,7 @@
 /// Single-call typed observation puller.
 ///
 /// Wraps [VmServiceClient.callExtension] to make exactly one VM-service
-/// call to `ext.flutter.exploration.core.get_stable_observation` (cx6.8)
+/// call to `ext.exploration.core.get_stable_observation` (cx6.8)
 /// and deserializes the response into a typed [Observation] (cx6.12).
 ///
 /// Stays internal to `package:exploration_agent` — only the public
@@ -14,7 +14,7 @@ import '../vm_service_client.dart';
 
 /// Service-extension method we invoke (PRD §10 step 4, cx6.8).
 const String _kExtGetStableObservation =
-    'ext.flutter.exploration.core.get_stable_observation';
+    'ext.exploration.core.get_stable_observation';
 
 /// Wire-name mapping for the request's `policy` parameter. Mirrors
 /// `kStabilityPolicyWireNames` on the binding side

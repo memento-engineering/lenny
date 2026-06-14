@@ -13,7 +13,7 @@ class _FakeVm extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
-    if (method == 'ext.flutter.exploration.core.handshake') {
+    if (method == 'ext.exploration.core.handshake') {
       final r = Response();
       r.json = <String, dynamic>{
         'contractVersion': '1.0',

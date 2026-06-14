@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _ext =
-    'ext.flutter.exploration.core.get_stable_observation';
+    'ext.exploration.core.get_stable_observation';
 
 class _ThrowsInObserve extends ExplorationPlugin {
   const _ThrowsInObserve();

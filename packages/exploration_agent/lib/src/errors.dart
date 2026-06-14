@@ -2,7 +2,7 @@
 library;
 
 /// Thrown when the target app's [ExplorationBinding] is not initialized,
-/// i.e. the `ext.flutter.exploration.core.handshake` service extension is absent.
+/// i.e. the `ext.exploration.core.handshake` service extension is absent.
 ///
 /// The message reproduces the host setup snippet from PRD §7.6 so users
 /// see the exact code change required in their app's `main()`.

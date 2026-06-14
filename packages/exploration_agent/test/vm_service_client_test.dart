@@ -49,7 +49,7 @@ void main() {
     test('decodes protocolVersion and plugin manifest', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{
-          'protocolVersion': '1',
+          'protocolVersion': '2',
           'bindingType': 'ExplorationBinding',
           'flutterMode': 'debug',
           'pluginCount': 1,
@@ -66,9 +66,9 @@ void main() {
       final result = await client.handshake();
 
       expect(fake.lastMethod,
-          equals('ext.flutter.exploration.core.handshake'));
+          equals('ext.exploration.core.handshake'));
       expect(fake.lastIsolateId, equals('iso-1'));
-      expect(result.contractVersion, equals('1'));
+      expect(result.contractVersion, equals('2'));
       expect(result.plugins, hasLength(1));
       expect(result.plugins.first.namespace, equals('router'));
       expect(result.plugins.first.tools, equals(<String>['go']));
@@ -102,7 +102,7 @@ void main() {
   });
 
   group('VmServiceClient.executeAction / callExtension', () {
-    test('routes plugin tool calls to ext.flutter.exploration.<ns>.<tool>',
+    test('routes plugin tool calls to ext.exploration.<ns>.<tool>',
         () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
@@ -113,14 +113,14 @@ void main() {
         'router.go',
         const <String, dynamic>{'route': '/home'},
       );
-      expect(fake.lastMethod, equals('ext.flutter.exploration.router.go'));
+      expect(fake.lastMethod, equals('ext.exploration.router.go'));
       // Each arg value is JSON-encoded on the wire so the binding's
       // `_tryDecode` round-trips nested values.
       expect(fake.lastArgs?['route'], equals('"/home"'));
       expect(act, equals(<String, dynamic>{'ok': true}));
     });
 
-    test('routes core tool calls to ext.flutter.exploration.core.<tool>',
+    test('routes core tool calls to ext.exploration.core.<tool>',
         () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
@@ -128,7 +128,7 @@ void main() {
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await client.executeAction('core.tap', const <String, dynamic>{'id': 42});
-      expect(fake.lastMethod, equals('ext.flutter.exploration.core.tap'));
+      expect(fake.lastMethod, equals('ext.exploration.core.tap'));
       expect(fake.lastArgs?['id'], equals('42'));
     });
 
@@ -147,7 +147,7 @@ void main() {
           'payload': <String, dynamic>{'k': 1},
         },
       );
-      expect(fake.lastMethod, equals('ext.flutter.exploration.forms.fill'));
+      expect(fake.lastMethod, equals('ext.exploration.forms.fill'));
       expect(fake.lastArgs?['count'], equals('42'));
       expect(fake.lastArgs?['target'], equals('"home"'));
       expect(fake.lastArgs?['payload'], equals('{"k":1}'));
@@ -201,12 +201,12 @@ void main() {
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await client.callExtension(
-        'ext.flutter.exploration.router.snapshot',
+        'ext.exploration.router.snapshot',
         const <String, dynamic>{},
       );
       expect(
         fake.lastMethod,
-        equals('ext.flutter.exploration.router.snapshot'),
+        equals('ext.exploration.router.snapshot'),
       );
     });
 

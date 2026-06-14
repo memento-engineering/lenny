@@ -54,7 +54,7 @@ VmServiceClient _handshakeOnlyClient({
   List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
 }) {
   return _clientWith((method, iso, args) async {
-    if (method == 'ext.flutter.exploration.core.handshake') {
+    if (method == 'ext.exploration.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': contractVersion,
         'plugins': plugins,
@@ -131,7 +131,7 @@ void main() {
       final client = _clientWith((method, iso, args) async {
         lastMethod = method;
         lastArgs = args;
-        if (method == 'ext.flutter.exploration.core.handshake') {
+        if (method == 'ext.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -158,7 +158,7 @@ void main() {
       final Observation obs = await session.observe();
       expect(
         lastMethod,
-        equals('ext.flutter.exploration.core.get_stable_observation'),
+        equals('ext.exploration.core.get_stable_observation'),
       );
       expect(lastArgs, containsPair('policy', 'action-relative'));
       expect(obs.core.routeStack, isEmpty);
@@ -171,7 +171,7 @@ void main() {
       final client = _clientWith((method, iso, args) async {
         lastMethod = method;
         lastArgs = args;
-        if (method == 'ext.flutter.exploration.core.handshake') {
+        if (method == 'ext.exploration.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'plugins': <Map<String, dynamic>>[],
@@ -188,7 +188,7 @@ void main() {
       });
       expect(
         lastMethod,
-        equals('ext.flutter.exploration.router.go'),
+        equals('ext.exploration.router.go'),
       );
       // Args go on the wire JSON-encoded per value so the binding's
       // `_tryDecode` round-trips them.

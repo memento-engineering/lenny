@@ -1,7 +1,7 @@
 /// Manifest probe types for the DevTools Prompt panel.
 ///
 /// `ExplorationPanelHost` resolves the plugin manifest by calling
-/// `ext.flutter.exploration.handshake` through [VmServiceClient]. The shell
+/// `ext.exploration.handshake` through [VmServiceClient]. The shell
 /// renders the result via a `ValueListenable<ManifestProbeResult>` so the
 /// UI reacts to (re)connects without recreating the host.
 library;

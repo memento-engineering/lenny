@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _diagnosticsExt =
-    'ext.flutter.exploration.core.diagnostics_warnings';
+    'ext.exploration.core.diagnostics_warnings';
 
 /// Integration test for the cx6.10 connect-time diagnostic. Drives the
 /// fixture's [HitScreen] / [CleanScreen] through the production
 /// [ExplorationBinding] and asserts the wire payload returned by
-/// `ext.flutter.exploration.core.diagnostics_warnings`.
+/// `ext.exploration.core.diagnostics_warnings`.
 ///
 /// All assertions run as plain `test()`. The production binding extends
 /// [WidgetsFlutterBinding] and intentionally rejects co-installation

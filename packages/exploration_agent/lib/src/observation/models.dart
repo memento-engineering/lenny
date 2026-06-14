@@ -1,5 +1,5 @@
 /// Typed harness-side mirror of the observation bundle returned by
-/// `ext.flutter.exploration.core.get_stable_observation` (PRD §11.1, §11.3).
+/// `ext.exploration.core.get_stable_observation` (PRD §11.1, §11.3).
 ///
 /// The wire format produced by the binding (cx6.8) is:
 /// ```json

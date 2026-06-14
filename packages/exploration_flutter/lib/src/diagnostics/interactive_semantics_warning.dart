@@ -2,7 +2,7 @@
 /// candidate interactable widget lacks an enclosing semantics annotation.
 ///
 /// Surfaced via the host VM service extension
-/// `ext.flutter.exploration.core.diagnostics_warnings`. Connect-time only;
+/// `ext.exploration.core.diagnostics_warnings`. Connect-time only;
 /// not a per-turn observation contributor.
 class InteractiveSemanticsWarning {
   InteractiveSemanticsWarning({

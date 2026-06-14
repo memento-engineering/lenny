@@ -18,7 +18,7 @@ void main() {
   test('get_recent_errors with empty buffer returns empty entries + cursor=0',
       () async {
     final String json = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{},
     );
     final Map<String, Object?> decoded =
@@ -35,7 +35,7 @@ void main() {
 
     // Without `since` -> all 3 entries, cursor=3.
     String raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{},
     );
     Map<String, Object?> decoded = jsonDecode(raw) as Map<String, Object?>;
@@ -45,7 +45,7 @@ void main() {
 
     // With since=2 -> only seq 3.
     raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{'since': '2'},
     );
     decoded = jsonDecode(raw) as Map<String, Object?>;
@@ -56,7 +56,7 @@ void main() {
 
     // With since=3 -> empty, cursor=3 (highestSeq).
     raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{'since': '3'},
     );
     decoded = jsonDecode(raw) as Map<String, Object?>;
@@ -72,7 +72,7 @@ void main() {
     expect(binding.debugHighestErrorSeq(), 4);
 
     final String raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{'since': '0'},
     );
     final Map<String, Object?> decoded =
@@ -87,7 +87,7 @@ void main() {
 
   test('get_recent_errors entry shape', () async {
     final String raw = await binding.invokeServiceExtension(
-      'ext.flutter.exploration.core.get_recent_errors',
+      'ext.exploration.core.get_recent_errors',
       <String, String>{'since': '3'},
     );
     final Map<String, Object?> decoded =
@@ -106,7 +106,7 @@ void main() {
   test('extension is registered with the local binding', () {
     expect(
       binding.debugHasRegisteredExtension(
-          'ext.flutter.exploration.core.get_recent_errors'),
+          'ext.exploration.core.get_recent_errors'),
       isTrue,
     );
   });

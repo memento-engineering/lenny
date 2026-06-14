@@ -22,7 +22,7 @@ import 'types.dart';
 const int _kMethodNotFoundRpc = -32601;
 
 /// Service-extension method names exchanged with `ExplorationBinding`.
-const String _extHandshake = 'ext.flutter.exploration.core.handshake';
+const String _extHandshake = 'ext.exploration.core.handshake';
 
 /// Typed VM-service client used by [ExplorationSession].
 ///
@@ -99,7 +99,7 @@ class VmServiceClient {
     return VmServiceClient._(vm, id, ownsConnection: true);
   }
 
-  /// Exchange the `ext.flutter.exploration.core.handshake` contract
+  /// Exchange the `ext.exploration.core.handshake` contract
   /// version and active plugin manifest.
   ///
   /// Throws [BindingNotInitializedError] when the extension is absent
@@ -138,7 +138,7 @@ class VmServiceClient {
 
   /// Invoke the per-tool VM service extension that the binding registers
   /// via `PluginContext.registerExtension`:
-  /// `ext.flutter.exploration.<namespace>.<tool>`.
+  /// `ext.exploration.<namespace>.<tool>`.
   ///
   /// [name] must be the fully-qualified `<namespace>.<tool>` token that
   /// `buildPluginTools` emits and `LoopHost.executeAction` documents
@@ -163,7 +163,7 @@ class VmServiceClient {
     }
     final String namespace = name.substring(0, dot);
     final String tool = name.substring(dot + 1);
-    final String ext = 'ext.flutter.exploration.$namespace.$tool';
+    final String ext = 'ext.exploration.$namespace.$tool';
     final Map<String, dynamic> encoded = <String, dynamic>{
       for (final MapEntry<String, dynamic> e in args.entries)
         e.key: jsonEncode(e.value),

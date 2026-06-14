@@ -14,12 +14,12 @@ void main() {
     ExplorationBinding.ensureInitialized(plugins: const <ExplorationPlugin>[]);
   });
 
-  test('ext.flutter.exploration.core.screenshot is registered exactly once',
+  test('ext.exploration.core.screenshot is registered exactly once',
       () {
     // Re-registering the same name throws -> registration succeeded.
     expect(
       () => developer.registerExtension(
-        'ext.flutter.exploration.core.screenshot',
+        'ext.exploration.core.screenshot',
         (String m, Map<String, String> p) async =>
             developer.ServiceExtensionResponse.result('{}'),
       ),

@@ -38,7 +38,7 @@ const int kDefaultQuietFrameN = 2;
 /// Default `boundedStabilityBudgetMs` per PRD §9.1.
 const int kDefaultBoundedStabilityBudgetMs = 1500;
 
-/// Decoded request payload for `ext.flutter.exploration.core.get_stable_observation`.
+/// Decoded request payload for `ext.exploration.core.get_stable_observation`.
 class ObservationRequest {
   const ObservationRequest({
     this.policy = StabilityPolicy.actionRelative,

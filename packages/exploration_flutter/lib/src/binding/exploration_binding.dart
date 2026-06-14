@@ -22,9 +22,9 @@ import '../stability/frame_stability_tracker.dart';
 import 'exploration_app.dart';
 
 /// Reserved prefix. Format:
-/// `ext.flutter.exploration.<core_or_plugin_namespace>.<suffix>`.
+/// `ext.exploration.<core_or_plugin_namespace>.<suffix>`.
 /// `core` is reserved for host-owned extensions.
-const String kExplorationExtensionPrefix = 'ext.flutter.exploration';
+const String kExplorationExtensionPrefix = 'ext.exploration';
 
 /// Default capacity of the runtime error ring buffer (PRD §6.1).
 const int kDefaultErrorBufferCapacity = 50;
@@ -366,7 +366,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
       (String method, Map<String, String> parameters) async {
         return developer.ServiceExtensionResponse.result(
           jsonEncode(<String, Object?>{
-            'protocolVersion': '1',
+            'protocolVersion': '2',
             'bindingType': 'ExplorationBinding',
             'flutterMode': kDebugMode ? 'debug' : 'profile',
             'pluginCount': _plugins.length,
@@ -494,7 +494,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
   ///
   /// Iterates [PluginRegistry.mergedTools] (keyed by `<ns>.<tool>`)
   /// and calls [_registerExtension] for each entry, exposing it at
-  /// `ext.flutter.exploration.<ns>.<tool>`. This also populates
+  /// `ext.exploration.<ns>.<tool>`. This also populates
   /// [_extensionCallbacks] so [invokeServiceExtension] can reach plugin
   /// tools in tests without a live VM connection.
   ///
@@ -704,7 +704,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
   }
 
   /// Test-only: dispatch a plugin tool by its fully-qualified service
-  /// extension method name (e.g. `ext.flutter.exploration.sample.echo`).
+  /// extension method name (e.g. `ext.exploration.sample.echo`).
   ///
   /// Plugin tools are registered by [_registerPluginToolExtensions] via [_registerExtension],
   /// which populates both [developer.registerExtension] and [_extensionCallbacks]. They can
@@ -714,7 +714,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
   /// [dispatchToolToEnvelope].
   ///
   /// Throws [ArgumentError] when the method name does not start with
-  /// `ext.flutter.exploration.`, is missing the `<ns>.<tool>` tail, or
+  /// `ext.exploration.`, is missing the `<ns>.<tool>` tail, or
   /// when no tool is registered for the qualified name.
   @visibleForTesting
   Future<String> invokePluginTool(

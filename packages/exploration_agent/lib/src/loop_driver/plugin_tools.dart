@@ -2,7 +2,7 @@
 /// from a caller-supplied namespace whitelist and the binding's
 /// handshake manifest.
 ///
-/// The handshake (`ext.flutter.exploration.core.handshake`,
+/// The handshake (`ext.exploration.core.handshake`,
 /// [PluginManifestEntry]) carries *bare* tool names grouped under each
 /// plugin namespace; this helper prefixes the namespace to produce the
 /// fully-qualified `<namespace>.<tool>` [ToolDescriptor.name] that

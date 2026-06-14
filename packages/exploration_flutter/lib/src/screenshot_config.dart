@@ -1,4 +1,4 @@
-/// Default-enabled flags for `ext.flutter.exploration.core.screenshot`,
+/// Default-enabled flags for `ext.exploration.core.screenshot`,
 /// keyed by model capability. Read by the harness (cx6.14) per turn.
 class ScreenshotConfig {
   /// Default ON for vision-capable models (PRD §11.1, §16.3).

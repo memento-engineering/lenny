@@ -16,7 +16,7 @@
 /// test-only surface.
 ///
 /// Optional [observationFixture] (lenny-cx6.48): when non-null AND the
-/// method equals `ext.flutter.exploration.core.get_stable_observation`,
+/// method equals `ext.exploration.core.get_stable_observation`,
 /// the fake returns `{type: 'Observation', value: <fixture.body>}` and
 /// bypasses the binding's real handler. Every other extension and
 /// plugin tool routes normally regardless.
@@ -51,7 +51,7 @@ class BindingVmServiceFake extends VmService {
   final ExplorationBinding _binding;
 
   /// Optional canned observation. When non-null, calls to
-  /// `ext.flutter.exploration.core.get_stable_observation` return
+  /// `ext.exploration.core.get_stable_observation` return
   /// `{type: 'Observation', value: (observationFixture as dynamic).body}`
   /// instead of executing the binding's real handler. Other extensions
   /// and plugin tools route normally regardless. (lenny-cx6.48)
@@ -64,7 +64,7 @@ class BindingVmServiceFake extends VmService {
   /// short-circuit branch keys off exactly this method; everything
   /// else falls through to the registry/extension routing below.
   static const String _kObservationMethod =
-      'ext.flutter.exploration.core.get_stable_observation';
+      'ext.exploration.core.get_stable_observation';
 
   @override
   Future<Response> callServiceExtension(
@@ -100,7 +100,7 @@ class BindingVmServiceFake extends VmService {
     // via invokeServiceExtension. The 'core.*' URL prefix is NOT a
     // routing signal — CorePlugin's per-tool extensions live in the
     // registry, not in _extensionCallbacks.
-    const String prefix = 'ext.flutter.exploration.';
+    const String prefix = 'ext.exploration.';
     if (!method.startsWith(prefix)) {
       throw RPCError(method, -32601, 'Unknown method "$method"');
     }
