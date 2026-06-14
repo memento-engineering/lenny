@@ -59,7 +59,52 @@ List<String> bestEffortRouteStack() {
   return out;
 }
 
-/// Compose the core observation fragment (PRD §9.2).
+/// The already-computed core primitives, captured once so the legacy map
+/// ([CoreFragmentValues.toMap]) and the perception `Seed`
+/// (`buildCorePerceptionSeed`) are driven from one identical set of values.
+///
+/// Field order here mirrors the legacy map's key order
+/// (semantics, routes, errors, stability, then the optional screenshot),
+/// which is the contract the perception path must reproduce byte-for-byte.
+class CoreFragmentValues {
+  const CoreFragmentValues({
+    required this.semantics,
+    required this.routes,
+    required this.errors,
+    required this.stability,
+    this.screenshot,
+  });
+
+  /// `captureSemantics()` output, verbatim.
+  final List<Map<String, Object>> semantics;
+
+  /// `routeStackProvider`/`bestEffortRouteStack` output, verbatim.
+  final List<String> routes;
+
+  /// `errors.map((e) => e.toJson()).toList()` output, verbatim.
+  final List<Map<String, Object?>> errors;
+
+  /// `stability.toJson()` map, verbatim.
+  final Map<String, Object?> stability;
+
+  /// Base64 PNG — only present when a screenshot was requested AND captured.
+  final String? screenshot;
+
+  /// The legacy core fragment map. Key insertion order is
+  /// semantics, routes, errors, stability, [screenshot_png_b64].
+  Map<String, Object?> toMap() {
+    final Map<String, Object?> out = <String, Object?>{
+      'semantics': semantics,
+      'routes': routes,
+      'errors': errors,
+      'stability': stability,
+    };
+    if (screenshot != null) out['screenshot_png_b64'] = screenshot;
+    return out;
+  }
+}
+
+/// Compute the core fragment primitives from the binding seams (PRD §9.2).
 ///
 /// `semantics`, `errors`, and `stability` are always present. `routes`
 /// is best-effort (see [bestEffortRouteStack]). `screenshot_png_b64` is
@@ -67,7 +112,11 @@ List<String> bestEffortRouteStack() {
 /// [captureScreenshot] returns successfully; failures are absorbed and
 /// the field is omitted (the screenshot capture path already throws
 /// `ScreenshotUnavailable` for known failure modes).
-Future<Map<String, Object?>> buildCoreFragment({
+///
+/// The returned [CoreFragmentValues] is the single source both the legacy
+/// map ([CoreFragmentValues.toMap]) and the perception `Seed` consume, so
+/// the two paths are fed byte-identical inputs.
+Future<CoreFragmentValues> computeCoreFragmentValues({
   required Future<List<Map<String, Object>>> Function() captureSemantics,
   required List<ErrorEntry> Function(int? cursor) errorsSince,
   required StabilityMetadata stability,
@@ -78,19 +127,42 @@ Future<Map<String, Object?>> buildCoreFragment({
 }) async {
   final List<Map<String, Object>> semantics = await captureSemantics();
   final List<ErrorEntry> errors = errorsSince(errorCursor);
-  final List<String> routes =
-      (routeStackProvider ?? bestEffortRouteStack)();
-  final Map<String, Object?> out = <String, Object?>{
-    'semantics': semantics,
-    'routes': routes,
-    'errors': errors
-        .map((ErrorEntry e) => e.toJson())
-        .toList(growable: false),
-    'stability': stability.toJson(),
-  };
+  final List<String> routes = (routeStackProvider ?? bestEffortRouteStack)();
+  String? screenshot;
   if (includeScreenshot && captureScreenshot != null) {
-    final String? b64 = await captureScreenshot();
-    if (b64 != null) out['screenshot_png_b64'] = b64;
+    screenshot = await captureScreenshot();
   }
-  return out;
+  return CoreFragmentValues(
+    semantics: semantics,
+    routes: routes,
+    errors: errors.map((ErrorEntry e) => e.toJson()).toList(growable: false),
+    stability: stability.toJson(),
+    screenshot: screenshot,
+  );
+}
+
+/// Compose the core observation fragment (PRD §9.2).
+///
+/// Thin wrapper over [computeCoreFragmentValues] + [CoreFragmentValues.toMap]
+/// that preserves the exact legacy return shape and key order. Behavior is
+/// unchanged from before the value-computation was extracted.
+Future<Map<String, Object?>> buildCoreFragment({
+  required Future<List<Map<String, Object>>> Function() captureSemantics,
+  required List<ErrorEntry> Function(int? cursor) errorsSince,
+  required StabilityMetadata stability,
+  required bool includeScreenshot,
+  required Future<String?> Function()? captureScreenshot,
+  required int? errorCursor,
+  List<String> Function()? routeStackProvider,
+}) async {
+  final CoreFragmentValues values = await computeCoreFragmentValues(
+    captureSemantics: captureSemantics,
+    errorsSince: errorsSince,
+    stability: stability,
+    includeScreenshot: includeScreenshot,
+    captureScreenshot: captureScreenshot,
+    errorCursor: errorCursor,
+    routeStackProvider: routeStackProvider,
+  );
+  return values.toMap();
 }
