@@ -692,21 +692,30 @@ class ExplorationBinding extends WidgetsFlutterBinding
     for (final ExplorationPlugin plugin
         in _pluginRegistry.perceptionNativePlugins) {
       final String ns = plugin.namespace;
-      _perceptionOwner.unmountRoot();
-      final Branch root = _perceptionOwner
-          .mountRoot((plugin as PerceptionPlugin).buildPerception());
-      final Map<String, Object?> frag = serializePerceptionFragment(root);
-      final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
-      if (enc.truncated) {
+      // Mirror legacy null-gate: if observe() returned null, skip this ns.
+      if (rawFragments[ns] == null) continue;
+      try {
+        _perceptionOwner.unmountRoot();
+        final Branch root = _perceptionOwner
+            .mountRoot((plugin as PerceptionPlugin).buildPerception());
+        final Map<String, Object?> frag = serializePerceptionFragment(root);
+        final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
+        if (enc.truncated) {
+          developer.log(
+            'plugin $ns (perception-native) fragment truncated '
+            '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
+            'budget ${budgets[ns]})',
+            name: 'exploration',
+          );
+          pluginsOut[ns] = jsonDecode(enc.json);
+        } else {
+          pluginsOut[ns] = frag;
+        }
+      } catch (err, st) {
         developer.log(
-          'plugin $ns (perception-native) fragment truncated '
-          '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
-          'budget ${budgets[ns]})',
+          'plugin $ns (perception-native) threw during build: $err\n$st',
           name: 'exploration',
         );
-        pluginsOut[ns] = jsonDecode(enc.json);
-      } else {
-        pluginsOut[ns] = frag;
       }
     }
 
