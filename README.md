@@ -69,8 +69,8 @@ graph TB
     end
     subgraph app["Your Flutter app (debug mode)"]
         binding["LeonardBinding<br/>custom WidgetsBinding = the host"]
-        plugins["Extensions live here:<br/>router · riverpod · dio · yours"]
-        binding --- plugins
+        extensions["Extensions live here:<br/>router · riverpod · dio · yours"]
+        binding --- extensions
     end
     cli --> loop
     dt --> loop
@@ -119,7 +119,7 @@ import 'package:flutter/material.dart';
 
 void main() {
   // Installs the host in debug/profile mode; a no-op in release.
-  LeonardBinding.ensureInitialized(plugins: const <LeonardExtension>[]);
+  LeonardBinding.ensureInitialized(extensions: const <LeonardExtension>[]);
   runApp(const MyApp());
 }
 ```

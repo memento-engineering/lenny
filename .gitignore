@@ -29,8 +29,8 @@ pubspec.lock
 # Regenerated locally; not a project default.
 devtools_options.yaml
 
-# exploration_cli trajectory output (local run artifacts, not source).
-packages/exploration_cli/trajectories/
+# leonard_cli trajectory output (local run artifacts, not source).
+packages/leonard_cli/trajectories/
 
 # Astro product site build artifacts (belt-and-braces with site/.gitignore).
 site/node_modules/

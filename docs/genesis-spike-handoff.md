@@ -9,10 +9,10 @@ memento's agentic software-engineering platform: **`the_grid`** = building, **`l
 - Consumers: `lenny` (tester, via perception) + `the_grid` (platform SDK).
 
 ## Decision record (read first)
-- genesis register: `/Users/nico/development/engineering.memento/genesis/docs/adr/ADR-0000-ai-decision-register.md` (A1–A8)
-- lenny register: `/Users/nico/development/com.nicospencer/lenny/docs/adrs/0000-ai-decision-register.md` (A1)
-- perception design: `/Users/nico/development/com.nicospencer/lenny/docs/adrs/0001-declarative-perception-framework.md` (+ `0002-perception-migration.md`)
-- grid (sibling) ADRs: `/Users/nico/development/engineering.memento/the_grid/docs/adr/` (0000 register, 0001 foundations, 0002 projections, 0003 reconciler, 0004 tmux runtime)
+- genesis register: `<genesis>/docs/adr/ADR-0000-ai-decision-register.md` (A1–A8)
+- lenny register: `docs/adrs/0000-ai-decision-register.md` (A1)
+- perception design: `docs/adrs/0001-declarative-perception-framework.md` (+ `0002-perception-migration.md`)
+- grid (sibling) ADRs: `<the_grid>/docs/adr/` (0000 register, 0001 foundations, 0002 projections, 0003 reconciler, 0004 tmux runtime)
 
 ## Blessed (decided)
 - **Substrate factoring + two-axis model** (genesis A1). Authoring axis = measurement (read-only) / expression (read-write). Rendering axis = model-facing (serialize, no geometry) / machine-facing (typed structs) / human-facing (render tree, 2-D geometry).
@@ -43,4 +43,4 @@ Spikes **1 and 2 are independent — start in parallel.**
 1 + 2 (confidence) → 3 (the load-bearing schema/wire proof) → 4 → 5. **After green:** scaffold genesis (pub workspace + `tree`/`perception` skeletons + `CLAUDE.md` carrying the register rule), migrate `perception`, then promote register entries A1–A8 to genesis ADR-0001+.
 
 ## Recall prompt
-> Read `/Users/nico/development/com.nicospencer/lenny/docs/genesis-spike-handoff.md` and the two ADR-0000 registers it links. Plan and run the de-risking spikes — spike-first, no commits/scaffolding/ADRs. Start spikes 1 and 2 in parallel.
+> Read `docs/genesis-spike-handoff.md` and the two ADR-0000 registers it links. Plan and run the de-risking spikes — spike-first, no commits/scaffolding/ADRs. Start spikes 1 and 2 in parallel.

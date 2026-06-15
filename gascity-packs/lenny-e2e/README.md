@@ -1,7 +1,7 @@
 # lenny-e2e
 
 A shareable [Gas City](https://github.com/gastownhall/gascity) pack that runs a
-**live-device exploration-agent E2E** against any Flutter app and verifies the
+**live-device Leonard E2E** against any Flutter app and verifies the
 agent drives it to goal completion.
 
 It ships one generic formula, `lenny-e2e-session`: one supplied goal → one
@@ -45,7 +45,7 @@ bd mol pour lenny-e2e-session \
 | `model` | `claude` | `claude` \| `qwen-mlx` \| `openai`. |
 | `app_dir` | *(required)* | Absolute path to the Flutter app (dir with `pubspec.yaml` + `ios/`). |
 | `device` | *(first wired)* | `flutter -d <id>` target. Empty = the single attached non-wireless device. |
-| `plugins` | `router,riverpod,dio` | Exploration plugin namespaces to enable. |
+| `extensions` | `router,riverpod,dio` | Extension namespaces to enable. |
 | `cli` | `dart run bin/leonard_cli.dart` | Invocation prefix for `leonard_cli`. |
 
 ## Extend it
