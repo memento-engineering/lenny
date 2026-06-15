@@ -1,0 +1,29 @@
+name: leonard_flutter
+description: Host WidgetsBinding for the Flutter Exploration Agent.
+publish_to: none
+resolution: workspace
+
+environment:
+  flutter: ">=3.41.0"
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  # Perception framework — lives in memento-engineering/genesis post-cutover
+  # (lenny ADR 0001 lineage). Pinned git dep; the transitive genesis_tree is
+  # pinned via dependency_overrides at the workspace root. See ADR 0002
+  # addendum (lenny-wisp-5h5).
+  genesis_perception:
+    git:
+      url: git@github.com:memento-engineering/genesis.git
+      ref: 41ec0ec
+      path: packages/perception
+  leonard_agent: any
+  meta: ^1.16.0
+  vm_service: ^14.2.0
+
+dev_dependencies:
+  lints: ^5.1.0

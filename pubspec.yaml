@@ -3,20 +3,20 @@ publish_to: none
 environment:
   sdk: ^3.11.0
 workspace:
-  - packages/exploration_flutter
-  - packages/exploration_flutter/example/diagnostic_fixture
-  - packages/exploration_flutter/example/sample_app
-  - packages/exploration_agent
-  - packages/exploration_cli
-  - packages/exploration_devtools
-  - packages/exploration_router
-  - packages/exploration_riverpod
-  - packages/exploration_dio
+  - packages/leonard_flutter
+  - packages/leonard_flutter/example/diagnostic_fixture
+  - packages/leonard_flutter/example/sample_app
+  - packages/leonard_agent
+  - packages/leonard_cli
+  - packages/leonard_devtools
+  - packages/leonard_router
+  - packages/leonard_riverpod
+  - packages/leonard_dio
 
 dev_dependencies:
   melos: ^7.7.0
 
-# genesis_perception (consumed by exploration_flutter) declares `genesis_tree: any`
+# genesis_perception (consumed by leonard_flutter) declares `genesis_tree: any`
 # under `resolution: workspace`. From outside the genesis workspace, pub resolves
 # that sibling to pub.dev (where it does not exist) and version-solving fails.
 # Pin genesis_tree to the same git ref here — dependency_overrides must live at the
@@ -33,7 +33,7 @@ melos:
     # ---------- primary scripts ----------
     test:
       description: >-
-        Run all unit/widget tests (excludes perf tests in exploration_devtools
+        Run all unit/widget tests (excludes perf tests in leonard_devtools
         and excludes the env-gated dogfood e2e). Runs dart test on pure-Dart
         packages and flutter test on Flutter packages.
       steps:
@@ -57,19 +57,19 @@ melos:
         The test self-skips when those vars are absent, so this script is safe
         to invoke locally - it will simply report all tests skipped.
       run: >-
-        dart test packages/exploration_agent/test/e2e/dogfood_e2e_test.dart
+        dart test packages/leonard_agent/test/e2e/dogfood_e2e_test.dart
 
     # ---------- private sub-scripts (not listed by melos run) ----------
     test:dart:
       private: true
-      description: dart test on pure-Dart packages (exploration_agent, exploration_cli)
+      description: dart test on pure-Dart packages (leonard_agent, leonard_cli)
       exec: dart test
       packageFilters:
         flutter: false
 
     test:flutter:
       private: true
-      description: flutter test on Flutter packages; exploration_devtools skips perf tags via dart_test.yaml
+      description: flutter test on Flutter packages; leonard_devtools skips perf tags via dart_test.yaml
       exec: flutter test
       packageFilters:
         flutter: true

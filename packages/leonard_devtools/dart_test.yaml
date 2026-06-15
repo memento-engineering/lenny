@@ -1,0 +1,11 @@
+# Default test config for leonard_devtools.
+#
+# Tests tagged 'perf' (e.g. timeline_perf_test.dart) measure widget frame
+# build/raster budgets. They pass on developer hardware but flake on
+# slower CI runners. Excluded from the default `flutter test` run.
+#
+# To exercise perf tests intentionally:
+#   flutter test --tags=perf
+tags:
+  perf:
+    skip: "perf tests are excluded by default; run with --tags=perf"
