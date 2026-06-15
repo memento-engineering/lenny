@@ -7,8 +7,8 @@
 ///   * `SWIFT_INFER_AGENT_TOKEN` env var → `Authorization: Bearer …`.
 ///   * `SWIFT_INFER_ENDPOINT` env var → base URL (defaults to
 ///     `http://localhost:8080`).
-///   * `conversationId` constructed as `exploration-<sessionId>-<unixMs>`
-///     so every turn of one exploration run groups under one
+///   * `conversationId` constructed as `leonard-<sessionId>-<unixMs>`
+///     so every turn of one run groups under one
 ///     conversation in the gateway dashboard.
 ///   * `captureBodies: true` so `GET /v1/conversations/<id>` returns the
 ///     captured request/response pairs.
@@ -40,7 +40,7 @@ const String _kOpenAiGpt5 = 'gpt-5';
 /// environment; missing keys throw [StateError].
 ///
 /// [sessionId] is required so the qwen-mlx tier can mint a stable
-/// per-run `X-Conversation-Id` of the form `exploration-<sessionId>-<unixMs>`.
+/// per-run `X-Conversation-Id` of the form `leonard-<sessionId>-<unixMs>`.
 /// Pass [now] in tests to make the conversationId deterministic.
 /// [onModelDiagnostics], when supplied, is forwarded to the Anthropic
 /// provider's per-call diagnostics sink (latency, HTTP status,

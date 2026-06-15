@@ -26,8 +26,8 @@ class CliArgs {
     this.turnBudget,
   });
 
-  /// Exploration goal supplied via `--goal`. `null` means "read from
-  /// stdin if stdin is not a TTY".
+  /// Goal to drive the app toward, supplied via `--goal`. `null` means
+  /// "read from stdin if stdin is not a TTY".
   final String? goal;
 
   /// Flutter VM service ws:// URI (required).
@@ -74,7 +74,7 @@ class CliUsageError implements Exception {
 ArgParser buildParser() => ArgParser()
   ..addOption(
     'goal',
-    help: 'Exploration goal (or pipe via stdin).',
+    help: 'Goal to drive the app toward (or pipe via stdin).',
   )
   ..addOption(
     'vm-uri',
