@@ -40,11 +40,11 @@ class CompletedRequest {
   final int durationMs;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'id': id,
-        'method': method,
-        'host': host,
-        'path': path,
-        'status': status,
-        'duration_ms': durationMs,
-      };
+    'id': id,
+    'method': method,
+    'host': host,
+    'path': path,
+    'status': status,
+    'duration_ms': durationMs,
+  };
 }

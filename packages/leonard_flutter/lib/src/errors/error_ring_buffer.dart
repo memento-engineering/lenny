@@ -30,11 +30,11 @@ class ErrorEntry {
   final int wallClockOffsetMs;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'seq': seq,
-        'message': message,
-        'frames': frames,
-        'wallClockOffsetMs': wallClockOffsetMs,
-      };
+    'seq': seq,
+    'message': message,
+    'frames': frames,
+    'wallClockOffsetMs': wallClockOffsetMs,
+  };
 }
 
 /// Bounded drop-oldest ring buffer. Capacity is fixed at construction;
@@ -44,8 +44,8 @@ class ErrorEntry {
 /// request entries strictly newer than a previously observed cursor.
 class ErrorRingBuffer {
   ErrorRingBuffer({required this.capacity, required Stopwatch sessionClock})
-      : assert(capacity > 0, 'capacity must be > 0'),
-        _sessionClock = sessionClock;
+    : assert(capacity > 0, 'capacity must be > 0'),
+      _sessionClock = sessionClock;
 
   /// Maximum number of retained entries.
   final int capacity;

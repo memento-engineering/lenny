@@ -24,8 +24,7 @@ abstract class CoreTool extends LeonardTool {
     if (!plugin.terminated) return null;
     return ToolResult(
       ok: false,
-      error:
-          '${CoreToolErrorCode.sessionTerminated}: terminal action issued',
+      error: '${CoreToolErrorCode.sessionTerminated}: terminal action issued',
     );
   }
 }
@@ -107,15 +106,12 @@ int _nextPointer = 0x70000000;
 int _allocPointer() => _nextPointer++;
 
 /// Dispatch a synthesized tap (`down` then `up`) at [rect.center].
-Future<void> hitTestTap(Rect rect) =>
-    _hitTestPress(rect, hold: Duration.zero);
+Future<void> hitTestTap(Rect rect) => _hitTestPress(rect, hold: Duration.zero);
 
 /// Dispatch a synthesized long-press (down, 600ms hold, up) at
 /// [rect.center].
-Future<void> hitTestLongPress(Rect rect) => _hitTestPress(
-      rect,
-      hold: const Duration(milliseconds: 600),
-    );
+Future<void> hitTestLongPress(Rect rect) =>
+    _hitTestPress(rect, hold: const Duration(milliseconds: 600));
 
 Future<void> _hitTestPress(Rect rect, {required Duration hold}) async {
   final Offset c = rect.center;
@@ -193,9 +189,8 @@ Future<void> hitTestPinch(
 }) async {
   final int p0 = _allocPointer();
   final int p1 = _allocPointer();
-  Offset posAt(int p, double span) => p == p0
-      ? center.translate(-span, 0)
-      : center.translate(span, 0);
+  Offset posAt(int p, double span) =>
+      p == p0 ? center.translate(-span, 0) : center.translate(span, 0);
 
   GestureBinding.instance.handlePointerEvent(
     PointerDownEvent(
@@ -241,18 +236,10 @@ Future<void> hitTestPinch(
     }
   }
   GestureBinding.instance.handlePointerEvent(
-    PointerUpEvent(
-      pointer: p0,
-      position: prev0,
-      kind: PointerDeviceKind.touch,
-    ),
+    PointerUpEvent(pointer: p0, position: prev0, kind: PointerDeviceKind.touch),
   );
   GestureBinding.instance.handlePointerEvent(
-    PointerUpEvent(
-      pointer: p1,
-      position: prev1,
-      kind: PointerDeviceKind.touch,
-    ),
+    PointerUpEvent(pointer: p1, position: prev1, kind: PointerDeviceKind.touch),
   );
 }
 
@@ -276,8 +263,7 @@ ToolResult? requireField(
   if (v == null) {
     return ToolResult(
       ok: false,
-      error:
-          '${CoreToolErrorCode.schemaViolation}: field "$key" must be $type',
+      error: '${CoreToolErrorCode.schemaViolation}: field "$key" must be $type',
     );
   }
   // Accept the declared primitive — with lenient coercion for numeric
@@ -353,6 +339,6 @@ num? _coerceNum(Object? v) {
 
 /// Build a `target_not_found` [ToolResult] for an unknown semantics id.
 ToolResult targetNotFound(int id) => ToolResult(
-      ok: false,
-      error: '${CoreToolErrorCode.targetNotFound}: node $id',
-    );
+  ok: false,
+  error: '${CoreToolErrorCode.targetNotFound}: node $id',
+);

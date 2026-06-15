@@ -23,7 +23,10 @@ abstract class TrajectoryRecord {
       'turn' => TurnRecord.fromJson(json),
       'extension_disabled' => ExtensionDisabledEvent.fromJson(json),
       'footer' => SessionFooter.fromJson(json),
-      _ => UnknownTrajectoryRecord(rawType: type?.toString() ?? 'null', raw: json),
+      _ => UnknownTrajectoryRecord(
+        rawType: type?.toString() ?? 'null',
+        raw: json,
+      ),
     };
   }
 }
@@ -57,10 +60,10 @@ class ExtensionManifestRecord {
       );
 
   Map<String, dynamic> toJson() => {
-        'namespace': namespace,
-        'package_version': packageVersion,
-        'contract_version': contractVersion,
-      };
+    'namespace': namespace,
+    'package_version': packageVersion,
+    'contract_version': contractVersion,
+  };
 }
 
 @immutable
@@ -91,30 +94,30 @@ class SessionHeader implements TrajectoryRecord {
   });
 
   factory SessionHeader.fromJson(Map<String, dynamic> j) => SessionHeader(
-        goal: j['goal'] as String,
-        agentsMdHash: j['agents_md_hash'] as String,
-        buildIdentifier: j['build_identifier'] as String,
-        modelIdentifier: j['model_identifier'] as String,
-        harnessVersion: j['harness_version'] as String,
-        plugins: [
-          for (final p in (j['extensions'] as List? ?? const []))
-            ExtensionManifestRecord.fromJson(p as Map<String, dynamic>),
-        ],
-        config: Map<String, dynamic>.from(j['config'] as Map? ?? const {}),
-        schemaVersion: (j['schema_version'] as num?)?.toInt() ?? 1,
-      );
+    goal: j['goal'] as String,
+    agentsMdHash: j['agents_md_hash'] as String,
+    buildIdentifier: j['build_identifier'] as String,
+    modelIdentifier: j['model_identifier'] as String,
+    harnessVersion: j['harness_version'] as String,
+    plugins: [
+      for (final p in (j['extensions'] as List? ?? const []))
+        ExtensionManifestRecord.fromJson(p as Map<String, dynamic>),
+    ],
+    config: Map<String, dynamic>.from(j['config'] as Map? ?? const {}),
+    schemaVersion: (j['schema_version'] as num?)?.toInt() ?? 1,
+  );
 
   Map<String, dynamic> toJson() => {
-        'type': 'header',
-        'schema_version': schemaVersion,
-        'goal': goal,
-        'agents_md_hash': agentsMdHash,
-        'build_identifier': buildIdentifier,
-        'model_identifier': modelIdentifier,
-        'harness_version': harnessVersion,
-        'extensions': plugins.map((p) => p.toJson()).toList(),
-        'config': config,
-      };
+    'type': 'header',
+    'schema_version': schemaVersion,
+    'goal': goal,
+    'agents_md_hash': agentsMdHash,
+    'build_identifier': buildIdentifier,
+    'model_identifier': modelIdentifier,
+    'harness_version': harnessVersion,
+    'extensions': plugins.map((p) => p.toJson()).toList(),
+    'config': config,
+  };
 }
 
 @immutable
@@ -154,35 +157,39 @@ class TurnRecord implements TrajectoryRecord {
   });
 
   factory TurnRecord.fromJson(Map<String, dynamic> j) => TurnRecord(
-        index: (j['index'] as num).toInt(),
-        observation: Map<String, dynamic>.from(j['observation'] as Map? ?? const {}),
-        stability: Map<String, dynamic>.from(j['stability'] as Map? ?? const {}),
-        proposedAction:
-            Map<String, dynamic>.from(j['proposed_action'] as Map? ?? const {}),
-        validation: Map<String, dynamic>.from(j['validation'] as Map? ?? const {}),
-        executedAction:
-            Map<String, dynamic>.from(j['executed_action'] as Map? ?? const {}),
-        diff: Map<String, dynamic>.from(j['diff'] as Map? ?? const {}),
-        thinking: j['thinking'] as String?,
-        modelMetadata:
-            Map<String, dynamic>.from(j['model_metadata'] as Map? ?? const {}),
-        providerRequestId: j['provider_request_id'] as String?,
-      );
+    index: (j['index'] as num).toInt(),
+    observation: Map<String, dynamic>.from(
+      j['observation'] as Map? ?? const {},
+    ),
+    stability: Map<String, dynamic>.from(j['stability'] as Map? ?? const {}),
+    proposedAction: Map<String, dynamic>.from(
+      j['proposed_action'] as Map? ?? const {},
+    ),
+    validation: Map<String, dynamic>.from(j['validation'] as Map? ?? const {}),
+    executedAction: Map<String, dynamic>.from(
+      j['executed_action'] as Map? ?? const {},
+    ),
+    diff: Map<String, dynamic>.from(j['diff'] as Map? ?? const {}),
+    thinking: j['thinking'] as String?,
+    modelMetadata: Map<String, dynamic>.from(
+      j['model_metadata'] as Map? ?? const {},
+    ),
+    providerRequestId: j['provider_request_id'] as String?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'type': 'turn',
-        'index': index,
-        'observation': observation,
-        'stability': stability,
-        'proposed_action': proposedAction,
-        'validation': validation,
-        'executed_action': executedAction,
-        'diff': diff,
-        if (thinking != null && thinking!.isNotEmpty) 'thinking': thinking,
-        'model_metadata': modelMetadata,
-        if (providerRequestId != null)
-          'provider_request_id': providerRequestId,
-      };
+    'type': 'turn',
+    'index': index,
+    'observation': observation,
+    'stability': stability,
+    'proposed_action': proposedAction,
+    'validation': validation,
+    'executed_action': executedAction,
+    'diff': diff,
+    if (thinking != null && thinking!.isNotEmpty) 'thinking': thinking,
+    'model_metadata': modelMetadata,
+    if (providerRequestId != null) 'provider_request_id': providerRequestId,
+  };
 }
 
 @immutable
@@ -205,11 +212,11 @@ class ExtensionDisabledEvent implements TrajectoryRecord {
       );
 
   Map<String, dynamic> toJson() => {
-        'type': 'extension_disabled',
-        'namespace': namespace,
-        'reason': reason,
-        'turn': turn,
-      };
+    'type': 'extension_disabled',
+    'namespace': namespace,
+    'reason': reason,
+    'turn': turn,
+  };
 }
 
 enum SessionOutcome { done, budgetExhausted, harnessError }
@@ -231,28 +238,28 @@ class SessionFooter implements TrajectoryRecord {
   });
 
   factory SessionFooter.fromJson(Map<String, dynamic> j) => SessionFooter(
-        outcome: switch (j['outcome'] as String?) {
-          'done' => SessionOutcome.done,
-          'budget_exhausted' => SessionOutcome.budgetExhausted,
-          'harness_error' => SessionOutcome.harnessError,
-          _ => SessionOutcome.harnessError,
-        },
-        totalTurns: (j['total_turns'] as num?)?.toInt() ?? 0,
-        totalDurationMs: (j['total_duration_ms'] as num?)?.toInt() ?? 0,
-        harnessError: j['harness_error'] as String?,
-        terminationDetail: j['termination_detail'] as String?,
-      );
+    outcome: switch (j['outcome'] as String?) {
+      'done' => SessionOutcome.done,
+      'budget_exhausted' => SessionOutcome.budgetExhausted,
+      'harness_error' => SessionOutcome.harnessError,
+      _ => SessionOutcome.harnessError,
+    },
+    totalTurns: (j['total_turns'] as num?)?.toInt() ?? 0,
+    totalDurationMs: (j['total_duration_ms'] as num?)?.toInt() ?? 0,
+    harnessError: j['harness_error'] as String?,
+    terminationDetail: j['termination_detail'] as String?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'type': 'footer',
-        'outcome': switch (outcome) {
-          SessionOutcome.done => 'done',
-          SessionOutcome.budgetExhausted => 'budget_exhausted',
-          SessionOutcome.harnessError => 'harness_error',
-        },
-        'total_turns': totalTurns,
-        'total_duration_ms': totalDurationMs,
-        if (harnessError != null) 'harness_error': harnessError,
-        if (terminationDetail != null) 'termination_detail': terminationDetail,
-      };
+    'type': 'footer',
+    'outcome': switch (outcome) {
+      SessionOutcome.done => 'done',
+      SessionOutcome.budgetExhausted => 'budget_exhausted',
+      SessionOutcome.harnessError => 'harness_error',
+    },
+    'total_turns': totalTurns,
+    'total_duration_ms': totalDurationMs,
+    if (harnessError != null) 'harness_error': harnessError,
+    if (terminationDetail != null) 'termination_detail': terminationDetail,
+  };
 }

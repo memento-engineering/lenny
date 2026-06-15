@@ -51,8 +51,8 @@ class DtdProviderConfigStore implements ProviderConfigStore {
   DtdProviderConfigStore({
     required Future<String?> Function(String key) read,
     required Future<void> Function(String key, String value) write,
-  })  : _read = read,
-        _write = write;
+  }) : _read = read,
+       _write = write;
 
   final Future<String?> Function(String key) _read;
   final Future<void> Function(String key, String value) _write;

@@ -10,21 +10,18 @@ void main() {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
     expect(plugin.namespace, 'core');
-    expect(
-      plugin.tools.map((LeonardTool t) => t.name).toList(),
-      <String>[
-        'tap',
-        'long_press',
-        'enter_text',
-        'scroll',
-        'scroll_until_visible',
-        'gesture',
-        'system_back',
-        'wait',
-        'inspect_widget',
-        'done',
-      ],
-    );
+    expect(plugin.tools.map((LeonardTool t) => t.name).toList(), <String>[
+      'tap',
+      'long_press',
+      'enter_text',
+      'scroll',
+      'scroll_until_visible',
+      'gesture',
+      'system_back',
+      'wait',
+      'inspect_widget',
+      'done',
+    ]);
     cap.dispose();
   });
 
@@ -37,27 +34,31 @@ void main() {
     cap.dispose();
   });
 
-  test('ExtensionRegistry rejects user plugin that claims namespace "core"',
-      () {
-    final SemanticsCapture cap = SemanticsCapture();
-    final CoreExtension host = CoreExtension(semantics: cap);
-    final ExtensionRegistry r =
-        ExtensionRegistry(scheduler: SchedulerBinding.instance);
-    r.register(host);
-    expect(
-      () => r.register(_FakeUserExtension('core')),
-      throwsStateError,
-      reason: 'duplicate-namespace check reserves "core" for the host',
-    );
-    cap.dispose();
-  });
+  test(
+    'ExtensionRegistry rejects user plugin that claims namespace "core"',
+    () {
+      final SemanticsCapture cap = SemanticsCapture();
+      final CoreExtension host = CoreExtension(semantics: cap);
+      final ExtensionRegistry r = ExtensionRegistry(
+        scheduler: SchedulerBinding.instance,
+      );
+      r.register(host);
+      expect(
+        () => r.register(_FakeUserExtension('core')),
+        throwsStateError,
+        reason: 'duplicate-namespace check reserves "core" for the host',
+      );
+      cap.dispose();
+    },
+  );
 
   test('terminated flag flips after DoneTool runs', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
     expect(plugin.terminated, isFalse);
-    final LeonardTool done =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'done');
+    final LeonardTool done = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'done',
+    );
     final ToolResult r = await done.call(<String, Object?>{
       'reason': 'session over',
     });
@@ -73,11 +74,13 @@ void main() {
   test('after done, action tools return session_terminated', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool done =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'done');
+    final LeonardTool done = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'done',
+    );
     await done.call(<String, Object?>{'reason': 'bye'});
-    final LeonardTool tap =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'tap');
+    final LeonardTool tap = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'tap',
+    );
     final ToolResult r = await tap.call(<String, Object?>{'node_id': 1});
     expect(r.ok, isFalse);
     expect(r.error, contains('session_terminated'));

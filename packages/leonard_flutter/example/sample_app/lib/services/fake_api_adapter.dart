@@ -67,20 +67,16 @@ class FakeApiAdapter implements HttpClientAdapter {
 
   Future<List<int>> _readAll(Stream<Uint8List>? stream) async {
     if (stream == null) return <int>[];
-    return stream.fold<List<int>>(
-      <int>[],
-      (acc, chunk) => acc..addAll(chunk),
-    );
+    return stream.fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk));
   }
 
-  ResponseBody _json(int statusCode, Object body) =>
-      ResponseBody.fromString(
-        jsonEncode(body),
-        statusCode,
-        headers: <String, List<String>>{
-          'content-type': <String>['application/json'],
-        },
-      );
+  ResponseBody _json(int statusCode, Object body) => ResponseBody.fromString(
+    jsonEncode(body),
+    statusCode,
+    headers: <String, List<String>>{
+      'content-type': <String>['application/json'],
+    },
+  );
 
   @override
   void close({bool force = false}) {}

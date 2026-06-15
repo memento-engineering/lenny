@@ -23,8 +23,10 @@ import 'package:test/test.dart';
 void main() {
   group('buildProvider', () {
     test('qwen-mlx defaults vision ON (PRD §16.3)', () {
-      final ModelProvider p =
-          buildProvider(ModelTier.qwenMlx, sessionId: 'sess-1');
+      final ModelProvider p = buildProvider(
+        ModelTier.qwenMlx,
+        sessionId: 'sess-1',
+      );
       expect(p, isA<SwiftInferModelProvider>());
       expect(
         p.capabilities.vision,
@@ -39,19 +41,21 @@ void main() {
       expect(p.capabilities.supportsToolUse, isTrue);
     });
 
-    test('qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>',
-        () {
-      final SwiftInferModelProvider p = buildProvider(
-        ModelTier.qwenMlx,
-        sessionId: 'sess-xyz',
-        now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
-      ) as SwiftInferModelProvider;
+    test('qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>', () {
+      final SwiftInferModelProvider p =
+          buildProvider(
+                ModelTier.qwenMlx,
+                sessionId: 'sess-xyz',
+                now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
+              )
+              as SwiftInferModelProvider;
       expect(p.config.conversationId, 'leonard-sess-xyz-1700000000000');
       expect(p.config.sessionId, 'sess-xyz');
       expect(
         p.config.captureBodies,
         isTrue,
-        reason: 'CLI defaults captureBodies=true so /v1/conversations/<id> '
+        reason:
+            'CLI defaults captureBodies=true so /v1/conversations/<id> '
             'returns the captured turn for inspection',
       );
       // bearerToken mirrors SWIFT_INFER_AGENT_TOKEN — the CI shell may or

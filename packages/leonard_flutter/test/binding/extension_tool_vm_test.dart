@@ -31,7 +31,6 @@ class _EchoExtension extends LeonardExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
 
-
   @override
   Future<BusyState> busyState() async => BusyState.idle;
 
@@ -59,26 +58,22 @@ void main() {
     '(proves real _registerExtension path, not invokeExtensionTool bypass)',
     () {
       expect(
-        binding.debugHasRegisteredExtension(
-            'ext.exploration.testplugin.echo'),
+        binding.debugHasRegisteredExtension('ext.exploration.testplugin.echo'),
         isTrue,
-        reason: 'plugin tool must be registered via _registerExtension '
+        reason:
+            'plugin tool must be registered via _registerExtension '
             'so _extensionCallbacks is populated',
       );
     },
   );
 
-  test(
-    'ext.exploration.core.tap is in _extensionCallbacks '
-    '(CoreExtension tools registered by binding-level loop)',
-    () {
-      expect(
-        binding.debugHasRegisteredExtension(
-            'ext.exploration.core.tap'),
-        isTrue,
-      );
-    },
-  );
+  test('ext.exploration.core.tap is in _extensionCallbacks '
+      '(CoreExtension tools registered by binding-level loop)', () {
+    expect(
+      binding.debugHasRegisteredExtension('ext.exploration.core.tap'),
+      isTrue,
+    );
+  });
 
   test(
     'invokeServiceExtension dispatches testplugin.echo without invokeExtensionTool',

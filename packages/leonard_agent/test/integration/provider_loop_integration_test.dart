@@ -76,7 +76,6 @@ import 'package:vm_service/vm_service.dart';
 
 import '../_support/leonard_vm_service_fake.dart';
 
-
 /// Serialise [events] into the `data: <json>\n\n` SSE wire form the
 /// Anthropic-compat providers (swift-infer / Anthropic / OpenAI) all
 /// consume. Cribbed verbatim from
@@ -391,22 +390,26 @@ void main() {
         },
         'extensions': <String, dynamic>{},
       },
-      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-        'ext.exploration.router.navigate': (args) async {
-          // args arrive JSON-encoded from VmServiceClient.executeAction;
-          // decode the route_name value before storing.
-          final String? raw = args?['route_name'] as String?;
-          final Object? routeName = raw != null ? jsonDecode(raw) : null;
-          routerCalls.add(<String, dynamic>{'route_name': routeName});
-          return <String, dynamic>{'ok': true, 'value': routeName};
-        },
-      },
+      handlers:
+          <
+            String,
+            Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+          >{
+            'ext.exploration.router.navigate': (args) async {
+              // args arrive JSON-encoded from VmServiceClient.executeAction;
+              // decode the route_name value before storing.
+              final String? raw = args?['route_name'] as String?;
+              final Object? routeName = raw != null ? jsonDecode(raw) : null;
+              routerCalls.add(<String, dynamic>{'route_name': routeName});
+              return <String, dynamic>{'ok': true, 'value': routeName};
+            },
+          },
     );
   });
 
   setUp(() {
     routerCalls.clear();
-    fake.calls.clear();   // reset recorded RPC calls between scenarios
+    fake.calls.clear(); // reset recorded RPC calls between scenarios
   });
 
   tearDownAll(() async {

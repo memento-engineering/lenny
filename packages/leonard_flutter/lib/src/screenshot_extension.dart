@@ -18,11 +18,11 @@ class ScreenshotResult {
   final double devicePixelRatio;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'png_base64': pngBase64,
-        'width_px': widthPx,
-        'height_px': heightPx,
-        'device_pixel_ratio': devicePixelRatio,
-      };
+    'png_base64': pngBase64,
+    'width_px': widthPx,
+    'height_px': heightPx,
+    'device_pixel_ratio': devicePixelRatio,
+  };
 }
 
 /// Mapped by the extension handler to JSON-RPC error code 1.
@@ -49,16 +49,21 @@ Future<ScreenshotResult> captureScreenshot(RendererBinding binding) async {
   if (rootLayer is! OffsetLayer) {
     throw const ScreenshotUnavailable('no_layer');
   }
-  final ui.Image image =
-      await rootLayer.toImage(view.paintBounds, pixelRatio: dpr);
+  final ui.Image image = await rootLayer.toImage(
+    view.paintBounds,
+    pixelRatio: dpr,
+  );
   try {
-    final ByteData? bytes =
-        await image.toByteData(format: ui.ImageByteFormat.png);
+    final ByteData? bytes = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     if (bytes == null) {
       throw const ScreenshotUnavailable('encode_failed');
     }
-    final Uint8List png = bytes.buffer
-        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    final Uint8List png = bytes.buffer.asUint8List(
+      bytes.offsetInBytes,
+      bytes.lengthInBytes,
+    );
     return ScreenshotResult(
       pngBase64: base64Encode(png),
       widthPx: image.width,

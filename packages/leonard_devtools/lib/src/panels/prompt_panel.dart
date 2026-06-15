@@ -1,5 +1,4 @@
-import 'package:leonard_agent/leonard_agent.dart'
-    show ExtensionManifestEntry;
+import 'package:leonard_agent/leonard_agent.dart' show ExtensionManifestEntry;
 import 'package:flutter/material.dart';
 
 import 'model_catalog.dart';

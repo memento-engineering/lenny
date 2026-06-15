@@ -135,23 +135,23 @@ class SwiftInferUiConfig extends ProviderConfig {
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'bearerToken': _bearerToken,
-        'endpoint': endpoint.toString(),
-        'captureBodies': captureBodies,
-        'extraHeaders': extraHeaders,
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'bearerToken': _bearerToken,
+    'endpoint': endpoint.toString(),
+    'captureBodies': captureBodies,
+    'extraHeaders': extraHeaders,
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   Map<String, dynamic> toJsonRedacted() => <String, dynamic>{
-        'id': id,
-        'bearerToken': '<redacted>',
-        'endpoint': endpoint.toString(),
-        'captureBodies': captureBodies,
-        'extraHeaders': extraHeaders,
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'bearerToken': '<redacted>',
+    'endpoint': endpoint.toString(),
+    'captureBodies': captureBodies,
+    'extraHeaders': extraHeaders,
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   String toString() => 'SwiftInferUiConfig(${toJsonRedacted()})';
@@ -161,8 +161,9 @@ class SwiftInferUiConfig extends ProviderConfig {
         bearerToken: (json['bearerToken'] as String?) ?? '',
         endpoint: Uri.parse(json['endpoint'] as String),
         captureBodies: (json['captureBodies'] as bool?) ?? true,
-        extraHeaders: ((json['extraHeaders'] as Map?) ?? const <String, String>{})
-            .cast<String, String>(),
+        extraHeaders:
+            ((json['extraHeaders'] as Map?) ?? const <String, String>{})
+                .cast<String, String>(),
         defaultModelId:
             (json['defaultModelId'] as String?) ?? 'qwen3.6-35b-a3b-8bit',
       );
@@ -196,38 +197,38 @@ class AnthropicUiConfig extends ProviderConfig {
 
   @override
   Map<String, String> headersFor(String conversationId) => <String, String>{
-        'content-type': 'application/json',
-        'accept': 'application/json',
-        'x-api-key': _apiKey,
-        'anthropic-version': '2023-06-01',
-        // The DevTools extension is a Flutter **web** build, so the model-list
-        // (`GET /v1/models`) and Test-connection calls originate from a browser.
-        // api.anthropic.com refuses cross-origin browser requests by default
-        // ("No 'Access-Control-Allow-Origin' header"). This opt-in header makes
-        // Anthropic answer the CORS preflight. It is "dangerous" because it
-        // ships the API key to the browser — acceptable here only because this
-        // is a local, single-user dev tool that already holds the key panel-side.
-        // The durable fix is to proxy this fetch through the target app over the
-        // VM service (see the CORS follow-up bead) so no key/provider call ever
-        // leaves the browser.
-        'anthropic-dangerous-direct-browser-access': 'true',
-      };
+    'content-type': 'application/json',
+    'accept': 'application/json',
+    'x-api-key': _apiKey,
+    'anthropic-version': '2023-06-01',
+    // The DevTools extension is a Flutter **web** build, so the model-list
+    // (`GET /v1/models`) and Test-connection calls originate from a browser.
+    // api.anthropic.com refuses cross-origin browser requests by default
+    // ("No 'Access-Control-Allow-Origin' header"). This opt-in header makes
+    // Anthropic answer the CORS preflight. It is "dangerous" because it
+    // ships the API key to the browser — acceptable here only because this
+    // is a local, single-user dev tool that already holds the key panel-side.
+    // The durable fix is to proxy this fetch through the target app over the
+    // VM service (see the CORS follow-up bead) so no key/provider call ever
+    // leaves the browser.
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'apiKey': _apiKey,
-        'baseUrlOverride': baseUrlOverride?.toString(),
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'apiKey': _apiKey,
+    'baseUrlOverride': baseUrlOverride?.toString(),
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   Map<String, dynamic> toJsonRedacted() => <String, dynamic>{
-        'id': id,
-        'apiKey': '<redacted>',
-        'baseUrlOverride': baseUrlOverride?.toString(),
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'apiKey': '<redacted>',
+    'baseUrlOverride': baseUrlOverride?.toString(),
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   String toString() => 'AnthropicUiConfig(${toJsonRedacted()})';
@@ -271,37 +272,37 @@ class OpenAiUiConfig extends ProviderConfig {
 
   @override
   Map<String, String> headersFor(String conversationId) => <String, String>{
-        'content-type': 'application/json',
-        'accept': 'application/json',
-        'authorization': 'Bearer $_apiKey',
-      };
+    'content-type': 'application/json',
+    'accept': 'application/json',
+    'authorization': 'Bearer $_apiKey',
+  };
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'apiKey': _apiKey,
-        'baseUrlOverride': baseUrlOverride?.toString(),
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'apiKey': _apiKey,
+    'baseUrlOverride': baseUrlOverride?.toString(),
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   Map<String, dynamic> toJsonRedacted() => <String, dynamic>{
-        'id': id,
-        'apiKey': '<redacted>',
-        'baseUrlOverride': baseUrlOverride?.toString(),
-        'defaultModelId': defaultModelId,
-      };
+    'id': id,
+    'apiKey': '<redacted>',
+    'baseUrlOverride': baseUrlOverride?.toString(),
+    'defaultModelId': defaultModelId,
+  };
 
   @override
   String toString() => 'OpenAiUiConfig(${toJsonRedacted()})';
 
   static OpenAiUiConfig _fromJson(Map<String, dynamic> json) => OpenAiUiConfig(
-        apiKey: (json['apiKey'] as String?) ?? '',
-        baseUrlOverride: json['baseUrlOverride'] == null
-            ? null
-            : Uri.parse(json['baseUrlOverride'] as String),
-        defaultModelId: (json['defaultModelId'] as String?) ?? 'gpt-5',
-      );
+    apiKey: (json['apiKey'] as String?) ?? '',
+    baseUrlOverride: json['baseUrlOverride'] == null
+        ? null
+        : Uri.parse(json['baseUrlOverride'] as String),
+    defaultModelId: (json['defaultModelId'] as String?) ?? 'gpt-5',
+  );
 }
 
 // ===========================================================================
@@ -339,7 +340,8 @@ class ProviderConfigForm extends StatefulWidget {
 }
 
 class _ProviderConfigFormState extends State<ProviderConfigForm> {
-  late ProviderConfig _config = widget.initial ??
+  late ProviderConfig _config =
+      widget.initial ??
       SwiftInferUiConfig(
         bearerToken: '',
         endpoint: Uri.parse('http://localhost:8080'),
@@ -356,10 +358,12 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
     if (id == null || id == _config.id) return;
     switch (id) {
       case 'swift-infer':
-        _replace(SwiftInferUiConfig(
-          bearerToken: '',
-          endpoint: Uri.parse('http://localhost:8080'),
-        ));
+        _replace(
+          SwiftInferUiConfig(
+            bearerToken: '',
+            endpoint: Uri.parse('http://localhost:8080'),
+          ),
+        );
       case 'anthropic':
         _replace(AnthropicUiConfig(apiKey: ''));
       case 'openai':
@@ -466,26 +470,34 @@ class _SwiftInferSubform extends StatefulWidget {
 }
 
 class _SwiftInferSubformState extends State<_SwiftInferSubform> {
-  late final TextEditingController _bearer =
-      TextEditingController(text: widget.config.bearerToken);
-  late final TextEditingController _endpoint =
-      TextEditingController(text: widget.config.endpoint.toString());
-  late final TextEditingController _defaultModel =
-      TextEditingController(text: widget.config.defaultModelId);
+  late final TextEditingController _bearer = TextEditingController(
+    text: widget.config.bearerToken,
+  );
+  late final TextEditingController _endpoint = TextEditingController(
+    text: widget.config.endpoint.toString(),
+  );
+  late final TextEditingController _defaultModel = TextEditingController(
+    text: widget.config.defaultModelId,
+  );
   late bool _captureBodies = widget.config.captureBodies;
-  late List<MapEntry<String, String>> _extras =
-      widget.config.extraHeaders.entries.toList();
+  late List<MapEntry<String, String>> _extras = widget
+      .config
+      .extraHeaders
+      .entries
+      .toList();
 
   void _push() {
-    widget.onChanged(SwiftInferUiConfig(
-      bearerToken: _bearer.text,
-      endpoint: Uri.tryParse(_endpoint.text) ?? widget.config.endpoint,
-      captureBodies: _captureBodies,
-      extraHeaders: Map<String, String>.fromEntries(_extras),
-      defaultModelId: _defaultModel.text.isEmpty
-          ? widget.config.defaultModelId
-          : _defaultModel.text,
-    ));
+    widget.onChanged(
+      SwiftInferUiConfig(
+        bearerToken: _bearer.text,
+        endpoint: Uri.tryParse(_endpoint.text) ?? widget.config.endpoint,
+        captureBodies: _captureBodies,
+        extraHeaders: Map<String, String>.fromEntries(_extras),
+        defaultModelId: _defaultModel.text.isEmpty
+            ? widget.config.defaultModelId
+            : _defaultModel.text,
+      ),
+    );
   }
 
   @override
@@ -586,10 +598,12 @@ class _SwiftInferSubformState extends State<_SwiftInferSubform> {
           child: TextButton.icon(
             key: const Key('providerForm.swift-infer.extra.add'),
             onPressed: () {
-              setState(() => _extras = <MapEntry<String, String>>[
-                    ..._extras,
-                    const MapEntry('', ''),
-                  ]);
+              setState(
+                () => _extras = <MapEntry<String, String>>[
+                  ..._extras,
+                  const MapEntry('', ''),
+                ],
+              );
               _push();
             },
             icon: const Icon(Icons.add),
@@ -616,21 +630,26 @@ class _AnthropicSubform extends StatefulWidget {
 }
 
 class _AnthropicSubformState extends State<_AnthropicSubform> {
-  late final TextEditingController _key =
-      TextEditingController(text: widget.config.apiKey);
+  late final TextEditingController _key = TextEditingController(
+    text: widget.config.apiKey,
+  );
   late final TextEditingController _base = TextEditingController(
-      text: widget.config.baseUrlOverride?.toString() ?? '');
-  late final TextEditingController _defaultModel =
-      TextEditingController(text: widget.config.defaultModelId);
+    text: widget.config.baseUrlOverride?.toString() ?? '',
+  );
+  late final TextEditingController _defaultModel = TextEditingController(
+    text: widget.config.defaultModelId,
+  );
 
   void _push() {
-    widget.onChanged(AnthropicUiConfig(
-      apiKey: _key.text,
-      baseUrlOverride: _base.text.isEmpty ? null : Uri.tryParse(_base.text),
-      defaultModelId: _defaultModel.text.isEmpty
-          ? widget.config.defaultModelId
-          : _defaultModel.text,
-    ));
+    widget.onChanged(
+      AnthropicUiConfig(
+        apiKey: _key.text,
+        baseUrlOverride: _base.text.isEmpty ? null : Uri.tryParse(_base.text),
+        defaultModelId: _defaultModel.text.isEmpty
+            ? widget.config.defaultModelId
+            : _defaultModel.text,
+      ),
+    );
   }
 
   @override
@@ -643,30 +662,29 @@ class _AnthropicSubformState extends State<_AnthropicSubform> {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          TextFormField(
-            key: const Key('providerForm.anthropic.apiKey'),
-            controller: _key,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'API key'),
-            onChanged: (_) => _push(),
-          ),
-          TextFormField(
-            key: const Key('providerForm.anthropic.baseUrl'),
-            controller: _base,
-            decoration:
-                const InputDecoration(labelText: 'Base URL (optional)'),
-            onChanged: (_) => _push(),
-          ),
-          TextFormField(
-            key: const Key('providerForm.anthropic.defaultModel'),
-            controller: _defaultModel,
-            decoration: const InputDecoration(labelText: 'Default model id'),
-            onChanged: (_) => _push(),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      TextFormField(
+        key: const Key('providerForm.anthropic.apiKey'),
+        controller: _key,
+        obscureText: true,
+        decoration: const InputDecoration(labelText: 'API key'),
+        onChanged: (_) => _push(),
+      ),
+      TextFormField(
+        key: const Key('providerForm.anthropic.baseUrl'),
+        controller: _base,
+        decoration: const InputDecoration(labelText: 'Base URL (optional)'),
+        onChanged: (_) => _push(),
+      ),
+      TextFormField(
+        key: const Key('providerForm.anthropic.defaultModel'),
+        controller: _defaultModel,
+        decoration: const InputDecoration(labelText: 'Default model id'),
+        onChanged: (_) => _push(),
+      ),
+    ],
+  );
 }
 
 class _OpenAiSubform extends StatefulWidget {
@@ -684,21 +702,26 @@ class _OpenAiSubform extends StatefulWidget {
 }
 
 class _OpenAiSubformState extends State<_OpenAiSubform> {
-  late final TextEditingController _key =
-      TextEditingController(text: widget.config.apiKey);
+  late final TextEditingController _key = TextEditingController(
+    text: widget.config.apiKey,
+  );
   late final TextEditingController _base = TextEditingController(
-      text: widget.config.baseUrlOverride?.toString() ?? '');
-  late final TextEditingController _defaultModel =
-      TextEditingController(text: widget.config.defaultModelId);
+    text: widget.config.baseUrlOverride?.toString() ?? '',
+  );
+  late final TextEditingController _defaultModel = TextEditingController(
+    text: widget.config.defaultModelId,
+  );
 
   void _push() {
-    widget.onChanged(OpenAiUiConfig(
-      apiKey: _key.text,
-      baseUrlOverride: _base.text.isEmpty ? null : Uri.tryParse(_base.text),
-      defaultModelId: _defaultModel.text.isEmpty
-          ? widget.config.defaultModelId
-          : _defaultModel.text,
-    ));
+    widget.onChanged(
+      OpenAiUiConfig(
+        apiKey: _key.text,
+        baseUrlOverride: _base.text.isEmpty ? null : Uri.tryParse(_base.text),
+        defaultModelId: _defaultModel.text.isEmpty
+            ? widget.config.defaultModelId
+            : _defaultModel.text,
+      ),
+    );
   }
 
   @override
@@ -711,28 +734,27 @@ class _OpenAiSubformState extends State<_OpenAiSubform> {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          TextFormField(
-            key: const Key('providerForm.openai.apiKey'),
-            controller: _key,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'API key'),
-            onChanged: (_) => _push(),
-          ),
-          TextFormField(
-            key: const Key('providerForm.openai.baseUrl'),
-            controller: _base,
-            decoration:
-                const InputDecoration(labelText: 'Base URL (optional)'),
-            onChanged: (_) => _push(),
-          ),
-          TextFormField(
-            key: const Key('providerForm.openai.defaultModel'),
-            controller: _defaultModel,
-            decoration: const InputDecoration(labelText: 'Default model id'),
-            onChanged: (_) => _push(),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      TextFormField(
+        key: const Key('providerForm.openai.apiKey'),
+        controller: _key,
+        obscureText: true,
+        decoration: const InputDecoration(labelText: 'API key'),
+        onChanged: (_) => _push(),
+      ),
+      TextFormField(
+        key: const Key('providerForm.openai.baseUrl'),
+        controller: _base,
+        decoration: const InputDecoration(labelText: 'Base URL (optional)'),
+        onChanged: (_) => _push(),
+      ),
+      TextFormField(
+        key: const Key('providerForm.openai.defaultModel'),
+        controller: _defaultModel,
+        decoration: const InputDecoration(labelText: 'Default model id'),
+        onChanged: (_) => _push(),
+      ),
+    ],
+  );
 }

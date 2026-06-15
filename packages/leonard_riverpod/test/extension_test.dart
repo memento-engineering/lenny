@@ -9,8 +9,7 @@ import 'package:genesis_perception/genesis_perception.dart';
 /// Build a plugin whose observer is installed on its container.
 ({RiverpodLeonardExtension plugin, ProviderContainer container}) wired() {
   final observer = LeonardProviderObserver();
-  final container =
-      ProviderContainer(observers: <ProviderObserver>[observer]);
+  final container = ProviderContainer(observers: <ProviderObserver>[observer]);
   final plugin = RiverpodLeonardExtension(
     container: container,
     observer: observer,
@@ -46,10 +45,9 @@ void main() {
     expect(schema['type'], 'object');
     expect(schema['additionalProperties'], false);
     expect(schema['required'], <String>['provider_id']);
-    expect(
-      (schema['properties'] as Map)['provider_id'],
-      <String, Object?>{'type': 'string'},
-    );
+    expect((schema['properties'] as Map)['provider_id'], <String, Object?>{
+      'type': 'string',
+    });
     expect(w.plugin.tools.single.description, contains('provider_id'));
   });
 
@@ -68,8 +66,7 @@ void main() {
     expect(w.plugin.isPerceptionIdle(), isTrue);
   });
 
-  test('lists live providers, records change, and tool invalidates',
-      () async {
+  test('lists live providers, records change, and tool invalidates', () async {
     final counter = StateProvider<int>((r) => 0, name: 'counter');
     final w = wired();
     addTearDown(w.container.dispose);
@@ -86,13 +83,15 @@ void main() {
     final ch = frag['recent_state_changes'] as List;
     // prepareForObservation() stamps the flush at turn 0 (production default).
     expect(
-      ch.any((e) =>
-          (e as Map)['provider_id'] == 'counter' && e['at_turn'] == 0),
+      ch.any(
+        (e) => (e as Map)['provider_id'] == 'counter' && e['at_turn'] == 0,
+      ),
       isTrue,
     );
 
-    final res = await w.plugin.tools.single
-        .call(<String, Object?>{'provider_id': 'counter'});
+    final res = await w.plugin.tools.single.call(<String, Object?>{
+      'provider_id': 'counter',
+    });
     expect(res.ok, isTrue);
   });
 
@@ -105,23 +104,25 @@ void main() {
     expect(missing.ok, isFalse);
     expect(missing.error, contains('provider_id'));
 
-    final unknown = await w.plugin.tools.single
-        .call(const <String, Object?>{'provider_id': 'nope'});
+    final unknown = await w.plugin.tools.single.call(const <String, Object?>{
+      'provider_id': 'nope',
+    });
     expect(unknown.ok, isFalse);
     expect(unknown.error, contains('unknown provider_id'));
   });
 
-  test('busyState idle + onActionExecuted no-op + dispose clears',
-      () async {
+  test('busyState idle + onActionExecuted no-op + dispose clears', () async {
     final w = wired();
     addTearDown(w.container.dispose);
     await w.plugin.initialize(ctx());
     expect((await w.plugin.busyState()).isBusy, isFalse);
-    await w.plugin.onActionExecuted(const ExecutedAction(
-      toolName: 'core.tap',
-      args: <String, Object?>{},
-      result: ToolResult(ok: true),
-    ));
+    await w.plugin.onActionExecuted(
+      const ExecutedAction(
+        toolName: 'core.tap',
+        args: <String, Object?>{},
+        result: ToolResult(ok: true),
+      ),
+    );
     await w.plugin.dispose();
     w.plugin.prepareForObservation();
     expect(w.plugin.isPerceptionIdle(), isTrue);

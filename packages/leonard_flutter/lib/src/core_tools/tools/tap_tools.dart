@@ -19,13 +19,13 @@ class TapTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -57,13 +57,13 @@ class LongPressTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {

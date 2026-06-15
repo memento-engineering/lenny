@@ -4,15 +4,15 @@ import 'package:leonard_agent/leonard_agent.dart';
 import 'package:test/test.dart';
 
 ToolDescriptor _t(String n) => ToolDescriptor(
-      name: n,
-      description: n,
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'x': <String, dynamic>{'type': 'integer'},
-        },
-      },
-    );
+  name: n,
+  description: n,
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'x': <String, dynamic>{'type': 'integer'},
+    },
+  },
+);
 
 final List<ToolDescriptor> _tap = <ToolDescriptor>[_t('core.tap')];
 
@@ -49,12 +49,14 @@ void main() {
     ]);
     expect(s.jsonSchema[r'$schema'], contains('draft-07'));
     final variants =
-        (s.jsonSchema['properties'] as Map<String, dynamic>)['action']
-            ['oneOf'] as List<dynamic>;
+        (s.jsonSchema['properties'] as Map<String, dynamic>)['action']['oneOf']
+            as List<dynamic>;
     expect(variants.length, 2);
     final names = variants
-        .map((dynamic v) =>
-            (v as Map<String, dynamic>)['properties']['tool']['const'])
+        .map(
+          (dynamic v) =>
+              (v as Map<String, dynamic>)['properties']['tool']['const'],
+        )
         .toSet();
     expect(names, <String>{'core.tap', 'router.push'});
   });
@@ -88,10 +90,7 @@ void main() {
 
   test('validate throws SchemaRejection on unknown tool', () {
     final out = jsonEncode(<String, dynamic>{
-      'action': <String, dynamic>{
-        'tool': 'nope',
-        'args': <String, dynamic>{},
-      },
+      'action': <String, dynamic>{'tool': 'nope', 'args': <String, dynamic>{}},
     });
     expect(
       () => ActionSchema.fromToolList(_tap).validate(out),
@@ -102,11 +101,13 @@ void main() {
   test('validate throws SchemaRejection on bad JSON', () {
     expect(
       () => ActionSchema.fromToolList(_tap).validate('{not json'),
-      throwsA(isA<SchemaRejection>().having(
-        (SchemaRejection e) => e.rawOutput,
-        'rawOutput',
-        '{not json',
-      )),
+      throwsA(
+        isA<SchemaRejection>().having(
+          (SchemaRejection e) => e.rawOutput,
+          'rawOutput',
+          '{not json',
+        ),
+      ),
     );
   });
 }

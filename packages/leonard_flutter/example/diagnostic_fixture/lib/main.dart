@@ -16,13 +16,13 @@ class HitScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: GestureDetector(
-            onTap: () {},
-            child: Container(width: 80, height: 80, color: Colors.red),
-          ),
-        ),
-      );
+    body: Center(
+      child: GestureDetector(
+        onTap: () {},
+        child: Container(width: 80, height: 80, color: Colors.red),
+      ),
+    ),
+  );
 }
 
 class CleanScreen extends StatelessWidget {
@@ -30,15 +30,15 @@ class CleanScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Semantics(
-            label: 'red square',
-            button: true,
-            child: GestureDetector(
-              onTap: () {},
-              child: Container(width: 80, height: 80, color: Colors.red),
-            ),
-          ),
+    body: Center(
+      child: Semantics(
+        label: 'red square',
+        button: true,
+        child: GestureDetector(
+          onTap: () {},
+          child: Container(width: 80, height: 80, color: Colors.red),
         ),
-      );
+      ),
+    ),
+  );
 }

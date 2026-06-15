@@ -30,10 +30,7 @@ void main() {
       for (int i = 0; i < total; i += batch) {
         for (int j = 0; j < batch; j++) {
           bus.push(
-            const TurnThinking(
-              0,
-              ThinkingDelta(text: 'x', isFinal: false),
-            ),
+            const TurnThinking(0, ThinkingDelta(text: 'x', isFinal: false)),
           );
         }
         await t.pump(const Duration(milliseconds: 1000));

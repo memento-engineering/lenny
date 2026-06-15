@@ -18,10 +18,10 @@ enum StabilityPolicy { actionRelative, quietFrame, boundedStability }
 /// PRD §9.1; in-Dart enum names are camelCase.
 const Map<StabilityPolicy, String> kStabilityPolicyWireNames =
     <StabilityPolicy, String>{
-  StabilityPolicy.actionRelative: 'action-relative',
-  StabilityPolicy.quietFrame: 'quiet-frame',
-  StabilityPolicy.boundedStability: 'bounded-stability',
-};
+      StabilityPolicy.actionRelative: 'action-relative',
+      StabilityPolicy.quietFrame: 'quiet-frame',
+      StabilityPolicy.boundedStability: 'bounded-stability',
+    };
 
 /// Hard upper bound for any `*BudgetMs` request override (PRD §9.1).
 ///
@@ -100,8 +100,9 @@ class ObservationRequest {
     );
 
     final dynamic rawScreenshot = j['includeScreenshot'];
-    final bool includeScreenshot =
-        rawScreenshot is bool ? rawScreenshot : false;
+    final bool includeScreenshot = rawScreenshot is bool
+        ? rawScreenshot
+        : false;
 
     final Map<String, int> extensionBudgets = _parseExtensionBudgets(
       j['extensionBudgets'],
@@ -173,9 +174,7 @@ class ObservationRequest {
       if (k is String) {
         final int? parsed = v is int
             ? v
-            : (v is num
-                ? v.toInt()
-                : (v is String ? int.tryParse(v) : null));
+            : (v is num ? v.toInt() : (v is String ? int.tryParse(v) : null));
         if (parsed != null && parsed >= 0) {
           out[k] = parsed;
         }

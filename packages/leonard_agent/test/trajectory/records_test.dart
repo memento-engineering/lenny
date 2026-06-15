@@ -46,7 +46,7 @@ void main() {
           'namespace': 'router',
           'package_version': '1.2.3',
           'contract_version': '1.0.0',
-        }
+        },
       ]);
       expect(j['config'], {'turn_budget_ms': 30000});
     });
@@ -56,28 +56,33 @@ void main() {
     test('emits turn type and PRD §14 snake_case keys (v2 schema)', () {
       const t = TurnRecord(
         index: 3,
-        observation: {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
+        observation: {
+          'core': <String, dynamic>{},
+          'extensions': <String, dynamic>{},
+        },
         stability: {'policy': 'action_relative'},
         proposedAction: {'tool': 'core.tap'},
         validation: {'result': 'ok', 'retries': 0},
         executedAction: {'tool': 'core.tap'},
         diff: {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
         thinking: 'I should tap the button',
-        modelMetadata: {
-          'tokens_in': 10,
-          'tokens_out': 5,
-          'duration_ms': 200,
-        },
+        modelMetadata: {'tokens_in': 10, 'tokens_out': 5, 'duration_ms': 200},
       );
       final j = t.toJson();
       expect(j['type'], 'turn');
       expect(j['index'], 3);
-      expect(j['observation'], {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}});
+      expect(j['observation'], {
+        'core': <String, dynamic>{},
+        'extensions': <String, dynamic>{},
+      });
       expect(j['stability'], {'policy': 'action_relative'});
       expect(j['proposed_action'], {'tool': 'core.tap'});
       expect(j['validation'], {'result': 'ok', 'retries': 0});
       expect(j['executed_action'], {'tool': 'core.tap'});
-      expect(j['diff'], {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}});
+      expect(j['diff'], {
+        'core': <String, dynamic>{},
+        'extensions': <String, dynamic>{},
+      });
       // v2 (lenny-wisp-cl4): summary_update key is dropped from JSON;
       // thinking takes its place.
       expect(j.containsKey('summary_update'), isFalse);
@@ -186,22 +191,24 @@ void main() {
   });
 
   group('SessionFooter', () {
-    test('budgetExhausted -> budget_exhausted; harnessError omitted when null (v2 schema)',
-        () {
-      const f = SessionFooter(
-        outcome: SessionOutcome.budgetExhausted,
-        totalTurns: 25,
-        totalDurationMs: 30000,
-      );
-      final j = f.toJson();
-      expect(j['type'], 'footer');
-      expect(j['outcome'], 'budget_exhausted');
-      // v2 (lenny-wisp-cl4): final_summary key is dropped from JSON.
-      expect(j.containsKey('final_summary'), isFalse);
-      expect(j['total_turns'], 25);
-      expect(j['total_duration_ms'], 30000);
-      expect(j.containsKey('harness_error'), isFalse);
-    });
+    test(
+      'budgetExhausted -> budget_exhausted; harnessError omitted when null (v2 schema)',
+      () {
+        const f = SessionFooter(
+          outcome: SessionOutcome.budgetExhausted,
+          totalTurns: 25,
+          totalDurationMs: 30000,
+        );
+        final j = f.toJson();
+        expect(j['type'], 'footer');
+        expect(j['outcome'], 'budget_exhausted');
+        // v2 (lenny-wisp-cl4): final_summary key is dropped from JSON.
+        expect(j.containsKey('final_summary'), isFalse);
+        expect(j['total_turns'], 25);
+        expect(j['total_duration_ms'], 30000);
+        expect(j.containsKey('harness_error'), isFalse);
+      },
+    );
 
     test('done outcome maps to "done"', () {
       const f = SessionFooter(

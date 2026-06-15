@@ -17,17 +17,17 @@ Map<String, Object?> _harvest(RouterExtension plugin) {
 }
 
 Widget _app(GlobalKey<NavigatorState> key) => WidgetsApp(
-      navigatorKey: key,
-      color: const Color(0xFF000000),
-      initialRoute: '/',
-      onGenerateRoute: (s) => switch (s.name) {
-        '/' || '/settings' => PageRouteBuilder<void>(
-            settings: s,
-            pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-        _ => null,
-      },
-    );
+  navigatorKey: key,
+  color: const Color(0xFF000000),
+  initialRoute: '/',
+  onGenerateRoute: (s) => switch (s.name) {
+    '/' || '/settings' => PageRouteBuilder<void>(
+      settings: s,
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+    ),
+    _ => null,
+  },
+);
 
 class _FakeDelegate extends RouterDelegate<Object> with ChangeNotifier {
   _FakeDelegate(this._cfg);
@@ -54,8 +54,9 @@ void main() {
     expect((await p.busyState()).isBusy, isFalse);
   });
 
-  testWidgets('observation has Navigator fragment with route name and stack',
-      (t) async {
+  testWidgets('observation has Navigator fragment with route name and stack', (
+    t,
+  ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
     final p = RouterExtension(navigatorKey: k);
@@ -65,8 +66,9 @@ void main() {
     expect(f['stack'], ['/']);
   });
 
-  testWidgets('isPerceptionIdle is true when NavigatorState not mounted',
-      (t) async {
+  testWidgets('isPerceptionIdle is true when NavigatorState not mounted', (
+    t,
+  ) async {
     final p = RouterExtension(navigatorKey: GlobalKey<NavigatorState>());
     expect(p.isPerceptionIdle(), isTrue);
   });
@@ -127,8 +129,9 @@ void main() {
     expect(r.error, contains('nope'));
   });
 
-  testWidgets('seam is preferred over Navigator pushNamed when both present',
-      (t) async {
+  testWidgets('seam is preferred over Navigator pushNamed when both present', (
+    t,
+  ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
     var seamCalled = false;
@@ -146,8 +149,7 @@ void main() {
     expect(f['current_route_name'], '/');
   });
 
-  test('declarative-only: reads RouterDelegate.currentConfiguration',
-      () async {
+  test('declarative-only: reads RouterDelegate.currentConfiguration', () async {
     final p = RouterExtension(
       navigatorKey: GlobalKey<NavigatorState>(),
       routerDelegate: _FakeDelegate('/checkout/payment'),
@@ -179,12 +181,14 @@ void main() {
     expect(f['current_route_name'], '/fallback');
   });
 
-  test('isPerceptionIdle is true when neither surface yields a route',
-      () async {
-    final p = RouterExtension(
-      navigatorKey: GlobalKey<NavigatorState>(),
-      routerDelegate: _FakeDelegate(null),
-    );
-    expect(p.isPerceptionIdle(), isTrue);
-  });
+  test(
+    'isPerceptionIdle is true when neither surface yields a route',
+    () async {
+      final p = RouterExtension(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        routerDelegate: _FakeDelegate(null),
+      );
+      expect(p.isPerceptionIdle(), isTrue);
+    },
+  );
 }

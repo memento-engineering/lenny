@@ -59,8 +59,7 @@ class ObservationDiffer {
           ];
 
     final List<RuntimeError> errorsAdded = <RuntimeError>[];
-    final Set<int> prevSeqs =
-        p.errors.map((RuntimeError e) => e.seq).toSet();
+    final Set<int> prevSeqs = p.errors.map((RuntimeError e) => e.seq).toSet();
     for (final RuntimeError e in c.errors) {
       // The binding's error ring buffer assigns monotonically increasing
       // seq numbers. Anything in `curr` whose seq we did not see in

@@ -71,13 +71,13 @@ class _Script {
 }
 
 FrameworkBusySnapshot _busyFw() => const FrameworkBusySnapshot(
-      transientCallbacks: 1,
-      persistentCallbacks: 0,
-      pendingMicrotasks: false,
-      lastFrameCommitTimestamp: null,
-      recentSkippedFrames: 0,
-      recentFrameCommits: <Duration>[],
-    );
+  transientCallbacks: 1,
+  persistentCallbacks: 0,
+  pendingMicrotasks: false,
+  lastFrameCommitTimestamp: null,
+  recentSkippedFrames: 0,
+  recentFrameCommits: <Duration>[],
+);
 
 const FrameworkBusySnapshot _idleFw = FrameworkBusySnapshot.zero;
 
@@ -91,8 +91,9 @@ List<MapEntry<String, BusyState>> _busyExtensions(
         BusyState(
           isBusy: p.busy,
           reason: p.reason,
-          estimatedDuration:
-              p.estMs == null ? null : Duration(milliseconds: p.estMs!),
+          estimatedDuration: p.estMs == null
+              ? null
+              : Duration(milliseconds: p.estMs!),
         ),
       ),
   ];
@@ -107,9 +108,11 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_idleFw],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: false, reason: null, estMs: null),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: false, reason: null, estMs: null),
+            ],
+          ),
         ],
         elapsedMs: <int>[10],
         semanticsHashes: <int>[1, 1],
@@ -133,9 +136,11 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw()],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: false, reason: null, estMs: null),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: false, reason: null, estMs: null),
+            ],
+          ),
         ],
         elapsedMs: <int>[20],
         semanticsHashes: <int>[1, 1],
@@ -157,9 +162,11 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw()],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: false, reason: null, estMs: null),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: false, reason: null, estMs: null),
+            ],
+          ),
         ],
         elapsedMs: <int>[20],
         semanticsHashes: <int>[10, 11],
@@ -182,15 +189,21 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw(), _busyFw(), _busyFw()],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: true, reason: 'loading', estMs: 200),
+            ],
+          ),
         ],
         elapsedMs: <int>[100, 500, 900],
         semanticsHashes: <int>[1, 1, 1, 1, 1, 1],
@@ -220,15 +233,21 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw(), _idleFw, _idleFw],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: true, reason: null, estMs: null),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: false, reason: null, estMs: null),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'p1', busy: false, reason: null, estMs: null),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: true, reason: null, estMs: null),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: false, reason: null, estMs: null),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'p1', busy: false, reason: null, estMs: null),
+            ],
+          ),
         ],
         elapsedMs: <int>[16, 32, 48],
       );
@@ -262,12 +281,24 @@ void main() {
           _idleFw,
         ],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
         ],
         elapsedMs: <int>[16, 32, 48, 64, 80, 96],
       );
@@ -279,10 +310,12 @@ void main() {
         waitForFrame: s.waitForFrame,
         nowMs: s.now,
       );
-      final PolicyTick tick = await loop.run(const ObservationRequest(
-        policy: StabilityPolicy.quietFrame,
-        quietFrameN: 3,
-      ));
+      final PolicyTick tick = await loop.run(
+        const ObservationRequest(
+          policy: StabilityPolicy.quietFrame,
+          quietFrameN: 3,
+        ),
+      );
       expect(tick.reason, TerminatedBy.quietFrame);
       expect(s.frameIndex, 6);
     });
@@ -294,15 +327,21 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw(), _busyFw(), _busyFw()],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'q', busy: true, reason: 'animating', estMs: 500),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'q', busy: true, reason: 'animating', estMs: 500),
-          ]),
-          _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
-            (ns: 'q', busy: true, reason: 'animating', estMs: 500),
-          ]),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'q', busy: true, reason: 'animating', estMs: 500),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'q', busy: true, reason: 'animating', estMs: 500),
+            ],
+          ),
+          _busyExtensions(
+            <({String ns, bool busy, String? reason, int? estMs})>[
+              (ns: 'q', busy: true, reason: 'animating', estMs: 500),
+            ],
+          ),
         ],
         elapsedMs: <int>[100, 800, 1600],
       );
@@ -314,9 +353,9 @@ void main() {
         waitForFrame: s.waitForFrame,
         nowMs: s.now,
       );
-      final PolicyTick tick = await loop.run(const ObservationRequest(
-        policy: StabilityPolicy.boundedStability,
-      ));
+      final PolicyTick tick = await loop.run(
+        const ObservationRequest(policy: StabilityPolicy.boundedStability),
+      );
       expect(tick.reason, TerminatedBy.budget);
       expect(tick.durationMs, 1600);
       expect(tick.extensionsBusy.single.namespace, 'q');
@@ -328,8 +367,12 @@ void main() {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_idleFw, _idleFw],
         busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
-          _busyExtensions(const <({String ns, bool busy, String? reason, int? estMs})>[]),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
+          _busyExtensions(
+            const <({String ns, bool busy, String? reason, int? estMs})>[],
+          ),
         ],
         elapsedMs: <int>[16, 32],
       );
@@ -341,10 +384,12 @@ void main() {
         waitForFrame: s.waitForFrame,
         nowMs: s.now,
       );
-      final PolicyTick tick = await loop.run(const ObservationRequest(
-        policy: StabilityPolicy.boundedStability,
-        quietFrameN: 2,
-      ));
+      final PolicyTick tick = await loop.run(
+        const ObservationRequest(
+          policy: StabilityPolicy.boundedStability,
+          quietFrameN: 2,
+        ),
+      );
       expect(tick.reason, TerminatedBy.quietFrame);
       expect(tick.durationMs, 32);
     });

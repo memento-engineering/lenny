@@ -101,9 +101,9 @@ class AgentDogfoodHarness {
     required this.tracePath,
     this.verbose = false,
     void Function(String)? log,
-  })  : _log = log ?? ((_) {}),
-        assert(maxTurns > 0, 'maxTurns must be > 0'),
-        assert(maxTurnBudgetMs > 0, 'maxTurnBudgetMs must be > 0');
+  }) : _log = log ?? ((_) {}),
+       assert(maxTurns > 0, 'maxTurns must be > 0'),
+       assert(maxTurnBudgetMs > 0, 'maxTurnBudgetMs must be > 0');
 
   /// Caller-supplied [VmService]. The CLI and e2e test each wire a
   /// `BindingVmServiceFake` here.
@@ -152,22 +152,26 @@ class AgentDogfoodHarness {
   /// classifying the outcome. Never re-throws — all typed exceptions
   /// surface via [DogfoodRunResult.outcome] = [DogfoodOutcome.typedException].
   Future<DogfoodRunResult> run() async {
-    final DogfoodTraceWriter trace =
-        DogfoodTraceWriter(traceSink, tracePath);
-    await trace.writeHeader(goal: goal, model: swiftInferConfig.model,
-        tools: tools);
+    final DogfoodTraceWriter trace = DogfoodTraceWriter(traceSink, tracePath);
+    await trace.writeHeader(
+      goal: goal,
+      model: swiftInferConfig.model,
+      tools: tools,
+    );
     if (verbose) {
-      _log('[dogfood] start goal="$goal" '
-          'model=${swiftInferConfig.model} '
-          'tools=${tools.map((ToolDescriptor t) => t.name).toList()} '
-          'fixture=${fixture.path} '
-          'maxTurns=$maxTurns turnBudgetMs=$maxTurnBudgetMs');
+      _log(
+        '[dogfood] start goal="$goal" '
+        'model=${swiftInferConfig.model} '
+        'tools=${tools.map((ToolDescriptor t) => t.name).toList()} '
+        'fixture=${fixture.path} '
+        'maxTurns=$maxTurns turnBudgetMs=$maxTurnBudgetMs',
+      );
     }
 
-    final SwiftInferModelProvider provider =
-        SwiftInferModelProvider(config: swiftInferConfig);
-    final LeonardSession session =
-        LeonardSession.fromVmService(vm, isolateId);
+    final SwiftInferModelProvider provider = SwiftInferModelProvider(
+      config: swiftInferConfig,
+    );
+    final LeonardSession session = LeonardSession.fromVmService(vm, isolateId);
     int toolCallCount = 0;
     DogfoodOutcome outcome = DogfoodOutcome.completedNoToolCall;
     Object? capturedException;
@@ -177,9 +181,7 @@ class AgentDogfoodHarness {
     );
 
     try {
-      await session
-          .start(goal, const LeonardConfig())
-          .timeout(totalBudget);
+      await session.start(goal, const LeonardConfig()).timeout(totalBudget);
       final (:header, :host) = await bringUpSession(
         session: session,
         goal: goal,
@@ -206,13 +208,13 @@ class AgentDogfoodHarness {
       final _ThinkingAccumulator thinking = _ThinkingAccumulator();
       final _DogfoodInterceptingTrajectoryWriter interceptor =
           _DogfoodInterceptingTrajectoryWriter(
-        inner: TrajectoryWriter(_DiscardSink()),
-        trace: trace,
-        thinking: thinking,
-        verbose: verbose,
-        log: _log,
-        clock: () => DateTime.now(),
-      );
+            inner: TrajectoryWriter(_DiscardSink()),
+            trace: trace,
+            thinking: thinking,
+            verbose: verbose,
+            log: _log,
+            clock: () => DateTime.now(),
+          );
       // The LoopDriver's TrajectoryWriter enforces `header → turns* →
       // footer`. If `runTurn` enters its `_writeFailedTurn` branch
       // (TurnTimeoutError / InvalidActionExhausted / SchemaExhausted)
@@ -228,7 +230,8 @@ class AgentDogfoodHarness {
         host: countingHost,
         provider: provider,
         conversation: ConversationBuilder(
-          systemMessage: '${countingHost.agentsMd}\n\n## Goal\n${countingHost.goal}',
+          systemMessage:
+              '${countingHost.agentsMd}\n\n## Goal\n${countingHost.goal}',
           tools: countingHost.mergedTools(),
         ),
         validator: const ActionValidator(),
@@ -239,13 +242,15 @@ class AgentDogfoodHarness {
         onTurnEvent: thinking.onTurnEvent,
       );
 
-      final SessionTermination term =
-          await driver.runSession().timeout(totalBudget, onTimeout: () {
-        return const SessionTermination(
-          SessionOutcome.harnessError,
-          harnessError: HarnessError.agentStuck,
-        );
-      });
+      final SessionTermination term = await driver.runSession().timeout(
+        totalBudget,
+        onTimeout: () {
+          return const SessionTermination(
+            SessionOutcome.harnessError,
+            harnessError: HarnessError.agentStuck,
+          );
+        },
+      );
 
       // When the LoopDriver returns a typed `harnessError`-shaped
       // termination, no Dart exception is thrown — the driver returns
@@ -262,8 +267,10 @@ class AgentDogfoodHarness {
       toolCallCount = countingHost.toolCallCount;
       outcome = _classify(term, toolCallCount);
       if (verbose) {
-        _log('[dogfood] end outcome=${outcome.name} '
-            'toolCalls=$toolCallCount termination=$term');
+        _log(
+          '[dogfood] end outcome=${outcome.name} '
+          'toolCalls=$toolCallCount termination=$term',
+        );
       }
     } on SchemaRejection catch (e, st) {
       outcome = DogfoodOutcome.typedException;
@@ -410,8 +417,8 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
     required this.verbose,
     required this.log,
     required this.clock,
-  })  : _inner = inner,
-        super(_NoopSink()) {
+  }) : _inner = inner,
+       super(_NoopSink()) {
     _turnStart = clock();
   }
 
@@ -439,15 +446,16 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
     final Map<String, dynamic> exec = t.executedAction;
     final Map<String, dynamic> val = t.validation;
     final bool ok = val['ok'] == true;
-    final String tool = (exec['tool'] as String?) ??
+    final String tool =
+        (exec['tool'] as String?) ??
         (t.proposedAction['tool'] as String?) ??
         '';
     final Map<String, dynamic> args =
         (exec['args'] as Map?)?.cast<String, dynamic>() ??
-            (t.proposedAction['args'] as Map?)?.cast<String, dynamic>() ??
-            <String, dynamic>{};
-    final Map<String, dynamic>? result =
-        (exec['result'] as Map?)?.cast<String, dynamic>();
+        (t.proposedAction['args'] as Map?)?.cast<String, dynamic>() ??
+        <String, dynamic>{};
+    final Map<String, dynamic>? result = (exec['result'] as Map?)
+        ?.cast<String, dynamic>();
 
     final Map<String, dynamic> decision = <String, dynamic>{
       'tool': tool,
@@ -464,10 +472,7 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
             if (result.containsKey('value')) 'value': result['value'],
             if (result.containsKey('error')) 'error': result['error'],
           }
-        : <String, dynamic>{
-            'ok': false,
-            'error': val['reason'] ?? 'unknown',
-          };
+        : <String, dynamic>{'ok': false, 'error': val['reason'] ?? 'unknown'};
 
     final String? error = ok ? null : (val['reason'] as String?);
 
@@ -481,8 +486,10 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
     );
 
     if (verbose) {
-      log('[dogfood] turn ${t.index} tool=$tool ok=$ok ms=$elapsedMs'
-          '${error == null ? '' : ' error=$error'}');
+      log(
+        '[dogfood] turn ${t.index} tool=$tool ok=$ok ms=$elapsedMs'
+        '${error == null ? '' : ' error=$error'}',
+      );
     }
   }
 
@@ -505,15 +512,16 @@ class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
 Map<String, dynamic>? _observationSummary(TurnRecord t) {
   if (t.observation.isEmpty) return null;
   final Map<String, dynamic> obs = t.observation;
-  final Map<String, dynamic>? core =
-      (obs['core'] as Map?)?.cast<String, dynamic>();
+  final Map<String, dynamic>? core = (obs['core'] as Map?)
+      ?.cast<String, dynamic>();
   final Object? nodesRaw = core?['nodes'];
   final int nodeCount = nodesRaw is Map
       ? nodesRaw.length
       : (nodesRaw is List ? nodesRaw.length : 0);
   final Object? routeRaw = core?['routeStack'] ?? core?['route_stack'];
-  final List<dynamic> routeStack =
-      routeRaw is List ? List<dynamic>.from(routeRaw) : const <dynamic>[];
+  final List<dynamic> routeStack = routeRaw is List
+      ? List<dynamic>.from(routeRaw)
+      : const <dynamic>[];
   return <String, dynamic>{
     'keys': obs.keys.toList()..sort(),
     'node_count': nodeCount,
@@ -567,12 +575,11 @@ class _NoopSink implements TrajectorySink {
 TrajectoryWriter debugDogfoodInterceptingTrajectoryWriterForTesting({
   required DogfoodTraceWriter trace,
   required DateTime Function() clock,
-}) =>
-    _DogfoodInterceptingTrajectoryWriter(
-      inner: TrajectoryWriter(_DiscardSink()),
-      trace: trace,
-      thinking: _ThinkingAccumulator(),
-      verbose: false,
-      log: (_) {},
-      clock: clock,
-    );
+}) => _DogfoodInterceptingTrajectoryWriter(
+  inner: TrajectoryWriter(_DiscardSink()),
+  trace: trace,
+  thinking: _ThinkingAccumulator(),
+  verbose: false,
+  log: (_) {},
+  clock: clock,
+);

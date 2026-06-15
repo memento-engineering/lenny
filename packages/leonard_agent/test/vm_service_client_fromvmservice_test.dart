@@ -11,11 +11,7 @@ import 'package:vm_service/vm_service.dart';
 
 /// Hand-rolled fake — overrides only [callServiceExtension].
 class _FakeVmService extends VmService {
-  _FakeVmService()
-      : super(
-          const Stream<dynamic>.empty(),
-          (_) {},
-        );
+  _FakeVmService() : super(const Stream<dynamic>.empty(), (_) {});
 
   @override
   Future<Response> callServiceExtension(
@@ -36,18 +32,18 @@ class _FakeVmService extends VmService {
 }
 
 void main() {
-  test('VmServiceClient.fromVmService handshakes without vm_service_io',
-      () async {
-    final client = VmServiceClient.fromVmService(_FakeVmService(), 'iso-1');
-    final result = await client.handshake();
-    expect(result.plugins, isEmpty);
-    expect(result.contractVersion, equals('1.0.0'));
-  });
+  test(
+    'VmServiceClient.fromVmService handshakes without vm_service_io',
+    () async {
+      final client = VmServiceClient.fromVmService(_FakeVmService(), 'iso-1');
+      final result = await client.handshake();
+      expect(result.plugins, isEmpty);
+      expect(result.contractVersion, equals('1.0.0'));
+    },
+  );
 
-  test('LeonardSession.fromVmService starts without vm_service_io',
-      () async {
-    final session =
-        LeonardSession.fromVmService(_FakeVmService(), 'iso-1');
+  test('LeonardSession.fromVmService starts without vm_service_io', () async {
+    final session = LeonardSession.fromVmService(_FakeVmService(), 'iso-1');
     await session.start('goal', const LeonardConfig());
     expect(session.handshake.plugins, isEmpty);
     await session.end();

@@ -77,11 +77,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModeBar(
-          mode: _mode,
-          onLive: _enterLive,
-          onBrowse: _enterBrowse,
-        ),
+        _ModeBar(mode: _mode, onLive: _enterLive, onBrowse: _enterBrowse),
         const Divider(height: 1),
         Expanded(
           child: ValueListenableBuilder<List<TrajectoryRecord>>(
@@ -112,28 +108,24 @@ class _TimelinePanelState extends State<TimelinePanel> {
   Widget _rowFor(BuildContext context, TrajectoryRecord record, int i) {
     return switch (record) {
       TurnRecord t => TurnRow(
-          key: ValueKey<String>('turn-${t.index}'),
-          record: t,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => TurnDetailView(record: t),
-          )),
+        key: ValueKey<String>('turn-${t.index}'),
+        record: t,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => TurnDetailView(record: t)),
         ),
+      ),
       ExtensionDisabledEvent p => ExtensionDisabledRow(
-          key: ValueKey<String>('disable-${p.turn}-${p.namespace}'),
-          record: p,
-        ),
+        key: ValueKey<String>('disable-${p.turn}-${p.namespace}'),
+        record: p,
+      ),
       UnknownTrajectoryRecord u => UnknownRecordRow(
-          key: ValueKey<String>('unknown-$i'),
-          record: u,
-        ),
+        key: ValueKey<String>('unknown-$i'),
+        record: u,
+      ),
       // Header/Footer don't need a row — collapse to a zero-size box so
       // the list still renders. Keys are stable on type+index.
-      SessionHeader _ => SizedBox.shrink(
-          key: ValueKey<String>('header-$i'),
-        ),
-      SessionFooter _ => SizedBox.shrink(
-          key: ValueKey<String>('footer-$i'),
-        ),
+      SessionHeader _ => SizedBox.shrink(key: ValueKey<String>('header-$i')),
+      SessionFooter _ => SizedBox.shrink(key: ValueKey<String>('footer-$i')),
       _ => SizedBox.shrink(key: ValueKey<String>('skip-$i')),
     };
   }

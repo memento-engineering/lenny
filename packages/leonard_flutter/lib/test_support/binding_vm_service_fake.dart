@@ -46,7 +46,7 @@ import 'package:vm_service/vm_service.dart';
 
 class BindingVmServiceFake extends VmService {
   BindingVmServiceFake(this._binding, {this.observationFixture})
-      : super(const Stream<dynamic>.empty(), (_) {});
+    : super(const Stream<dynamic>.empty(), (_) {});
 
   final LeonardBinding _binding;
 
@@ -81,10 +81,7 @@ class BindingVmServiceFake extends VmService {
       final Map<String, dynamic> body =
           (fx as dynamic).body as Map<String, dynamic>;
       final Response r = Response();
-      r.json = <String, dynamic>{
-        'type': 'Observation',
-        'value': body,
-      };
+      r.json = <String, dynamic>{'type': 'Observation', 'value': body};
       return r;
     }
     final Map<String, String> stringArgs = <String, String>{

@@ -22,10 +22,10 @@ class InteractiveSemanticsWarning {
   final String suggestedFixPointer;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'widget_type': widgetType,
-        'location': location,
-        'suggested_fix_pointer': suggestedFixPointer,
-      };
+    'widget_type': widgetType,
+    'location': location,
+    'suggested_fix_pointer': suggestedFixPointer,
+  };
 }
 
 /// Canonical fix-pointer message — referenced verbatim by tests and

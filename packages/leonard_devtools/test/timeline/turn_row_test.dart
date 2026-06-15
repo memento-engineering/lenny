@@ -5,49 +5,52 @@ import 'package:flutter_test/flutter_test.dart';
 
 TurnRecord _turn({
   int index = 0,
-  Map<String, dynamic> executedAction = const {'tool': 'core.tap', 'args': <String, dynamic>{}},
-  Map<String, dynamic> diff = const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
+  Map<String, dynamic> executedAction = const {
+    'tool': 'core.tap',
+    'args': <String, dynamic>{},
+  },
+  Map<String, dynamic> diff = const {
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
   String? thinking,
-}) =>
-    TurnRecord(
-      index: index,
-      observation: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      stability: const {},
-      proposedAction: executedAction,
-      validation: const {'result': 'ok', 'retries': 0},
-      executedAction: executedAction,
-      diff: diff,
-      thinking: thinking,
-      modelMetadata: const {},
-    );
+}) => TurnRecord(
+  index: index,
+  observation: const {
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
+  stability: const {},
+  proposedAction: executedAction,
+  validation: const {'result': 'ok', 'retries': 0},
+  executedAction: executedAction,
+  diff: diff,
+  thinking: thinking,
+  modelMetadata: const {},
+);
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(
-        body: SizedBox(width: 320, child: child),
-      ),
-    );
+  home: Scaffold(body: SizedBox(width: 320, child: child)),
+);
 
 void main() {
   group('TurnRow.describeAction', () {
     test('emits #idx tool(args) format', () {
       expect(
-        TurnRow.describeAction(
-          const {'tool': 'router.go', 'args': {'route': '/login'}},
-          index: 4,
-        ),
+        TurnRow.describeAction(const {
+          'tool': 'router.go',
+          'args': {'route': '/login'},
+        }, index: 4),
         '#4 router.go(route=/login)',
       );
     });
 
     test('takes only the first three args', () {
       expect(
-        TurnRow.describeAction(
-          const {
-            'tool': 'core.tap',
-            'args': {'a': 1, 'b': 2, 'c': 3, 'd': 4},
-          },
-          index: 0,
-        ),
+        TurnRow.describeAction(const {
+          'tool': 'core.tap',
+          'args': {'a': 1, 'b': 2, 'c': 3, 'd': 4},
+        }, index: 0),
         '#0 core.tap(a=1, b=2, c=3)',
       );
     });
@@ -82,18 +85,21 @@ void main() {
       expect(summary, '+2 nodes, -1 nodes, route -> Home/Login');
     });
 
-    test('large node delta produces a single short string (no inline JSON)', () {
-      final added = List<Map<String, dynamic>>.generate(
-        100,
-        (i) => {'id': i},
-      );
-      final summary = TurnRow.describeDiff({
-        'core': {'nodes_added': added},
-        'extensions': <String, dynamic>{},
-      });
-      expect(summary, '+100 nodes');
-      expect(summary.length, lessThan(40));
-    });
+    test(
+      'large node delta produces a single short string (no inline JSON)',
+      () {
+        final added = List<Map<String, dynamic>>.generate(
+          100,
+          (i) => {'id': i},
+        );
+        final summary = TurnRow.describeDiff({
+          'core': {'nodes_added': added},
+          'extensions': <String, dynamic>{},
+        });
+        expect(summary, '+100 nodes');
+        expect(summary.length, lessThan(40));
+      },
+    );
 
     test('plugin fragments surface as namespace: changed', () {
       final summary = TurnRow.describeDiff(const {
@@ -119,11 +125,16 @@ void main() {
   });
 
   group('TurnRow widget', () {
-    testWidgets('three-line layout golden — action, diff, summary', (tester) async {
+    testWidgets('three-line layout golden — action, diff, summary', (
+      tester,
+    ) async {
       var tapped = 0;
       final record = _turn(
         index: 7,
-        executedAction: const {'tool': 'core.tap', 'args': {'id': 'submit'}},
+        executedAction: const {
+          'tool': 'core.tap',
+          'args': {'id': 'submit'},
+        },
         diff: const {
           'core': {
             'nodes_added': [
@@ -134,10 +145,9 @@ void main() {
         },
         thinking: 'submitted login form',
       );
-      await tester.pumpWidget(_wrap(TurnRow(
-        record: record,
-        onTap: () => tapped++,
-      )));
+      await tester.pumpWidget(
+        _wrap(TurnRow(record: record, onTap: () => tapped++)),
+      );
 
       expect(find.text('#7 core.tap(id=submit)'), findsOneWidget);
       expect(find.text('+1 nodes'), findsOneWidget);
@@ -149,10 +159,12 @@ void main() {
 
     testWidgets('100-node delta truncates to one line', (tester) async {
       final added = List<Map<String, dynamic>>.generate(100, (i) => {'id': i});
-      final record = _turn(diff: {
-        'core': {'nodes_added': added},
-        'extensions': <String, dynamic>{},
-      });
+      final record = _turn(
+        diff: {
+          'core': {'nodes_added': added},
+          'extensions': <String, dynamic>{},
+        },
+      );
       await tester.pumpWidget(_wrap(TurnRow(record: record, onTap: () {})));
 
       // The diff line should render without overflow because the
@@ -164,32 +176,41 @@ void main() {
   });
 
   group('ExtensionDisabledRow widget', () {
-    testWidgets('plugin-disabled variant renders namespace + reason', (tester) async {
-      await tester.pumpWidget(_wrap(const ExtensionDisabledRow(
-        record: ExtensionDisabledEvent(
-          namespace: 'dio',
-          reason: 'auto_disabled_after_3_failures',
-          turn: 4,
+    testWidgets('plugin-disabled variant renders namespace + reason', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const ExtensionDisabledRow(
+            record: ExtensionDisabledEvent(
+              namespace: 'dio',
+              reason: 'auto_disabled_after_3_failures',
+              turn: 4,
+            ),
+          ),
         ),
-      )));
+      );
       expect(
         find.textContaining('extension disabled (turn 4): dio'),
         findsOneWidget,
       );
-      expect(find.textContaining('auto_disabled_after_3_failures'),
-          findsOneWidget);
+      expect(
+        find.textContaining('auto_disabled_after_3_failures'),
+        findsOneWidget,
+      );
     });
   });
 
   group('UnknownRecordRow widget', () {
     testWidgets('renders unknown record type warning', (tester) async {
-      await tester.pumpWidget(_wrap(const UnknownRecordRow(
-        record: UnknownTrajectoryRecord(rawType: 'flux_capacitor', raw: {}),
-      )));
-      expect(
-        find.text('unknown record type: flux_capacitor'),
-        findsOneWidget,
+      await tester.pumpWidget(
+        _wrap(
+          const UnknownRecordRow(
+            record: UnknownTrajectoryRecord(rawType: 'flux_capacitor', raw: {}),
+          ),
+        ),
       );
+      expect(find.text('unknown record type: flux_capacitor'), findsOneWidget);
     });
   });
 }

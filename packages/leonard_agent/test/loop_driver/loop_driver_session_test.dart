@@ -31,18 +31,20 @@ class _FakeProvider extends ModelProvider {
 
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 8000,
-        supportsToolUse: true,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 8000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
   Future<ModelDecision> decide(
-      ConversationSnapshot snapshot, ActionSchema schema) async {
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async {
     if (_i >= script.length) {
       // Loop the last decision so callers don't need to pad with extras.
       return script.last;
@@ -52,15 +54,12 @@ class _FakeProvider extends ModelProvider {
 }
 
 class _FakeHost implements LoopHost {
-  _FakeHost({
-    required this.tools,
-    this.observeFn,
-  });
+  _FakeHost({required this.tools, this.observeFn});
 
   final List<ToolDescriptor> tools;
   Future<Observation> Function()? observeFn;
   Future<Map<String, dynamic>> Function(String tool, Map<String, dynamic> args)?
-      executeFn;
+  executeFn;
   Set<String> _activeNamespaces = <String>{};
   final Set<String> _disabled = <String>{};
 
@@ -104,11 +103,11 @@ class _FakeHost implements LoopHost {
 
   @override
   List<ToolDescriptor> mergedTools() => tools.where((t) {
-        final dot = t.name.indexOf('.');
-        if (dot < 0) return true;
-        final ns = t.name.substring(0, dot);
-        return !_disabled.contains(ns);
-      }).toList();
+    final dot = t.name.indexOf('.');
+    if (dot < 0) return true;
+    final ns = t.name.substring(0, dot);
+    return !_disabled.contains(ns);
+  }).toList();
 
   @override
   Set<String> activeExtensionNamespaces() => _activeNamespaces;
@@ -117,38 +116,40 @@ class _FakeHost implements LoopHost {
 }
 
 ToolDescriptor _coreWait() => const ToolDescriptor(
-      name: 'core.wait',
-      description: 'wait',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{},
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.wait',
+  description: 'wait',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{},
+    'additionalProperties': false,
+  },
+);
 
 ToolDescriptor _coreDone() => const ToolDescriptor(
-      name: 'core.done',
-      description: 'done',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'reason': <String, dynamic>{'type': 'string'},
-        },
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.done',
+  description: 'done',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'reason': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  },
+);
 
 Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
   final w = TrajectoryWriter(sink);
-  await w.writeHeader(const SessionHeader(
-    goal: 'goal',
-    agentsMdHash: 'h',
-    buildIdentifier: 'build',
-    modelIdentifier: 'fake',
-    harnessVersion: '0.1',
-    plugins: <ExtensionManifestRecord>[],
-    config: <String, dynamic>{},
-  ));
+  await w.writeHeader(
+    const SessionHeader(
+      goal: 'goal',
+      agentsMdHash: 'h',
+      buildIdentifier: 'build',
+      modelIdentifier: 'fake',
+      harnessVersion: '0.1',
+      plugins: <ExtensionManifestRecord>[],
+      config: <String, dynamic>{},
+    ),
+  );
   return w;
 }
 
@@ -186,8 +187,11 @@ LoopDriver _newDriver({
 
 Map<String, dynamic> _lastFooter(_MemorySink sink) {
   final last = jsonDecode(sink.lines.last);
-  expect((last as Map)['type'], 'footer',
-      reason: 'expected last record to be a footer');
+  expect(
+    (last as Map)['type'],
+    'footer',
+    reason: 'expected last record to be a footer',
+  );
   return last.cast<String, dynamic>();
 }
 
@@ -197,9 +201,11 @@ void main() {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       final host = _FakeHost(tools: <ToolDescriptor>[_coreWait()]);
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(
         host: host,
         provider: provider,
@@ -226,9 +232,11 @@ void main() {
           return Observation.empty();
         },
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(
         host: host,
         provider: provider,
@@ -251,9 +259,11 @@ void main() {
       final host = _FakeHost(tools: <ToolDescriptor>[_coreWait()]);
       // Always propose an unknown tool — validator will reject every time
       // until the budget is exhausted, producing a failed turn.
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
       final t = await driver.runSession();
       expect(t.outcome, SessionOutcome.harnessError);
@@ -275,9 +285,11 @@ void main() {
           throw const VmServiceConnectionLost();
         },
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
       final t = await driver.runSession();
       expect(t.outcome, SessionOutcome.harnessError);
@@ -287,31 +299,40 @@ void main() {
       expect(footer['harness_error'], 'connection_lost');
     });
 
-    test('core.done(reason) → outcome=done, footer.final_summary==reason',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(tools: <ToolDescriptor>[_coreDone()]);
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.done', args: <String, dynamic>{
-            'reason': 'login complete',
-          }),
-        ),
-      ]);
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
-      final t = await driver.runSession();
-      expect(t.outcome, SessionOutcome.done);
-      // SessionTermination.finalSummary still captures the core.done
-      // reason on the structured return value (lenny-wisp-cl4 keeps the
-      // field on the termination type; only the trajectory footer JSON
-      // drops the final_summary key in v2).
-      expect(t.finalSummary, 'login complete');
-      final footer = _lastFooter(sink);
-      expect(footer['outcome'], 'done');
-      // v2 (lenny-wisp-cl4): final_summary key removed from footer JSON.
-      expect(footer.containsKey('final_summary'), isFalse);
-    });
+    test(
+      'core.done(reason) → outcome=done, footer.final_summary==reason',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(tools: <ToolDescriptor>[_coreDone()]);
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (
+                tool: 'core.done',
+                args: <String, dynamic>{'reason': 'login complete'},
+              ),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
+        final t = await driver.runSession();
+        expect(t.outcome, SessionOutcome.done);
+        // SessionTermination.finalSummary still captures the core.done
+        // reason on the structured return value (lenny-wisp-cl4 keeps the
+        // field on the termination type; only the trajectory footer JSON
+        // drops the final_summary key in v2).
+        expect(t.finalSummary, 'login complete');
+        final footer = _lastFooter(sink);
+        expect(footer['outcome'], 'done');
+        // v2 (lenny-wisp-cl4): final_summary key removed from footer JSON.
+        expect(footer.containsKey('final_summary'), isFalse);
+      },
+    );
 
     test('plugin auto-disable does NOT terminate session', () async {
       final sink = _MemorySink();
@@ -340,9 +361,11 @@ void main() {
         },
       );
       host.setActiveNamespaces(<String>{'router'});
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(
         host: host,
         provider: provider,
@@ -357,95 +380,116 @@ void main() {
       expect(driver.turnIndex, 8);
     });
 
-    test('consecutive-failed-turns counter resets on a successful turn',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(tools: <ToolDescriptor>[_coreWait()]);
-      // Pattern: fail, fail, ok, fail, fail, ok — never reaches 3 in a row.
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
-      final driver = _newDriver(
-        host: host,
-        provider: provider,
-        writer: writer,
-        maxTurns: 6,
-      );
-      final t = await driver.runSession();
-      // 6 turns ran; budget exhausted, NOT agent_stuck.
-      expect(t.outcome, SessionOutcome.budgetExhausted);
-      expect(driver.turnIndex, 6);
-    });
+    test(
+      'consecutive-failed-turns counter resets on a successful turn',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(tools: <ToolDescriptor>[_coreWait()]);
+        // Pattern: fail, fail, ok, fail, fail, ok — never reaches 3 in a row.
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
+            ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
+            ModelDecision(action: (tool: 'bogus.x', args: <String, dynamic>{})),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+          maxTurns: 6,
+        );
+        final t = await driver.runSession();
+        // 6 turns ran; budget exhausted, NOT agent_stuck.
+        expect(t.outcome, SessionOutcome.budgetExhausted);
+        expect(driver.turnIndex, 6);
+      },
+    );
 
-    test('5 consecutive turn_timeouts → budget_exhausted + termination_detail=inference_latency',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(
-        tools: <ToolDescriptor>[_coreWait()],
-        observeFn: () async => Observation.empty(),
-      );
-      // executeAction never completes → budget fires every turn.
-      host.executeFn = (tool, args) => Completer<Map<String, dynamic>>().future;
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
-      final driver = _newDriver(
-        host: host,
-        provider: provider,
-        writer: writer,
-        turnBudget: const Duration(milliseconds: 50),
-      );
-      final t = await driver.runSession();
-      expect(t.outcome, SessionOutcome.budgetExhausted);
-      expect(t.terminationDetail, 'inference_latency');
-      expect(driver.turnIndex, 5);
-      expect(driver.consecutiveFailedTurns, 0);
-      final footer = _lastFooter(sink);
-      expect(footer['outcome'], 'budget_exhausted');
-      expect(footer['termination_detail'], 'inference_latency');
-    });
+    test(
+      '5 consecutive turn_timeouts → budget_exhausted + termination_detail=inference_latency',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          tools: <ToolDescriptor>[_coreWait()],
+          observeFn: () async => Observation.empty(),
+        );
+        // executeAction never completes → budget fires every turn.
+        host.executeFn = (tool, args) =>
+            Completer<Map<String, dynamic>>().future;
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+          turnBudget: const Duration(milliseconds: 50),
+        );
+        final t = await driver.runSession();
+        expect(t.outcome, SessionOutcome.budgetExhausted);
+        expect(t.terminationDetail, 'inference_latency');
+        expect(driver.turnIndex, 5);
+        expect(driver.consecutiveFailedTurns, 0);
+        final footer = _lastFooter(sink);
+        expect(footer['outcome'], 'budget_exhausted');
+        expect(footer['termination_detail'], 'inference_latency');
+      },
+    );
 
-    test('turn_timeout→turn_timeout→success resets both counters; no premature termination',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      int turnCall = 0;
-      final host = _FakeHost(
-        tools: <ToolDescriptor>[_coreWait()],
-        observeFn: () async => Observation.empty(),
-      );
-      host.executeFn = (tool, args) async {
-        turnCall++;
-        if (turnCall <= 2) {
-          // Delay past the 50ms budget so the turn times out.
-          await Future<void>.delayed(const Duration(seconds: 10));
-        }
-        return <String, dynamic>{'ok': true};
-      };
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
-      final driver = _newDriver(
-        host: host,
-        provider: provider,
-        writer: writer,
-        turnBudget: const Duration(milliseconds: 50),
-        maxTurns: 4,
-      );
-      final t = await driver.runSession();
-      // After 2 timeouts + 1 success, consecutiveTurnTimeouts is reset.
-      // Session runs to maxTurns (4), not terminated early by the threshold.
-      expect(t.outcome, SessionOutcome.budgetExhausted);
-      expect(t.terminationDetail, isNull);
-      expect(driver.consecutiveTurnTimeouts, 0);
-      expect(driver.consecutiveFailedTurns, 0);
-    });
+    test(
+      'turn_timeout→turn_timeout→success resets both counters; no premature termination',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        int turnCall = 0;
+        final host = _FakeHost(
+          tools: <ToolDescriptor>[_coreWait()],
+          observeFn: () async => Observation.empty(),
+        );
+        host.executeFn = (tool, args) async {
+          turnCall++;
+          if (turnCall <= 2) {
+            // Delay past the 50ms budget so the turn times out.
+            await Future<void>.delayed(const Duration(seconds: 10));
+          }
+          return <String, dynamic>{'ok': true};
+        };
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+          turnBudget: const Duration(milliseconds: 50),
+          maxTurns: 4,
+        );
+        final t = await driver.runSession();
+        // After 2 timeouts + 1 success, consecutiveTurnTimeouts is reset.
+        // Session runs to maxTurns (4), not terminated early by the threshold.
+        expect(t.outcome, SessionOutcome.budgetExhausted);
+        expect(t.terminationDetail, isNull);
+        expect(driver.consecutiveTurnTimeouts, 0);
+        expect(driver.consecutiveFailedTurns, 0);
+      },
+    );
   });
 }

@@ -5,8 +5,7 @@ import 'observation_request.dart';
 enum TerminatedBy { routeChange, semanticsChange, idle, quietFrame, budget }
 
 /// Wire mapping for [TerminatedBy] values.
-const Map<TerminatedBy, String> kTerminatedByWireNames =
-    <TerminatedBy, String>{
+const Map<TerminatedBy, String> kTerminatedByWireNames = <TerminatedBy, String>{
   TerminatedBy.routeChange: 'route_change',
   TerminatedBy.semanticsChange: 'semantics_change',
   TerminatedBy.idle: 'idle',
@@ -65,11 +64,12 @@ class StabilityMetadata {
   final List<ExtensionBusy> extensionsBusy;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'policy': kStabilityPolicyWireNames[policy],
-        'terminated_by': kTerminatedByWireNames[terminatedBy],
-        'duration_ms': durationMs,
-        'framework_busy': frameworkBusy,
-        'extensions_busy':
-            extensionsBusy.map((ExtensionBusy p) => p.toJson()).toList(),
-      };
+    'policy': kStabilityPolicyWireNames[policy],
+    'terminated_by': kTerminatedByWireNames[terminatedBy],
+    'duration_ms': durationMs,
+    'framework_busy': frameworkBusy,
+    'extensions_busy': extensionsBusy
+        .map((ExtensionBusy p) => p.toJson())
+        .toList(),
+  };
 }

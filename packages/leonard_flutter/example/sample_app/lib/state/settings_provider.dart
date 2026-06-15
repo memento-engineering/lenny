@@ -11,10 +11,10 @@ class Settings {
   });
 
   factory Settings.initial() => const Settings(
-        theme: ThemeMode.light,
-        notifications: true,
-        language: 'en',
-      );
+    theme: ThemeMode.light,
+    notifications: true,
+    language: 'en',
+  );
 
   final ThemeMode theme;
   final bool notifications;
@@ -24,12 +24,11 @@ class Settings {
     ThemeMode? theme,
     bool? notifications,
     String? language,
-  }) =>
-      Settings(
-        theme: theme ?? this.theme,
-        notifications: notifications ?? this.notifications,
-        language: language ?? this.language,
-      );
+  }) => Settings(
+    theme: theme ?? this.theme,
+    notifications: notifications ?? this.notifications,
+    language: language ?? this.language,
+  );
 
   @override
   bool operator ==(Object other) =>

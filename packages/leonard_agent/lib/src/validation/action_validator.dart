@@ -86,11 +86,9 @@ class ActionValidator {
       return ValidationReject(
         tool: action.tool,
         reason: 'unknown_tool',
-        expected:
-            tools.map((t) => t.name).toList(growable: false),
+        expected: tools.map((t) => t.name).toList(growable: false),
         got: action.tool,
-        description:
-            'tool "${action.tool}" is not available this turn',
+        description: 'tool "${action.tool}" is not available this turn',
       );
     }
 
@@ -102,8 +100,7 @@ class ActionValidator {
     final result = schema.validate(action.args);
     if (!result.isValid) {
       final err = result.errors.first;
-      final pointer =
-          err.instancePath.isEmpty ? '/' : err.instancePath;
+      final pointer = err.instancePath.isEmpty ? '/' : err.instancePath;
       return ValidationReject(
         tool: action.tool,
         reason: 'schema_invalid',
@@ -133,8 +130,7 @@ class ActionValidator {
           reason: 'node_not_found',
           pointer: '/$argKey',
           got: v,
-          description:
-              '$argKey=$v is not present in observation.core.nodes',
+          description: '$argKey=$v is not present in observation.core.nodes',
         );
       }
       if (node.state.contains('disabled')) {
@@ -143,8 +139,7 @@ class ActionValidator {
           reason: 'node_disabled',
           pointer: '/$argKey',
           got: v,
-          description:
-              '$argKey=$v is disabled (state: ${node.state})',
+          description: '$argKey=$v is disabled (state: ${node.state})',
         );
       }
     }

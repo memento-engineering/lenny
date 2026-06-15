@@ -5,7 +5,8 @@ export 'src/errors.dart' show BindingNotInitializedError;
 export 'src/loop_driver/default_loop_host.dart' show DefaultLoopHost;
 export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;
-export 'src/loop_driver/extension_failure_tracker.dart' show ExtensionFailureTracker;
+export 'src/loop_driver/extension_failure_tracker.dart'
+    show ExtensionFailureTracker;
 export 'src/loop_driver/extension_tools.dart'
     show buildExtensionTools, unknownExtensionNamespaces;
 export 'src/loop_driver/validation_retry.dart'

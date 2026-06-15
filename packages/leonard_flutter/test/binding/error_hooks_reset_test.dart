@@ -12,24 +12,33 @@ void main() {
     // Capture priors BEFORE installing the binding so the test owns the
     // baseline. ensureInitialized then wraps these.
     final FlutterExceptionHandler? prePriorFlutter = FlutterError.onError;
-    final ErrorCallback? prePriorPlatform =
-        PlatformDispatcher.instance.onError;
+    final ErrorCallback? prePriorPlatform = PlatformDispatcher.instance.onError;
 
-    final LeonardBinding binding =
-        LeonardBinding.ensureInitialized(extensions: const [])!;
+    final LeonardBinding binding = LeonardBinding.ensureInitialized(
+      extensions: const [],
+    )!;
     expect(binding.debugErrorHooksInstalled(), isTrue);
     // The wrapped handler must NOT be the same object as the prior.
-    expect(identical(FlutterError.onError, prePriorFlutter), isFalse,
-        reason: 'install must replace FlutterError.onError');
+    expect(
+      identical(FlutterError.onError, prePriorFlutter),
+      isFalse,
+      reason: 'install must replace FlutterError.onError',
+    );
 
     await LeonardBinding.debugReset();
 
     // After reset, the priors are restored verbatim.
-    expect(identical(FlutterError.onError, prePriorFlutter), isTrue,
-        reason: 'debugReset must restore the prior FlutterError.onError');
-    expect(identical(PlatformDispatcher.instance.onError, prePriorPlatform),
-        isTrue,
-        reason: 'debugReset must restore the prior '
-            'PlatformDispatcher.onError');
+    expect(
+      identical(FlutterError.onError, prePriorFlutter),
+      isTrue,
+      reason: 'debugReset must restore the prior FlutterError.onError',
+    );
+    expect(
+      identical(PlatformDispatcher.instance.onError, prePriorPlatform),
+      isTrue,
+      reason:
+          'debugReset must restore the prior '
+          'PlatformDispatcher.onError',
+    );
   });
 }

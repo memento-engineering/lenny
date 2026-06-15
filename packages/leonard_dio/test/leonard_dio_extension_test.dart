@@ -45,10 +45,9 @@ class _HangingAdapter implements HttpClientAdapter {
 }
 
 Future<void> _init(LeonardDioExtension p) async {
-  await p.initialize(ExtensionContext(
-    namespace: 'dio',
-    scheduler: SchedulerBinding.instance,
-  ));
+  await p.initialize(
+    ExtensionContext(namespace: 'dio', scheduler: SchedulerBinding.instance),
+  );
 }
 
 /// Pump until [predicate] holds or the deadline expires; keeps tests
@@ -97,11 +96,11 @@ void main() {
   test('busyState reports busy with reason while pending', () async {
     final (p, dio, adapter) = _make();
     await _init(p);
-    unawaited(dio.get<dynamic>('https://api.example.com/x').catchError((Object _) {
-      return Response<dynamic>(
-        requestOptions: RequestOptions(path: ''),
-      );
-    }));
+    unawaited(
+      dio.get<dynamic>('https://api.example.com/x').catchError((Object _) {
+        return Response<dynamic>(requestOptions: RequestOptions(path: ''));
+      }),
+    );
     await _pumpUntil(() => adapter.pending.isNotEmpty);
     final s = await p.busyState();
     expect(s.isBusy, isTrue);
@@ -112,13 +111,13 @@ void main() {
   test('observation strips query strings from URLs', () async {
     final (p, dio, adapter) = _make();
     await _init(p);
-    unawaited(dio
-        .get<dynamic>('https://api.example.com/x?token=secret')
-        .catchError((Object _) {
-      return Response<dynamic>(
-        requestOptions: RequestOptions(path: ''),
-      );
-    }));
+    unawaited(
+      dio.get<dynamic>('https://api.example.com/x?token=secret').catchError((
+        Object _,
+      ) {
+        return Response<dynamic>(requestOptions: RequestOptions(path: ''));
+      }),
+    );
     await _pumpUntil(() => adapter.pending.isNotEmpty);
     expect(p.isPerceptionIdle(), isFalse);
     final frag = _harvest(p);
@@ -135,23 +134,23 @@ void main() {
   test('busy clears once request completes', () async {
     final (p, dio, adapter) = _make();
     await _init(p);
-    final f = dio.get<dynamic>('https://api.example.com/x').catchError(
-      (Object _) {
-        return Response<dynamic>(
-          requestOptions: RequestOptions(path: ''),
-        );
-      },
-    );
+    final f = dio.get<dynamic>('https://api.example.com/x').catchError((
+      Object _,
+    ) {
+      return Response<dynamic>(requestOptions: RequestOptions(path: ''));
+    });
     await _pumpUntil(() => adapter.pending.isNotEmpty);
     expect((await p.busyState()).isBusy, isTrue);
 
-    adapter.pending.values.single.complete(ResponseBody.fromString(
-      '{}',
-      200,
-      headers: <String, List<String>>{
-        'content-type': <String>['application/json'],
-      },
-    ));
+    adapter.pending.values.single.complete(
+      ResponseBody.fromString(
+        '{}',
+        200,
+        headers: <String, List<String>>{
+          'content-type': <String>['application/json'],
+        },
+      ),
+    );
     try {
       await f;
     } catch (_) {
@@ -160,11 +159,19 @@ void main() {
     expect((await p.busyState()).isBusy, isFalse);
 
     final frag = _harvest(p);
-    final c = (frag['recent_completed']! as List).single as Map<String, Object?>;
+    final c =
+        (frag['recent_completed']! as List).single as Map<String, Object?>;
     expect(c['status'], 200);
     expect(
       c.keys,
-      containsAll(<String>['id', 'method', 'host', 'path', 'status', 'duration_ms']),
+      containsAll(<String>[
+        'id',
+        'method',
+        'host',
+        'path',
+        'status',
+        'duration_ms',
+      ]),
     );
   });
 

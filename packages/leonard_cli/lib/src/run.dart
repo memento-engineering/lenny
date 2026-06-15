@@ -71,7 +71,8 @@ Future<int> runCli(
   }
 
   // ----- open trajectory sink ---------------------------------------
-  final String outPath = args.outputPath ?? FileTrajectorySink.defaultOutputPath();
+  final String outPath =
+      args.outputPath ?? FileTrajectorySink.defaultOutputPath();
   final FileTrajectorySink sink = await FileTrajectorySink.open(outPath);
   final TrajectoryWriter writer = TrajectoryWriter(sink);
 
@@ -80,9 +81,8 @@ Future<int> runCli(
   // request with X-Session-Id and an `leonard-<sessionId>-<ms>`
   // X-Conversation-Id (mirrors fs agent's `fsagent-<beadID>-<unixtime>`
   // convention). Slug ISO-8601 to keep the value safe for HTTP headers.
-  final String sessionId =
-      'cli-${DateTime.now().toUtc().toIso8601String()}'
-          .replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
+  final String sessionId = 'cli-${DateTime.now().toUtc().toIso8601String()}'
+      .replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
   final ModelProvider provider;
   try {
     provider = buildProvider(
@@ -100,12 +100,14 @@ Future<int> runCli(
     );
   } on StateError catch (e) {
     stderr.writeln('error: ${e.message}');
-    await writer.close(SessionFooter(
-      outcome: SessionOutcome.harnessError,
-      totalTurns: 0,
-      totalDurationMs: 0,
-      harnessError: 'config_error',
-    ));
+    await writer.close(
+      SessionFooter(
+        outcome: SessionOutcome.harnessError,
+        totalTurns: 0,
+        totalDurationMs: 0,
+        harnessError: 'config_error',
+      ),
+    );
     return 1;
   }
 
@@ -115,18 +117,21 @@ Future<int> runCli(
     session = await LeonardSession.connect(args.vmUri);
   } on Object catch (e) {
     stderr.writeln('error: failed to connect to ${args.vmUri}: $e');
-    await writer.close(SessionFooter(
-      outcome: SessionOutcome.harnessError,
-      totalTurns: 0,
-      totalDurationMs: 0,
-      harnessError: 'connection_lost',
-    ));
+    await writer.close(
+      SessionFooter(
+        outcome: SessionOutcome.harnessError,
+        totalTurns: 0,
+        totalDurationMs: 0,
+        harnessError: 'connection_lost',
+      ),
+    );
     return 1;
   }
 
   // ----- progress renderer ------------------------------------------
-  final StreamSubscription<SessionProgressEvent> sub =
-      session.progress.listen((e) => _render(stdout, e));
+  final StreamSubscription<SessionProgressEvent> sub = session.progress.listen(
+    (e) => _render(stdout, e),
+  );
 
   try {
     // ----- start session --------------------------------------------
@@ -145,14 +150,17 @@ Future<int> runCli(
     }
     // 'core' is unconditionally projected so the model always has action tools.
     // unknownExtensionNamespaces still uses args.extensions (no 'core' warning).
-    final Map<String, List<ToolDescriptor>> extensionTools = buildExtensionTools(
-      requested: <String>{...args.extensions, 'core'},
-      handshake: session.handshake.plugins,
-    );
+    final Map<String, List<ToolDescriptor>> extensionTools =
+        buildExtensionTools(
+          requested: <String>{...args.extensions, 'core'},
+          handshake: session.handshake.plugins,
+        );
 
     // ----- load the AGENTS.md operating guide (system prompt) ----------
-    final ({String content, String hash}) agents =
-        _loadAgentsMd(args.agentsMdPath, stderr);
+    final ({String content, String hash}) agents = _loadAgentsMd(
+      args.agentsMdPath,
+      stderr,
+    );
 
     // ----- shared bring-up helper (replaces header build + host compose) -----
     final (:header, :host) = await bringUpSession(

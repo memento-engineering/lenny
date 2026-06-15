@@ -4,17 +4,14 @@ import 'package:vm_service/vm_service.dart';
 
 /// Hand-rolled fake — overrides only [callServiceExtension].
 class _FakeVmService extends VmService {
-  _FakeVmService(this._handler)
-      : super(
-          const Stream<dynamic>.empty(),
-          (_) {},
-        );
+  _FakeVmService(this._handler) : super(const Stream<dynamic>.empty(), (_) {});
 
   final Future<Response> Function(
     String method,
     String? isolateId,
     Map<String, dynamic>? args,
-  ) _handler;
+  )
+  _handler;
 
   int callCount = 0;
   String? lastMethod;
@@ -65,8 +62,7 @@ void main() {
 
       final result = await client.handshake();
 
-      expect(fake.lastMethod,
-          equals('ext.exploration.core.handshake'));
+      expect(fake.lastMethod, equals('ext.exploration.core.handshake'));
       expect(fake.lastIsolateId, equals('iso-1'));
       expect(result.contractVersion, equals('2'));
       expect(result.plugins, hasLength(1));
@@ -74,27 +70,25 @@ void main() {
       expect(result.plugins.first.tools, equals(<String>['go']));
     });
 
-    test('handshake throws BindingNotInitializedError on RPC code -32601',
-        () async {
-      final fake = _FakeVmService(
-        (method, iso, args) async {
+    test(
+      'handshake throws BindingNotInitializedError on RPC code -32601',
+      () async {
+        final fake = _FakeVmService((method, iso, args) async {
           throw RPCError('callServiceExtension', -32601, 'method not found');
-        },
-      );
-      final client = VmServiceClient.forTest(fake, 'iso-1');
+        });
+        final client = VmServiceClient.forTest(fake, 'iso-1');
 
-      await expectLater(
-        client.handshake(),
-        throwsA(isA<BindingNotInitializedError>()),
-      );
-    });
+        await expectLater(
+          client.handshake(),
+          throwsA(isA<BindingNotInitializedError>()),
+        );
+      },
+    );
 
     test('handshake rethrows non-(-32601) RPCError unchanged', () async {
-      final fake = _FakeVmService(
-        (method, iso, args) async {
-          throw RPCError('callServiceExtension', 100, 'feature disabled');
-        },
-      );
+      final fake = _FakeVmService((method, iso, args) async {
+        throw RPCError('callServiceExtension', 100, 'feature disabled');
+      });
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await expectLater(client.handshake(), throwsA(isA<RPCError>()));
@@ -102,8 +96,7 @@ void main() {
   });
 
   group('VmServiceClient.executeAction / callExtension', () {
-    test('routes plugin tool calls to ext.exploration.<ns>.<tool>',
-        () async {
+    test('routes plugin tool calls to ext.exploration.<ns>.<tool>', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
       );
@@ -120,8 +113,7 @@ void main() {
       expect(act, equals(<String, dynamic>{'ok': true}));
     });
 
-    test('routes core tool calls to ext.exploration.core.<tool>',
-        () async {
+    test('routes core tool calls to ext.exploration.core.<tool>', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
       );
@@ -132,26 +124,25 @@ void main() {
       expect(fake.lastArgs?['id'], equals('42'));
     });
 
-    test('JSON-encodes nested values so the binding can _tryDecode them back',
-        () async {
-      final fake = _FakeVmService(
-        (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
-      );
-      final client = VmServiceClient.forTest(fake, 'iso-1');
+    test(
+      'JSON-encodes nested values so the binding can _tryDecode them back',
+      () async {
+        final fake = _FakeVmService(
+          (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
+        );
+        final client = VmServiceClient.forTest(fake, 'iso-1');
 
-      await client.executeAction(
-        'forms.fill',
-        const <String, dynamic>{
+        await client.executeAction('forms.fill', const <String, dynamic>{
           'count': 42,
           'target': 'home',
           'payload': <String, dynamic>{'k': 1},
-        },
-      );
-      expect(fake.lastMethod, equals('ext.exploration.forms.fill'));
-      expect(fake.lastArgs?['count'], equals('42'));
-      expect(fake.lastArgs?['target'], equals('"home"'));
-      expect(fake.lastArgs?['payload'], equals('{"k":1}'));
-    });
+        });
+        expect(fake.lastMethod, equals('ext.exploration.forms.fill'));
+        expect(fake.lastArgs?['count'], equals('42'));
+        expect(fake.lastArgs?['target'], equals('"home"'));
+        expect(fake.lastArgs?['payload'], equals('{"k":1}'));
+      },
+    );
 
     test('throws ArgumentError on unqualified name (no dot)', () async {
       final fake = _FakeVmService(
@@ -161,8 +152,7 @@ void main() {
 
       expect(
         () => client.executeAction('tap', const <String, dynamic>{}),
-        throwsA(isA<ArgumentError>()
-            .having((e) => e.name, 'name', 'name')),
+        throwsA(isA<ArgumentError>().having((e) => e.name, 'name', 'name')),
       );
       expect(fake.callCount, equals(0));
     });
@@ -193,8 +183,7 @@ void main() {
       expect(fake.callCount, equals(0));
     });
 
-    test('callExtension passes the literal extension name through',
-        () async {
+    test('callExtension passes the literal extension name through', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'echo': method}),
       );
@@ -204,18 +193,13 @@ void main() {
         'ext.exploration.router.snapshot',
         const <String, dynamic>{},
       );
-      expect(
-        fake.lastMethod,
-        equals('ext.exploration.router.snapshot'),
-      );
+      expect(fake.lastMethod, equals('ext.exploration.router.snapshot'));
     });
 
     test('non-handshake extensions do NOT translate code -32601', () async {
-      final fake = _FakeVmService(
-        (method, iso, args) async {
-          throw RPCError('callServiceExtension', -32601, 'method not found');
-        },
-      );
+      final fake = _FakeVmService((method, iso, args) async {
+        throw RPCError('callServiceExtension', -32601, 'method not found');
+      });
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await expectLater(

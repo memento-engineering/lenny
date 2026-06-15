@@ -126,17 +126,19 @@ class PromptPanelController {
             ),
         ],
         config: <String, dynamic>{
-          'enabled_plugins': panelCfg.enabledExtensionNamespaces.toList()..sort(),
+          'enabled_plugins': panelCfg.enabledExtensionNamespaces.toList()
+            ..sort(),
         },
       ),
     );
 
     // 'core' is unconditionally projected so the model always has action tools.
     // coreTools param stays const <ToolDescriptor>[] — core travels via extensionTools['core'].
-    final Map<String, List<ToolDescriptor>> extensionTools = buildExtensionTools(
-      requested: <String>{...panelCfg.enabledExtensionNamespaces, 'core'},
-      handshake: handshake.plugins,
-    );
+    final Map<String, List<ToolDescriptor>> extensionTools =
+        buildExtensionTools(
+          requested: <String>{...panelCfg.enabledExtensionNamespaces, 'core'},
+          handshake: handshake.plugins,
+        );
     final DefaultLoopHost host = DefaultLoopHost.fromSession(
       session: session,
       coreTools: const <ToolDescriptor>[],

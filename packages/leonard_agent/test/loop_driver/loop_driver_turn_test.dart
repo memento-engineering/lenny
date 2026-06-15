@@ -36,18 +36,20 @@ class _FakeProvider extends ModelProvider {
 
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 8000,
-        supportsToolUse: true,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 8000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
   Future<ModelDecision> decide(
-      ConversationSnapshot snapshot, ActionSchema schema) async {
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async {
     calls.add('decide');
     seenSnapshots.add(snapshot);
     if (_i >= script.length) {
@@ -58,11 +60,7 @@ class _FakeProvider extends ModelProvider {
 }
 
 class _FakeHost implements LoopHost {
-  _FakeHost({
-    required this.observations,
-    required this.tools,
-    this.executeFn,
-  });
+  _FakeHost({required this.observations, required this.tools, this.executeFn});
 
   /// Observations to return on each [observe] call (consumed in order).
   final List<Observation> observations;
@@ -74,7 +72,7 @@ class _FakeHost implements LoopHost {
   Set<String> _activeNamespaces = <String>{};
 
   Future<Map<String, dynamic>> Function(String tool, Map<String, dynamic> args)?
-      executeFn;
+  executeFn;
 
   /// Recorded calls in order. Each entry is `(call, args)`.
   final List<String> calls = <String>[];
@@ -151,26 +149,26 @@ class _FakeHost implements LoopHost {
 // =====================================================================
 
 ToolDescriptor _coreDone() => const ToolDescriptor(
-      name: 'core.done',
-      description: 'declare done',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'reason': <String, dynamic>{'type': 'string'},
-        },
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.done',
+  description: 'declare done',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'reason': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  },
+);
 
 ToolDescriptor _coreWait() => const ToolDescriptor(
-      name: 'core.wait',
-      description: 'wait',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{},
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.wait',
+  description: 'wait',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{},
+    'additionalProperties': false,
+  },
+);
 
 LoopDriver _newDriver({
   required _FakeHost host,
@@ -193,31 +191,33 @@ LoopDriver _newDriver({
 
 Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
   final w = TrajectoryWriter(sink);
-  await w.writeHeader(const SessionHeader(
-    goal: 'goal',
-    agentsMdHash: 'h',
-    buildIdentifier: 'build',
-    modelIdentifier: 'fake',
-    harnessVersion: '0.1',
-    plugins: <ExtensionManifestRecord>[],
-    config: <String, dynamic>{},
-  ));
+  await w.writeHeader(
+    const SessionHeader(
+      goal: 'goal',
+      agentsMdHash: 'h',
+      buildIdentifier: 'build',
+      modelIdentifier: 'fake',
+      harnessVersion: '0.1',
+      plugins: <ExtensionManifestRecord>[],
+      config: <String, dynamic>{},
+    ),
+  );
   return w;
 }
 
 Observation _emptyObs() => Observation.empty();
 
 Observation _obsWithStability(String terminatedBy) => Observation(
-      core: CoreFragment.empty,
-      plugins: const <String, ExtensionFragment>{},
-      stability: StabilityMetadata(
-        policy: 'action_relative',
-        terminatedBy: terminatedBy,
-        durationMs: 0,
-        frameworkBusy: const <String, dynamic>{},
-        extensionsBusy: const <ExtensionBusy>[],
-      ),
-    );
+  core: CoreFragment.empty,
+  plugins: const <String, ExtensionFragment>{},
+  stability: StabilityMetadata(
+    policy: 'action_relative',
+    terminatedBy: terminatedBy,
+    durationMs: 0,
+    frameworkBusy: const <String, dynamic>{},
+    extensionsBusy: const <ExtensionBusy>[],
+  ),
+);
 
 Observation _obsWithExtensions(Map<String, Map<String, dynamic>> frags) =>
     Observation(
@@ -246,11 +246,11 @@ void main() {
         observations: <Observation>[_emptyObs()],
         tools: <ToolDescriptor>[_coreDone(), _coreWait()],
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
 
       final r = await driver.runTurn();
@@ -300,47 +300,56 @@ void main() {
       expect(last['validation']['ok'], isTrue);
     });
 
-    test('failed action: error carries forward as toolResult on next turn (lenny-jfh / lenny-wisp-cl4)',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(
-        observations: <Observation>[_emptyObs(), _emptyObs()],
-        tools: <ToolDescriptor>[_coreDone(), _coreWait()],
-        executeFn: (tool, args) async => <String, dynamic>{
-          'ok': false,
-          'error': 'provider_id (string) required',
-        },
-      );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-      ]);
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
+    test(
+      'failed action: error carries forward as toolResult on next turn (lenny-jfh / lenny-wisp-cl4)',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[_emptyObs(), _emptyObs()],
+          tools: <ToolDescriptor>[_coreDone(), _coreWait()],
+          executeFn: (tool, args) async => <String, dynamic>{
+            'ok': false,
+            'error': 'provider_id (string) required',
+          },
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
 
-      await driver.runTurn(); // turn 0 — fails
-      await driver.runTurn(); // turn 1 — picks up the carry-forward
+        await driver.runTurn(); // turn 0 — fails
+        await driver.runTurn(); // turn 1 — picks up the carry-forward
 
-      // The second turn's snapshot starts with the turn-1 UserTurn,
-      // which should carry the previous turn's failure as toolResult.
-      // (Turn 0's snapshot has a single UserTurn with no toolResult;
-      // turn 1's snapshot has 3 turns: UserTurn(turn 0, no toolResult)
-      // + AssistantTurn(turn 0) + UserTurn(turn 1, toolResult set).)
-      expect(provider.seenSnapshots, hasLength(2));
-      final ConversationSnapshot second = provider.seenSnapshots[1];
-      final UserTurn carryUserTurn = second.turns.last as UserTurn;
-      expect(carryUserTurn.toolResult, isNotNull);
-      expect(
-        carryUserTurn.toolResult!['error'],
-        'provider_id (string) required',
-        reason: 'a bare "failed" with no reason leaves the model unable to '
-            'self-correct; the error must reach the next turn',
-      );
-    });
+        // The second turn's snapshot starts with the turn-1 UserTurn,
+        // which should carry the previous turn's failure as toolResult.
+        // (Turn 0's snapshot has a single UserTurn with no toolResult;
+        // turn 1's snapshot has 3 turns: UserTurn(turn 0, no toolResult)
+        // + AssistantTurn(turn 0) + UserTurn(turn 1, toolResult set).)
+        expect(provider.seenSnapshots, hasLength(2));
+        final ConversationSnapshot second = provider.seenSnapshots[1];
+        final UserTurn carryUserTurn = second.turns.last as UserTurn;
+        expect(carryUserTurn.toolResult, isNotNull);
+        expect(
+          carryUserTurn.toolResult!['error'],
+          'provider_id (string) required',
+          reason:
+              'a bare "failed" with no reason leaves the model unable to '
+              'self-correct; the error must reach the next turn',
+        );
+      },
+    );
 
     test('stability budget expired is captured, not failed', () async {
       final sink = _MemorySink();
@@ -349,11 +358,11 @@ void main() {
         observations: <Observation>[_obsWithStability('budget')],
         tools: <ToolDescriptor>[_coreWait()],
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
       await driver.runTurn();
       expect(driver.consecutiveFailedTurns, 0);
@@ -371,11 +380,11 @@ void main() {
         // executeAction never completes within the budget.
         executeFn: (tool, args) => Completer<Map<String, dynamic>>().future,
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(
         host: host,
         provider: provider,
@@ -398,33 +407,39 @@ void main() {
       expect(last['validation']['reason'], 'turn_timeout');
     });
 
-    test('turn_timeout increments consecutiveTurnTimeouts only, not consecutiveFailedTurns',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(
-        observations: <Observation>[_emptyObs()],
-        tools: <ToolDescriptor>[_coreWait()],
-        executeFn: (tool, args) => Completer<Map<String, dynamic>>().future,
-      );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
-      final driver = _newDriver(
-        host: host,
-        provider: provider,
-        writer: writer,
-        turnBudget: const Duration(milliseconds: 50),
-      );
-      try {
-        await driver.runTurn();
-        fail('expected TurnFailure');
-      } on TurnFailure catch (e) {
-        expect(e.reason, 'turn_timeout');
-      }
-      expect(driver.consecutiveTurnTimeouts, 1);
-      expect(driver.consecutiveFailedTurns, 0);
-    });
+    test(
+      'turn_timeout increments consecutiveTurnTimeouts only, not consecutiveFailedTurns',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[_emptyObs()],
+          tools: <ToolDescriptor>[_coreWait()],
+          executeFn: (tool, args) => Completer<Map<String, dynamic>>().future,
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+          turnBudget: const Duration(milliseconds: 50),
+        );
+        try {
+          await driver.runTurn();
+          fail('expected TurnFailure');
+        } on TurnFailure catch (e) {
+          expect(e.reason, 'turn_timeout');
+        }
+        expect(driver.consecutiveTurnTimeouts, 1);
+        expect(driver.consecutiveFailedTurns, 0);
+      },
+    );
 
     test('core.done sets done state and writes turn normally', () async {
       final sink = _MemorySink();
@@ -433,45 +448,55 @@ void main() {
         observations: <Observation>[_emptyObs()],
         tools: <ToolDescriptor>[_coreDone(), _coreWait()],
       );
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.done', args: <String, dynamic>{
-            'reason': 'reached login',
-          }),
-        ),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(
+            action: (
+              tool: 'core.done',
+              args: <String, dynamic>{'reason': 'reached login'},
+            ),
+          ),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
       await driver.runTurn();
       expect(driver.doneRequested, isTrue);
       expect(driver.doneReason, 'reached login');
     });
 
-    test('plugin observation error increments tracker; no auto-disable yet',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(
-        observations: <Observation>[
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-        ],
-        tools: <ToolDescriptor>[_coreWait()],
-      );
-      host.setActiveNamespaces(<String>{'router'});
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(
-          action: (tool: 'core.wait', args: <String, dynamic>{}),
-        ),
-      ]);
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
-      await driver.runTurn();
-      expect(driver.extensionFailures.failuresFor('router'), 1);
-      expect(host.disabledExtensions, isEmpty);
-    });
+    test(
+      'plugin observation error increments tracker; no auto-disable yet',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+          ],
+          tools: <ToolDescriptor>[_coreWait()],
+        );
+        host.setActiveNamespaces(<String>{'router'});
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
+        await driver.runTurn();
+        expect(driver.extensionFailures.failuresFor('router'), 1);
+        expect(host.disabledExtensions, isEmpty);
+      },
+    );
 
-    test('three plugin observation errors auto-disable that plugin',
-        () async {
+    test('three plugin observation errors auto-disable that plugin', () async {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       final tools = <ToolDescriptor>[
@@ -501,11 +526,13 @@ void main() {
         tools: tools,
       );
       host.setActiveNamespaces(<String>{'router'});
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
       final driver = _newDriver(host: host, provider: provider, writer: writer);
 
       await driver.runTurn();
@@ -514,8 +541,9 @@ void main() {
 
       expect(host.disabledExtensions, contains('router'));
       // Exactly one disableExtension call.
-      final disableCalls =
-          host.calls.where((c) => c == 'disableExtension:router').length;
+      final disableCalls = host.calls
+          .where((c) => c == 'disableExtension:router')
+          .length;
       expect(disableCalls, 1);
       // Exactly one extension_disabled trajectory record.
       final disabledRecords = sink.lines.where((l) {
@@ -528,103 +556,125 @@ void main() {
       expect(j['turn'], 2);
     });
 
-    test('successful plugin observation between failures resets the counter',
-        () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final host = _FakeHost(
-        observations: <Observation>[
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'route': '/home'},
-          }),
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-        ],
-        tools: <ToolDescriptor>[_coreWait()],
-      );
-      host.setActiveNamespaces(<String>{'router'});
-      final provider = _FakeProvider(script: <ModelDecision>[
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-      ]);
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
+    test(
+      'successful plugin observation between failures resets the counter',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'route': '/home'},
+            }),
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+          ],
+          tools: <ToolDescriptor>[_coreWait()],
+        );
+        host.setActiveNamespaces(<String>{'router'});
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
 
-      await driver.runTurn();
-      expect(driver.extensionFailures.failuresFor('router'), 1);
-      await driver.runTurn();
-      expect(driver.extensionFailures.failuresFor('router'), 0);
-      await driver.runTurn();
-      expect(driver.extensionFailures.failuresFor('router'), 1);
-      expect(host.disabledExtensions, isEmpty);
-    });
+        await driver.runTurn();
+        expect(driver.extensionFailures.failuresFor('router'), 1);
+        await driver.runTurn();
+        expect(driver.extensionFailures.failuresFor('router'), 0);
+        await driver.runTurn();
+        expect(driver.extensionFailures.failuresFor('router'), 1);
+        expect(host.disabledExtensions, isEmpty);
+      },
+    );
   });
 
   group(
-      'LoopDriver._accountExtensionStrikes core-namespace exemption (lenny-4jn)',
-      () {
-    test(
+    'LoopDriver._accountExtensionStrikes core-namespace exemption (lenny-4jn)',
+    () {
+      test(
         'core is never disabled even after 4 turns with no curr.plugins[core]',
         () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      // 'core' is in activeExtensionNamespaces; curr.plugins never has 'core'.
-      // 'dio' is also active but always absent from plugins — a healthy plugin
-      // that simply has nothing to report (no in-flight/recent requests), NOT
-      // a failure (lenny-jox).
-      final host = _FakeHost(
-        observations: List.generate(
-          6,
-          (_) => _obsWithExtensions(const <String, Map<String, dynamic>>{}),
-        ),
-        tools: <ToolDescriptor>[
-          _coreDone(),
-          _coreWait(),
-          const ToolDescriptor(
-            name: 'dio.fetch',
-            description: 'fetch',
-            inputSchema: <String, dynamic>{'type': 'object'},
-          ),
-        ],
-      );
-      host.setActiveNamespaces(<String>{'core', 'dio'});
-      final provider = _FakeProvider(
-        script: List.generate(
-          4,
-          (_) => ModelDecision(
-            action: (tool: 'core.wait', args: <String, dynamic>{}),
-          ),
-        ),
-      );
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
+          final sink = _MemorySink();
+          final writer = await _newWriter(sink);
+          // 'core' is in activeExtensionNamespaces; curr.plugins never has 'core'.
+          // 'dio' is also active but always absent from plugins — a healthy plugin
+          // that simply has nothing to report (no in-flight/recent requests), NOT
+          // a failure (lenny-jox).
+          final host = _FakeHost(
+            observations: List.generate(
+              6,
+              (_) => _obsWithExtensions(const <String, Map<String, dynamic>>{}),
+            ),
+            tools: <ToolDescriptor>[
+              _coreDone(),
+              _coreWait(),
+              const ToolDescriptor(
+                name: 'dio.fetch',
+                description: 'fetch',
+                inputSchema: <String, dynamic>{'type': 'object'},
+              ),
+            ],
+          );
+          host.setActiveNamespaces(<String>{'core', 'dio'});
+          final provider = _FakeProvider(
+            script: List.generate(
+              4,
+              (_) => ModelDecision(
+                action: (tool: 'core.wait', args: <String, dynamic>{}),
+              ),
+            ),
+          );
+          final driver = _newDriver(
+            host: host,
+            provider: provider,
+            writer: writer,
+          );
 
-      for (var i = 0; i < 4; i++) {
-        await driver.runTurn();
-      }
+          for (var i = 0; i < 4; i++) {
+            await driver.runTurn();
+          }
 
-      expect(
-        host.disabledExtensions,
-        isNot(contains('core')),
-        reason: 'core must never be auto-disabled regardless of how many '
-            'turns pass without a curr.plugins[core] entry',
+          expect(
+            host.disabledExtensions,
+            isNot(contains('core')),
+            reason:
+                'core must never be auto-disabled regardless of how many '
+                'turns pass without a curr.plugins[core] entry',
+          );
+          expect(
+            host.mergedTools().map((t) => t.name),
+            contains('core.wait'),
+            reason: 'core tools must remain in mergedTools after 4 turns',
+          );
+          expect(
+            host.disabledExtensions,
+            isNot(contains('dio')),
+            reason:
+                'a plugin that is merely absent from curr.plugins (null '
+                'fragment = nothing to report) is healthy and must NOT be '
+                'auto-disabled; only an explicit error fragment is a strike '
+                '(lenny-jox)',
+          );
+        },
       );
-      expect(
-        host.mergedTools().map((t) => t.name),
-        contains('core.wait'),
-        reason: 'core tools must remain in mergedTools after 4 turns',
-      );
-      expect(
-        host.disabledExtensions,
-        isNot(contains('dio')),
-        reason: 'a plugin that is merely absent from curr.plugins (null '
-            'fragment = nothing to report) is healthy and must NOT be '
-            'auto-disabled; only an explicit error fragment is a strike '
-            '(lenny-jox)',
-      );
-    });
-  });
+    },
+  );
 }

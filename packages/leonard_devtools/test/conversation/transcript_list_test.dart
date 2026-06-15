@@ -28,19 +28,25 @@ void main() {
     });
 
     testWidgets('shows empty-state text before any turns', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: TranscriptList(viewModel: vm)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: TranscriptList(viewModel: vm)),
+        ),
+      );
       await tester.pump();
       expect(find.byKey(const Key('transcript.empty')), findsOneWidget);
     });
 
     testWidgets('renders entry when a turn is added', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: TranscriptList(viewModel: vm)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: TranscriptList(viewModel: vm)),
+        ),
+      );
 
-      events.add(const TurnThinking(0, ThinkingDelta(text: 'hi', isFinal: false)));
+      events.add(
+        const TurnThinking(0, ThinkingDelta(text: 'hi', isFinal: false)),
+      );
       // Two pumps: first delivers stream microtasks + rebuilds; second runs
       // the post-frame auto-scroll callback registered by _onStateChanged.
       await tester.pump();

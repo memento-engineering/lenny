@@ -4,23 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('core.scroll axis+delta_pixels validation',
-      (WidgetTester tester) async {
+  testWidgets('core.scroll axis+delta_pixels validation', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ListView(
-          children: List<Widget>.generate(
-            30,
-            (int i) => ListTile(title: Text('Row $i')),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: List<Widget>.generate(
+              30,
+              (int i) => ListTile(title: Text('Row $i')),
+            ),
           ),
         ),
       ),
-    ));
+    );
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool scroll =
-        plugin.tools.firstWhere((LeonardTool x) => x.name == 'scroll');
+    final LeonardTool scroll = plugin.tools.firstWhere(
+      (LeonardTool x) => x.name == 'scroll',
+    );
 
     // schema_violation: missing axis
     final ToolResult missing = await scroll.call(<String, Object?>{
@@ -55,16 +59,18 @@ void main() {
     'core.scroll_until_visible returns target_unreachable after iteration cap',
     (WidgetTester tester) async {
       final SemanticsHandle h = tester.ensureSemantics();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ListView(
-            children: List<Widget>.generate(
-              5,
-              (int i) => ListTile(title: Text('Row $i')),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: List<Widget>.generate(
+                5,
+                (int i) => ListTile(title: Text('Row $i')),
+              ),
             ),
           ),
         ),
-      ));
+      );
       final SemanticsCapture cap = SemanticsCapture();
       final CoreExtension plugin = CoreExtension(semantics: cap);
       final LeonardTool sv = plugin.tools.firstWhere(
@@ -94,8 +100,9 @@ void main() {
   test('scroll_until_visible rejects max_iterations out of range', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool sv = plugin.tools
-        .firstWhere((LeonardTool x) => x.name == 'scroll_until_visible');
+    final LeonardTool sv = plugin.tools.firstWhere(
+      (LeonardTool x) => x.name == 'scroll_until_visible',
+    );
     final ToolResult r = await sv.call(<String, Object?>{
       'scrollable_id': 1,
       'target_id': 2,

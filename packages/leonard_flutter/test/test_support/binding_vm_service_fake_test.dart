@@ -53,12 +53,12 @@ class _CoreNamespaceTapTool extends LeonardTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'x': <String, Object?>{'type': 'number'},
-          'y': <String, Object?>{'type': 'number'},
-        },
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'x': <String, Object?>{'type': 'number'},
+      'y': <String, Object?>{'type': 'number'},
+    },
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -81,7 +81,6 @@ class _CoreNamespaceExtension extends LeonardExtension {
 
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
-
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;
@@ -134,144 +133,141 @@ void main() {
         'ext.exploration.core.tap',
         args: <String, dynamic>{'x': 0.1, 'y': 0.2},
       );
-      expect(tap.invoked, isTrue,
-          reason: 'plugin tool must be reached when its <ns>.<tool> '
-              'suffix is in mergedTools()');
+      expect(
+        tap.invoked,
+        isTrue,
+        reason:
+            'plugin tool must be reached when its <ns>.<tool> '
+            'suffix is in mergedTools()',
+      );
       expect(tap.lastArgs, <String, Object?>{'x': 0.1, 'y': 0.2});
       expect(r.json!['ok'], isTrue);
       expect(r.json!['value'], 'tapped');
     },
   );
 
-  test(
-    'core.get_stable_observation (binding-owned, not in mergedTools) '
-    'falls through to invokeServiceExtension',
-    () async {
-      final Response r = await fake.callServiceExtension(
-        'ext.exploration.core.get_stable_observation',
-      );
-      // The binding-owned extension wraps the result in
-      // `{type: 'Observation', value: <bundle>}`; the plugin envelope
-      // would have shape `{ok, value, error}`. Asserting on `type`
-      // proves we reached `invokeServiceExtension`, not
-      // `invokeExtensionTool`.
-      expect(r.json!['type'], 'Observation',
-          reason: 'binding-owned observation envelope must come from '
-              'invokeServiceExtension, not the plugin path');
-      expect(r.json!.containsKey('value'), isTrue);
-    },
-  );
+  test('core.get_stable_observation (binding-owned, not in mergedTools) '
+      'falls through to invokeServiceExtension', () async {
+    final Response r = await fake.callServiceExtension(
+      'ext.exploration.core.get_stable_observation',
+    );
+    // The binding-owned extension wraps the result in
+    // `{type: 'Observation', value: <bundle>}`; the plugin envelope
+    // would have shape `{ok, value, error}`. Asserting on `type`
+    // proves we reached `invokeServiceExtension`, not
+    // `invokeExtensionTool`.
+    expect(
+      r.json!['type'],
+      'Observation',
+      reason:
+          'binding-owned observation envelope must come from '
+          'invokeServiceExtension, not the plugin path',
+    );
+    expect(r.json!.containsKey('value'), isTrue);
+  });
 
   test('unknown prefix throws RPCError -32601', () async {
     expect(
       () => fake.callServiceExtension('ext.dart.io.read'),
-      throwsA(isA<RPCError>().having(
-        (RPCError e) => e.code,
-        'code',
-        -32601,
-      )),
+      throwsA(isA<RPCError>().having((RPCError e) => e.code, 'code', -32601)),
     );
   });
 
   group('observation fixture serving (lenny-cx6.48)', () {
-    test(
-      'returns fixture body wrapped in Observation envelope when '
-      'fixture is supplied',
-      () async {
-        final Map<String, dynamic> body = <String, dynamic>{
-          'core': <String, dynamic>{
-            'routeStack': <String>['login'],
-            'nodes': <String, dynamic>{
-              'n1': <String, dynamic>{
-                'id': 'n1',
-                'label': 'Email',
-                'rect': <double>[0, 0, 100, 40],
-              },
+    test('returns fixture body wrapped in Observation envelope when '
+        'fixture is supplied', () async {
+      final Map<String, dynamic> body = <String, dynamic>{
+        'core': <String, dynamic>{
+          'routeStack': <String>['login'],
+          'nodes': <String, dynamic>{
+            'n1': <String, dynamic>{
+              'id': 'n1',
+              'label': 'Email',
+              'rect': <double>[0, 0, 100, 40],
             },
           },
-          'extensions': <String, dynamic>{},
-          'stability': <String, dynamic>{'policy': 'action_relative'},
-        };
-        final _FakeFixture fixture = _FakeFixture(body);
-        final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
-          binding,
-          observationFixture: fixture,
-        );
+        },
+        'extensions': <String, dynamic>{},
+        'stability': <String, dynamic>{'policy': 'action_relative'},
+      };
+      final _FakeFixture fixture = _FakeFixture(body);
+      final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
+        binding,
+        observationFixture: fixture,
+      );
 
-        final Response r = await fixtureFake.callServiceExtension(
-          'ext.exploration.core.get_stable_observation',
-          args: <String, dynamic>{'policy': 'action_relative'},
-        );
+      final Response r = await fixtureFake.callServiceExtension(
+        'ext.exploration.core.get_stable_observation',
+        args: <String, dynamic>{'policy': 'action_relative'},
+      );
 
-        expect(r.json, isNotNull);
-        expect(r.json!['type'], 'Observation');
-        expect(r.json!['value'], body);
-      },
-    );
+      expect(r.json, isNotNull);
+      expect(r.json!['type'], 'Observation');
+      expect(r.json!['value'], body);
+    });
 
-    test(
-      'fixture short-circuit does not affect other extension routes — '
-      'plugin tool still reaches invokeExtensionTool',
-      () async {
-        // Reuse the `core.tap` plugin tool wired in setUpAll. Construct
-        // a fixture-armed fake and prove the fixture is irrelevant for
-        // non-observation methods: `core.tap` still routes via the
-        // registry and the plugin's `tap.call` runs.
-        tap.invoked = false;
-        tap.lastArgs = null;
-        final _FakeFixture fixture = _FakeFixture(<String, dynamic>{
-          'core': <String, dynamic>{'routeStack': <String>['login']},
-        });
-        final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
-          binding,
-          observationFixture: fixture,
-        );
+    test('fixture short-circuit does not affect other extension routes — '
+        'plugin tool still reaches invokeExtensionTool', () async {
+      // Reuse the `core.tap` plugin tool wired in setUpAll. Construct
+      // a fixture-armed fake and prove the fixture is irrelevant for
+      // non-observation methods: `core.tap` still routes via the
+      // registry and the plugin's `tap.call` runs.
+      tap.invoked = false;
+      tap.lastArgs = null;
+      final _FakeFixture fixture = _FakeFixture(<String, dynamic>{
+        'core': <String, dynamic>{
+          'routeStack': <String>['login'],
+        },
+      });
+      final BindingVmServiceFake fixtureFake = BindingVmServiceFake(
+        binding,
+        observationFixture: fixture,
+      );
 
-        final Response r = await fixtureFake.callServiceExtension(
-          'ext.exploration.core.tap',
-          args: <String, dynamic>{'x': 0.5, 'y': 0.5},
-        );
+      final Response r = await fixtureFake.callServiceExtension(
+        'ext.exploration.core.tap',
+        args: <String, dynamic>{'x': 0.5, 'y': 0.5},
+      );
 
-        expect(tap.invoked, isTrue,
-            reason: 'fixture short-circuit must NOT intercept other '
-                'methods; core.tap must still route via mergedTools');
-        expect(tap.lastArgs, <String, Object?>{'x': 0.5, 'y': 0.5});
-        expect(r.json!['ok'], isTrue);
-      },
-    );
+      expect(
+        tap.invoked,
+        isTrue,
+        reason:
+            'fixture short-circuit must NOT intercept other '
+            'methods; core.tap must still route via mergedTools',
+      );
+      expect(tap.lastArgs, <String, Object?>{'x': 0.5, 'y': 0.5});
+      expect(r.json!['ok'], isTrue);
+    });
 
-    test(
-      'without a fixture, get_stable_observation still falls through '
-      'to the binding (existing behavior preserved)',
-      () async {
-        // Construct a fresh fake with NO fixture. The call must still
-        // return the binding's `{type: 'Observation', value: <bundle>}`
-        // envelope from invokeServiceExtension — proving the constructor
-        // default preserves today's behavior. (The `setUpAll` `fake`
-        // also has no fixture; we use a local instance here to make the
-        // test self-contained.)
-        final BindingVmServiceFake noFixtureFake =
-            BindingVmServiceFake(binding);
-        final Response r = await noFixtureFake.callServiceExtension(
-          'ext.exploration.core.get_stable_observation',
-        );
-        final Map<String, dynamic> envelope = r.json!;
-        expect(envelope['type'], 'Observation');
-        expect(envelope.containsKey('value'), isTrue);
-        // The real binding's empty-tree response: the fixture body's
-        // 'login' route stack must NOT appear here. We assert the
-        // observation came from the binding, not from a leaked fixture.
-        final Map<String, dynamic> bundle =
-            (envelope['value'] as Map).cast<String, dynamic>();
-        final Map<String, dynamic>? core =
-            (bundle['core'] as Map?)?.cast<String, dynamic>();
-        final Object? routeStack = core?['routeStack'];
-        // The binding's empty-tree response either omits routeStack or
-        // returns an empty list; in particular it must not be ['login'].
-        if (routeStack is List) {
-          expect(routeStack, isNot(<String>['login']));
-        }
-      },
-    );
+    test('without a fixture, get_stable_observation still falls through '
+        'to the binding (existing behavior preserved)', () async {
+      // Construct a fresh fake with NO fixture. The call must still
+      // return the binding's `{type: 'Observation', value: <bundle>}`
+      // envelope from invokeServiceExtension — proving the constructor
+      // default preserves today's behavior. (The `setUpAll` `fake`
+      // also has no fixture; we use a local instance here to make the
+      // test self-contained.)
+      final BindingVmServiceFake noFixtureFake = BindingVmServiceFake(binding);
+      final Response r = await noFixtureFake.callServiceExtension(
+        'ext.exploration.core.get_stable_observation',
+      );
+      final Map<String, dynamic> envelope = r.json!;
+      expect(envelope['type'], 'Observation');
+      expect(envelope.containsKey('value'), isTrue);
+      // The real binding's empty-tree response: the fixture body's
+      // 'login' route stack must NOT appear here. We assert the
+      // observation came from the binding, not from a leaked fixture.
+      final Map<String, dynamic> bundle = (envelope['value'] as Map)
+          .cast<String, dynamic>();
+      final Map<String, dynamic>? core = (bundle['core'] as Map?)
+          ?.cast<String, dynamic>();
+      final Object? routeStack = core?['routeStack'];
+      // The binding's empty-tree response either omits routeStack or
+      // returns an empty list; in particular it must not be ['login'].
+      if (routeStack is List) {
+        expect(routeStack, isNot(<String>['login']));
+      }
+    });
   });
 }

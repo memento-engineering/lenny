@@ -7,52 +7,64 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-      'hitTestTap synthesizes PointerDownEvent at logical center, not physical',
-      (WidgetTester tester) async {
-    // Set DPR to 2.0 so physical != logical coordinates.
-    tester.view.devicePixelRatio = 2.0;
-    addTearDown(tester.view.resetDevicePixelRatio);
+    'hitTestTap synthesizes PointerDownEvent at logical center, not physical',
+    (WidgetTester tester) async {
+      // Set DPR to 2.0 so physical != logical coordinates.
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Pump a minimal widget so GestureBinding is wired up.
-    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      // Pump a minimal widget so GestureBinding is wired up.
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
 
-    // hitTestTap expects a logical-pixel rect. Construct one whose logical
-    // center is (50, 60) — i.e. physical (100, 120) / DPR 2.0 = (50, 60).
-    const Rect logicalRect = Rect.fromLTRB(0, 0, 100, 120);
+      // hitTestTap expects a logical-pixel rect. Construct one whose logical
+      // center is (50, 60) — i.e. physical (100, 120) / DPR 2.0 = (50, 60).
+      const Rect logicalRect = Rect.fromLTRB(0, 0, 100, 120);
 
-    Offset? captured;
-    void listener(PointerEvent event) {
-      if (event is PointerDownEvent && captured == null) {
-        captured = event.position;
+      Offset? captured;
+      void listener(PointerEvent event) {
+        if (event is PointerDownEvent && captured == null) {
+          captured = event.position;
+        }
       }
-    }
-    GestureBinding.instance.pointerRouter.addGlobalRoute(listener);
-    addTearDown(
-        () => GestureBinding.instance.pointerRouter.removeGlobalRoute(listener));
 
-    await hitTestTap(logicalRect);
-    await tester.pumpAndSettle();
+      GestureBinding.instance.pointerRouter.addGlobalRoute(listener);
+      addTearDown(
+        () => GestureBinding.instance.pointerRouter.removeGlobalRoute(listener),
+      );
 
-    expect(captured, isNotNull, reason: 'no PointerDownEvent was synthesized');
-    // logicalRect.center = (50, 60). That is what GestureBinding should receive.
-    // Before the fix: callers passed globalRectOf (physical) directly, so
-    // captured would be (100, 120) on DPR=2.
-    expect(captured, equals(const Offset(50, 60)),
-        reason: 'expected logical center (50,60); got $captured');
-  });
+      await hitTestTap(logicalRect);
+      await tester.pumpAndSettle();
 
-  testWidgets(
-      'logicalRectOf divides globalRectOf by devicePixelRatio',
-      (WidgetTester tester) async {
+      expect(
+        captured,
+        isNotNull,
+        reason: 'no PointerDownEvent was synthesized',
+      );
+      // logicalRect.center = (50, 60). That is what GestureBinding should receive.
+      // Before the fix: callers passed globalRectOf (physical) directly, so
+      // captured would be (100, 120) on DPR=2.
+      expect(
+        captured,
+        equals(const Offset(50, 60)),
+        reason: 'expected logical center (50,60); got $captured',
+      );
+    },
+  );
+
+  testWidgets('logicalRectOf divides globalRectOf by devicePixelRatio', (
+    WidgetTester tester,
+  ) async {
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(
-      home: Semantics(
-        container: true,
-        label: 'target',
-        child: const SizedBox(width: 100, height: 100),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Semantics(
+          container: true,
+          label: 'target',
+          child: const SizedBox(width: 100, height: 100),
+        ),
       ),
-    ));
+    );
 
     // Retrieve the target node via SemanticsCapture.
     final SemanticsCapture cap = SemanticsCapture();
@@ -60,7 +72,8 @@ void main() {
     expect(recs, isNotEmpty, reason: 'no semantics nodes captured');
 
     final Map<String, Object> targetRec = recs.firstWhere(
-        (Map<String, Object> r) => r['label'] == 'target');
+      (Map<String, Object> r) => r['label'] == 'target',
+    );
 
     final int id = targetRec['id']! as int;
     final CoreExtension plugin = CoreExtension(semantics: cap);

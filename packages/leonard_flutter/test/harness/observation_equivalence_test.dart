@@ -8,10 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 File _goldenFile(String name) {
   const String relativePath = 'test/goldens';
-  for (final String prefix in <String>[
-    '',
-    'packages/leonard_flutter/',
-  ]) {
+  for (final String prefix in <String>['', 'packages/leonard_flutter/']) {
     final File f = File('$prefix$relativePath/$name.observation.json');
     if (f.existsSync()) return f;
   }
@@ -39,8 +36,12 @@ void main() {
       final Map<String, Object?> base = _loadGolden('core');
       final Map<String, Object?> diverged = Map<String, Object?>.from(base)
         ..['semantics'] = <Map<String, Object?>>[
-          <String, Object?>{'id': 1, 'role': 'button',
-              'label': 'Sign in', 'rect': <int>[0, 0, 120, 48]},
+          <String, Object?>{
+            'id': 1,
+            'role': 'button',
+            'label': 'Sign in',
+            'rect': <int>[0, 0, 120, 48],
+          },
         ];
       expect(
         () => assertObservationEquivalent(base, diverged),

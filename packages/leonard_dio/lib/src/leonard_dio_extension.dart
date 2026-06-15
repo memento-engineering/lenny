@@ -16,8 +16,8 @@ import 'dio_tracking_interceptor.dart';
 /// * the `dio.cancel_in_flight` tool for adversarial testing
 class LeonardDioExtension extends LeonardExtension with PerceptionExtension {
   LeonardDioExtension(this._dio, {DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now,
-        _interceptor = DioTrackingInterceptor(clock: clock);
+    : _clock = clock ?? DateTime.now,
+      _interceptor = DioTrackingInterceptor(clock: clock);
 
   final Dio _dio;
   final DioTrackingInterceptor _interceptor;
@@ -27,8 +27,9 @@ class LeonardDioExtension extends LeonardExtension with PerceptionExtension {
   String get namespace => 'dio';
 
   @override
-  List<LeonardTool> get tools =>
-      <LeonardTool>[_CancelInFlightTool(_interceptor)];
+  List<LeonardTool> get tools => <LeonardTool>[
+    _CancelInFlightTool(_interceptor),
+  ];
 
   @override
   Future<void> initialize(ExtensionContext ctx) async {
@@ -86,14 +87,14 @@ class _CancelInFlightTool extends LeonardTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{},
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{},
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async => ToolResult(
-        ok: true,
-        value: <String, Object?>{'cancelled': _i.cancelAll()},
-      );
+    ok: true,
+    value: <String, Object?>{'cancelled': _i.cancelAll()},
+  );
 }

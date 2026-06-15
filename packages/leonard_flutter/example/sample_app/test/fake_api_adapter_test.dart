@@ -10,22 +10,24 @@ Dio _dio() {
 
 void main() {
   group('FakeApiAdapter', () {
-    test('POST /auth/login with good credentials returns 200 + token',
-        () async {
-      final dio = _dio();
-      final r = await dio.post<Map<String, Object?>>(
-        '/auth/login',
-        data: <String, String>{
-          'email': 'demo@example.com',
-          'password': 'password',
-        },
-      );
-      expect(r.statusCode, 200);
-      expect(r.data, isA<Map<String, Object?>>());
-      expect(r.data!['token'], 'fake-token');
-      final user = r.data!['user'] as Map<String, Object?>;
-      expect(user['name'], 'Demo');
-    });
+    test(
+      'POST /auth/login with good credentials returns 200 + token',
+      () async {
+        final dio = _dio();
+        final r = await dio.post<Map<String, Object?>>(
+          '/auth/login',
+          data: <String, String>{
+            'email': 'demo@example.com',
+            'password': 'password',
+          },
+        );
+        expect(r.statusCode, 200);
+        expect(r.data, isA<Map<String, Object?>>());
+        expect(r.data!['token'], 'fake-token');
+        final user = r.data!['user'] as Map<String, Object?>;
+        expect(user['name'], 'Demo');
+      },
+    );
 
     test('POST /auth/login with bad credentials returns 401', () async {
       final dio = _dio();
@@ -72,8 +74,9 @@ void main() {
 
     test('latency parameter is honored', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://fake.local'));
-      dio.httpClientAdapter =
-          FakeApiAdapter(latency: const Duration(milliseconds: 50));
+      dio.httpClientAdapter = FakeApiAdapter(
+        latency: const Duration(milliseconds: 50),
+      );
       final sw = Stopwatch()..start();
       await dio.get<Map<String, Object?>>('/profile');
       sw.stop();

@@ -25,13 +25,13 @@ void main() {
 
   test('oversized fragment is truncated and tagged', () {
     Map<String, Object?> entry(int n) => <String, Object?>{
-          'id': 'req_$n',
-          'method': 'GET',
-          'host': 'service-with-a-fairly-long-host-name.example.com',
-          'path': '/api/v1/resources/$n/sub-resources/with-some-extra-padding',
-          'elapsed_ms': n * 17,
-          'est_remaining_ms': 600,
-        };
+      'id': 'req_$n',
+      'method': 'GET',
+      'host': 'service-with-a-fairly-long-host-name.example.com',
+      'path': '/api/v1/resources/$n/sub-resources/with-some-extra-padding',
+      'elapsed_ms': n * 17,
+      'est_remaining_ms': 600,
+    };
     final completed = <Map<String, Object?>>[
       for (var n = 0; n < 50; n++)
         <String, Object?>{
@@ -44,7 +44,9 @@ void main() {
         },
     ];
     final frag = <String, Object?>{
-      'in_flight': <Map<String, Object?>>[for (var n = 0; n < 50; n++) entry(n)],
+      'in_flight': <Map<String, Object?>>[
+        for (var n = 0; n < 50; n++) entry(n),
+      ],
       'recent_completed': completed,
     };
 

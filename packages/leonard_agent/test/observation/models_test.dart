@@ -66,7 +66,10 @@ void main() {
       expect(o.core.errors.first.message, equals('boom'));
       expect(o.plugins.keys, equals(<String>{'router'}));
       expect(o.plugins['router']!.namespace, equals('router'));
-      expect(o.plugins['router']!.data, equals(<String, dynamic>{'path': '/home'}));
+      expect(
+        o.plugins['router']!.data,
+        equals(<String, dynamic>{'path': '/home'}),
+      );
       expect(o.plugins['router']!.deltaFriendly, isFalse);
       expect(o.stability.policy, equals('action_relative'));
       expect(o.stability.terminatedBy, equals('idle'));
@@ -81,10 +84,7 @@ void main() {
     test('plugin fragment honours bare delta_friendly flag', () {
       final Observation o = Observation.fromJson(<String, dynamic>{
         'extensions': <String, dynamic>{
-          'router': <String, dynamic>{
-            'path': '/x',
-            '_delta_friendly': true,
-          },
+          'router': <String, dynamic>{'path': '/x', '_delta_friendly': true},
         },
       });
       expect(o.plugins['router']!.deltaFriendly, isTrue);
@@ -104,13 +104,20 @@ void main() {
         },
       });
       expect(o.plugins['router']!.deltaFriendly, isTrue);
-      expect(o.plugins['router']!.data, equals(<String, dynamic>{'path': '/x'}));
+      expect(
+        o.plugins['router']!.data,
+        equals(<String, dynamic>{'path': '/x'}),
+      );
     });
 
     test('malformed semantics records are skipped, not thrown', () {
       final Observation o = Observation.fromJson(<String, dynamic>{
         'semantics': <Object>[
-          <String, dynamic>{'id': 1, 'role': 'button', 'rect': <int>[0, 0, 1, 1]},
+          <String, dynamic>{
+            'id': 1,
+            'role': 'button',
+            'rect': <int>[0, 0, 1, 1],
+          },
           // Missing rect.
           <String, dynamic>{'id': 2, 'role': 'text'},
           // Wrong types.
@@ -122,39 +129,44 @@ void main() {
   });
 
   group('Observation toJson', () {
-    test('round-trips through jsonEncode/jsonDecode for non-trivial fixture',
-        () {
-      final Map<String, dynamic> wire = <String, dynamic>{
-        'semantics': <Map<String, dynamic>>[
-          <String, dynamic>{
-            'id': 5,
-            'role': 'button',
-            'label': 'Hi',
-            'state': <String>['focused'],
-            'actions': <String>['tap'],
-            'rect': <int>[1, 2, 3, 4],
+    test(
+      'round-trips through jsonEncode/jsonDecode for non-trivial fixture',
+      () {
+        final Map<String, dynamic> wire = <String, dynamic>{
+          'semantics': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 5,
+              'role': 'button',
+              'label': 'Hi',
+              'state': <String>['focused'],
+              'actions': <String>['tap'],
+              'rect': <int>[1, 2, 3, 4],
+            },
+          ],
+          'routes': <String>['/a', '/b'],
+          'errors': <Map<String, dynamic>>[],
+          'stability': <String, dynamic>{
+            'policy': 'quiet_frame',
+            'terminated_by': 'quiet_frame',
+            'duration_ms': 7,
+            'framework_busy': <String, dynamic>{'anyBusy': false},
+            'extensions_busy': const <Object>[],
           },
-        ],
-        'routes': <String>['/a', '/b'],
-        'errors': <Map<String, dynamic>>[],
-        'stability': <String, dynamic>{
-          'policy': 'quiet_frame',
-          'terminated_by': 'quiet_frame',
-          'duration_ms': 7,
-          'framework_busy': <String, dynamic>{'anyBusy': false},
-          'extensions_busy': const <Object>[],
-        },
-        'extensions': <String, dynamic>{},
-      };
-      final Observation a = Observation.fromJson(wire);
-      final String enc = jsonEncode(a.toJson());
-      // Round-trip through our own toJson shape (not the wire shape).
-      final Map<String, dynamic> decoded =
-          jsonDecode(enc) as Map<String, dynamic>;
-      expect(decoded.keys, containsAll(<String>['core', 'extensions', 'stability']));
-      // Determinism: same inputs -> identical bytes.
-      expect(jsonEncode(a.toJson()), equals(jsonEncode(a.toJson())));
-    });
+          'extensions': <String, dynamic>{},
+        };
+        final Observation a = Observation.fromJson(wire);
+        final String enc = jsonEncode(a.toJson());
+        // Round-trip through our own toJson shape (not the wire shape).
+        final Map<String, dynamic> decoded =
+            jsonDecode(enc) as Map<String, dynamic>;
+        expect(
+          decoded.keys,
+          containsAll(<String>['core', 'extensions', 'stability']),
+        );
+        // Determinism: same inputs -> identical bytes.
+        expect(jsonEncode(a.toJson()), equals(jsonEncode(a.toJson())));
+      },
+    );
   });
 
   group('Observation equality', () {
@@ -202,8 +214,9 @@ void main() {
     });
 
     test('fromJson populates screenshot from screenshot_png_b64', () {
-      final Observation o =
-          Observation.fromJson(<String, dynamic>{'screenshot_png_b64': 'AAAA'});
+      final Observation o = Observation.fromJson(<String, dynamic>{
+        'screenshot_png_b64': 'AAAA',
+      });
       expect(o.screenshot, equals('AAAA'));
     });
 
@@ -214,17 +227,20 @@ void main() {
     });
 
     test('toJson emits screenshot_png_b64 when non-null', () {
-      final Observation o = Observation.fromJson(
-          <String, dynamic>{'screenshot_png_b64': 'XYZ='});
+      final Observation o = Observation.fromJson(<String, dynamic>{
+        'screenshot_png_b64': 'XYZ=',
+      });
       final Map<String, dynamic> json = o.toJson();
       expect(json['screenshot_png_b64'], equals('XYZ='));
     });
 
     test('two Observations with different screenshots are not equal', () {
-      final Observation a = Observation.fromJson(
-          <String, dynamic>{'screenshot_png_b64': 'A'});
-      final Observation b = Observation.fromJson(
-          <String, dynamic>{'screenshot_png_b64': 'B'});
+      final Observation a = Observation.fromJson(<String, dynamic>{
+        'screenshot_png_b64': 'A',
+      });
+      final Observation b = Observation.fromJson(<String, dynamic>{
+        'screenshot_png_b64': 'B',
+      });
       expect(a, isNot(equals(b)));
     });
 

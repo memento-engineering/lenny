@@ -8,7 +8,7 @@ import 'tracked_request.dart';
 /// in-flight and a small ring buffer of recent completions.
 class DioTrackingInterceptor extends Interceptor {
   DioTrackingInterceptor({DateTime Function()? clock})
-      : _now = clock ?? DateTime.now;
+    : _now = clock ?? DateTime.now;
 
   static const int _ringSize = 8;
   static const String _idKey = '_explorationDioId';
@@ -49,7 +49,10 @@ class DioTrackingInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     _complete(response.requestOptions, response.statusCode);
     handler.next(response);
   }
@@ -65,14 +68,16 @@ class DioTrackingInterceptor extends Interceptor {
     if (id is! String) return;
     final tracked = _inFlight.remove(id);
     if (tracked == null) return;
-    _completed.addLast(CompletedRequest(
-      id: tracked.id,
-      method: tracked.method,
-      host: tracked.host,
-      path: tracked.path,
-      status: status,
-      durationMs: tracked.elapsedMs(_now()),
-    ));
+    _completed.addLast(
+      CompletedRequest(
+        id: tracked.id,
+        method: tracked.method,
+        host: tracked.host,
+        path: tracked.path,
+        status: status,
+        durationMs: tracked.elapsedMs(_now()),
+      ),
+    );
     while (_completed.length > _ringSize) {
       _completed.removeFirst();
     }

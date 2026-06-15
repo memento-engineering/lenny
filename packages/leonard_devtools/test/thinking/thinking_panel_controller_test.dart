@@ -9,12 +9,8 @@ void main() {
     final bus = TurnEventBus();
     final c = ThinkingPanelController(bus.stream)..start();
 
-    bus.push(
-      const TurnThinking(1, ThinkingDelta(text: 'Hel', isFinal: false)),
-    );
-    bus.push(
-      const TurnThinking(1, ThinkingDelta(text: 'lo', isFinal: false)),
-    );
+    bus.push(const TurnThinking(1, ThinkingDelta(text: 'Hel', isFinal: false)));
+    bus.push(const TurnThinking(1, ThinkingDelta(text: 'lo', isFinal: false)));
     await Future<void>.delayed(Duration.zero);
 
     expect(c.text.text, 'Hello');
@@ -47,13 +43,9 @@ void main() {
     final bus = TurnEventBus();
     final c = ThinkingPanelController(bus.stream)..start();
 
+    bus.push(const TurnThinking(1, ThinkingDelta(text: 'r', isFinal: true)));
     bus.push(
-      const TurnThinking(1, ThinkingDelta(text: 'r', isFinal: true)),
-    );
-    bus.push(
-      const TurnActionDecided(1, 'core.tap', <String, dynamic>{
-        'node_id': 7,
-      }),
+      const TurnActionDecided(1, 'core.tap', <String, dynamic>{'node_id': 7}),
     );
     bus.push(const TurnValidation(1, true, null));
     await Future<void>.delayed(Duration.zero);
@@ -69,13 +61,9 @@ void main() {
     final bus = TurnEventBus();
     final c = ThinkingPanelController(bus.stream)..start();
 
+    bus.push(const TurnThinking(1, ThinkingDelta(text: 'r', isFinal: true)));
     bus.push(
-      const TurnThinking(1, ThinkingDelta(text: 'r', isFinal: true)),
-    );
-    bus.push(
-      const TurnActionDecided(1, 'core.tap', <String, dynamic>{
-        'node_id': 9,
-      }),
+      const TurnActionDecided(1, 'core.tap', <String, dynamic>{'node_id': 9}),
     );
     bus.push(const TurnValidation(1, false, 'unknown_node'));
     await Future<void>.delayed(Duration.zero);

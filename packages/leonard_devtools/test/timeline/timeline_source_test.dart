@@ -6,25 +6,28 @@ import 'package:leonard_devtools/src/timeline/timeline_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SessionHeader _hdr() => const SessionHeader(
-      goal: 'login',
-      agentsMdHash: 'sha256:abc',
-      buildIdentifier: 'debug-1.0.0',
-      modelIdentifier: 'qwen3.6-35b-a3b@8bit',
-      harnessVersion: '0.1.0',
-      plugins: [],
-      config: {},
-    );
+  goal: 'login',
+  agentsMdHash: 'sha256:abc',
+  buildIdentifier: 'debug-1.0.0',
+  modelIdentifier: 'qwen3.6-35b-a3b@8bit',
+  harnessVersion: '0.1.0',
+  plugins: [],
+  config: {},
+);
 
 TurnRecord _turn(int i) => TurnRecord(
-      index: i,
-      observation: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      stability: const {},
-      proposedAction: const {'tool': 'core.tap'},
-      validation: const {'result': 'ok', 'retries': 0},
-      executedAction: const {'tool': 'core.tap'},
-      diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      modelMetadata: const {},
-    );
+  index: i,
+  observation: const {
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
+  stability: const {},
+  proposedAction: const {'tool': 'core.tap'},
+  validation: const {'result': 'ok', 'retries': 0},
+  executedAction: const {'tool': 'core.tap'},
+  diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
+  modelMetadata: const {},
+);
 
 void main() {
   group('LiveTimelineSource', () {
@@ -59,7 +62,10 @@ void main() {
 
       var notifications = 0;
       source.records.addListener(() => notifications++);
-      controller..add(_hdr())..add(_turn(0))..add(_turn(1));
+      controller
+        ..add(_hdr())
+        ..add(_turn(0))
+        ..add(_turn(1));
       await Future<void>.delayed(Duration.zero);
 
       expect(notifications, 3);

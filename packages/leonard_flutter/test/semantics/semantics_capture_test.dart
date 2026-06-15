@@ -4,8 +4,9 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('button captured; offscreen and excluded omitted',
-      (WidgetTester tester) async {
+  testWidgets('button captured; offscreen and excluded omitted', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await tester.pumpWidget(
       MaterialApp(
@@ -33,8 +34,9 @@ void main() {
     );
     final SemanticsCapture capture = SemanticsCapture();
     final List<Map<String, Object>> recs = capture.capture();
-    final Iterable<Map<String, Object>> btns =
-        recs.where((Map<String, Object> r) => r['role'] == 'button');
+    final Iterable<Map<String, Object>> btns = recs.where(
+      (Map<String, Object> r) => r['role'] == 'button',
+    );
     expect(btns, hasLength(1));
     final Map<String, Object> btn = btns.first;
     expect(btn['label'], 'Submit');
@@ -43,14 +45,9 @@ void main() {
     // Schema: only the documented keys are present on the button record.
     expect(
       btn.keys.toSet(),
-      everyElement(isIn(<String>{
-        'id',
-        'role',
-        'label',
-        'state',
-        'actions',
-        'rect',
-      })),
+      everyElement(
+        isIn(<String>{'id', 'role', 'label', 'state', 'actions', 'rect'}),
+      ),
     );
     expect(btn.containsKey('id'), isTrue);
     expect(btn.containsKey('role'), isTrue);
@@ -79,42 +76,38 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ElevatedButton(
-            onPressed: () {},
-            child: const Text('Go'),
-          ),
+          body: ElevatedButton(onPressed: () {}, child: const Text('Go')),
         ),
       ),
     );
     final SemanticsCapture cap = SemanticsCapture();
-    final Map<String, Object> a = cap
-        .capture()
-        .firstWhere((Map<String, Object> r) => r['label'] == 'Go');
-    final Map<String, Object> b = cap
-        .capture()
-        .firstWhere((Map<String, Object> r) => r['label'] == 'Go');
+    final Map<String, Object> a = cap.capture().firstWhere(
+      (Map<String, Object> r) => r['label'] == 'Go',
+    );
+    final Map<String, Object> b = cap.capture().firstWhere(
+      (Map<String, Object> r) => r['label'] == 'Go',
+    );
     expect(b['id'], a['id']);
     cap.dispose();
     h.dispose();
   });
 
-  testWidgets('lookup returns live SemanticsNode for emitted stable id',
-      (WidgetTester tester) async {
+  testWidgets('lookup returns live SemanticsNode for emitted stable id', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ElevatedButton(
-            onPressed: () {},
-            child: const Text('Go'),
-          ),
+          body: ElevatedButton(onPressed: () {}, child: const Text('Go')),
         ),
       ),
     );
     final SemanticsCapture cap = SemanticsCapture();
     final List<Map<String, Object>> recs = cap.capture();
-    final Map<String, Object> btn =
-        recs.firstWhere((Map<String, Object> r) => r['label'] == 'Go');
+    final Map<String, Object> btn = recs.firstWhere(
+      (Map<String, Object> r) => r['label'] == 'Go',
+    );
     final int stable = btn['id']! as int;
     final SemanticsNode? node = cap.lookup(stable);
     expect(node, isNotNull);
@@ -160,9 +153,8 @@ void main() {
       final List<Map<String, Object>> recs = cap.capture();
 
       Map<String, Object> sw(String label) => recs.firstWhere(
-            (Map<String, Object> r) =>
-                r['role'] == 'switch' && r['label'] == label,
-          );
+        (Map<String, Object> r) => r['role'] == 'switch' && r['label'] == label,
+      );
       final Map<String, Object> dark = sw('Dark Theme');
       final Map<String, Object> notif = sw('Notifications');
 
@@ -179,7 +171,8 @@ void main() {
       expect(
         nr[1],
         greaterThan(dr[1]),
-        reason: 'Notifications.top must be below Dark Theme.top; equal tops '
+        reason:
+            'Notifications.top must be below Dark Theme.top; equal tops '
             'mean the rects collapsed (the bug). dark=$dr notif=$nr',
       );
       expect(dr, isNot(equals(nr)));

@@ -18,10 +18,10 @@ class SystemBackTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{},
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{},
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {

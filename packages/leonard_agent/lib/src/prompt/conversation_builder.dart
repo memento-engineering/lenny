@@ -19,9 +19,9 @@ class ConversationBuilder {
     required String systemMessage,
     required List<ToolDescriptor> tools,
     ObservationRenderer? renderer,
-  })  : _systemMessage = systemMessage,
-        _tools = List<ToolDescriptor>.unmodifiable(tools),
-        _renderer = renderer ?? const JsonObservationRenderer();
+  }) : _systemMessage = systemMessage,
+       _tools = List<ToolDescriptor>.unmodifiable(tools),
+       _renderer = renderer ?? const JsonObservationRenderer();
 
   final String _systemMessage;
   final List<ToolDescriptor> _tools;
@@ -36,9 +36,7 @@ class ConversationBuilder {
     ObservationDiff diff, {
     Map<String, dynamic>? toolResult,
   }) {
-    _turns.add(
-      UserTurn(observation: obs, diff: diff, toolResult: toolResult),
-    );
+    _turns.add(UserTurn(observation: obs, diff: diff, toolResult: toolResult));
   }
 
   /// Append an assistant-role turn — the thinking text (empty when the
@@ -55,10 +53,10 @@ class ConversationBuilder {
   /// string canonicalisation makes the system prefix byte-identical for
   /// KV-cache friendliness.
   ConversationSnapshot snapshot() => ConversationSnapshot(
-        systemMessage: _systemMessage,
-        turns: List<ConversationTurn>.unmodifiable(_turns),
-        tools: _tools,
-      );
+    systemMessage: _systemMessage,
+    turns: List<ConversationTurn>.unmodifiable(_turns),
+    tools: _tools,
+  );
 
   /// Drop observation from the oldest non-trimmed [UserTurn] until
   /// [estimatedTokens] is `<= threshold` or no trimmable turns remain.
@@ -67,11 +65,14 @@ class ConversationBuilder {
   /// replaced with [Observation.empty].
   void trimIfOverBudget(int threshold) {
     while (estimatedTokens() > threshold) {
-      final int idx =
-          _turns.indexWhere((ConversationTurn t) => t is UserTurn && !t.trimmed);
+      final int idx = _turns.indexWhere(
+        (ConversationTurn t) => t is UserTurn && !t.trimmed,
+      );
       if (idx < 0) break;
-      _turns[idx] = (_turns[idx] as UserTurn)
-          .copyWith(observation: Observation.empty(), trimmed: true);
+      _turns[idx] = (_turns[idx] as UserTurn).copyWith(
+        observation: Observation.empty(),
+        trimmed: true,
+      );
     }
   }
 

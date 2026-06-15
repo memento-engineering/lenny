@@ -28,8 +28,9 @@ Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  testWidgets('Login → Home with valid demo credentials',
-      (WidgetTester tester) async {
+  testWidgets('Login → Home with valid demo credentials', (
+    WidgetTester tester,
+  ) async {
     final container = ProviderContainer(
       overrides: <Override>[dioProvider.overrideWithValue(_instantDio())],
     );
@@ -51,8 +52,9 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
   });
 
-  testWidgets('Bad credentials show inline login_error',
-      (WidgetTester tester) async {
+  testWidgets('Bad credentials show inline login_error', (
+    WidgetTester tester,
+  ) async {
     final container = ProviderContainer(
       overrides: <Override>[dioProvider.overrideWithValue(_instantDio())],
     );

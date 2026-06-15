@@ -33,39 +33,50 @@ void main() {
     });
   });
 
-  test('panel package never print()s or debugPrint()s token/key fields',
-      () async {
-    final libDir =
-        Directory('packages/leonard_devtools/lib/src/panels').existsSync()
-            ? Directory('packages/leonard_devtools/lib/src/panels')
-            : Directory('lib/src/panels');
-    expect(libDir.existsSync(), isTrue,
-        reason: 'expected to find the panels lib directory; cwd=${Directory.current.path}');
-    final offenders = <String>[];
-    for (final f in libDir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'))) {
-      final src = f.readAsStringSync();
-      // Strip line comments and block comments so doc-strings don't
-      // false-positive.
-      final stripped = src
-          .replaceAll(RegExp(r'//[^\n]*'), '')
-          .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
-      final lines = stripped.split('\n');
-      for (var i = 0; i < lines.length; i++) {
-        final l = lines[i];
-        final hasPrint = RegExp(r'\b(print|debugPrint)\s*\(').hasMatch(l);
-        if (!hasPrint) continue;
-        // Anything print-y in panel code is a smell; flag it. Whitelisted
-        // by adding `// print-allowed: <reason>` on the same line.
-        if (l.contains('print-allowed:')) continue;
-        offenders.add('${f.path}:${i + 1}: ${l.trim()}');
+  test(
+    'panel package never print()s or debugPrint()s token/key fields',
+    () async {
+      final libDir =
+          Directory('packages/leonard_devtools/lib/src/panels').existsSync()
+          ? Directory('packages/leonard_devtools/lib/src/panels')
+          : Directory('lib/src/panels');
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'expected to find the panels lib directory; cwd=${Directory.current.path}',
+      );
+      final offenders = <String>[];
+      for (final f
+          in libDir
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.dart'))) {
+        final src = f.readAsStringSync();
+        // Strip line comments and block comments so doc-strings don't
+        // false-positive.
+        final stripped = src
+            .replaceAll(RegExp(r'//[^\n]*'), '')
+            .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
+        final lines = stripped.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          final l = lines[i];
+          final hasPrint = RegExp(r'\b(print|debugPrint)\s*\(').hasMatch(l);
+          if (!hasPrint) continue;
+          // Anything print-y in panel code is a smell; flag it. Whitelisted
+          // by adding `// print-allowed: <reason>` on the same line.
+          if (l.contains('print-allowed:')) continue;
+          offenders.add('${f.path}:${i + 1}: ${l.trim()}');
+        }
       }
-    }
-    expect(offenders, isEmpty,
-        reason: 'panel code must not print()/debugPrint(); '
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'panel code must not print()/debugPrint(); '
             'add `// print-allowed: <reason>` to whitelist.\n'
-            '${offenders.join('\n')}');
-  });
+            '${offenders.join('\n')}',
+      );
+    },
+  );
 }

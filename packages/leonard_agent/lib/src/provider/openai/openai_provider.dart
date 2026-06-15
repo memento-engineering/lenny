@@ -30,9 +30,9 @@ class OpenAiModelProvider implements ModelProvider {
     required this.apiKey,
     Uri? endpoint,
     http.Client? client,
-  })  : endpoint = endpoint ??
-            Uri.parse('https://api.openai.com/v1/chat/completions'),
-        _client = client ?? http.Client();
+  }) : endpoint =
+           endpoint ?? Uri.parse('https://api.openai.com/v1/chat/completions'),
+       _client = client ?? http.Client();
 
   /// OpenAI model id (e.g. `gpt-5`).
   final String modelId;
@@ -97,12 +97,15 @@ class OpenAiModelProvider implements ModelProvider {
       throw StateError('openai http ${res.statusCode}: ${res.body}');
     }
 
-    final Map<String, dynamic> decoded =
-        (jsonDecode(res.body) as Map).cast<String, dynamic>();
+    final Map<String, dynamic> decoded = (jsonDecode(res.body) as Map)
+        .cast<String, dynamic>();
     // OpenAI elides thinking from history — parseOpenAiResponse may pick
     // up rationale / wait_strategy sibling JSON; thinking stays null.
-    final ModelDecision parsed =
-        parseOpenAiResponse(decoded, schema: schema, tools: snapshot.tools);
+    final ModelDecision parsed = parseOpenAiResponse(
+      decoded,
+      schema: schema,
+      tools: snapshot.tools,
+    );
     return ModelDecision(
       action: parsed.action,
       thinking: null,
@@ -134,17 +137,16 @@ class OpenAiModelProvider implements ModelProvider {
       ..body = jsonEncode(body);
 
     final http.StreamedResponse res = await _client.send(req);
-    await for (final String line in res.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())) {
+    await for (final String line
+        in res.stream.transform(utf8.decoder).transform(const LineSplitter())) {
       if (!line.startsWith('data: ')) continue;
       final String payload = line.substring(6).trim();
       if (payload == '[DONE]') {
         _thinking.add(const ThinkingDelta(text: '', isFinal: true));
         return;
       }
-      final Map<String, dynamic> chunk =
-          (jsonDecode(payload) as Map).cast<String, dynamic>();
+      final Map<String, dynamic> chunk = (jsonDecode(payload) as Map)
+          .cast<String, dynamic>();
       final List<dynamic>? choices = chunk['choices'] as List<dynamic>?;
       if (choices == null || choices.isEmpty) continue;
       final Map<String, dynamic>? delta =

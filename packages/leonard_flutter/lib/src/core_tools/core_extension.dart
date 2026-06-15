@@ -36,8 +36,7 @@ class CoreToolError implements Exception {
 
   /// Convert to the standard `ToolResult(ok: false, error: '<code>: <msg>')`
   /// shape consumed by the cx6.14 action validator.
-  ToolResult toToolResult() =>
-      ToolResult(ok: false, error: '$code: $message');
+  ToolResult toToolResult() => ToolResult(ok: false, error: '$code: $message');
 
   @override
   String toString() => 'CoreToolError($code): $message';
@@ -53,8 +52,7 @@ class CoreToolError implements Exception {
 /// (any user plugin claiming `core` will fail to register and be
 /// skipped).
 class CoreExtension extends LeonardExtension {
-  CoreExtension({required SemanticsCapture semantics})
-      : _semantics = semantics;
+  CoreExtension({required SemanticsCapture semantics}) : _semantics = semantics;
 
   final SemanticsCapture _semantics;
 

@@ -10,9 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('RunStatusHeader', () {
     testWidgets('shows idle when vm is null', (tester) async {
-      await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: RunStatusHeader()),
-      ));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: RunStatusHeader())),
+      );
       expect(find.byKey(const Key('runStatus.idle')), findsOneWidget);
     });
 
@@ -31,9 +31,11 @@ void main() {
         await traj.close();
       });
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: RunStatusHeader(vm: vm)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: RunStatusHeader(vm: vm)),
+        ),
+      );
       expect(find.byKey(const Key('runStatus.running')), findsOneWidget);
       expect(find.textContaining('Turn 1'), findsOneWidget);
     });
@@ -52,9 +54,11 @@ void main() {
         await traj.close();
       });
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: RunStatusHeader(vm: vm)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: RunStatusHeader(vm: vm)),
+        ),
+      );
       vm.complete(RunStatus.done);
       await tester.pump();
 
@@ -75,9 +79,11 @@ void main() {
         await traj.close();
       });
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: RunStatusHeader(vm: vm)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: RunStatusHeader(vm: vm)),
+        ),
+      );
       vm.complete(RunStatus.error);
       await tester.pump();
 

@@ -37,10 +37,7 @@ abstract class LeonardApp {
 /// with the binding (debug/profile only; ignored in release) and the
 /// root widget to hand to `runApp`.
 class LeonardAppConfig {
-  const LeonardAppConfig({
-    required this.extensions,
-    required this.app,
-  });
+  const LeonardAppConfig({required this.extensions, required this.app});
 
   /// Extensions registered through the same code path as
   /// [LeonardBinding.ensureInitialized]'s `extensions:` argument.

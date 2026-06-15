@@ -29,12 +29,12 @@ class _EchoTool extends LeonardTool {
   String get description => 'echo back the text arg';
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'text': <String, Object?>{'type': 'string'},
-        },
-        'required': <String>['text'],
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'text': <String, Object?>{'type': 'string'},
+    },
+    'required': <String>['text'],
+  });
   @override
   Future<ToolResult> call(Map<String, Object?> args) async =>
       ToolResult(ok: true, value: args['text']);
@@ -121,8 +121,10 @@ void main() {
   test(
     'e2e: handshake returns manifest with core and sample namespaces',
     () async {
-      final VmServiceClient client =
-          VmServiceClient.fromVmService(fake, 'isolate-0');
+      final VmServiceClient client = VmServiceClient.fromVmService(
+        fake,
+        'isolate-0',
+      );
       final HandshakeResult h = await client.handshake();
       expect(h.contractVersion, '2');
       final Map<String, List<String>> byNs = <String, List<String>>{
@@ -190,8 +192,10 @@ void main() {
     'handshake on a binding-absent isolate throws BindingNotInitializedError',
     () async {
       final VmService rejecting = _RejectingVmService();
-      final VmServiceClient client =
-          VmServiceClient.fromVmService(rejecting, 'isolate-1');
+      final VmServiceClient client = VmServiceClient.fromVmService(
+        rejecting,
+        'isolate-1',
+      );
       await expectLater(
         client.handshake(),
         throwsA(isA<BindingNotInitializedError>()),

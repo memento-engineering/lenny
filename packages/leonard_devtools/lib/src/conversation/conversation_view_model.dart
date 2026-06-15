@@ -12,11 +12,13 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
     required Stream<TrajectoryRecord> trajectory,
     int? maxTurns,
     DateTime? startedAt,
-  }) : super(ConversationState(
-          status: RunStatus.running,
-          maxTurns: maxTurns,
-          startedAt: startedAt ?? DateTime.now(),
-        )) {
+  }) : super(
+         ConversationState(
+           status: RunStatus.running,
+           maxTurns: maxTurns,
+           startedAt: startedAt ?? DateTime.now(),
+         ),
+       ) {
     _turnSub = turnEvents.listen(_onTurnEvent);
     _trajSub = trajectory.listen(_onTrajectoryRecord);
   }
@@ -58,9 +60,9 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
         } else if (turn > value.currentTurn) {
           value = value.copyWith(currentTurn: turn);
         }
-        // Thinking text updates flow through AppendOnlyTextController
-        // (not via value=); that way high-frequency token events do not
-        // trigger a full ConversationState rebuild.
+      // Thinking text updates flow through AppendOnlyTextController
+      // (not via value=); that way high-frequency token events do not
+      // trigger a full ConversationState rebuild.
       case TurnActionDecided(:final turn, :final toolName, :final args):
         value = value.copyWith(
           entries: _updateEntry(

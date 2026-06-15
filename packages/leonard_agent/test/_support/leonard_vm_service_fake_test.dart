@@ -23,23 +23,18 @@ import 'leonard_vm_service_fake.dart';
 Map<String, dynamic> _handshake({
   String version = '1',
   List<dynamic> plugins = const <dynamic>[],
-}) =>
-    <String, dynamic>{'protocolVersion': version, 'extensions': plugins};
+}) => <String, dynamic>{'protocolVersion': version, 'extensions': plugins};
 
 Map<String, dynamic> _bundle({
   List<String> routes = const <String>['login'],
   List<Map<String, dynamic>> semantics = const <Map<String, dynamic>>[],
-}) =>
-    <String, dynamic>{
-      'semantics': semantics,
-      'routes': routes,
-      'errors': const <dynamic>[],
-      'stability': <String, dynamic>{
-        'policy': 'action_relative',
-        'reason': 'idle',
-      },
-      'extensions': const <String, dynamic>{},
-    };
+}) => <String, dynamic>{
+  'semantics': semantics,
+  'routes': routes,
+  'errors': const <dynamic>[],
+  'stability': <String, dynamic>{'policy': 'action_relative', 'reason': 'idle'},
+  'extensions': const <String, dynamic>{},
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -56,8 +51,7 @@ void main() {
       );
       expect(r.json!['protocolVersion'], '2');
       expect(fake.calls, hasLength(1));
-      expect(fake.calls.single.method,
-          'ext.exploration.core.handshake');
+      expect(fake.calls.single.method, 'ext.exploration.core.handshake');
     });
 
     test('observation returns {type: Observation, value: bundle}', () async {
@@ -70,8 +64,8 @@ void main() {
         args: <String, dynamic>{'policy': 'action-relative'},
       );
       expect(r.json!['type'], 'Observation');
-      final Map<String, dynamic> value =
-          (r.json!['value'] as Map).cast<String, dynamic>();
+      final Map<String, dynamic> value = (r.json!['value'] as Map)
+          .cast<String, dynamic>();
       expect(value['routes'], <String>['/home']);
     });
 
@@ -84,20 +78,21 @@ void main() {
         fake.callServiceExtension(
           'ext.exploration.core.get_stable_observation',
         ),
-        throwsA(
-          isA<RPCError>().having((e) => e.code, 'code', -32601),
-        ),
+        throwsA(isA<RPCError>().having((e) => e.code, 'code', -32601)),
       );
     });
 
     test('handler table routes arbitrary extension', () async {
       final fake = LeonardVmServiceFake(
         handshakeResponse: _handshake(),
-        handlers: <String,
-            Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-          'ext.exploration.router.navigate': (args) async =>
-              <String, dynamic>{'ok': true, 'value': args?['route_name']},
-        },
+        handlers:
+            <
+              String,
+              Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+            >{
+              'ext.exploration.router.navigate': (args) async =>
+                  <String, dynamic>{'ok': true, 'value': args?['route_name']},
+            },
       );
       final r = await fake.callServiceExtension(
         'ext.exploration.router.navigate',
@@ -111,9 +106,7 @@ void main() {
       final fake = LeonardVmServiceFake(handshakeResponse: _handshake());
       await expectLater(
         fake.callServiceExtension('ext.exploration.core.unknown'),
-        throwsA(
-          isA<RPCError>().having((e) => e.code, 'code', -32601),
-        ),
+        throwsA(isA<RPCError>().having((e) => e.code, 'code', -32601)),
       );
     });
 
@@ -122,8 +115,7 @@ void main() {
         handshakeResponse: _handshake(),
         observationBundle: _bundle(),
       );
-      await fake.callServiceExtension(
-          'ext.exploration.core.handshake');
+      await fake.callServiceExtension('ext.exploration.core.handshake');
       await fake.callServiceExtension(
         'ext.exploration.core.get_stable_observation',
         isolateId: 'iso-1',
@@ -157,40 +149,42 @@ void main() {
       await session.end();
     });
 
-    test('session.pullObservation() decodes bundle into typed Observation',
-        () async {
-      final fake = LeonardVmServiceFake(
-        handshakeResponse: _handshake(),
-        observationBundle: _bundle(
-          routes: <String>['login'],
-          semantics: <Map<String, dynamic>>[
-            <String, dynamic>{
-              'id': 1,
-              'role': 'textfield',
-              'label': 'Email',
-              'rect': <int>[0, 0, 100, 40],
-            },
-            <String, dynamic>{
-              'id': 2,
-              'role': 'button',
-              'label': 'Sign in',
-              'rect': <int>[0, 50, 100, 90],
-            },
-          ],
-        ),
-      );
-      final session = LeonardSession.fromVmService(fake, 'isolate-0');
-      await session.start('test goal', const LeonardConfig());
-      try {
-        final obs = await session.pullObservation(
-          policy: StabilityPolicy.actionRelative,
+    test(
+      'session.pullObservation() decodes bundle into typed Observation',
+      () async {
+        final fake = LeonardVmServiceFake(
+          handshakeResponse: _handshake(),
+          observationBundle: _bundle(
+            routes: <String>['login'],
+            semantics: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 1,
+                'role': 'textfield',
+                'label': 'Email',
+                'rect': <int>[0, 0, 100, 40],
+              },
+              <String, dynamic>{
+                'id': 2,
+                'role': 'button',
+                'label': 'Sign in',
+                'rect': <int>[0, 50, 100, 90],
+              },
+            ],
+          ),
         );
-        expect(obs.core.routeStack, <String>['login']);
-        expect(obs.core.nodes.length, 2);
-        expect(obs.core.nodes.keys.toSet(), <int>{1, 2});
-      } finally {
-        await session.end();
-      }
-    });
+        final session = LeonardSession.fromVmService(fake, 'isolate-0');
+        await session.start('test goal', const LeonardConfig());
+        try {
+          final obs = await session.pullObservation(
+            policy: StabilityPolicy.actionRelative,
+          );
+          expect(obs.core.routeStack, <String>['login']);
+          expect(obs.core.nodes.length, 2);
+          expect(obs.core.nodes.keys.toSet(), <int>{1, 2});
+        } finally {
+          await session.end();
+        }
+      },
+    );
   });
 }

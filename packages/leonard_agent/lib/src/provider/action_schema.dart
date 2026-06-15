@@ -25,23 +25,21 @@ class ActionSchema {
   /// plugins activate or deactivate.
   factory ActionSchema.fromToolList(List<ToolDescriptor> tools) {
     Map<String, dynamic> variant(ToolDescriptor t) => <String, dynamic>{
-          'type': 'object',
-          'required': <String>['tool', 'args'],
-          'properties': <String, dynamic>{
-            'tool': <String, dynamic>{'type': 'string', 'const': t.name},
-            'args': t.inputSchema,
-          },
-          'additionalProperties': false,
-        };
+      'type': 'object',
+      'required': <String>['tool', 'args'],
+      'properties': <String, dynamic>{
+        'tool': <String, dynamic>{'type': 'string', 'const': t.name},
+        'args': t.inputSchema,
+      },
+      'additionalProperties': false,
+    };
 
     final root = <String, dynamic>{
       r'$schema': 'http://json-schema.org/draft-07/schema#',
       'type': 'object',
       'required': <String>['action'],
       'properties': <String, dynamic>{
-        'action': <String, dynamic>{
-          'oneOf': tools.map(variant).toList(),
-        },
+        'action': <String, dynamic>{'oneOf': tools.map(variant).toList()},
         'rationale': <String, dynamic>{
           'type': <String>['string', 'null'],
         },
@@ -83,8 +81,7 @@ class ActionSchema {
     final result = _validator.validate(decoded);
     if (!result.isValid) {
       throw SchemaRejection(
-        validationError:
-            result.errors.map((e) => e.toString()).join('; '),
+        validationError: result.errors.map((e) => e.toString()).join('; '),
         rawOutput: rawOutput,
       );
     }

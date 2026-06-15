@@ -9,17 +9,17 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 ToolDescriptor _tap() => const ToolDescriptor(
-      name: 'core.tap',
-      description: 'tap',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'node_id': <String, dynamic>{'type': 'integer'},
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.tap',
+  description: 'tap',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer'},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
 
 ConversationSnapshot _prompt({Observation? observation}) {
   final builder = ConversationBuilder(
@@ -34,24 +34,21 @@ ConversationSnapshot _prompt({Observation? observation}) {
 }
 
 Map<String, dynamic> _resp(String name, String args) => <String, dynamic>{
-      'choices': <Map<String, dynamic>>[
-        <String, dynamic>{
-          'message': <String, dynamic>{
-            'role': 'assistant',
-            'tool_calls': <Map<String, dynamic>>[
-              <String, dynamic>{
-                'id': 'c1',
-                'type': 'function',
-                'function': <String, dynamic>{
-                  'name': name,
-                  'arguments': args,
-                },
-              },
-            ],
+  'choices': <Map<String, dynamic>>[
+    <String, dynamic>{
+      'message': <String, dynamic>{
+        'role': 'assistant',
+        'tool_calls': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'c1',
+            'type': 'function',
+            'function': <String, dynamic>{'name': name, 'arguments': args},
           },
-        },
-      ],
-    };
+        ],
+      },
+    },
+  ],
+};
 
 OpenAiModelProvider _provider(http.Client client, {String model = 'gpt-5'}) =>
     OpenAiModelProvider(modelId: model, apiKey: 'k', client: client);
@@ -61,7 +58,10 @@ void main() {
     Map<String, dynamic>? captured;
     final mock = MockClient((req) async {
       captured = jsonDecode(req.body) as Map<String, dynamic>;
-      return http.Response(jsonEncode(_resp('core.tap', '{"node_id":42}')), 200);
+      return http.Response(
+        jsonEncode(_resp('core.tap', '{"node_id":42}')),
+        200,
+      );
     });
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
 
@@ -93,13 +93,11 @@ void main() {
     await _provider(mock).decide(_prompt(observation: obs), s);
 
     final messages = captured!['messages'] as List;
-    final userMsg = messages.firstWhere(
-      (m) => (m as Map)['role'] == 'user',
-    ) as Map;
+    final userMsg =
+        messages.firstWhere((m) => (m as Map)['role'] == 'user') as Map;
     final parts = userMsg['content'] as List;
-    final imagePart = parts.firstWhere(
-      (p) => (p as Map)['type'] == 'image_url',
-    ) as Map;
+    final imagePart =
+        parts.firstWhere((p) => (p as Map)['type'] == 'image_url') as Map;
     final urlMap = imagePart['image_url'] as Map;
     expect(urlMap['url'], startsWith('data:image/png;base64,'));
     expect(urlMap['url'], contains(img.base64Png));
@@ -125,8 +123,9 @@ void main() {
   });
 
   test('second rejection propagates SchemaRejection', () async {
-    final mock = MockClient((req) async =>
-        http.Response(jsonEncode(_resp('core.tap', '{}')), 200));
+    final mock = MockClient(
+      (req) async => http.Response(jsonEncode(_resp('core.tap', '{}')), 200),
+    );
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
 
     await expectLater(
@@ -135,8 +134,7 @@ void main() {
     );
   });
 
-  test('unknown tool name → SchemaRejection (unknown tool, available list)',
-      () {
+  test('unknown tool name → SchemaRejection (unknown tool, available list)', () {
     const navigateTool = ToolDescriptor(
       name: 'router.navigate',
       description: 'navigate',
@@ -208,7 +206,8 @@ void main() {
   });
 
   test('streaming surfaces ThinkingDelta events', () async {
-    const sse = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'
+    const sse =
+        'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'
         'data: {"choices":[{"delta":{"content":"!"}}]}\n\n'
         'data: [DONE]\n\n';
     final mock = MockClient.streaming((req, body) async {
@@ -227,36 +226,46 @@ void main() {
     await sub.cancel();
     unawaited(provider.close());
 
-    final nonFinal = collected.where((d) => !d.isFinal).map((d) => d.text).toList();
+    final nonFinal = collected
+        .where((d) => !d.isFinal)
+        .map((d) => d.text)
+        .toList();
     expect(nonFinal, <String>['hi', '!']);
     expect(collected.last.isFinal, isTrue);
   });
 
-  test('2-turn snapshot: role:tool message follows assistant tool_calls; ids match', () async {
-    Map<String, dynamic>? sent;
-    final mock = MockClient((req) async {
-      sent = jsonDecode(req.body) as Map<String, dynamic>;
-      return http.Response(jsonEncode(_resp('core.tap', '{"node_id":7}')), 200);
-    });
-    final builder = ConversationBuilder(
-      systemMessage: 'sys',
-      tools: <ToolDescriptor>[_tap()],
-    );
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    builder.appendAssistantTurn('', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
-    await _provider(mock).decide(builder.snapshot(), s);
-    final msgs = sent!['messages'] as List;
-    final assistantMsg = msgs.firstWhere(
-      (m) => (m as Map)['role'] == 'assistant',
-    ) as Map;
-    final callId =
-        ((assistantMsg['tool_calls'] as List).first as Map)['id'] as String;
-    expect(callId, isNot('call_carry'));
-    final toolMsg = msgs.firstWhere(
-      (m) => (m as Map)['role'] == 'tool',
-    ) as Map;
-    expect(toolMsg['tool_call_id'], callId);
-  });
+  test(
+    '2-turn snapshot: role:tool message follows assistant tool_calls; ids match',
+    () async {
+      Map<String, dynamic>? sent;
+      final mock = MockClient((req) async {
+        sent = jsonDecode(req.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode(_resp('core.tap', '{"node_id":7}')),
+          200,
+        );
+      });
+      final builder = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: <ToolDescriptor>[_tap()],
+      );
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      builder.appendAssistantTurn('', (
+        tool: 'core.tap',
+        args: <String, dynamic>{'node_id': 1},
+      ));
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_tap()]);
+      await _provider(mock).decide(builder.snapshot(), s);
+      final msgs = sent!['messages'] as List;
+      final assistantMsg =
+          msgs.firstWhere((m) => (m as Map)['role'] == 'assistant') as Map;
+      final callId =
+          ((assistantMsg['tool_calls'] as List).first as Map)['id'] as String;
+      expect(callId, isNot('call_carry'));
+      final toolMsg =
+          msgs.firstWhere((m) => (m as Map)['role'] == 'tool') as Map;
+      expect(toolMsg['tool_call_id'], callId);
+    },
+  );
 }

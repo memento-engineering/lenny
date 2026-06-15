@@ -52,10 +52,10 @@ class DtdPromptPanelConfigStore implements PromptPanelConfigStore {
     required Future<void> Function(String key, String value) write,
     String? Function(String key)? localRead,
     void Function(String key, String value)? localWrite,
-  })  : _read = read,
-        _write = write,
-        _localRead = localRead,
-        _localWrite = localWrite;
+  }) : _read = read,
+       _write = write,
+       _localRead = localRead,
+       _localWrite = localWrite;
 
   static const String _storageKey = 'lenny.promptConfig.lastUsed';
 

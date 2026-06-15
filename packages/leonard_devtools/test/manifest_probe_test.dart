@@ -1,5 +1,4 @@
-import 'package:leonard_agent/leonard_agent.dart'
-    show ExtensionManifestEntry;
+import 'package:leonard_agent/leonard_agent.dart' show ExtensionManifestEntry;
 import 'package:leonard_devtools/src/manifest_probe.dart';
 import 'package:flutter_test/flutter_test.dart';
 

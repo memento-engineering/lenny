@@ -26,11 +26,13 @@ void main() {
   late LeonardBinding initial;
 
   setUpAll(() {
-    initial = LeonardBinding.ensureInitialized(extensions: const [
-      _StubExtension('a'),
-      _StubExtension('b'),
-      _StubExtension('a'),
-    ])!;
+    initial = LeonardBinding.ensureInitialized(
+      extensions: const [
+        _StubExtension('a'),
+        _StubExtension('b'),
+        _StubExtension('a'),
+      ],
+    )!;
   });
 
   test('installs as WidgetsBinding in debug', () {
@@ -39,23 +41,35 @@ void main() {
   });
 
   test('preserves plugin list verbatim (order + duplicates)', () {
-    expect(initial.plugins.map((p) => p.namespace).toList(),
-        <String>['a', 'b', 'a']);
+    expect(initial.plugins.map((p) => p.namespace).toList(), <String>[
+      'a',
+      'b',
+      'a',
+    ]);
   });
 
   test('plugins getter returns an unmodifiable list', () {
-    expect(() => initial.plugins.add(const _StubExtension('c')),
-        throwsUnsupportedError);
+    expect(
+      () => initial.plugins.add(const _StubExtension('c')),
+      throwsUnsupportedError,
+    );
   });
 
   test('idempotent: second call returns same instance', () {
-    final second =
-        LeonardBinding.ensureInitialized(extensions: const [_StubExtension('z')]);
-    expect(identical(initial, second), isTrue,
-        reason: 'second call must return the existing binding without '
-            'replacing the plugin list');
-    expect(initial.plugins.map((p) => p.namespace).toList(),
-        <String>['a', 'b', 'a'],
-        reason: 'idempotent call must not mutate the stored plugin list');
+    final second = LeonardBinding.ensureInitialized(
+      extensions: const [_StubExtension('z')],
+    );
+    expect(
+      identical(initial, second),
+      isTrue,
+      reason:
+          'second call must return the existing binding without '
+          'replacing the plugin list',
+    );
+    expect(
+      initial.plugins.map((p) => p.namespace).toList(),
+      <String>['a', 'b', 'a'],
+      reason: 'idempotent call must not mutate the stored plugin list',
+    );
   });
 }

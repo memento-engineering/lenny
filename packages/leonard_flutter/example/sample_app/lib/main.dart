@@ -58,8 +58,9 @@ class _SampleAppRoot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ThemeMode themeMode =
-        ref.watch(settingsProvider.select((s) => s.theme));
+    final ThemeMode themeMode = ref.watch(
+      settingsProvider.select((s) => s.theme),
+    );
     return MaterialApp.router(
       title: 'Sample App',
       debugShowCheckedModeBanner: false,

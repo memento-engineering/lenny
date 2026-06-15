@@ -33,16 +33,18 @@ const String kLeonardExtensionPrefix = 'ext.exploration';
 const int kDefaultErrorBufferCapacity = 50;
 
 /// Signature of the callback we hand to `developer.registerExtension`.
-typedef _ExtCallback = Future<developer.ServiceExtensionResponse> Function(
-    String method, Map<String, String> parameters);
+typedef _ExtCallback =
+    Future<developer.ServiceExtensionResponse> Function(
+      String method,
+      Map<String, String> parameters,
+    );
 
 /// Override hook for the diagnostics walker root, used by tests to inject
 /// a throwing root and assert the binding degrades gracefully.
 @visibleForTesting
 typedef DiagnosticsRootProvider = Element? Function();
 
-class LeonardBinding extends WidgetsFlutterBinding
-    with FrameStabilityTracker {
+class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   LeonardBinding._(
     this._extensions,
     this._extraInteractiveTypes,
@@ -112,8 +114,7 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// Async teardown callbacks registered by user code via
   /// `LeonardAppContext.onTeardown`. Drained LIFO from
   /// [debugReset] (debug/profile only).
-  final List<Future<void> Function()> _teardowns =
-      <Future<void> Function()>[];
+  final List<Future<void> Function()> _teardowns = <Future<void> Function()>[];
 
   /// Captured prior `FlutterError.onError`, restored by [debugReset].
   FlutterExceptionHandler? _priorFlutterOnError;
@@ -147,8 +148,10 @@ class LeonardBinding extends WidgetsFlutterBinding
   }) {
     if (!kDebugMode && !kProfileMode) return null;
     if (_instance != null) return _instance;
-    assert(errorBufferCapacity > 0,
-        'errorBufferCapacity must be > 0 (got $errorBufferCapacity)');
+    assert(
+      errorBufferCapacity > 0,
+      'errorBufferCapacity must be > 0 (got $errorBufferCapacity)',
+    );
     // BindingBase.debugBindingType() is non-null once any binding has been
     // initialized; it stays null until then. Available in debug and profile
     // (which is the only mode this method runs in), per BindingBase.
@@ -209,13 +212,9 @@ class LeonardBinding extends WidgetsFlutterBinding
       try {
         _extensionRegistry.register(p);
       } on StateError catch (e) {
-        debugPrint(
-          '[Leonard] skipping extension ${p.namespace}: $e',
-        );
+        debugPrint('[Leonard] skipping extension ${p.namespace}: $e');
       } on ArgumentError catch (e) {
-        debugPrint(
-          '[Leonard] skipping extension ${p.namespace}: $e',
-        );
+        debugPrint('[Leonard] skipping extension ${p.namespace}: $e');
       }
     }
     _installErrorHooks();
@@ -225,7 +224,9 @@ class LeonardBinding extends WidgetsFlutterBinding
     // Run plugin initialization in a microtask so it completes before the
     // first frame without blocking the synchronous return.
     scheduleMicrotask(
-      () => _extensionRegistry.initializeAll().then((_) => _registerExtensionToolExtensions()),
+      () => _extensionRegistry.initializeAll().then(
+        (_) => _registerExtensionToolExtensions(),
+      ),
     );
   }
 
@@ -298,13 +299,13 @@ class LeonardBinding extends WidgetsFlutterBinding
           runApp(cfg.app);
         },
         zoneSpecification: ZoneSpecification(
-          scheduleMicrotask: (Zone self, ZoneDelegate parent, Zone zone,
-              void Function() f) {
-            // _instance is set synchronously in the body above before any
-            // microtask ever runs through this hook.
-            _instance?.markMicrotaskScheduled();
-            parent.scheduleMicrotask(zone, f);
-          },
+          scheduleMicrotask:
+              (Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+                // _instance is set synchronously in the body above before any
+                // microtask ever runs through this hook.
+                _instance?.markMicrotaskScheduled();
+                parent.scheduleMicrotask(zone, f);
+              },
         ),
       );
     } else {
@@ -312,13 +313,10 @@ class LeonardBinding extends WidgetsFlutterBinding
       // build + runApp in the stability zone bound to the existing
       // binding so microtasks scheduled from the new app tree still
       // flip the edge signal.
-      runZoned<void>(
-        () {
-          final LeonardAppConfig cfg = app.build(_DebugContext(existing));
-          runApp(cfg.app);
-        },
-        zoneSpecification: stabilityZoneSpec(existing),
-      );
+      runZoned<void>(() {
+        final LeonardAppConfig cfg = app.build(_DebugContext(existing));
+        runApp(cfg.app);
+      }, zoneSpecification: stabilityZoneSpec(existing));
     }
   }
 
@@ -350,8 +348,10 @@ class LeonardBinding extends WidgetsFlutterBinding
     _priorPlatformOnError = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
       _errors.add(error.toString(), stack);
-      final FlutterErrorDetails details =
-          FlutterErrorDetails(exception: error, stack: stack);
+      final FlutterErrorDetails details = FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+      );
       _extensionRegistry.dispatchError(details);
       // If a prior handler exists we forward to it; otherwise we report
       // "handled" (matches the framework's null-onError default of true).
@@ -369,132 +369,123 @@ class LeonardBinding extends WidgetsFlutterBinding
   }
 
   void _registerCoreExtensions() {
-    _registerExtension(
-      '$kLeonardExtensionPrefix.core.handshake',
-      (String method, Map<String, String> parameters) async {
-        return developer.ServiceExtensionResponse.result(
-          jsonEncode(<String, Object?>{
-            'protocolVersion': '2',
-            'bindingType': 'LeonardBinding',
-            'flutterMode': kDebugMode ? 'debug' : 'profile',
-            'extensionCount': _extensions.length,
-            'extensions': <Map<String, Object?>>[
-              for (final ({String namespace, List<String> tools}) m
-                  in _extensionRegistry.manifest)
-                <String, Object?>{
-                  'namespace': m.namespace,
-                  'tools': m.tools,
-                },
-            ],
-          }),
-        );
-      },
-    );
-    _registerExtension(
-      '$kLeonardExtensionPrefix.core.get_semantics',
-      (String method, Map<String, String> parameters) async {
-        // captureAsync (not the deprecated sync capture) so the agent's
-        // primary perception path waits out the first-frame semantics-flush
-        // race instead of returning [] on a cold start (lenny-whn).
-        final List<Map<String, Object>> recs =
-            await _semanticsCapture.captureAsync();
-        return developer.ServiceExtensionResponse.result(
-          jsonEncode(<String, Object>{
-            'semantics': recs,
-            'count': recs.length,
-          }),
-        );
-      },
-    );
-    _registerExtension(
-      '$kLeonardExtensionPrefix.core.get_recent_errors',
-      (String method, Map<String, String> parameters) async {
-        final int since = int.tryParse(parameters['since'] ?? '0') ?? 0;
-        final List<ErrorEntry> entries = _errors.entriesSince(since);
-        return developer.ServiceExtensionResponse.result(jsonEncode(
-          <String, Object?>{
-            'entries': entries
-                .map((ErrorEntry e) => e.toJson())
-                .toList(growable: false),
-            'cursor':
-                entries.isEmpty ? since : _errors.highestSeq,
-          },
-        ));
-      },
-    );
+    _registerExtension('$kLeonardExtensionPrefix.core.handshake', (
+      String method,
+      Map<String, String> parameters,
+    ) async {
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(<String, Object?>{
+          'protocolVersion': '2',
+          'bindingType': 'LeonardBinding',
+          'flutterMode': kDebugMode ? 'debug' : 'profile',
+          'extensionCount': _extensions.length,
+          'extensions': <Map<String, Object?>>[
+            for (final ({String namespace, List<String> tools}) m
+                in _extensionRegistry.manifest)
+              <String, Object?>{'namespace': m.namespace, 'tools': m.tools},
+          ],
+        }),
+      );
+    });
+    _registerExtension('$kLeonardExtensionPrefix.core.get_semantics', (
+      String method,
+      Map<String, String> parameters,
+    ) async {
+      // captureAsync (not the deprecated sync capture) so the agent's
+      // primary perception path waits out the first-frame semantics-flush
+      // race instead of returning [] on a cold start (lenny-whn).
+      final List<Map<String, Object>> recs = await _semanticsCapture
+          .captureAsync();
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(<String, Object>{'semantics': recs, 'count': recs.length}),
+      );
+    });
+    _registerExtension('$kLeonardExtensionPrefix.core.get_recent_errors', (
+      String method,
+      Map<String, String> parameters,
+    ) async {
+      final int since = int.tryParse(parameters['since'] ?? '0') ?? 0;
+      final List<ErrorEntry> entries = _errors.entriesSince(since);
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(<String, Object?>{
+          'entries': entries
+              .map((ErrorEntry e) => e.toJson())
+              .toList(growable: false),
+          'cursor': entries.isEmpty ? since : _errors.highestSeq,
+        }),
+      );
+    });
     if (kDebugMode) {
       _registerExtension(
         '$kLeonardExtensionPrefix.core.get_stable_observation',
         (String method, Map<String, String> parameters) async {
           try {
-            final ObservationRequest req = _decodeObservationRequest(parameters);
-            final Map<String, Object?> obs =
-                await getStableObservation(req);
-            return developer.ServiceExtensionResponse.result(jsonEncode(
-              <String, Object?>{'type': 'Observation', 'value': obs},
-            ));
+            final ObservationRequest req = _decodeObservationRequest(
+              parameters,
+            );
+            final Map<String, Object?> obs = await getStableObservation(req);
+            return developer.ServiceExtensionResponse.result(
+              jsonEncode(<String, Object?>{
+                'type': 'Observation',
+                'value': obs,
+              }),
+            );
           } on FormatException catch (e) {
             return developer.ServiceExtensionResponse.error(
               developer.ServiceExtensionResponse.invalidParams,
-              jsonEncode(<String, Object?>{
-                'code': 2,
-                'message': e.message,
-              }),
+              jsonEncode(<String, Object?>{'code': 2, 'message': e.message}),
             );
           }
         },
       );
     }
     if (kDebugMode || kProfileMode) {
-      developer.registerExtension(
-        '$kLeonardExtensionPrefix.core.screenshot',
-        (String method, Map<String, String> params) async {
-          try {
-            final ScreenshotResult result = await captureScreenshot(this);
-            return developer.ServiceExtensionResponse.result(
-              jsonEncode(<String, dynamic>{'result': result.toJson()}),
-            );
-          } on ScreenshotUnavailable catch (e) {
-            return developer.ServiceExtensionResponse.error(
-              developer.ServiceExtensionResponse.extensionError,
-              jsonEncode(<String, dynamic>{
-                'code': 1,
-                'message': e.reason,
-              }),
-            );
-          }
-        },
-      );
+      developer.registerExtension('$kLeonardExtensionPrefix.core.screenshot', (
+        String method,
+        Map<String, String> params,
+      ) async {
+        try {
+          final ScreenshotResult result = await captureScreenshot(this);
+          return developer.ServiceExtensionResponse.result(
+            jsonEncode(<String, dynamic>{'result': result.toJson()}),
+          );
+        } on ScreenshotUnavailable catch (e) {
+          return developer.ServiceExtensionResponse.error(
+            developer.ServiceExtensionResponse.extensionError,
+            jsonEncode(<String, dynamic>{'code': 1, 'message': e.reason}),
+          );
+        }
+      });
     }
   }
 
   void _registerDiagnosticsExtension() {
     if (!kDebugMode && !kProfileMode) return;
-    _registerExtension(
-      '$kLeonardExtensionPrefix.core.diagnostics_warnings',
-      (String method, Map<String, String> parameters) async {
-        try {
-          _cachedDiagnostics ??= _runDiagnostic();
-          return developer.ServiceExtensionResponse.result(jsonEncode(
-            <String, Object?>{
-              'ok': true,
-              'results': _cachedDiagnostics!
-                  .map((InteractiveSemanticsWarning w) => w.toJson())
-                  .toList(),
-            },
-          ));
-        } catch (e, st) {
-          debugPrint('exploration: diagnostics walk failed: $e\n$st');
-          return developer.ServiceExtensionResponse.result(jsonEncode(
-            <String, Object?>{
-              'ok': false,
-              'error': e.toString(),
-              'results': const <Object?>[],
-            },
-          ));
-        }
-      },
-    );
+    _registerExtension('$kLeonardExtensionPrefix.core.diagnostics_warnings', (
+      String method,
+      Map<String, String> parameters,
+    ) async {
+      try {
+        _cachedDiagnostics ??= _runDiagnostic();
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{
+            'ok': true,
+            'results': _cachedDiagnostics!
+                .map((InteractiveSemanticsWarning w) => w.toJson())
+                .toList(),
+          }),
+        );
+      } catch (e, st) {
+        debugPrint('exploration: diagnostics walk failed: $e\n$st');
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{
+            'ok': false,
+            'error': e.toString(),
+            'results': const <Object?>[],
+          }),
+        );
+      }
+    });
   }
 
   /// Registers every plugin tool as a real VM service extension so
@@ -521,15 +512,11 @@ class LeonardBinding extends WidgetsFlutterBinding
     for (final MapEntry<String, LeonardTool> entry in tools.entries) {
       final String method = '$kLeonardExtensionPrefix.${entry.key}';
       final LeonardTool tool = entry.value;
-      _registerExtension(
-        method,
-        (String m, Map<String, String> params) async {
-          final Map<String, Object?> args =
-              decodeServiceExtensionParams(params);
-          final String body = await dispatchToolToEnvelope(tool, args);
-          return developer.ServiceExtensionResponse.result(body);
-        },
-      );
+      _registerExtension(method, (String m, Map<String, String> params) async {
+        final Map<String, Object?> args = decodeServiceExtensionParams(params);
+        final String body = await dispatchToolToEnvelope(tool, args);
+        return developer.ServiceExtensionResponse.result(body);
+      });
     }
   }
 
@@ -604,7 +591,8 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// observation. The VM extension is not registered in those modes,
   /// so this surface is reachable only via tests.
   Future<Map<String, Object?>> getStableObservation(
-      ObservationRequest req) async {
+    ObservationRequest req,
+  ) async {
     final PolicyLoop loop = PolicyLoop(
       snapshot: frameworkBusySnapshot,
       pollBusyStates: () async => _extensionRegistry.busyStateAll(),
@@ -641,8 +629,7 @@ class LeonardBinding extends WidgetsFlutterBinding
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
       stability: stability,
       includeScreenshot: req.includeScreenshot,
-      captureScreenshot:
-          req.includeScreenshot ? screenshotCaptureOrNull : null,
+      captureScreenshot: req.includeScreenshot ? screenshotCaptureOrNull : null,
       errorCursor: req.errorCursor,
     );
     _perceptionOwner.unmountRoot();
@@ -672,8 +659,10 @@ class LeonardBinding extends WidgetsFlutterBinding
     }
 
     final List<String> namespaces = _extensionRegistry.namespaces;
-    final Map<String, int> budgets =
-        distributeExtensionBudgets(req.extensionBudgets, namespaces);
+    final Map<String, int> budgets = distributeExtensionBudgets(
+      req.extensionBudgets,
+      namespaces,
+    );
 
     final Map<String, Object?> extensionsOut = <String, Object?>{};
 
@@ -713,10 +702,7 @@ class LeonardBinding extends WidgetsFlutterBinding
       }
     }
 
-    return <String, Object?>{
-      ...coreOut,
-      'extensions': extensionsOut,
-    };
+    return <String, Object?>{...coreOut, 'extensions': extensionsOut};
   }
 
   /// Registers [callback] both with `dart:developer` and in our local
@@ -732,7 +718,9 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// would receive but stays in-process.
   @visibleForTesting
   Future<String> invokeServiceExtension(
-      String name, Map<String, String> args) async {
+    String name,
+    Map<String, String> args,
+  ) async {
     final _ExtCallback? cb = _extensionCallbacks[name];
     if (cb == null) {
       throw StateError('No extension registered with name "$name".');
@@ -761,20 +749,12 @@ class LeonardBinding extends WidgetsFlutterBinding
   ) async {
     const String prefix = '$kLeonardExtensionPrefix.';
     if (!method.startsWith(prefix)) {
-      throw ArgumentError.value(
-        method,
-        'method',
-        'must start with "$prefix"',
-      );
+      throw ArgumentError.value(method, 'method', 'must start with "$prefix"');
     }
     final String tail = method.substring(prefix.length);
     final int dot = tail.indexOf('.');
     if (dot <= 0 || dot == tail.length - 1) {
-      throw ArgumentError.value(
-        method,
-        'method',
-        'malformed <ns>.<tool>',
-      );
+      throw ArgumentError.value(method, 'method', 'malformed <ns>.<tool>');
     }
     final Map<String, LeonardTool> merged = _extensionRegistry.mergedTools();
     final LeonardTool? tool = merged[tail];
@@ -793,7 +773,8 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// Pass null to restore the live `rootElement` lookup.
   @visibleForTesting
   void debugSetDiagnosticsRootProviderForTesting(
-      DiagnosticsRootProvider? provider) {
+    DiagnosticsRootProvider? provider,
+  ) {
     _diagnosticsRootProviderForTesting = provider;
     _cachedDiagnostics = null;
   }
@@ -903,11 +884,11 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// `installAndRun` will install it for production.
   static ZoneSpecification stabilityZoneSpec(LeonardBinding binding) {
     return ZoneSpecification(
-      scheduleMicrotask: (Zone self, ZoneDelegate parent, Zone zone,
-          void Function() f) {
-        binding.markMicrotaskScheduled();
-        parent.scheduleMicrotask(zone, f);
-      },
+      scheduleMicrotask:
+          (Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+            binding.markMicrotaskScheduled();
+            parent.scheduleMicrotask(zone, f);
+          },
     );
   }
 }

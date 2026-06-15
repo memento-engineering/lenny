@@ -5,8 +5,7 @@ import 'package:leonard_devtools/src/broadcast_trajectory_sink.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('writeLine emits a parsed TrajectoryRecord on records stream',
-      () async {
+  test('writeLine emits a parsed TrajectoryRecord on records stream', () async {
     final sink = BroadcastTrajectorySink();
     final emitted = <TrajectoryRecord>[];
     final sub = sink.records.listen(emitted.add);
@@ -44,32 +43,35 @@ void main() {
     await sink.close();
   });
 
-  test('integrates with TrajectoryWriter: header + turn fan out',
-      () async {
+  test('integrates with TrajectoryWriter: header + turn fan out', () async {
     final sink = BroadcastTrajectorySink();
     final writer = TrajectoryWriter(sink);
     final emitted = <TrajectoryRecord>[];
     final sub = sink.records.listen(emitted.add);
 
-    await writer.writeHeader(const SessionHeader(
-      goal: 'g',
-      agentsMdHash: '',
-      buildIdentifier: 'devtools',
-      modelIdentifier: 'm',
-      harnessVersion: 'v',
-      plugins: <ExtensionManifestRecord>[],
-      config: <String, dynamic>{},
-    ));
-    await writer.writeTurn(const TurnRecord(
-      index: 0,
-      observation: <String, dynamic>{},
-      stability: <String, dynamic>{},
-      proposedAction: <String, dynamic>{},
-      validation: <String, dynamic>{},
-      executedAction: <String, dynamic>{},
-      diff: <String, dynamic>{},
-      modelMetadata: <String, dynamic>{},
-    ));
+    await writer.writeHeader(
+      const SessionHeader(
+        goal: 'g',
+        agentsMdHash: '',
+        buildIdentifier: 'devtools',
+        modelIdentifier: 'm',
+        harnessVersion: 'v',
+        plugins: <ExtensionManifestRecord>[],
+        config: <String, dynamic>{},
+      ),
+    );
+    await writer.writeTurn(
+      const TurnRecord(
+        index: 0,
+        observation: <String, dynamic>{},
+        stability: <String, dynamic>{},
+        proposedAction: <String, dynamic>{},
+        validation: <String, dynamic>{},
+        executedAction: <String, dynamic>{},
+        diff: <String, dynamic>{},
+        modelMetadata: <String, dynamic>{},
+      ),
+    );
     await Future<void>.delayed(Duration.zero);
 
     expect(emitted, hasLength(2));
@@ -77,10 +79,12 @@ void main() {
     expect(emitted[1], isA<TurnRecord>());
 
     await sub.cancel();
-    await writer.close(const SessionFooter(
-      outcome: SessionOutcome.done,
-      totalTurns: 1,
-      totalDurationMs: 0,
-    ));
+    await writer.close(
+      const SessionFooter(
+        outcome: SessionOutcome.done,
+        totalTurns: 1,
+        totalDurationMs: 0,
+      ),
+    );
   });
 }

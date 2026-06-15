@@ -5,8 +5,7 @@ import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String _diagnosticsExt =
-    'ext.exploration.core.diagnostics_warnings';
+const String _diagnosticsExt = 'ext.exploration.core.diagnostics_warnings';
 
 /// Integration test for the cx6.10 connect-time diagnostic. Drives the
 /// fixture's [HitScreen] / [CleanScreen] through the production
@@ -33,13 +32,13 @@ void main() {
   });
 
   Future<List<Map<String, Object?>>> callDiagnostics() async {
-    final String resp =
-        await binding.invokeServiceExtension(_diagnosticsExt, const {});
-    final Map<String, Object?> body =
-        jsonDecode(resp) as Map<String, Object?>;
+    final String resp = await binding.invokeServiceExtension(
+      _diagnosticsExt,
+      const {},
+    );
+    final Map<String, Object?> body = jsonDecode(resp) as Map<String, Object?>;
     expect(body['ok'], isTrue);
-    return (body['results']! as List<Object?>)
-        .cast<Map<String, Object?>>();
+    return (body['results']! as List<Object?>).cast<Map<String, Object?>>();
   }
 
   /// Inflate [w] under a fresh [BuildOwner] and return the root element.
@@ -70,9 +69,13 @@ void main() {
 
     final List<Map<String, Object?>> results = await callDiagnostics();
     final Iterable<Map<String, Object?>> hits = results.where(
-        (Map<String, Object?> r) => r['widget_type'] == 'GestureDetector');
-    expect(hits, hasLength(1),
-        reason: 'HitScreen has exactly one bare GestureDetector.');
+      (Map<String, Object?> r) => r['widget_type'] == 'GestureDetector',
+    );
+    expect(
+      hits,
+      hasLength(1),
+      reason: 'HitScreen has exactly one bare GestureDetector.',
+    );
     expect(hits.first['suggested_fix_pointer'], kExtensionGuideFixPointer);
   });
 
@@ -82,10 +85,14 @@ void main() {
 
     final List<Map<String, Object?>> results = await callDiagnostics();
     final Iterable<Map<String, Object?>> hits = results.where(
-        (Map<String, Object?> r) => r['widget_type'] == 'GestureDetector');
-    expect(hits, isEmpty,
-        reason:
-            'CleanScreen wraps its GestureDetector in a label-bearing '
-            'Semantics ancestor; the auditor must skip it.');
+      (Map<String, Object?> r) => r['widget_type'] == 'GestureDetector',
+    );
+    expect(
+      hits,
+      isEmpty,
+      reason:
+          'CleanScreen wraps its GestureDetector in a label-bearing '
+          'Semantics ancestor; the auditor must skip it.',
+    );
   });
 }

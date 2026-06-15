@@ -2,7 +2,7 @@
 
 All notable changes to Leonard (dev codename: lenny) are recorded here.
 
-## 1.0.0
+## 0.1.0
 
 First tagged release — a Flutter agent harness that exposes a running app's
 state to an autonomous agent over the VM service.

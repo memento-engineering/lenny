@@ -31,7 +31,11 @@ void main() {
     });
 
     test('includes reason and est_ms when present', () {
-      const ExtensionBusy p = ExtensionBusy('plug', reason: 'loading', estMs: 250);
+      const ExtensionBusy p = ExtensionBusy(
+        'plug',
+        reason: 'loading',
+        estMs: 250,
+      );
       expect(p.toJson(), <String, Object?>{
         'namespace': 'plug',
         'reason': 'loading',
@@ -57,8 +61,9 @@ void main() {
       expect(json['policy'], 'bounded-stability');
       expect(json['terminated_by'], 'budget');
       expect(json['duration_ms'], 1234);
-      expect(json['framework_busy'],
-          <String, Object?>{'transient_callbacks': 1});
+      expect(json['framework_busy'], <String, Object?>{
+        'transient_callbacks': 1,
+      });
       expect(json['extensions_busy'], <Map<String, Object?>>[
         <String, Object?>{
           'namespace': 'a',

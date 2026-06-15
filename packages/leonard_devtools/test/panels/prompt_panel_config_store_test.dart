@@ -7,14 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 PromptPanelConfig _cfg({
   String goal = '',
   Set<String> enabled = const <String>{},
-}) =>
-    PromptPanelConfig(
-      goal: goal,
-      modelId: '',
-      maxTurns: 50,
-      wallClockBudget: const Duration(minutes: 15),
-      enabledExtensionNamespaces: enabled,
-    );
+}) => PromptPanelConfig(
+  goal: goal,
+  modelId: '',
+  maxTurns: 50,
+  wallClockBudget: const Duration(minutes: 15),
+  enabledExtensionNamespaces: enabled,
+);
 
 void main() {
   group('InMemoryPromptPanelConfigStore', () {
@@ -45,14 +44,12 @@ void main() {
 
     test('new namespace (not in known) defaults to enabled', () async {
       final store = InMemoryPromptPanelConfigStore();
-      await store.save(
-        _cfg(enabled: {'router'}),
-        knownNamespaces: {'router'},
+      await store.save(_cfg(enabled: {'router'}), knownNamespaces: {'router'});
+      final loaded = await store.load(liveNamespaces: {'router', 'newPlugin'});
+      expect(
+        loaded!.enabledExtensionNamespaces,
+        containsAll(['router', 'newPlugin']),
       );
-      final loaded = await store.load(
-        liveNamespaces: {'router', 'newPlugin'},
-      );
-      expect(loaded!.enabledExtensionNamespaces, containsAll(['router', 'newPlugin']));
     });
 
     test('disabled namespace stays disabled', () async {
@@ -106,10 +103,7 @@ void main() {
         localRead: (_) => localStored,
         localWrite: (_, v) => localStored = v,
       );
-      await store.save(
-        _cfg(goal: 'g'),
-        knownNamespaces: const <String>{},
-      );
+      await store.save(_cfg(goal: 'g'), knownNamespaces: const <String>{});
       expect(dtdStored, isNotNull);
       expect(localStored, isNotNull);
       expect(dtdStored, localStored);
@@ -131,13 +125,10 @@ void main() {
         read: (_) async => dtdStored,
         write: (_, v) async => dtdStored = v,
       );
-      await expectLater(
-        () async {
-          await store.save(_cfg(goal: 'g'), knownNamespaces: const <String>{});
-          await store.load(liveNamespaces: const <String>{});
-        },
-        returnsNormally,
-      );
+      await expectLater(() async {
+        await store.save(_cfg(goal: 'g'), knownNamespaces: const <String>{});
+        await store.load(liveNamespaces: const <String>{});
+      }, returnsNormally);
     });
   });
 }

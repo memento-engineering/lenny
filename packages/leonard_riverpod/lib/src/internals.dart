@@ -16,9 +16,9 @@ class StateChange {
   final int atTurn;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'provider_id': providerId,
-        'at_turn': atTurn,
-      };
+    'provider_id': providerId,
+    'at_turn': atTurn,
+  };
 }
 
 /// Simple fixed-capacity FIFO ring used for [StateChange] history.
@@ -45,7 +45,7 @@ class _Ring<T> {
 /// for the plugin to surface anything via its perception fragment.
 class LeonardProviderObserver extends ProviderObserver {
   LeonardProviderObserver({int ringCapacity = 16})
-      : _changes = _Ring<StateChange>(ringCapacity);
+    : _changes = _Ring<StateChange>(ringCapacity);
 
   final Map<String, ProviderBase<Object?>> _live =
       <String, ProviderBase<Object?>>{};

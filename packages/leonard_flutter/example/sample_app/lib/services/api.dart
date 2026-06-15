@@ -17,10 +17,7 @@ Dio buildDio() {
   return dio;
 }
 
-final dioProvider = Provider<Dio>(
-  (ref) => buildDio(),
-  name: 'dio',
-);
+final dioProvider = Provider<Dio>((ref) => buildDio(), name: 'dio');
 
 final apiProvider = Provider<Api>(
   (ref) => Api(ref.watch(dioProvider)),
@@ -60,7 +57,8 @@ class Api {
 
   Future<List<Item>> getItems() async {
     final r = await _dio.get<Map<String, Object?>>('/items');
-    final list = (r.data!['items'] as List<Object?>).cast<Map<String, Object?>>();
+    final list = (r.data!['items'] as List<Object?>)
+        .cast<Map<String, Object?>>();
     return [
       for (final m in list)
         Item(id: m['id'] as String, title: m['title'] as String),

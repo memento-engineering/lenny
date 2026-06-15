@@ -65,18 +65,13 @@ class TurnDetailView extends StatelessWidget {
             title: 'Reasoning',
             child: SelectableText(reasoning ?? '(none)'),
           ),
-          _Section(
-            title: 'Route stack',
-            child: SelectableText(routeLabel),
-          ),
+          _Section(title: 'Route stack', child: SelectableText(routeLabel)),
           _Section(
             title: 'Semantics nodes ($nodeCount)',
             child: ExpansionTile(
               title: const Text('Show JSON'),
               children: [
-                LazyJson(
-                  builder: () => semanticsNodes ?? const <dynamic>[],
-                ),
+                LazyJson(builder: () => semanticsNodes ?? const <dynamic>[]),
               ],
             ),
           ),
@@ -86,9 +81,7 @@ class TurnDetailView extends StatelessWidget {
                 title: 'Extension: ${entry.key}',
                 child: ExpansionTile(
                   title: const Text('Show JSON'),
-                  children: [
-                    LazyJson(builder: () => entry.value),
-                  ],
+                  children: [LazyJson(builder: () => entry.value)],
                 ),
               ),
           if (screenshotB64 != null)

@@ -12,9 +12,8 @@ class _FakeTool extends LeonardTool {
   @override
   String get description => 'fake';
   @override
-  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-      });
+  JsonSchema get inputSchema =>
+      const JsonSchema(<String, Object?>{'type': 'object'});
   @override
   Future<ToolResult> call(Map<String, Object?> args) async =>
       const ToolResult(ok: true);
@@ -51,8 +50,9 @@ void main() {
     // Re-registering the same name throws -> registration succeeded.
     expect(
       () => developer.registerExtension(
-          'ext.exploration.core.handshake',
-          (m, p) async => developer.ServiceExtensionResponse.result('{}')),
+        'ext.exploration.core.handshake',
+        (m, p) async => developer.ServiceExtensionResponse.result('{}'),
+      ),
       throwsArgumentError,
     );
   });
@@ -70,8 +70,7 @@ void main() {
     final List<dynamic> plugins = json['extensions'] as List<dynamic>;
     final Map<String, List<String>> byNs = <String, List<String>>{
       for (final dynamic p in plugins)
-        (p as Map)['namespace'] as String:
-            (p['tools'] as List).cast<String>(),
+        (p as Map)['namespace'] as String: (p['tools'] as List).cast<String>(),
     };
     expect(byNs.keys, containsAll(<String>['core', 'router']));
     expect(byNs['router'], <String>['go']);

@@ -56,8 +56,9 @@ class SemanticsCapture {
     SemanticsNode? root = _findRootSemanticsNode();
     if (root == null) {
       try {
-        await SchedulerBinding.instance.endOfFrame
-            .timeout(const Duration(milliseconds: 250));
+        await SchedulerBinding.instance.endOfFrame.timeout(
+          const Duration(milliseconds: 250),
+        );
       } on TimeoutException {
         return const <Map<String, Object>>[];
       }
@@ -216,8 +217,9 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     // rect and _filterObscured drops the actionable ones (lenny-a3s).
     // Accumulate ancestor transforms to get true device-space rects,
     // matching globalRectOf (dispatch.dart).
-    final Matrix4 global = (parentTransform ?? Matrix4.identity())
-        .multiplied(n.transform ?? Matrix4.identity());
+    final Matrix4 global = (parentTransform ?? Matrix4.identity()).multiplied(
+      n.transform ?? Matrix4.identity(),
+    );
     final Rect r = MatrixUtils.transformRect(global, n.rect);
     if (!r.overlaps(viewport)) return;
     out.add(

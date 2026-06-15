@@ -60,16 +60,16 @@ class DefaultLoopHost implements LoopHost {
     required String goal,
     required String agentsMd,
     StabilityPolicy policy = StabilityPolicy.actionRelative,
-  })  : _session = session,
-        _coreTools = List<ToolDescriptor>.unmodifiable(coreTools),
-        _pluginTools = <String, List<ToolDescriptor>>{
-          for (final MapEntry<String, List<ToolDescriptor>> e
-              in extensionTools.entries)
-            e.key: List<ToolDescriptor>.unmodifiable(e.value),
-        },
-        _goal = goal,
-        _agentsMd = agentsMd,
-        _policy = policy;
+  }) : _session = session,
+       _coreTools = List<ToolDescriptor>.unmodifiable(coreTools),
+       _pluginTools = <String, List<ToolDescriptor>>{
+         for (final MapEntry<String, List<ToolDescriptor>> e
+             in extensionTools.entries)
+           e.key: List<ToolDescriptor>.unmodifiable(e.value),
+       },
+       _goal = goal,
+       _agentsMd = agentsMd,
+       _policy = policy;
 
   final LeonardSession _session;
   final List<ToolDescriptor> _coreTools;
@@ -120,17 +120,16 @@ class DefaultLoopHost implements LoopHost {
 
   @override
   Future<Observation> observe() => _callTransport<Observation>(
-        () => _session.pullObservation(policy: _policy),
-      );
+    () => _session.pullObservation(policy: _policy),
+  );
 
   @override
   Future<Map<String, dynamic>> executeAction(
     String tool,
     Map<String, dynamic> args,
-  ) =>
-      _callTransport<Map<String, dynamic>>(
-        () => _session.client.executeAction(tool, args),
-      );
+  ) => _callTransport<Map<String, dynamic>>(
+    () => _session.client.executeAction(tool, args),
+  );
 
   @override
   Future<void> notifyExtensions(

@@ -87,8 +87,11 @@ void main() {
     await t.pumpWidget(_app(k));
     final plugin = RouterExtension(navigatorKey: k);
 
-    expect(plugin.isPerceptionIdle(), isFalse,
-        reason: 'a mounted Navigator yields a route snapshot');
+    expect(
+      plugin.isPerceptionIdle(),
+      isFalse,
+      reason: 'a mounted Navigator yields a route snapshot',
+    );
 
     final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
     expect(perceptionFrag['current_route_name'], '/');
@@ -112,19 +115,21 @@ void main() {
     expect(perceptionFrag['arguments'], {'tab': 'profile'});
   });
 
-  test('RouterDelegate (declarative) path: perception reads the config',
-      () async {
-    final plugin = RouterExtension(
-      navigatorKey: GlobalKey<NavigatorState>(),
-      routerDelegate: _FakeDelegate('/checkout/payment'),
-    );
+  test(
+    'RouterDelegate (declarative) path: perception reads the config',
+    () async {
+      final plugin = RouterExtension(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        routerDelegate: _FakeDelegate('/checkout/payment'),
+      );
 
-    expect(plugin.isPerceptionIdle(), isFalse);
-    final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
-    expect(perceptionFrag['current_route_name'], '/checkout/payment');
-    expect(perceptionFrag['stack'], ['/checkout/payment']);
-    expect(perceptionFrag['arguments'], isNull);
-  });
+      expect(plugin.isPerceptionIdle(), isFalse);
+      final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
+      expect(perceptionFrag['current_route_name'], '/checkout/payment');
+      expect(perceptionFrag['stack'], ['/checkout/payment']);
+      expect(perceptionFrag['arguments'], isNull);
+    },
+  );
 
   test(
     'idle gate: isPerceptionIdle() is true when no surface yields a route',

@@ -53,18 +53,18 @@ ModelProvider buildProvider(
 }) {
   return switch (tier) {
     ModelTier.qwenMlx => _buildSwiftInferProvider(
-        sessionId: sessionId,
-        now: now ?? DateTime.now,
-      ),
+      sessionId: sessionId,
+      now: now ?? DateTime.now,
+    ),
     ModelTier.claude => AnthropicModelProvider(
-        model: _kAnthropicSonnet,
-        apiKey: _requireEnv('ANTHROPIC_API_KEY'),
-        onCallDiagnostics: onModelDiagnostics,
-      ),
+      model: _kAnthropicSonnet,
+      apiKey: _requireEnv('ANTHROPIC_API_KEY'),
+      onCallDiagnostics: onModelDiagnostics,
+    ),
     ModelTier.openai => OpenAiModelProvider(
-        modelId: _kOpenAiGpt5,
-        apiKey: _requireEnv('OPENAI_API_KEY'),
-      ),
+      modelId: _kOpenAiGpt5,
+      apiKey: _requireEnv('OPENAI_API_KEY'),
+    ),
   };
 }
 
@@ -91,8 +91,7 @@ SwiftInferModelProvider _buildSwiftInferProvider({
       // the gateway's VLM endpoint is verified), so the CLI overrides
       // it explicitly here.
       enableVision: true,
-      bearerToken:
-          (envToken != null && envToken.isNotEmpty) ? envToken : null,
+      bearerToken: (envToken != null && envToken.isNotEmpty) ? envToken : null,
       // captureBodies on by default for dev/PoC: gives us
       // `GET /v1/conversations/<id>` introspection for free.
       captureBodies: true,

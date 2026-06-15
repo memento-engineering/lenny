@@ -80,19 +80,26 @@ class _RunStatusHeaderState extends State<RunStatusHeader> {
       return const _StatusChip(key: Key('runStatus.idle'), label: 'idle');
     }
     return switch (vm.value.status) {
-      RunStatus.idle =>
-        const _StatusChip(key: Key('runStatus.idle'), label: 'idle'),
-      RunStatus.running =>
-        _StatusChip(
-          key: const Key('runStatus.running'),
-          label: _runningLabel(vm.value),
-        ),
-      RunStatus.done =>
-        const _StatusChip(key: Key('runStatus.done'), label: 'done'),
-      RunStatus.stopped =>
-        const _StatusChip(key: Key('runStatus.stopped'), label: 'stopped'),
-      RunStatus.error =>
-        const _StatusChip(key: Key('runStatus.error'), label: 'error'),
+      RunStatus.idle => const _StatusChip(
+        key: Key('runStatus.idle'),
+        label: 'idle',
+      ),
+      RunStatus.running => _StatusChip(
+        key: const Key('runStatus.running'),
+        label: _runningLabel(vm.value),
+      ),
+      RunStatus.done => const _StatusChip(
+        key: Key('runStatus.done'),
+        label: 'done',
+      ),
+      RunStatus.stopped => const _StatusChip(
+        key: Key('runStatus.stopped'),
+        label: 'stopped',
+      ),
+      RunStatus.error => const _StatusChip(
+        key: Key('runStatus.error'),
+        label: 'error',
+      ),
     };
   }
 
@@ -116,11 +123,8 @@ class _StatusChip extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
-            ),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
       ),
     );
   }

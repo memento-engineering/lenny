@@ -10,25 +10,25 @@ void main() {
     binding = LeonardBinding.ensureInitialized(extensions: const [])!;
   });
 
-  test('pendingMicrotasks flips true after scheduleMicrotask in zone', () async {
-    expect(binding.frameworkBusySnapshot().pendingMicrotasks, isFalse);
+  test(
+    'pendingMicrotasks flips true after scheduleMicrotask in zone',
+    () async {
+      expect(binding.frameworkBusySnapshot().pendingMicrotasks, isFalse);
 
-    // Run inside the stability zone so the binding can intercept the
-    // scheduleMicrotask call. Outside this zone, the microtask edge
-    // signal is intentionally inert (cx6.7 will install the zone for
-    // production via LeonardBinding.installAndRun).
-    await runZoned<Future<void>>(
-      () async {
+      // Run inside the stability zone so the binding can intercept the
+      // scheduleMicrotask call. Outside this zone, the microtask edge
+      // signal is intentionally inert (cx6.7 will install the zone for
+      // production via LeonardBinding.installAndRun).
+      await runZoned<Future<void>>(() async {
         scheduleMicrotask(() {});
         // Read synchronously before yielding so the microtask has not yet
         // run.
         expect(binding.frameworkBusySnapshot().pendingMicrotasks, isTrue);
         await Future<void>.delayed(Duration.zero);
         expect(binding.frameworkBusySnapshot().pendingMicrotasks, isFalse);
-      },
-      zoneSpecification: LeonardBinding.stabilityZoneSpec(binding),
-    );
-  });
+      }, zoneSpecification: LeonardBinding.stabilityZoneSpec(binding));
+    },
+  );
 
   test('markMicrotaskScheduled flips edge directly (no zone)', () async {
     // Independent of the ZoneSpecification path, the underlying mixin

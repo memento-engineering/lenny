@@ -44,26 +44,32 @@ class _NoopTool extends LeonardTool {
 void main() {
   tearDown(() async => LeonardBinding.debugReset());
 
-  test(
-    'installCoreExtension: false allows a user "core" plugin and omits the '
-    'real core tool surface',
-    () async {
-      final LeonardBinding binding = LeonardBinding.ensureInitialized(
-        extensions: <LeonardExtension>[_UserCoreExtension()],
-        installCoreExtension: false,
-      )!;
-      // Plugin initialization runs in a microtask; flush before
-      // inspecting the merged tool map.
-      await Future<void>.delayed(Duration.zero);
+  test('installCoreExtension: false allows a user "core" plugin and omits the '
+      'real core tool surface', () async {
+    final LeonardBinding binding = LeonardBinding.ensureInitialized(
+      extensions: <LeonardExtension>[_UserCoreExtension()],
+      installCoreExtension: false,
+    )!;
+    // Plugin initialization runs in a microtask; flush before
+    // inspecting the merged tool map.
+    await Future<void>.delayed(Duration.zero);
 
-      final Map<String, LeonardTool> merged =
-          binding.extensionRegistry.mergedTools();
-      expect(merged.keys, contains('core.noop'),
-          reason: 'user "core" plugin tool must register');
-      expect(merged.keys, isNot(contains('core.tap')),
-          reason: 'real CoreExtension tools must NOT be registered');
-      expect(merged.keys, isNot(contains('core.done')),
-          reason: 'real CoreExtension tools must NOT be registered');
-    },
-  );
+    final Map<String, LeonardTool> merged = binding.extensionRegistry
+        .mergedTools();
+    expect(
+      merged.keys,
+      contains('core.noop'),
+      reason: 'user "core" plugin tool must register',
+    );
+    expect(
+      merged.keys,
+      isNot(contains('core.tap')),
+      reason: 'real CoreExtension tools must NOT be registered',
+    );
+    expect(
+      merged.keys,
+      isNot(contains('core.done')),
+      reason: 'real CoreExtension tools must NOT be registered',
+    );
+  });
 }

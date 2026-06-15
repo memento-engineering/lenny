@@ -28,11 +28,7 @@ class ToolResult {
 
 /// Whether a plugin reports the app as busy (settling, loading, animating, ...).
 class BusyState {
-  const BusyState({
-    required this.isBusy,
-    this.reason,
-    this.estimatedDuration,
-  });
+  const BusyState({required this.isBusy, this.reason, this.estimatedDuration});
 
   /// `true` when the plugin reports an in-flight activity.
   final bool isBusy;
