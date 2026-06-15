@@ -68,7 +68,7 @@ Note: `semantics_capture._actions` serializes `SemanticsAction.setText` → **`'
 **Widget-tree path for text entry.** Instead of fighting the semantics
 `focus → frame → setText` dance, `core.enter_text` should:
 
-1. `plugin.lookupNode(node_id)` → target `SemanticsNode` (+ its global rect).
+1. `extension.lookupNode(node_id)` → target `SemanticsNode` (+ its global rect).
 2. Resolve that node → the corresponding **`EditableText` `State`** by walking the in-process
    element tree from `WidgetsBinding.instance.rootElement`, collecting `EditableText` elements,
    and matching by **geometry** (largest rect intersection with the target node's global rect).
@@ -211,7 +211,7 @@ This is how the node-split + DPR facts in §2 were captured.
 
 - **Verify before concluding.** This whole diagnosis overturned the bead's stated hypothesis by
   capturing real data on the device. Check the mundane cause first (occluded window, disabled
-  plugin, wrong coordinate space) before the dramatic one.
+  extension, wrong coordinate space) before the dramatic one.
 - **Revert all instrumentation; delete scratch probes** before filing/speccing. (Done.)
 - **Non-theatre tests:** a test must go RED against the old code. The committee rejected a
   semantics test that pre-pumped the tree so `capture()` == `captureAsync()`. The new c94 and whn

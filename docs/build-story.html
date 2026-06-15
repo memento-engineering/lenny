@@ -135,11 +135,11 @@
   <section class="hero" id="c0" data-name="top">
     <div class="kicker reveal in">git log --reverse · the build, narrated</div>
     <h1 class="reveal in">Building&nbsp;Lenny.
-      <span class="sub">A Flutter exploration agent — from a PRD that kept rewriting itself,
+      <span class="sub">A Flutter agent — from a PRD that kept rewriting itself,
         through a one-evening sprint where a swarm of agents merged thirty-odd PRs,
         to a thing you can actually point at a running app.</span>
     </h1>
-    <div class="meta reveal in">May 7 – May 12, 2026 · ~30 stories · 3 model backends · 3 reference plugins · 1 DevTools panel</div>
+    <div class="meta reveal in">May 7 – May 12, 2026 · ~30 stories · 3 model backends · 3 reference extensions · 1 DevTools panel</div>
     <div class="scroll-hint reveal in">scroll</div>
   </section>
 
@@ -167,13 +167,13 @@
     <h2 class="reveal"><span class="num">02 — the document that kept rewriting itself</span>v0.2 → v0.5</h2>
     <p class="reveal meta">May 7, 00:57 — <span class="mono">Add initial docs</span> · 02:50 — <span class="mono">docs: prd v5</span></p>
     <p class="reveal">The first cut (v0.2) was a monolith: one binding that knew about routing, state,
-      networking — the works. By v0.5 it had turned itself inside out into a <b>host-and-plugins</b>
+      networking — the works. By v0.5 it had turned itself inside out into a <b>host-and-extensions</b>
       architecture. The realization that forced it: <i>routing diversity is unsolvable in the core.</i>
       Flutter has Navigator, <span class="mono">Router</span>, go_router, auto_route, beamer, custom
       <span class="mono">RouterConfig</span> — a unified abstraction over all of that is lossy. So don't.
-      Let each router describe itself in its own shape, as a plugin. Same logic for state management,
+      Let each router describe itself in its own shape, as a extension. Same logic for state management,
       networking, error reporting, telemetry.</p>
-    <blockquote class="reveal">The host's job is to be a good plugin host. The plugins' job is to know
+    <blockquote class="reveal">The host's job is to be a good extension host. The extensions' job is to know
       about specific things.</blockquote>
     <p class="reveal d1">v0.5 also picked the model target — a local Qwen3.6-35B-A3B served over MLX,
       with frontier APIs as fallback — and refactored the harness/frontend boundary so the loop is a
@@ -187,13 +187,13 @@
     <p class="reveal meta">May 7, 08:51 → 10:36 — six commits in under two hours</p>
     <p class="reveal">The epic <span class="mono">lenny-cx6</span> got decomposed into 18 stories — then
       almost immediately <i>re-decomposed</i> when the v0.2 plan was swapped for the v0.5
-      plugin-architecture plan. Then tightened again ("fix four contamination items"), then every
+      extension-architecture plan. Then tightened again ("fix four contamination items"), then every
       design field backfilled across 28 stories, then every story specified: <span class="mono">29
       planned, 1 draft (legitimately blocked)</span>. Then, that evening, one more realignment around
       <span class="mono">swift-infer</span> to define the proof-of-concept critical path.</p>
     <div class="tl reveal d1">
       <div class="ev a"><div class="when">08:51</div><div class="what"><b>Decompose</b> the epic → 18 stories + 2 follow-ups</div></div>
-      <div class="ev a"><div class="when">09:03</div><div class="what">Throw it out. <b>Re-decompose</b> around the v0.5 plugin architecture</div></div>
+      <div class="ev a"><div class="when">09:03</div><div class="what">Throw it out. <b>Re-decompose</b> around the v0.5 extension architecture</div></div>
       <div class="ev a"><div class="when">09:21–09:52</div><div class="what">Tighten the cut · backfill <b>design fields</b> on 28 stories · plan the spike</div></div>
       <div class="ev a"><div class="when">10:36</div><div class="what"><b>Specify all v0.5 stories</b> — 29 planned, 1 draft</div></div>
       <div class="ev a"><div class="when">18:41</div><div class="what">Realign around swift-infer · <b>define the PoC critical path</b></div></div>
@@ -211,11 +211,11 @@
       implemented its spec, and a reviewer gated the squash-merge. PRs landed in clusters of three and
       four because that's how many things were unblocked at once.</p>
     <p class="reveal d1">In the first ~2½ hours: the binding skeleton, semantics-tree capture with stable
-      IDs, frame-stability signals, the plugin contract + registry, the harness scaffolding + VM-service
-      connection, the <span class="mono">exploration_router</span> reference plugin, the model-provider
-      abstraction, <span class="mono">exploration_riverpod</span>, Anthropic + OpenAI + swift-infer
-      providers, the JSONL trajectory writer, <span class="mono">exploration_dio</span> (which exists
-      partly to prove the busy-state mechanism works), screenshot capture, the plugin authoring guide,
+      IDs, frame-stability signals, the extension contract + registry, the harness scaffolding + VM-service
+      connection, the <span class="mono">leonard_router</span> reference extension, the model-provider
+      abstraction, <span class="mono">leonard_riverpod</span>, Anthropic + OpenAI + swift-infer
+      providers, the JSONL trajectory writer, <span class="mono">leonard_dio</span> (which exists
+      partly to prove the busy-state mechanism works), screenshot capture, the extension authoring guide,
       and a host diagnostic that warns when interactive widgets ship without semantics.</p>
 
     <div class="stream reveal d2" id="stream"></div>
@@ -229,7 +229,7 @@
       <b>perception-action loop driver</b> with budgets and failure handling.</p>
     <p class="reveal d1">Then the faces: the DevTools <b>Prompt</b> panel, the <b>Thinking</b> panel
       (live token streaming), <span class="mono">LoopHost</span> wired onto
-      <span class="mono">ExplorationSession</span>, and finally the <b>CLI frontend</b> with its
+      <span class="mono">LeonardSession</span>, and finally the <b>CLI frontend</b> with its
       <span class="mono">AGENTS.md</span> template.</p>
     <blockquote class="reveal d2">May 8, 15:54 — <span class="mono">bd: close lenny-cx6.20 (CLI frontend merged via PR #31 — PoC complete)</span></blockquote>
   </section>
@@ -245,8 +245,8 @@
       tree after its first attempt merged in a tangled state. The runtime-error work landed properly the
       second time around.</p>
     <p class="reveal d1">The harness/loop split also exposed a missing seam mid-flight — a
-      <span class="mono">DefaultLoopHost</span> had to be wired onto <span class="mono">ExplorationSession</span>
-      (alongside <span class="mono">VmServiceClient</span> and <span class="mono">PluginManifest</span>)
+      <span class="mono">DefaultLoopHost</span> had to be wired onto <span class="mono">LeonardSession</span>
+      (alongside <span class="mono">VmServiceClient</span> and <span class="mono">ExtensionManifest</span>)
       as a prerequisite the original decomposition hadn't named. Filed as <span class="mono">lenny-0bd</span>,
       built, merged, then the CLI story unblocked.</p>
     <p class="reveal d2">The honest version of "built in a weekend" includes the re-specs and the
@@ -257,7 +257,7 @@
   <section id="c6" data-name="dogfood">
     <h2 class="reveal"><span class="num">06 — proof, then dogfood</span>A whole stack to point at a real app</h2>
     <p class="reveal meta">May 9, 20:35 — <span class="mono">Sample non-trivial Flutter app for dogfooding &amp; success criteria (#32)</span></p>
-    <p class="reveal">With the loop, the providers, the plugins, and both frontends in, the PoC needed
+    <p class="reveal">With the loop, the providers, the extensions, and both frontends in, the PoC needed
       something to <i>chew on</i> — so a deliberately non-trivial sample app went in, against which the
       success criteria could actually be measured. <span class="mono">bd: close lenny-cx6.29 — v0.5 PoC
       stack complete.</span> VS Code launch configs for the sample app and the CLI followed the same day,
@@ -269,11 +269,11 @@
     <h2 class="reveal"><span class="num">07 — making it visible</span>Three panels inside DevTools</h2>
     <p class="reveal">The CLI is the headless face — CI, batch trajectory collection. The DevTools
       extension is the one you watch. It auto-discovers whenever an app depends on
-      <span class="mono">exploration_flutter</span>, and runs the harness loop <i>inside the panel's own
+      <span class="mono">leonard_flutter</span>, and runs the harness loop <i>inside the panel's own
       web app</i> — no extra process, no IPC.</p>
     <div class="grid2 reveal d1">
       <div class="card"><h4>Prompt</h4>Type the goal, pick a model, set budgets, hit Start. Later wired
-        to a live plugin manifest from the binding handshake, a provider config block, a dynamic model
+        to a live extension manifest from the binding handshake, a provider config block, a dynamic model
         list pulled from <span class="mono">/v1/models</span>, and — eventually — a Start button that
         actually calls <span class="mono">session.run()</span>.</div>
       <div class="card"><h4>Thinking</h4>The model's reasoning trace streams in live (the
@@ -296,7 +296,7 @@
       <li><b>The binding has to win the race.</b> Some routers (go_router) call
         <span class="mono">WidgetsFlutterBinding.ensureInitialized()</span> deep in their constructor.
         If app code builds one before the binding installs, the wrong binding wins. The fix:
-        <span class="mono">ExplorationBinding.run(ExplorationApp)</span> — claim the slot first, <i>then</i>
+        <span class="mono">LeonardBinding.run(LeonardApp)</span> — claim the slot first, <i>then</i>
         hand the app a context to build its router/state/client. Discovered, specified, built, merged
         as <span class="mono">lenny-3wt</span> (PR&nbsp;#33).</li>
       <li><b>Speak the gateway's language exactly.</b> The swift-infer provider was realigned to match the
@@ -320,13 +320,13 @@
       <div class="stat"><div class="n" data-to="30">0</div><div class="l">stories in the epic</div></div>
       <div class="stat"><div class="n" data-to="8">0</div><div class="l">workspace packages</div></div>
       <div class="stat"><div class="n" data-to="3">0</div><div class="l">model backends</div></div>
-      <div class="stat"><div class="n" data-to="3">0</div><div class="l">reference plugins</div></div>
+      <div class="stat"><div class="n" data-to="3">0</div><div class="l">reference extensions</div></div>
       <div class="stat"><div class="n" data-to="3">0</div><div class="l">DevTools panels</div></div>
       <div class="stat"><div class="n" data-to="3">0</div><div class="l">re-specs / rebuilds, owned</div></div>
     </div>
-    <p class="reveal d2 meta">Packages: <span class="mono">exploration_flutter · exploration_agent ·
-      exploration_cli · exploration_devtools · exploration_router · exploration_riverpod ·
-      exploration_dio</span> (+ a diagnostic fixture &amp; sample app). Backends: <span class="mono">qwen-mlx
+    <p class="reveal d2 meta">Packages: <span class="mono">leonard_flutter · leonard_agent ·
+      leonard_cli · leonard_devtools · leonard_router · leonard_riverpod ·
+      leonard_dio</span> (+ a diagnostic fixture &amp; sample app). Backends: <span class="mono">qwen-mlx
       (local) · claude · openai</span>.</p>
   </section>
 
@@ -334,7 +334,7 @@
   <section id="c10" data-name="what's next">
     <h2 class="reveal"><span class="num">10 — now, and what's queued</span>The board after the dust settled</h2>
     <p class="reveal">The v1 PoC stack is in. Recently: this build story and an informal
-      <a href="./how-lenny-works.md">how-it-works explainer</a>. On the board, drafted or open:</p>
+      <a href="./how-leonard-works.md">how-it-works explainer</a>. On the board, drafted or open:</p>
     <ul class="reveal d1">
       <li><span class="tag">spike</span> <b>Recursive exploration &amp; a pure-Dart binding</b> — can the
         agent explore non-Flutter Dart apps, and itself? (<span class="mono">lenny-9sg</span>)</li>
@@ -346,7 +346,7 @@
       <li><span class="tag">feature</span> <b>DevTools polish</b> — persist last-used config across
         reloads (<span class="mono">lenny-6rh / r8f</span>), mid-turn interrupt
         (<span class="mono">cx6.31</span>), standalone web debug workflow (<span class="mono">lenny-93o</span>).</li>
-      <li><span class="tag">deferred</span> Marionette-compat plugin, a plugin scaffolding generator,
+      <li><span class="tag">deferred</span> Marionette-compat extension, a extension scaffolding generator,
         the resources/prompts contract extension, empirical tuning of the 800 ms action-relative
         stability default — all v2.</li>
     </ul>
@@ -355,9 +355,9 @@
   <footer>
     <div class="reveal">Built out loud, in the open, in the log.</div>
     <div class="reveal links">
-      <a href="./how-lenny-works.md">how Lenny works →</a> ·
-      <a href="./flutter_exploration_agent_prd_v0.5.md">PRD v0.5</a> ·
-      <a href="./plugin_authoring_guide.md">plugin authoring guide</a>
+      <a href="./how-leonard-works.md">how Lenny works →</a> ·
+      <a href="./leonard_prd_v0.5.md">PRD v0.5</a> ·
+      <a href="./extension_authoring_guide.md">extension authoring guide</a>
     </div>
     <div class="reveal meta" style="margin-top:18px">Generated from <span class="mono">git log</span> +
       <span class="mono">bd</span> history · May 2026</div>
@@ -372,20 +372,20 @@
   /* ---- the sprint commit stream (real PRs, abbreviated) ---- */
   var SPRINT = [
     ["ddb094b","#1","Repo & multi-package scaffolding"],
-    ["6f86a50","#2","ExplorationBinding skeleton, lifecycle, conflict detection"],
+    ["6f86a50","#2","LeonardBinding skeleton, lifecycle, conflict detection"],
     ["0c7f4ca","#3","Semantics tree capture with stable IDs"],
     ["9030d0a","#4","Frame stability signal collection (host)"],
-    ["cf6a972","#5","Plugin contract: types, registry, PluginContext"],
-    ["3f24db4","#6","Harness scaffolding, VM service connection, ExplorationSession API"],
-    ["7f9bab6","#7","exploration_router reference plugin (raw Router/Navigator)"],
+    ["cf6a972","#5","Extension contract: types, registry, ExtensionContext"],
+    ["3f24db4","#6","Harness scaffolding, VM service connection, LeonardSession API"],
+    ["7f9bab6","#7","leonard_router reference extension (raw Router/Navigator)"],
     ["6ed09d7","#8","Model provider abstraction + dynamic constrained-output schema"],
     ["39da223","#9","Anthropic frontier model provider"],
-    ["861f79f","#10","exploration_riverpod reference plugin"],
-    ["4b775b7","#11","Trajectory writer (JSONL) + plugin contribution metadata"],
+    ["861f79f","#10","leonard_riverpod reference extension"],
+    ["4b775b7","#11","Trajectory writer (JSONL) + extension contribution metadata"],
     ["eb44534","#12","swift-infer model provider (local MLX gateway)"],
-    ["a23c532","#13","exploration_dio reference plugin (validates busy-state)"],
+    ["a23c532","#13","leonard_dio reference extension (validates busy-state)"],
     ["7726cf4","#14","OpenAI frontier model provider"],
-    ["e685993","#15","Plugin authoring guide"],
+    ["e685993","#15","Extension authoring guide"],
     ["15189e0","#16","Screenshot capture (host)"],
     ["1864196","#17","Host diagnostic: warn on interactive widgets w/o semantics"],
     ["57f4dee","#19","DevTools extension scaffold + auto-discovery"],
@@ -399,8 +399,8 @@
     ["f871a82","#27","Perception-action loop driver — budgets + failure handling"],
     ["2eb21a2","#29","DevTools: Prompt panel"],
     ["f07d6e6","#28","DevTools: Thinking panel (live streaming)"],
-    ["6a0f3b5","#30","Wire LoopHost on ExplorationSession + VmServiceClient + PluginManifest"],
-    ["47b7d80","#31","CLI frontend (exploration_cli) + AGENTS.md template — PoC complete"]
+    ["6a0f3b5","#30","Wire LoopHost on LeonardSession + VmServiceClient + ExtensionManifest"],
+    ["47b7d80","#31","CLI frontend (leonard_cli) + AGENTS.md template — PoC complete"]
   ];
   var stream = document.getElementById("stream");
   SPRINT.forEach(function(c,i){
