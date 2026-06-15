@@ -8,7 +8,7 @@ import TurnDelta from '../components/TurnDelta.astro';
 import SummaryEvolution from '../components/SummaryEvolution.astro';
 import architecture from '../diagrams/architecture.svg?raw';
 ---
-<Layout title="Leonard — a Flutter exploration agent">
+<Layout title="Leonard — a Flutter agent for Leonard">
   <Hero
     name="Leonard"
     tagline="An agent that drives a real Flutter app — and knows when it's done reacting."
@@ -53,7 +53,7 @@ import architecture from '../diagrams/architecture.svg?raw';
       <li><code>leonard_riverpod</code> — reports which providers are loading.</li>
       <li><code>leonard_dio</code> — reports in-flight HTTP requests.</li>
     </ul>
-    <p>Know about <em>your</em> stack? <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> — it ships in your app's <code>pubspec.yaml</code>, not in the harness.</p>
+    <p>Know about <em>your</em> stack? <a href="https://github.com/memento-engineering/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> — it ships in your app's <code>pubspec.yaml</code>, not in the harness.</p>
   </Section>
   <Section id="models" title="Model backends">
     <ul>
@@ -63,6 +63,6 @@ import architecture from '../diagrams/architecture.svg?raw';
     </ul>
   </Section>
   <Section id="status" title="Status: v1 PoC">
-    <p>This is a proof of concept. The architecture is real and the loop runs end to end, but APIs will move, coverage is partial, and you should expect rough edges. Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a> for where it's headed.</p>
+    <p>This is a proof of concept. The architecture is real and the loop runs end to end, but APIs will move, coverage is partial, and you should expect rough edges. Read the <a href="https://github.com/memento-engineering/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a> for where it's headed.</p>
   </Section>
 </Layout>
