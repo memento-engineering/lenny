@@ -1,7 +1,7 @@
 name: leonard_agent
 description: Web-compatible harness library.
 version: 0.1.0
-publish_to: none
+repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
 environment:

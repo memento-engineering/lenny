@@ -91,6 +91,16 @@ For the full, illustrated tour, read [`docs/how-leonard-works.md`](docs/how-leon
 >
 > — [Leonard Shelby](https://duckduckgo.com/?q=memento)
 
+## Built on genesis
+
+Leonard's perception layer is built on [**genesis**](https://github.com/memento-engineering/genesis) —
+an open (BSD-3) toolkit for reconcilable trees and runtime perception:
+
+- [**`genesis_tree`**](https://pub.dev/packages/genesis_tree) — the reconcilable tree spine
+  (`Seed` / `Branch` / `TreeOwner`) that Leonard's observation tree is built on.
+- [**`genesis_perception`**](https://pub.dev/packages/genesis_perception) — the measurement domain
+  over that tree; every `build() → Perception` observation is a genesis perception tree.
+
 ## Packages
 
 This is a Melos monorepo. The harness is frontend- and framework-agnostic; the host and
