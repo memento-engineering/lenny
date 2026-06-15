@@ -8,11 +8,11 @@
 ## Context
 
 Lenny's perception is already a tree — it's just depth-1 and reconciled the dumb way. `Observation`
-is the root; each plugin's `PluginFragment` is a child; `observe() -> JSON` assembles it
+is the root; each extension's `ExtensionFragment` is a child; `observe() -> JSON` assembles it
 imperatively; `ObservationDiffer` reconciles by brute structural compare.
 
 While exploring modeling **butane** (a federated Flutter BLE plugin, `../butane_flutter`) as a
-plugin, four loose ends each turned out to be the *same* problem Flutter already solved in its
+extension, four loose ends each turned out to be the *same* problem Flutter already solved in its
 build pipeline:
 
 - the heartbeat event sink (`lenny-0d6v`),
@@ -151,7 +151,7 @@ clocks Flutter collapses into one (vsync) and we cannot:
   harvest walk.
 
 `get_stable_observation(policy)` → `PerceptionOwner.harvestStableFrame(policy)`: (1) await settle —
-the gate is the union of *widget pipeline idle* ∧ *no dirty perception elements* ∧ *plugin
+the gate is the union of *widget pipeline idle* ∧ *no dirty perception elements* ∧ *extension
 `busyState` idle* ∧ *event quiet-window elapsed*; (2) walk harvest→build→serialize; (3) return the
 `Observation`.
 
@@ -227,9 +227,9 @@ anchor is just a Flutter-specific source feeding it.**
 ```
             perception   (pure Dart core — Perception, PerceptionContext, owner, sink, SettleSource)
             ▲      ▲      ▲
-  perception_flutter   exploration_dio   exploration_riverpod  ...
+  perception_flutter   leonard_dio   leonard_riverpod  ...
   (adapter: FlutterFrameSettleSource,
-   core semantics plugin, PerceptionAnchor)
+   core semantics extension, PerceptionAnchor)
             ▲
      the app under test
 ```
@@ -238,7 +238,7 @@ anchor is just a Flutter-specific source feeding it.**
   `PerceptionContext`, `InheritedPerception`, `PerceptionOwner`, the walk, the dirty set + sink, the
   `SettleSource` interface, VM-service-extension registration (`dart:developer`, not Flutter).
 - The **Flutter adapter** is the only Flutter-coupled layer: a `WidgetsBinding`-backed
-  `FlutterFrameSettleSource` (frame idleness), the `core` semantics plugin, and `PerceptionAnchor`.
+  `FlutterFrameSettleSource` (frame idleness), the `core` semantics extension, and `PerceptionAnchor`.
 - Settle source diverges cleanly: `FlutterFrameSettleSource` vs `EventLoopSettleSource`
   (microtask/timer drain) for a headless program. The `quiet-frame` `StabilityPolicy` is
   Flutter-only; `bounded-stability` generalizes.
@@ -306,7 +306,7 @@ incrementally via dual-path coexistence.
 
 ## Provenance
 
-Cross-repo design exploration: running butane as a `perception` plugin. butane registers
+Cross-repo design exploration: running butane as a `perception` extension. butane registers
 `ext.butane.*` for its own standalone surface; the adapter re-exposes it as
 `ext.flutter.exploration.butane.*`. Reference for the sink is butane's `subscribe` → `notification`
 event channel (`butane_harness` `central_role.dart`).
