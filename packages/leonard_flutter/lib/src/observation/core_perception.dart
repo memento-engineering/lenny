@@ -15,12 +15,11 @@ import 'package:genesis_perception/genesis_perception.dart';
 ///
 /// Each [Field] value is assigned verbatim by `serializePerceptionFragment`
 /// (no re-serialization, no transformation), so feeding the SAME already-
-/// computed primitives the legacy [buildCoreFragment] uses yields a fragment
-/// that is deep-equal AND byte-equal (key order preserved) to the legacy
-/// map.
+/// computed primitives [CoreFragmentValues] carries yields a fragment that is
+/// deep-equal AND byte-equal (key order preserved) to [CoreFragmentValues.toMap].
 class CorePerception extends StatelessPerception {
-  /// Captures the already-computed legacy primitives so the [Node] is built
-  /// from the identical values `buildCoreFragment` assembles into its map.
+  /// Captures the already-computed core primitives so the [Node] is built
+  /// from the identical values [CoreFragmentValues] assembles into its map.
   const CorePerception({
     super.key,
     required this.semantics,
@@ -58,14 +57,14 @@ class CorePerception extends StatelessPerception {
   );
 }
 
-/// Builds the core perception [Seed] from already-computed legacy primitives.
+/// Builds the core perception [Seed] from already-computed core primitives.
 ///
 /// The returned `Node('core', …)`'s child order is exactly the key order
-/// `buildCoreFragment` emits (semantics, routes, errors, stability, then the
-/// optional screenshot), so the serialized fragment is byte-identical to the
-/// legacy map. The `screenshot_png_b64` field is OMITTED (not present as a
-/// null) when [screenshot] is null, mirroring `buildCoreFragment` which only
-/// adds the key when a capture succeeds.
+/// [CoreFragmentValues.toMap] emits (semantics, routes, errors, stability,
+/// then the optional screenshot), so the serialized fragment is byte-identical
+/// to that map. The `screenshot_png_b64` field is OMITTED (not present as a
+/// null) when [screenshot] is null, mirroring [CoreFragmentValues.toMap] which
+/// only adds the key when a capture succeeds.
 Seed buildCorePerceptionSeed({
   required List<Map<String, Object>> semantics,
   required List<String> routes,

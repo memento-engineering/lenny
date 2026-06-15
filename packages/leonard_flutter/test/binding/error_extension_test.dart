@@ -9,7 +9,7 @@ void main() {
 
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(
-      plugins: const [],
+      extensions: const [],
       errorBufferCapacity: 3,
     )!;
     expect(binding.debugErrorBufferCapacity(), 3);

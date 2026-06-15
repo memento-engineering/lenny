@@ -119,7 +119,7 @@ hands the same instances to:
 - `LeonardDioExtension(dio)`
 - `RouterExtension(navigatorKey: ..., routerDelegate: router.routerDelegate)`
 
-…before calling `LeonardBinding.ensureInitialized(plugins: ...)`.
+…before calling `LeonardBinding.ensureInitialized(extensions: ...)`.
 That single shared-instance principle is what lets the agent see the
 real app, not an instrumented copy.
 

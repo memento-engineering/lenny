@@ -140,29 +140,3 @@ Future<CoreFragmentValues> computeCoreFragmentValues({
     screenshot: screenshot,
   );
 }
-
-/// Compose the core observation fragment (PRD §9.2).
-///
-/// Thin wrapper over [computeCoreFragmentValues] + [CoreFragmentValues.toMap]
-/// that preserves the exact legacy return shape and key order. Behavior is
-/// unchanged from before the value-computation was extracted.
-Future<Map<String, Object?>> buildCoreFragment({
-  required Future<List<Map<String, Object>>> Function() captureSemantics,
-  required List<ErrorEntry> Function(int? cursor) errorsSince,
-  required StabilityMetadata stability,
-  required bool includeScreenshot,
-  required Future<String?> Function()? captureScreenshot,
-  required int? errorCursor,
-  List<String> Function()? routeStackProvider,
-}) async {
-  final CoreFragmentValues values = await computeCoreFragmentValues(
-    captureSemantics: captureSemantics,
-    errorsSince: errorsSince,
-    stability: stability,
-    includeScreenshot: includeScreenshot,
-    captureScreenshot: captureScreenshot,
-    errorCursor: errorCursor,
-    routeStackProvider: routeStackProvider,
-  );
-  return values.toMap();
-}

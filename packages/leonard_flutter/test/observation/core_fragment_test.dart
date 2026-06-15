@@ -12,10 +12,32 @@ StabilityMetadata _stub() => const StabilityMetadata(
       extensionsBusy: <ExtensionBusy>[],
     );
 
+/// Compute the core fragment values and project them to the legacy map.
+Future<Map<String, Object?>> _coreMap({
+  required Future<List<Map<String, Object>>> Function() captureSemantics,
+  required List<ErrorEntry> Function(int? cursor) errorsSince,
+  required StabilityMetadata stability,
+  required bool includeScreenshot,
+  required Future<String?> Function()? captureScreenshot,
+  required int? errorCursor,
+  List<String> Function()? routeStackProvider,
+}) async {
+  final CoreFragmentValues values = await computeCoreFragmentValues(
+    captureSemantics: captureSemantics,
+    errorsSince: errorsSince,
+    stability: stability,
+    includeScreenshot: includeScreenshot,
+    captureScreenshot: captureScreenshot,
+    errorCursor: errorCursor,
+    routeStackProvider: routeStackProvider,
+  );
+  return values.toMap();
+}
+
 void main() {
-  group('buildCoreFragment', () {
+  group('computeCoreFragmentValues', () {
     test('contains semantics, routes, errors, stability', () async {
-      final Map<String, Object?> core = await buildCoreFragment(
+      final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => <Map<String, Object>>[
           <String, Object>{'id': 1, 'role': 'button'},
         ],
@@ -42,7 +64,7 @@ void main() {
 
     test('omits screenshot_png_b64 when includeScreenshot is false', () async {
       bool called = false;
-      final Map<String, Object?> core = await buildCoreFragment(
+      final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => const <Map<String, Object>>[],
         errorsSince: (int? c) => const <ErrorEntry>[],
         stability: _stub(),
@@ -60,7 +82,7 @@ void main() {
 
     test('includes screenshot_png_b64 when flag true and capture returns',
         () async {
-      final Map<String, Object?> core = await buildCoreFragment(
+      final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => const <Map<String, Object>>[],
         errorsSince: (int? c) => const <ErrorEntry>[],
         stability: _stub(),
@@ -74,7 +96,7 @@ void main() {
 
     test('routes empty list when no Navigator (provider returns [])',
         () async {
-      final Map<String, Object?> core = await buildCoreFragment(
+      final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => const <Map<String, Object>>[],
         errorsSince: (int? c) => const <ErrorEntry>[],
         stability: _stub(),
@@ -95,7 +117,7 @@ void main() {
         sessionClock: clock,
       );
       ring.add('boom', null);
-      final Map<String, Object?> core = await buildCoreFragment(
+      final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => const <Map<String, Object>>[],
         errorsSince: (int? c) {
           capturedCursor = c;

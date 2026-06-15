@@ -7,7 +7,7 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() {
-    binding = LeonardBinding.ensureInitialized(plugins: const [])!;
+    binding = LeonardBinding.ensureInitialized(extensions: const [])!;
   });
 
   test('pendingMicrotasks flips true after scheduleMicrotask in zone', () async {

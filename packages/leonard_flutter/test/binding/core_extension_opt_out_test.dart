@@ -49,7 +49,7 @@ void main() {
     'real core tool surface',
     () async {
       final LeonardBinding binding = LeonardBinding.ensureInitialized(
-        plugins: <LeonardExtension>[_UserCoreExtension()],
+        extensions: <LeonardExtension>[_UserCoreExtension()],
         installCoreExtension: false,
       )!;
       // Plugin initialization runs in a microtask; flush before

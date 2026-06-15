@@ -28,7 +28,7 @@ class SampleApp implements LeonardApp {
     final router = buildRouter(container);
 
     return LeonardAppConfig(
-      plugins: <LeonardExtension>[
+      extensions: <LeonardExtension>[
         RouterExtension(
           navigatorKey: rootNavigatorKey,
           routerDelegate: router.routerDelegate,

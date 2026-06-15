@@ -39,7 +39,7 @@ void main() {
 
   setUpAll(() async {
     binding = LeonardBinding.ensureInitialized(
-      plugins: <LeonardExtension>[
+      extensions: <LeonardExtension>[
         _UserExtensionClaimingCore(),
         _UserExtensionOk(),
       ],

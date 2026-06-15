@@ -32,5 +32,5 @@ class InteractiveSemanticsWarning {
 /// surfaced to users in every warning record.
 const String kExtensionGuideFixPointer =
     "These widgets won't be visible to the agent. Add semantics annotations, "
-    'or write a plugin that exposes them — see '
-    'https://docs.example.com/exploration/plugin-authoring (cx6.35).';
+    'or write an extension that exposes them — see '
+    'https://github.com/memento-engineering/lenny/blob/main/docs/extension_authoring_guide.md.';

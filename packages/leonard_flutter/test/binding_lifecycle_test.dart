@@ -26,7 +26,7 @@ void main() {
   late LeonardBinding initial;
 
   setUpAll(() {
-    initial = LeonardBinding.ensureInitialized(plugins: const [
+    initial = LeonardBinding.ensureInitialized(extensions: const [
       _StubExtension('a'),
       _StubExtension('b'),
       _StubExtension('a'),
@@ -50,7 +50,7 @@ void main() {
 
   test('idempotent: second call returns same instance', () {
     final second =
-        LeonardBinding.ensureInitialized(plugins: const [_StubExtension('z')]);
+        LeonardBinding.ensureInitialized(extensions: const [_StubExtension('z')]);
     expect(identical(initial, second), isTrue,
         reason: 'second call must return the existing binding without '
             'replacing the plugin list');

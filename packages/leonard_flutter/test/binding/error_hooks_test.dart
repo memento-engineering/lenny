@@ -57,7 +57,7 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() async {
-    binding = LeonardBinding.ensureInitialized(plugins: <LeonardExtension>[
+    binding = LeonardBinding.ensureInitialized(extensions: <LeonardExtension>[
       firstPlugin,
       throwerPlugin,
       claimerPlugin,
@@ -73,7 +73,7 @@ void main() {
     final FlutterExceptionHandler? wrappedFlutter = FlutterError.onError;
     // Idempotency: second call returns same instance and does not re-hook.
     final LeonardBinding? again =
-        LeonardBinding.ensureInitialized(plugins: const []);
+        LeonardBinding.ensureInitialized(extensions: const []);
     expect(identical(binding, again), isTrue);
     expect(identical(FlutterError.onError, wrappedFlutter), isTrue,
         reason: 'second ensureInitialized must not re-install hooks');

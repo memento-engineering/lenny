@@ -93,7 +93,7 @@ void main() {
 
   setUpAll(() async {
     binding = LeonardBinding.ensureInitialized(
-      plugins: <LeonardExtension>[_SampleEchoExtension()],
+      extensions: <LeonardExtension>[_SampleEchoExtension()],
     )!;
     // Plugin initialization runs in a microtask; flush it so the merged
     // tool map is populated before any extension lookup.

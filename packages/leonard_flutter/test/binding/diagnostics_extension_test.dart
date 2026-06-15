@@ -17,7 +17,7 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() {
-    binding = LeonardBinding.ensureInitialized(plugins: const [])!;
+    binding = LeonardBinding.ensureInitialized(extensions: const [])!;
   });
 
   tearDown(() {
@@ -50,7 +50,7 @@ void main() {
     expect(_diagnosticsExt.startsWith('$kLeonardExtensionPrefix.core.'),
         isTrue);
     if (kReleaseMode) {
-      expect(LeonardBinding.ensureInitialized(plugins: const []), isNull);
+      expect(LeonardBinding.ensureInitialized(extensions: const []), isNull);
     } else {
       expect(binding.debugHasRegisteredExtension(_diagnosticsExt), isTrue);
     }
