@@ -157,5 +157,4 @@ iPad: tap Sign In → login→home → `core.done`) and the `/harden` dogfood lo
 that the widget-tree `enter_text`, the semantics `captureAsync`, and the DPR coordinate fix are
 merged to `main` (commits `2c95c8a`, `ac4f82e`, `053bce5`).
 
-**Related:** `/harden <integration>` (the fix-finding loop), `docs/how-leonard-works.md`,
-`docs/CONTINUATION-text-entry-2026-05-31.md` (now largely closed out — its three beads are merged).
+**Related:** `/harden <integration>` (the fix-finding loop), `docs/how-leonard-works.md`.

@@ -24,9 +24,9 @@ zones:
 
 The harness side barely moves; the model never sees the change:
 
-- `exploration_agent`: `VmServiceClient`, `ExplorationSession`, `ObservationPuller`, `LoopDriver`
+- `leonard_agent`: `VmServiceClient`, `LeonardSession`, `ObservationPuller`, `LoopDriver`
   (the 10 steps), the model provider, validation, trajectory, conversation builder.
-- `exploration_cli`, and the session plumbing in `exploration_devtools`.
+- `leonard_cli`, and the session plumbing in `leonard_devtools`.
 - `ObservationDiffer` keeps working on the serialized tree (structural diff still diffs;
   element-authored diffs are a later optimization, not a migration requirement).
 
@@ -34,15 +34,15 @@ The harness side barely moves; the model never sees the change:
 
 ### Zone 2 — Refactored / re-homed (reused, moved)
 
-Most of `exploration_flutter`'s observation machinery survives, relocated into the owner pipeline:
+Most of `leonard_flutter`'s observation machinery survives, relocated into the owner pipeline:
 
 | Today | Becomes | Reuse |
 |---|---|---|
 | `budgeted_json.dart` | the **serialize-under-budget** pass ("layout") | near-verbatim |
 | `policy_loop` + `frame_stability_tracker` + `framework_busy_snapshot` | the `PerceptionOwner` **settle gate** + `FlutterFrameSettleSource` | policy logic reused |
-| `semantics_capture.dart` | the **`core` plugin's** data source | reused |
+| `semantics_capture.dart` | the **`core` extension's** data source | reused |
 | `error_ring_buffer.dart` | the **sink's event buffer / `Digest`** pattern | pattern reused |
-| plugin registry | the owner's **root assembly** | reworked |
+| extension registry | the owner's **root assembly** | reworked |
 | `stability_metadata` / `observation_request` | stay (request/stamp contract) | as-is |
 | `observation/models.dart` (harness-side typed `Observation`) | evolves depth-1 → **tree** | `fromJson` follows |
 
@@ -57,9 +57,9 @@ interface, and the sink. Plus `PerceptionAnchor` (Flutter adapter) and the diagn
 **The expensive, bug-prone heart:** the keyed reconciler (mount/update/unmount by identity) and the
 `InheritedPerception` dependency-tracking + invalidation are a *mini-Flutter* — the machinery
 Flutter took years to harden. Weeks, not days. Extracting `PerceptionOwner` out from under the
-`WidgetsBinding` singleton (today `ExplorationBinding` *is* a `WidgetsBinding`) is real surgery.
+`WidgetsBinding` singleton (today `LeonardBinding` *is* a `WidgetsBinding`) is real surgery.
 
-## The contract change every plugin author feels
+## The contract change every extension author feels
 
 ```dart
 // today
@@ -69,7 +69,7 @@ Perception build(PerceptionContext ctx);
 ```
 
 `tools` and `onActionExecuted` stay (action half parked, ADR 0001 §3). `busyState()` folds into the
-settle gate. First customers: `exploration_dio`, `exploration_riverpod`, `exploration_router` —
+settle gate. First customers: `leonard_dio`, `leonard_riverpod`, `leonard_router` —
 small, and the proof the authoring model works. `router` exercises `PerceptionAnchor` first
 (Flutter nav); dio and riverpod-core are pure-Dart-friendly.
 
@@ -78,30 +78,30 @@ small, and the proof the authoring model works. `router` exercises `PerceptionAn
 ```
             perception   (pure Dart core)
             ▲      ▲      ▲
-  perception_flutter   exploration_dio   exploration_riverpod  ...
+  perception_flutter   leonard_dio   leonard_riverpod  ...
   (Flutter adapter)
             ▲
      the app under test
 ```
 
-Today this is inverted — `exploration_flutter` holds everything app-side and Flutter is load-bearing
-at the bottom. Renaming `exploration_flutter → perception_flutter` (and the rest of the suite) is
+Today this is inverted — `leonard_flutter` holds everything app-side and Flutter is load-bearing
+at the bottom. Renaming `leonard_flutter → perception_flutter` (and the rest of the suite) is
 **deferred cosmetic churn**, kept separate from the architectural extraction.
 
 ## Migration sequence (no big-bang cutover)
 
-**Dual-path coexistence.** The binding runs legacy `observe()->fragment` plugins **and** new
-`build()->Perception` plugins simultaneously, both merged into the serialized `Observation`; the
-handshake manifest marks which plugins are perception-native.
+**Dual-path coexistence.** The binding runs legacy `observe()->fragment` extensions **and** new
+`build()->Perception` extensions simultaneously, both merged into the serialized `Observation`; the
+handshake manifest marks which extensions are perception-native.
 
 1. Extract the `perception` core (the hard net-new reconciler) with its own tests, no app wiring.
-2. Stand up `PerceptionOwner` inside `ExplorationBinding` alongside the existing fragment path.
-3. Convert one plugin (a leaf like `dio`, or `core`) to `build()->Perception`; assert the serialized
+2. Stand up `PerceptionOwner` inside `LeonardBinding` alongside the existing fragment path.
+3. Convert one extension (a leaf like `dio`, or `core`) to `build()->Perception`; assert the serialized
    output is equivalent to the old fragment. Use `assertObservationEquivalent(legacyJson, perceptionJson)` from
-   `package:exploration_flutter/test_support/observation_equivalence.dart` (lenny-lwiy) as
+   `package:leonard_flutter/test_support/observation_equivalence.dart` (lenny-lwiy) as
    the conversion gate — golden baselines committed in
-   `packages/exploration_flutter/test/goldens/`.
-4. Migrate plugin-by-plugin behind the dual path.
+   `packages/leonard_flutter/test/goldens/`.
+4. Migrate extension-by-extension behind the dual path.
 5. Retire the fragment path last; `observe()` is removed from the contract.
 
 The harness never notices, because of the firewall.
@@ -123,7 +123,7 @@ This ADR was written assuming `perception` would be extracted into an **in-repo*
 `memento-engineering/genesis` (the genesis campaign, `lenny-s9jd`), rebuilt on the domain-free
 `tree` spine. lenny now **consumes** it rather than housing it.
 
-- **The edge:** `exploration_flutter` depends on `genesis_perception` via a **pinned git
+- **The edge:** `leonard_flutter` depends on `genesis_perception` via a **pinned git
   dependency** (`git@github.com:memento-engineering/genesis.git`, `ref: 41ec0ec`,
   `path: packages/perception`). The ref is pinned (not floating) because genesis is actively
   churning (sibling packages `tree`/`taxonomy`/`typesetting`/`dialogue`/`consent`).
@@ -136,7 +136,7 @@ This ADR was written assuming `perception` would be extracted into an **in-repo*
   (the old in-repo path was `package:perception/perception.dart`).
 - **API delta:** genesis rebuilt perception on the `tree` spine with A12 subclass mechanics, a new
   `Field` leaf, and an A9 conformance delta. The full ledger lives in genesis
-  `docs/CONFORMANCE-DELTA.md`; downstream migration beads (`lenny-lwiy`, plugin conversions) must
+  `docs/CONFORMANCE-DELTA.md`; downstream migration beads (`lenny-lwiy`, extension conversions) must
   account for it.
 
 Net effect on the migration sequence: ADR step "extract the core" is replaced by "wire the
