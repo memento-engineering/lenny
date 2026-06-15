@@ -41,9 +41,9 @@ is an optional adapter.
 
 - **`Perception`** — the immutable config node (the `Widget` analog).
 - **`perception`** — the pure-Dart core package.
-- This repositions the project: **`perception` is the product; the exploration agent is one
-  *consumer* of perception trees**, alongside the human DevTools inspector and butane. The agent
-  stops being the center.
+- This separates concerns: **`perception` is a reusable layer that multiple consumers read** — the
+  Leonard agent, the human DevTools inspector, and butane — rather than something the agent owns.
+  The agent is one consumer, not the center.
 
 ## The two trees (not three)
 
