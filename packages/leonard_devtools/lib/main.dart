@@ -66,7 +66,7 @@ class LeonardDevToolsExtension extends StatelessWidget {
               if (vm == null || id == null) {
                 throw StateError(
                   'VM service / main isolate not available — cannot start '
-                  'an exploration session yet.',
+                  'a Leonard session yet.',
                 );
               }
               return LeonardSession.fromVmService(vm, id);

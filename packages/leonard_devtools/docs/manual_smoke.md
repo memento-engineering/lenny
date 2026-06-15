@@ -18,7 +18,7 @@ Steps:
    equivalent — see `lenny-1l8`).
 2. Launch `packages/sample_app` (`flutter run -d <device>`); it must
    call `LeonardBinding.ensureInitialized()` in `main()`.
-3. Open DevTools → **Exploration** tab.
+3. Open DevTools → **Leonard** tab.
 4. In the **Prompt** panel:
    - Provider: `swift-infer` (or any configured provider).
    - Endpoint / bearer token: a reachable instance.

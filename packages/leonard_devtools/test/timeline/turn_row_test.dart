@@ -173,7 +173,7 @@ void main() {
         ),
       )));
       expect(
-        find.textContaining('plugin disabled (turn 4): dio'),
+        find.textContaining('extension disabled (turn 4): dio'),
         findsOneWidget,
       );
       expect(find.textContaining('auto_disabled_after_3_failures'),
