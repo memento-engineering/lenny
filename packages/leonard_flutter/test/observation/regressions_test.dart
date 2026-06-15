@@ -74,7 +74,7 @@ void main() {
   late LeonardBinding binding;
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(
-      plugins: const <LeonardExtension>[
+      extensions: const <LeonardExtension>[
         _ThrowsInBuild(),
         _Healthy(),
         _BigFragment(),

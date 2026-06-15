@@ -11,7 +11,7 @@ void main() {
   // AutomatedTestWidgetsFlutterBinding the test framework would otherwise
   // auto-install.
   setUpAll(() {
-    LeonardBinding.ensureInitialized(plugins: const <LeonardExtension>[]);
+    LeonardBinding.ensureInitialized(extensions: const <LeonardExtension>[]);
   });
 
   test('ext.exploration.core.screenshot is registered exactly once',

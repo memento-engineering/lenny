@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 /// `CleanScreen` wraps the same gesture in a label-bearing `Semantics`
 /// (zero warnings expected).
 void main() {
-  LeonardBinding.ensureInitialized(plugins: const <LeonardExtension>[]);
+  LeonardBinding.ensureInitialized(extensions: const <LeonardExtension>[]);
   runApp(const MaterialApp(home: HitScreen()));
 }
 

@@ -46,7 +46,7 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() async {
-    binding = LeonardBinding.ensureInitialized(plugins: [_EchoExtension()])!;
+    binding = LeonardBinding.ensureInitialized(extensions: [_EchoExtension()])!;
     // initializeAll runs in a microtask; flush it and the chained
     // _registerExtensionToolExtensions call before asserting.
     await Future<void>.delayed(Duration.zero);

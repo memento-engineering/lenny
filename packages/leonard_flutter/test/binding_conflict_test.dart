@@ -8,7 +8,7 @@ void main() {
     expect(WidgetsBinding.instance is LeonardBinding, isFalse,
         reason: 'precondition: foreign binding active');
     expect(
-      () => LeonardBinding.ensureInitialized(plugins: const []),
+      () => LeonardBinding.ensureInitialized(extensions: const []),
       throwsA(isA<StateError>().having(
           (e) => e.message, 'message', contains('another WidgetsBinding'))),
     );

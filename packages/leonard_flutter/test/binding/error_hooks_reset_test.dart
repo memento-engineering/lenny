@@ -16,7 +16,7 @@ void main() {
         PlatformDispatcher.instance.onError;
 
     final LeonardBinding binding =
-        LeonardBinding.ensureInitialized(plugins: const [])!;
+        LeonardBinding.ensureInitialized(extensions: const [])!;
     expect(binding.debugErrorHooksInstalled(), isTrue);
     // The wrapped handler must NOT be the same object as the prior.
     expect(identical(FlutterError.onError, prePriorFlutter), isFalse,

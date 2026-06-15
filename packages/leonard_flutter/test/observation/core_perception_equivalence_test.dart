@@ -127,12 +127,12 @@ void main() {
   });
 
   test(
-    'live shape: buildCoreFragment seams == perception seed (byte-equal)',
+    'live shape: legacy map seams == perception seed (byte-equal)',
     () async {
-      // Exercise the legacy code path through buildCoreFragment with real seam
-      // closures, then drive the perception path from the SAME computed values
-      // via computeCoreFragmentValues. This proves the dual path holds for the
-      // production StabilityMetadata.toJson() shape, not just the curated golden.
+      // Exercise the legacy map path through computeCoreFragmentValues.toMap()
+      // with real seam closures, then drive the perception path from the SAME
+      // computed values. This proves the dual path holds for the production
+      // StabilityMetadata.toJson() shape, not just the curated golden.
       final List<Map<String, Object>> semanticsSeed = <Map<String, Object>>[
         <String, Object>{
           'id': 1,
@@ -160,17 +160,7 @@ void main() {
       );
       List<String> routeStackProvider() => <String>['home'];
 
-      final Map<String, Object?> legacy = await buildCoreFragment(
-        captureSemantics: captureSemantics,
-        errorsSince: errorsSince,
-        stability: stability,
-        includeScreenshot: false,
-        captureScreenshot: null,
-        errorCursor: 0,
-        routeStackProvider: routeStackProvider,
-      );
-
-      // Same computed values feed the perception path.
+      // Same computed values feed both the legacy map and the perception path.
       final CoreFragmentValues values = await computeCoreFragmentValues(
         captureSemantics: captureSemantics,
         errorsSince: errorsSince,
@@ -180,6 +170,7 @@ void main() {
         errorCursor: 0,
         routeStackProvider: routeStackProvider,
       );
+      final Map<String, Object?> legacy = values.toMap();
       final Map<String, Object?> perception = _harvestCoreFragment(
         buildCorePerceptionSeed(
           semantics: values.semantics,
@@ -215,15 +206,6 @@ void main() {
       );
 
       // With screenshot present.
-      final Map<String, Object?> legacyWith = await buildCoreFragment(
-        captureSemantics: captureSemantics,
-        errorsSince: errorsSince,
-        stability: stability,
-        includeScreenshot: true,
-        captureScreenshot: () async => 'AAAA',
-        errorCursor: 0,
-        routeStackProvider: () => const <String>[],
-      );
       final CoreFragmentValues valuesWith = await computeCoreFragmentValues(
         captureSemantics: captureSemantics,
         errorsSince: errorsSince,
@@ -233,6 +215,7 @@ void main() {
         errorCursor: 0,
         routeStackProvider: () => const <String>[],
       );
+      final Map<String, Object?> legacyWith = valuesWith.toMap();
       final Map<String, Object?> perceptionWith = _harvestCoreFragment(
         buildCorePerceptionSeed(
           semantics: valuesWith.semantics,
@@ -247,15 +230,6 @@ void main() {
       expect(jsonEncode(legacyWith), equals(jsonEncode(perceptionWith)));
 
       // Without screenshot — the key must be ABSENT on both sides, not null.
-      final Map<String, Object?> legacyWithout = await buildCoreFragment(
-        captureSemantics: captureSemantics,
-        errorsSince: errorsSince,
-        stability: stability,
-        includeScreenshot: false,
-        captureScreenshot: null,
-        errorCursor: 0,
-        routeStackProvider: () => const <String>[],
-      );
       final CoreFragmentValues valuesWithout = await computeCoreFragmentValues(
         captureSemantics: captureSemantics,
         errorsSince: errorsSince,
@@ -265,6 +239,7 @@ void main() {
         errorCursor: 0,
         routeStackProvider: () => const <String>[],
       );
+      final Map<String, Object?> legacyWithout = valuesWithout.toMap();
       final Map<String, Object?> perceptionWithout = _harvestCoreFragment(
         buildCorePerceptionSeed(
           semantics: valuesWithout.semantics,

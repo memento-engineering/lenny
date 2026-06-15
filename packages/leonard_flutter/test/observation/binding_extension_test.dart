@@ -63,7 +63,7 @@ void main() {
 
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(
-      plugins: const <LeonardExtension>[_ExtensionA(), _ExtensionB()],
+      extensions: const <LeonardExtension>[_ExtensionA(), _ExtensionB()],
     )!;
     binding.debugSetPolicyLoopSeamsForTesting(
       waitForFrame: () async {},

@@ -20,33 +20,33 @@ import 'leonard_binding.dart';
 ///     // the WidgetsBinding slot, so subsequent
 ///     // WidgetsFlutterBinding.ensureInitialized() calls are idempotent.
 ///     return LeonardAppConfig(
-///       plugins: <LeonardExtension>[/* ... */],
+///       extensions: <LeonardExtension>[/* ... */],
 ///       app: const MyMaterialApp(),
 ///     );
 ///   }
 /// }
 /// ```
 abstract class LeonardApp {
-  /// Construct the app's plugins + root widget. Called by
+  /// Construct the app's extensions + root widget. Called by
   /// [LeonardBinding.run] after the binding slot has been claimed
   /// (debug/profile) or at start-up (release).
   LeonardAppConfig build(LeonardAppContext ctx);
 }
 
-/// Carrier returned from [LeonardApp.build]: the plugins to register
+/// Carrier returned from [LeonardApp.build]: the extensions to register
 /// with the binding (debug/profile only; ignored in release) and the
 /// root widget to hand to `runApp`.
 class LeonardAppConfig {
   const LeonardAppConfig({
-    required this.plugins,
+    required this.extensions,
     required this.app,
   });
 
-  /// Plugins registered through the same code path as
-  /// [LeonardBinding.ensureInitialized]'s `plugins:` argument.
+  /// Extensions registered through the same code path as
+  /// [LeonardBinding.ensureInitialized]'s `extensions:` argument.
   /// `CoreExtension` is registered first by the host; these follow in
   /// order. Empty list is permitted.
-  final List<LeonardExtension> plugins;
+  final List<LeonardExtension> extensions;
 
   /// Root widget passed to `runApp`. In debug/profile, the call to
   /// `runApp` happens inside the binding's stability zone so user-mode

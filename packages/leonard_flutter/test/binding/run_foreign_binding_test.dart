@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _NoopApp implements LeonardApp {
   @override
   LeonardAppConfig build(LeonardAppContext ctx) =>
-      const LeonardAppConfig(plugins: <LeonardExtension>[], app: SizedBox.shrink());
+      const LeonardAppConfig(extensions: <LeonardExtension>[], app: SizedBox.shrink());
 }
 
 void main() {

@@ -19,8 +19,8 @@ void main() {
     expect(
       kExtensionGuideFixPointer,
       "These widgets won't be visible to the agent. Add semantics "
-      'annotations, or write a plugin that exposes them — see '
-      'https://docs.example.com/exploration/plugin-authoring (cx6.35).',
+      'annotations, or write an extension that exposes them — see '
+      'https://github.com/memento-engineering/lenny/blob/main/docs/extension_authoring_guide.md.',
     );
   });
 }

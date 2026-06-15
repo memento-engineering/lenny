@@ -153,7 +153,7 @@ class ExtensionRegistry {
       } catch (err, st) {
         e.initFailed = true;
         debugPrint(
-          '[exploration] plugin ${e.plugin.namespace} initialize failed: '
+          '[Leonard] extension ${e.plugin.namespace} initialize failed: '
           '$err\n$st',
         );
       }
@@ -199,7 +199,7 @@ class ExtensionRegistry {
         await e.plugin.dispose();
       } catch (err, st) {
         debugPrint(
-          '[exploration] plugin ${e.plugin.namespace} dispose threw: '
+          '[Leonard] extension ${e.plugin.namespace} dispose threw: '
           '$err\n$st',
         );
       }
@@ -220,7 +220,7 @@ class ExtensionRegistry {
           claimed = h(details);
         } catch (err, st) {
           debugPrint(
-            '[exploration] plugin ${e.plugin.namespace} error handler '
+            '[Leonard] extension ${e.plugin.namespace} error handler '
             'threw: $err\n$st',
           );
           claimed = false;
@@ -250,13 +250,13 @@ class ExtensionRegistry {
       final next = e.failures[m]! + 1;
       e.failures[m] = next;
       debugPrint(
-        '[exploration] plugin ${e.plugin.namespace} ${m.name} threw: '
+        '[Leonard] extension ${e.plugin.namespace} ${m.name} threw: '
         '$err\n$st',
       );
       if (next >= 3 && !e.disabled[m]!) {
         e.disabled[m] = true;
         debugPrint(
-          '[exploration] plugin ${e.plugin.namespace} auto-disabled after '
+          '[Leonard] extension ${e.plugin.namespace} auto-disabled after '
           '3 failures in ${m.name}',
         );
       }

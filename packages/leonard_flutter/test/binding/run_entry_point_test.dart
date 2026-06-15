@@ -25,7 +25,7 @@ class _RecApp implements LeonardApp {
   LeonardAppConfig build(LeonardAppContext ctx) {
     seen = ctx;
     return LeonardAppConfig(
-      plugins: <LeonardExtension>[_Stub('app_${identityHashCode(this)}')],
+      extensions: <LeonardExtension>[_Stub('app_${identityHashCode(this)}')],
       app: const SizedBox.shrink(),
     );
   }

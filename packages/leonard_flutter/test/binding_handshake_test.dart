@@ -42,7 +42,7 @@ void main() {
 
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(
-      plugins: <LeonardExtension>[_FakeExtension()],
+      extensions: <LeonardExtension>[_FakeExtension()],
     )!;
   });
 

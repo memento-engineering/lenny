@@ -9,7 +9,7 @@ void main() {
       // so we only exercise the release-mode branch when actually
       // running release tests. In debug/profile this test asserts the
       // gating contract is *queryable* — the snapshot is well-defined.
-      final binding = LeonardBinding.ensureInitialized(plugins: const []);
+      final binding = LeonardBinding.ensureInitialized(extensions: const []);
       expect(binding, isNotNull);
       final s = binding!.frameworkBusySnapshot();
       // In debug/profile, the snapshot is live (counters may be

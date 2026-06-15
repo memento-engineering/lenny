@@ -15,7 +15,7 @@ class MyApp implements LeonardApp {
     // the WidgetsBinding slot, so any WidgetsFlutterBinding.ensureInitialized()
     // call inside (e.g. from go_router 14.x) is an idempotent no-op.
     return LeonardAppConfig(
-      plugins: <LeonardExtension>[/* extensions */],
+      extensions: <LeonardExtension>[/* extensions */],
       app: const MaterialApp(home: SizedBox.shrink()),
     );
   }
@@ -28,7 +28,7 @@ inside the binding's stability zone. Outside debug/profile (`kReleaseMode`),
 no binding is installed and no extensions are registered, but `app.build` and
 `runApp` still run.
 
-The lower-level `LeonardBinding.ensureInitialized(plugins: [...])`
+The lower-level `LeonardBinding.ensureInitialized(extensions: [...])`
 remains for tests, headless agents, and advanced cases that need to own
 the install ordering themselves. It throws `StateError` if a foreign
 `WidgetsBinding` (e.g. `IntegrationTestWidgetsFlutterBinding`) is already

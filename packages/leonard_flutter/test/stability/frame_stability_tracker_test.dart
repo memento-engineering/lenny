@@ -19,7 +19,7 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() {
-    binding = LeonardBinding.ensureInitialized(plugins: const [])!;
+    binding = LeonardBinding.ensureInitialized(extensions: const [])!;
     expect(WidgetsBinding.instance, same(binding),
         reason: 'precondition: LeonardBinding is the active binding');
   });

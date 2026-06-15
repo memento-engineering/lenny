@@ -140,7 +140,7 @@ class LeonardBinding extends WidgetsFlutterBinding
   /// Idempotent: second call returns the same instance and does NOT
   /// re-install error hooks or re-register plugins.
   static LeonardBinding? ensureInitialized({
-    required List<LeonardExtension> plugins,
+    required List<LeonardExtension> extensions,
     List<String> extraInteractiveTypes = const <String>[],
     int errorBufferCapacity = kDefaultErrorBufferCapacity,
     @visibleForTesting bool installCoreExtension = true,
@@ -162,7 +162,7 @@ class LeonardBinding extends WidgetsFlutterBinding
       );
     }
     final LeonardBinding binding = LeonardBinding._(
-      List.of(plugins),
+      List.of(extensions),
       List<String>.unmodifiable(extraInteractiveTypes),
       errorBufferCapacity,
       installCoreExtension,
@@ -210,11 +210,11 @@ class LeonardBinding extends WidgetsFlutterBinding
         _extensionRegistry.register(p);
       } on StateError catch (e) {
         debugPrint(
-          '[exploration] skipping plugin ${p.namespace}: $e',
+          '[Leonard] skipping extension ${p.namespace}: $e',
         );
       } on ArgumentError catch (e) {
         debugPrint(
-          '[exploration] skipping plugin ${p.namespace}: $e',
+          '[Leonard] skipping extension ${p.namespace}: $e',
         );
       }
     }
@@ -294,7 +294,7 @@ class LeonardBinding extends WidgetsFlutterBinding
           );
           _instance = binding;
           cfg = app.build(_DebugContext(binding));
-          binding._wireExtensions(cfg.plugins);
+          binding._wireExtensions(cfg.extensions);
           runApp(cfg.app);
         },
         zoneSpecification: ZoneSpecification(
@@ -631,12 +631,11 @@ class LeonardBinding extends WidgetsFlutterBinding
       }
     }
 
-    // Core fragment via the SINGLE perception path: compute the same
-    // primitives buildCoreFragment used, build the core Seed from them,
-    // mount/serialize. serializePerceptionFragment strips the top
-    // Node('core') name and emits {semantics, routes, errors, stability
-    // [, screenshot_png_b64]} in that key order — byte-identical to the
-    // retired buildCoreFragment map.
+    // Core fragment via the SINGLE perception path: compute the core
+    // primitives, build the core Seed from them, mount/serialize.
+    // serializePerceptionFragment strips the top Node('core') name and
+    // emits {semantics, routes, errors, stability [, screenshot_png_b64]}
+    // in that key order.
     final CoreFragmentValues coreValues = await computeCoreFragmentValues(
       captureSemantics: _semanticsCapture.captureAsync,
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),

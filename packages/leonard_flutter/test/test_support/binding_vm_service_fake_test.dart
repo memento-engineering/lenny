@@ -101,7 +101,7 @@ void main() {
   setUpAll(() async {
     tap = _CoreNamespaceTapTool();
     binding = LeonardBinding.ensureInitialized(
-      plugins: <LeonardExtension>[_CoreNamespaceExtension(tap)],
+      extensions: <LeonardExtension>[_CoreNamespaceExtension(tap)],
       installCoreExtension: false,
     )!;
     // Plugin initialization runs in a microtask; flush it so the merged
