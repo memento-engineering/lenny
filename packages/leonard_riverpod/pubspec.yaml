@@ -1,5 +1,6 @@
 name: leonard_riverpod
 description: Reference extension (leonard_riverpod) for Leonard.
+version: 1.0.0
 publish_to: none
 resolution: workspace
 
@@ -11,11 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.6.0
-  genesis_perception:
-    git:
-      url: git@github.com:memento-engineering/genesis.git
-      ref: 41ec0ec
-      path: packages/perception
+  genesis_perception: ^0.1.1
   leonard_flutter: any
 
 dev_dependencies:

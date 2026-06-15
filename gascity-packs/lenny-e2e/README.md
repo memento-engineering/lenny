@@ -6,7 +6,7 @@ agent drives it to goal completion.
 
 It ships one generic formula, `lenny-e2e-session`: one supplied goal → one
 trajectory → a PASS/FAIL verdict. The variable-length perception-action loop
-lives inside `exploration_cli` / `LoopDriver`; this formula is the *outer*
+lives inside `leonard_cli` / `LoopDriver`; this formula is the *outer*
 orchestration — pre-flight, launch, run, inspect, triage — expressed as agent
 contracts a worker executes.
 
@@ -15,7 +15,7 @@ contracts a worker executes.
 - A Flutter app under test, built from your working tree, with an `ios/` project.
 - A **wired** iOS device (USB — wireless breaks the VM-service tunnel) or a
   running simulator.
-- `exploration_cli` available (a path dependency in your workspace, or globally
+- `leonard_cli` available (a path dependency in your workspace, or globally
   activated).
 - For `--model qwen-mlx`: `SWIFT_INFER_ENDPOINT` + `SWIFT_INFER_AGENT_TOKEN` in
   the environment. For `claude`: `ANTHROPIC_API_KEY`. For `openai`:
@@ -46,7 +46,7 @@ bd mol pour lenny-e2e-session \
 | `app_dir` | *(required)* | Absolute path to the Flutter app (dir with `pubspec.yaml` + `ios/`). |
 | `device` | *(first wired)* | `flutter -d <id>` target. Empty = the single attached non-wireless device. |
 | `plugins` | `router,riverpod,dio` | Exploration plugin namespaces to enable. |
-| `cli` | `dart run bin/exploration_cli.dart` | Invocation prefix for `exploration_cli`. |
+| `cli` | `dart run bin/leonard_cli.dart` | Invocation prefix for `leonard_cli`. |
 
 ## Extend it
 

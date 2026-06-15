@@ -1,5 +1,6 @@
 name: leonard_router
 description: "Reference extension: Router/Navigator observation and navigate tool."
+version: 1.0.0
 publish_to: none
 resolution: workspace
 
@@ -10,11 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  genesis_perception:
-    git:
-      url: git@github.com:memento-engineering/genesis.git
-      ref: 41ec0ec
-      path: packages/perception
+  genesis_perception: ^0.1.1
   leonard_flutter: any
   meta: ^1.16.0
 

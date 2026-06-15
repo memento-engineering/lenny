@@ -39,14 +39,14 @@ void main() {
       expect(p.capabilities.supportsToolUse, isTrue);
     });
 
-    test('qwen-mlx: conversationId formed as exploration-<sessionId>-<unixMs>',
+    test('qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>',
         () {
       final SwiftInferModelProvider p = buildProvider(
         ModelTier.qwenMlx,
         sessionId: 'sess-xyz',
         now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
       ) as SwiftInferModelProvider;
-      expect(p.config.conversationId, 'exploration-sess-xyz-1700000000000');
+      expect(p.config.conversationId, 'leonard-sess-xyz-1700000000000');
       expect(p.config.sessionId, 'sess-xyz');
       expect(
         p.config.captureBodies,

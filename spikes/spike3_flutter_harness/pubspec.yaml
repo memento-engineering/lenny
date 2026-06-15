@@ -1,0 +1,17 @@
+name: spike3_flutter_harness
+description: >-
+  Spike 3 Flutter harness: runs the EXACT SAME framework-free checks from
+  spike3_schema_roundtrip/lib/checks.dart under flutter_test, proving the
+  schema-first codegen + A2UI round-trip behaves identically on the bare VM
+  and under the Flutter test binding.
+publish_to: none
+environment:
+  sdk: ^3.11.0
+dependencies:
+  flutter:
+    sdk: flutter
+  spike3_schema_roundtrip:
+    path: ../spike3_schema_roundtrip
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

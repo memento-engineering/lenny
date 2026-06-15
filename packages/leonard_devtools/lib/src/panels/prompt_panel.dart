@@ -29,7 +29,7 @@ class PromptPanel extends StatefulWidget {
     required this.catalog,
     this.conversationId = '',
     this.extensionGuideUrl =
-        'https://example.com/exploration-agent/plugin-authoring',
+        'https://example.com/leonard/extension-authoring',
     this.onUseFallback,
     this.initialConfig,
     this.configLoaded = false,

@@ -18,7 +18,7 @@ import 'provider_config.dart';
 ///   - [SwiftInferUiConfig] → [SwiftInferModelProvider] with a
 ///     [SwiftInferConfig] carrying the bearer token, capture-bodies
 ///     flag, extra headers, computed `conversationId`
-///     (`'exploration-<sessionId>-<unixms>'`), `sessionId`, and
+///     (`'leonard-<sessionId>-<unixms>'`), `sessionId`, and
 ///     `enableVision` derived from [capabilitiesFor].
 ///   - [AnthropicUiConfig] → [AnthropicModelProvider].
 ///   - [OpenAiUiConfig]    → [OpenAiModelProvider].
@@ -35,7 +35,7 @@ ModelProvider buildPanelProvider(
     case SwiftInferUiConfig():
       final caps = capabilitiesFor('swift-infer', modelId);
       final conversationId =
-          'exploration-$sessionId-${now().millisecondsSinceEpoch}';
+          'leonard-$sessionId-${now().millisecondsSinceEpoch}';
       return SwiftInferModelProvider(
         config: SwiftInferConfig(
           baseUrl: cfg.endpoint,

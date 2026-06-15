@@ -1,5 +1,6 @@
 name: leonard_devtools
 description: DevTools extension for Leonard.
+version: 1.0.0
 publish_to: none
 resolution: workspace
 

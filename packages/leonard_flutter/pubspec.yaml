@@ -1,5 +1,6 @@
 name: leonard_flutter
 description: Host WidgetsBinding for Leonard.
+version: 1.0.0
 publish_to: none
 resolution: workspace
 
@@ -12,14 +13,7 @@ dependencies:
     sdk: flutter
   flutter_test:
     sdk: flutter
-  # Perception framework — lives in memento-engineering/genesis post-cutover.
-  # Pinned git dep; the transitive genesis_tree is pinned via
-  # dependency_overrides at the workspace root.
-  genesis_perception:
-    git:
-      url: git@github.com:memento-engineering/genesis.git
-      ref: 41ec0ec
-      path: packages/perception
+  genesis_perception: ^0.1.1
   leonard_agent: any
   meta: ^1.16.0
   vm_service: ^14.2.0
