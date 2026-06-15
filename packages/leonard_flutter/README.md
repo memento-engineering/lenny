@@ -15,7 +15,7 @@ class MyApp implements LeonardApp {
     // the WidgetsBinding slot, so any WidgetsFlutterBinding.ensureInitialized()
     // call inside (e.g. from go_router 14.x) is an idempotent no-op.
     return LeonardAppConfig(
-      plugins: <ExplorationPlugin>[/* plugins */],
+      plugins: <LeonardExtension>[/* extensions */],
       app: const MaterialApp(home: SizedBox.shrink()),
     );
   }
@@ -25,7 +25,7 @@ class MyApp implements LeonardApp {
 `LeonardBinding.run(app)` claims the `WidgetsBinding` slot first, then
 hands an `LeonardAppContext` to `app.build(ctx)` and calls `runApp`
 inside the binding's stability zone. Outside debug/profile (`kReleaseMode`),
-no binding is installed and no plugins are registered, but `app.build` and
+no binding is installed and no extensions are registered, but `app.build` and
 `runApp` still run.
 
 The lower-level `LeonardBinding.ensureInitialized(plugins: [...])`
@@ -36,19 +36,19 @@ installed.
 
 ## VM service extension namespace
 
-`leonard_flutter` reserves `ext.flutter.exploration.*` for all
-host- and plugin-owned VM service extensions. Format:
+`leonard_flutter` reserves `ext.exploration.*` for all
+host- and extension-owned VM service extensions. Format:
 
-    ext.flutter.exploration.<namespace>.<suffix>
+    ext.exploration.<namespace>.<suffix>
 
-- `<namespace>` is `core` for host-owned extensions, or a plugin's
+- `<namespace>` is `core` for host-owned extensions, or an extension's
   `namespace` (matching `^[a-z][a-z0-9_]*$`).
 - `<suffix>` is the extension's local name.
 
-The host registers `ext.flutter.exploration.core.handshake` from
+The host registers `ext.exploration.core.handshake` from
 `LeonardBinding.ensureInitialized(...)`. The harness uses it to
 confirm the binding is live and read protocol/version metadata.
-Plugins register through `PluginContext` (cx6.3), which auto-prefixes.
+Extensions register through `ExtensionContext` (cx6.3), which auto-prefixes.
 
 ## DevTools panel
 
