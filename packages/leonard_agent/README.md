@@ -14,7 +14,7 @@ record, so a crashed session preserves progress through the last fully
 written record (PRD §14).
 
 **Ordering:** exactly one `header` on line 1, zero or more `turn` and
-`plugin_disabled` records interleaved in execution order, exactly one
+`extension_disabled` records interleaved in execution order, exactly one
 `footer` on the last line. The writer flushes after every record.
 
 **Size budget:** sessions are expected to stay under 50 MB / 30 minutes
@@ -26,8 +26,8 @@ keys.
 ### `header`
 
 Session metadata: goal, AGENTS.md hash, build identifier, model
-identifier, harness version, and the manifest of active plugins. The
-`package_version` on each plugin lets readers detect plugin schema
+identifier, harness version, and the manifest of active extensions. The
+`package_version` on each extension lets readers detect extension schema
 mismatches between sessions.
 
 ```json
@@ -38,7 +38,7 @@ mismatches between sessions.
   "build_identifier": "debug-1.0.0",
   "model_identifier": "qwen3.6-35b-a3b@8bit",
   "harness_version": "0.1.0",
-  "plugins": [
+  "extensions": [
     {
       "namespace": "router",
       "package_version": "1.2.3",
@@ -51,35 +51,35 @@ mismatches between sessions.
 
 ### `turn`
 
-One record per perception-action turn. `observation.plugins` and
-`diff.plugins` are namespace-keyed maps so each plugin's contribution
+One record per perception-action turn. `observation.extensions` and
+`diff.extensions` are namespace-keyed maps so each extension's contribution
 can be sliced out by readers without parsing the core payload.
 
 ```json
 {
   "type": "turn",
   "index": 0,
-  "observation": {"core": {}, "plugins": {}},
+  "observation": {"core": {}, "extensions": {}},
   "stability": {"policy": "action_relative"},
   "proposed_action": {"tool": "core.tap"},
   "validation": {"result": "ok", "retries": 0},
   "executed_action": {"tool": "core.tap"},
-  "diff": {"core": {}, "plugins": {}},
+  "diff": {"core": {}, "extensions": {}},
   "summary_update": "tapped login button",
   "model_metadata": {"tokens_in": 10, "tokens_out": 5, "duration_ms": 200}
 }
 ```
 
-### `plugin_disabled`
+### `extension_disabled`
 
-Emitted when a plugin is auto-disabled mid-session (e.g. after
+Emitted when an extension is auto-disabled mid-session (e.g. after
 repeated failures). The `turn` field is the index of the next turn
-the plugin is absent from — the timeline panel renders this as
+the extension is absent from — the timeline panel renders this as
 the auto-disable point.
 
 ```json
 {
-  "type": "plugin_disabled",
+  "type": "extension_disabled",
   "namespace": "dio",
   "reason": "auto_disabled_after_3_failures",
   "turn": 7

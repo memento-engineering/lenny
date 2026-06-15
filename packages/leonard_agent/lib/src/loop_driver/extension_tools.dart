@@ -4,7 +4,7 @@
 ///
 /// The handshake (`ext.exploration.core.handshake`,
 /// [ExtensionManifestEntry]) carries *bare* tool names grouped under each
-/// plugin namespace; this helper prefixes the namespace to produce the
+/// extension namespace; this helper prefixes the namespace to produce the
 /// fully-qualified `<namespace>.<tool>` [ToolDescriptor.name] that
 /// `LoopHost.executeAction` requires. Full JSON-schema input
 /// descriptors live in `package:leonard_flutter` inside the running
@@ -16,9 +16,9 @@
 ///
 /// Selection rules:
 ///
-///   * Empty `requested` → empty map (no plugin tools).
+///   * Empty `requested` → empty map (no extension tools).
 ///   * `requested` namespaces that are absent from the handshake are
-///     silently dropped (the binding has no such plugin loaded). The
+///     silently dropped (the binding has no such extension loaded). The
 ///     caller may log unknown namespaces using [unknownExtensionNamespaces].
 ///   * `requested` namespaces that *are* in the handshake produce a
 ///     [ToolDescriptor] per tool name reported by that handshake entry.
@@ -63,7 +63,7 @@ Map<String, List<ToolDescriptor>> buildExtensionTools({
 }
 
 /// Names the caller listed in `requested` that are *not* present in
-/// the handshake manifest (i.e. the binding does not have a plugin
+/// the handshake manifest (i.e. the binding does not have an extension
 /// with that namespace loaded). Returned in iteration order of
 /// [requested] so warnings match caller input.
 List<String> unknownExtensionNamespaces({

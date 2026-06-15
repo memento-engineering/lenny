@@ -15,7 +15,7 @@ Add to your app's main():
 
   void main() {
     if (kDebugMode) {
-      LeonardBinding.ensureInitialized(plugins: [/* your plugins */]);
+      LeonardBinding.ensureInitialized(extensions: [/* your extensions */]);
     } else {
       WidgetsFlutterBinding.ensureInitialized();
     }

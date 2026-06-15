@@ -35,8 +35,8 @@ const Map<String, dynamic> _kHandshake = <String, dynamic>{
 };
 
 /// The fixture body in the binding's wire shape (top-level
-/// `semantics`/`routes`/`errors`/`stability`/`plugins`, mirroring
-/// what `buildCoreFragment` spreads into the response). This is the
+/// `semantics`/`routes`/`errors`/`stability`/`extensions`, mirroring
+/// what the binding spreads into the observation response). This is the
 /// shape `Observation.fromJson` consumes; [LeonardVmServiceFake]
 /// returns it verbatim under the `{type: 'Observation', value: <body>}`
 /// envelope — the same contract previously held by `BindingVmServiceFake`.
