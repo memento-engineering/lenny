@@ -12,8 +12,6 @@ class _Stub extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext c) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext c) async => null;
-  @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
   Future<void> onActionExecuted(ExecutedAction a) async {}

@@ -3,13 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
-import 'perception_plugin.dart';
 import 'plugin.dart';
 import 'plugin_context.dart';
 import 'types.dart';
 
 /// Per-method discriminator used by the exception-isolation guard.
-enum _Method { observe, busyState, onActionExecuted }
+enum _Method { busyState, onActionExecuted }
 
 /// Internal bookkeeping wrapper around a registered plugin.
 class _Entry {
@@ -24,7 +23,6 @@ class _Entry {
 
   /// Consecutive failure counter, per dispatched method.
   final Map<_Method, int> failures = <_Method, int>{
-    _Method.observe: 0,
     _Method.busyState: 0,
     _Method.onActionExecuted: 0,
   };
@@ -32,7 +30,6 @@ class _Entry {
   /// Auto-disable flag, per dispatched method. Once `true`, the
   /// corresponding method is never dispatched again for this session.
   final Map<_Method, bool> disabled = <_Method, bool>{
-    _Method.observe: false,
     _Method.busyState: false,
     _Method.onActionExecuted: false,
   };
@@ -82,21 +79,11 @@ class PluginRegistry {
         ],
       );
 
-  /// Returns true iff the registered plugin for [namespace] mixes in
-  /// [PerceptionPlugin]. Returns false for unknown namespaces.
-  bool isPerceptionNative(String namespace) {
-    for (final _Entry e in _entries) {
-      if (e.plugin.namespace == namespace) return e.plugin is PerceptionPlugin;
-    }
-    return false;
-  }
-
-  /// All registered plugins that mix in [PerceptionPlugin], in
-  /// registration order.
-  List<ExplorationPlugin> get perceptionNativePlugins =>
+  /// All registered plugins, in registration order. Read by the binding's
+  /// single observation loop, which gates on `is PerceptionPlugin`.
+  List<ExplorationPlugin> get plugins =>
       List<ExplorationPlugin>.unmodifiable(<ExplorationPlugin>[
-        for (final _Entry e in _entries)
-          if (e.plugin is PerceptionPlugin) e.plugin,
+        for (final _Entry e in _entries) e.plugin,
       ]);
 
   /// Register [p]. Order is preserved across every dispatch.
@@ -171,27 +158,6 @@ class PluginRegistry {
         );
       }
     }
-  }
-
-  /// Dispatch [observe] across every (non-disabled) plugin in
-  /// registration order, returning the merged fragment map keyed by
-  /// plugin namespace. Plugins returning `null` are omitted.
-  Future<Map<String, Map<String, Object?>>> observeAll(
-    ObservationContext ctx,
-  ) async {
-    final out = <String, Map<String, Object?>>{};
-    for (final e in _entries) {
-      final fragment = await _guard<Map<String, Object?>?>(
-        e,
-        _Method.observe,
-        () => e.plugin.observe(ctx),
-        null,
-      );
-      if (fragment != null) {
-        out[e.plugin.namespace] = fragment;
-      }
-    }
-    return out;
   }
 
   /// Dispatch [busyState] across every (non-disabled) plugin in

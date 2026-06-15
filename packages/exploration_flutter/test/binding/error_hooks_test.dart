@@ -20,8 +20,6 @@ class _RecordingPlugin extends ExplorationPlugin {
     ctx.registerErrorHandler(handler);
   }
 
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;

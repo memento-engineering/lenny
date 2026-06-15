@@ -11,8 +11,6 @@ class _UserPluginClaimingCore extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
-  @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
   Future<void> onActionExecuted(ExecutedAction action) async {}
@@ -28,8 +26,6 @@ class _UserPluginOk extends ExplorationPlugin {
   List<ExplorationTool> get tools => const <ExplorationTool>[];
   @override
   Future<void> initialize(PluginContext ctx) async {}
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override

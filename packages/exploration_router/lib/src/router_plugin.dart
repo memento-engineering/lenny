@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:exploration_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
@@ -29,8 +28,6 @@ class RouterPlugin extends ExplorationPlugin with PerceptionPlugin {
   )?
   navigate;
 
-  static const int _budgetBytes = 1024;
-
   @override
   String get namespace => 'router';
 
@@ -49,21 +46,17 @@ class RouterPlugin extends ExplorationPlugin with PerceptionPlugin {
   @override
   Future<void> dispose() async {}
 
+  /// Reproduces the retired `observe() == null` suppression: when the route
+  /// walk yields no snapshot, the binding emits no `plugins.router`
+  /// fragment.
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    final s = _snapshot();
-    if (s == null) return null;
-    return _capped(<String, Object?>{
-      'current_route_name': s.currentRouteName,
-      'stack': s.stack,
-      'arguments': s.arguments,
-    });
-  }
+  bool isPerceptionIdle() => readSnapshot() == null;
 
-  /// Single source of truth for the route walk shared by legacy [observe] and
-  /// the perception path's [RouteSnapshotAnchor]. Returns null when neither the
-  /// Navigator nor the RouterDelegate yields a route — so [observe] and the
-  /// anchor can never drift. Public to the package so the anchor can read it.
+  /// Single source of truth for the route walk shared by [isPerceptionIdle]
+  /// and the perception path's [RouteSnapshotAnchor]. Returns null when
+  /// neither the Navigator nor the RouterDelegate yields a route — so the
+  /// idle gate and the anchor can never drift. Public to the package so the
+  /// anchor can read it.
   RouteSnapshot? readSnapshot() => _snapshot();
 
   RouteSnapshot? _snapshot() {
@@ -107,16 +100,6 @@ class RouterPlugin extends ExplorationPlugin with PerceptionPlugin {
       stack: <String>[n],
       arguments: null,
     );
-  }
-
-  static Map<String, Object?> _capped(Map<String, Object?> raw) {
-    if (jsonEncode(raw).length <= _budgetBytes) return raw;
-    return {
-      'current_route_name': raw['current_route_name'],
-      'stack': const <String>[],
-      'arguments': null,
-      '_truncated': true,
-    };
   }
 
   @override

@@ -32,10 +32,13 @@ abstract class ExplorationTool {
 
 /// EXPERIMENTAL — v1 plugin contract (PRD §7).
 ///
-/// A plugin contributes tools, observation fragments, and busy-state
-/// signals to a Flutter Exploration session. Implementations are
-/// registered with the host binding and dispatched by the
-/// [PluginRegistry] in registration order.
+/// A plugin contributes tools and busy-state signals to a Flutter
+/// Exploration session. Plugins that also observe app state mix in
+/// [PerceptionPlugin] and contribute their observation via the perception
+/// path (`buildPerception()`); the binding serializes that into the
+/// `plugins.<namespace>` fragment. Implementations are registered with the
+/// host binding and dispatched by the [PluginRegistry] in registration
+/// order.
 ///
 /// Versioning (PRD §7.7): adding tools, fragment fields, or busy
 /// heuristics is NOT breaking. Unknown fragment fields are passed
@@ -59,11 +62,6 @@ abstract class ExplorationPlugin {
   /// Called once per session, in registration order. May register error
   /// handlers, VM extensions, and frame callbacks via [ctx].
   Future<void> initialize(PluginContext ctx);
-
-  /// Contribute an observation fragment. Returning `null` means "no
-  /// contribution this turn". Unknown future fields are passed through
-  /// unchanged (PRD §7.7).
-  Future<Map<String, Object?>?> observe(ObservationContext ctx);
 
   /// Report whether the plugin considers the app busy.
   Future<BusyState> busyState();

@@ -21,8 +21,6 @@ class _HandlerPlugin extends ExplorationPlugin {
     }
   }
 
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;

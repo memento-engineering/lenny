@@ -6,12 +6,13 @@ import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:exploration_flutter/src/observation/observation_request.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
 const String _ext =
     'ext.exploration.core.get_stable_observation';
 
-class _ThrowsInObserve extends ExplorationPlugin {
-  const _ThrowsInObserve();
+class _ThrowsInBuild extends ExplorationPlugin with PerceptionPlugin {
+  const _ThrowsInBuild();
   @override
   String get namespace => 'thrower';
   @override
@@ -19,8 +20,8 @@ class _ThrowsInObserve extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    throw StateError('boom in observe');
+  Seed buildPerception() {
+    throw StateError('boom in buildPerception');
   }
   @override
   Future<BusyState> busyState() async => BusyState.idle;
@@ -30,7 +31,7 @@ class _ThrowsInObserve extends ExplorationPlugin {
   Future<void> dispose() async {}
 }
 
-class _Healthy extends ExplorationPlugin {
+class _Healthy extends ExplorationPlugin with PerceptionPlugin {
   const _Healthy();
   @override
   String get namespace => 'healthy';
@@ -39,8 +40,8 @@ class _Healthy extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async =>
-      <String, Object?>{'ok': true};
+  Seed buildPerception() =>
+      Node('healthy', children: <Seed>[Field('ok', true)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -49,7 +50,7 @@ class _Healthy extends ExplorationPlugin {
   Future<void> dispose() async {}
 }
 
-class _BigFragment extends ExplorationPlugin {
+class _BigFragment extends ExplorationPlugin with PerceptionPlugin {
   const _BigFragment();
   @override
   String get namespace => 'big';
@@ -58,10 +59,9 @@ class _BigFragment extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async =>
-      <String, Object?>{
-        'payload': List<int>.filled(2000, 7),
-      };
+  Seed buildPerception() => Node('big', children: <Seed>[
+        Field('payload', List<int>.filled(2000, 7)),
+      ]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -75,7 +75,7 @@ void main() {
   setUpAll(() {
     binding = ExplorationBinding.ensureInitialized(
       plugins: const <ExplorationPlugin>[
-        _ThrowsInObserve(),
+        _ThrowsInBuild(),
         _Healthy(),
         _BigFragment(),
       ],
@@ -88,7 +88,7 @@ void main() {
   });
 
   group('PluginIsolation', () {
-    test('throwing observe() does not abort; healthy plugin still emits',
+    test('throwing buildPerception() does not abort; healthy plugin emits',
         () async {
       if (!kDebugMode) return;
       // Wait for plugin init microtask to run before invoking.
@@ -99,8 +99,8 @@ void main() {
           as Map<String, Object?>)['value']! as Map<String, Object?>;
       final Map<String, Object?> plugins =
           obs['plugins']! as Map<String, Object?>;
-      // The thrower plugin produces no fragment (registry isolated it),
-      // but healthy plugin's fragment is present and untouched.
+      // The thrower plugin produces no fragment (the loop's try/catch
+      // isolated it), but healthy plugin's fragment is present and untouched.
       expect(plugins.containsKey('thrower'), isFalse);
       expect((plugins['healthy']! as Map<String, Object?>)['ok'], isTrue);
     });

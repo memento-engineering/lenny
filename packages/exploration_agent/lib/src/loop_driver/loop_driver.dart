@@ -342,8 +342,9 @@ class LoopDriver {
     for (final String ns in _host.activePluginNamespaces()) {
       // 'core' is exempt: its health is tracked via curr.core (nodes/
       // routeStack/errors), not curr.plugins['core'], which is always null
-      // by design (CorePlugin.observe() returns null). Auto-disabling core
-      // would collapse the action-schema oneOf and stall the agent (lenny-4jn).
+      // by design (CorePlugin is tools-only — it contributes no perception
+      // fragment). Auto-disabling core would collapse the action-schema oneOf
+      // and stall the agent (lenny-4jn).
       if (ns == _kCoreNamespace) continue;
       final PluginFragment? frag = curr.plugins[ns];
       // A strike is an actual observe() failure, signalled by the binding as

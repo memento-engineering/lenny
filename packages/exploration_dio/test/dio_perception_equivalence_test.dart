@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:exploration_dio/exploration_dio.dart';
 import 'package:exploration_flutter/contract.dart';
-import 'package:exploration_flutter/test_support/observation_equivalence.dart';
 import 'package:exploration_flutter/test_support/perception_serializer.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,22 +51,10 @@ Map<String, Object?> _harvestFragment(ExplorationDioPlugin plugin) {
   }
 }
 
-Map<String, Object?> _wrapObs(Map<String, Object?> dioFrag) =>
-    <String, Object?>{
-      'semantics': <Object?>[],
-      'routes': <Object?>[],
-      'errors': <Object?>[],
-      'stability': <String, Object?>{},
-      'plugins': <String, Object?>{'dio': dioFrag},
-    };
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const ObservationContext kCtx =
-      ObservationContext(turn: 0, sinceLastAction: Duration.zero);
-
-  test('completed request: perception fragment equals legacy fragment',
+  test('completed request: perception fragment surfaces the completion',
       () async {
     final _HangingAdapter adapter = _HangingAdapter();
     final Dio testDio = Dio()..httpClientAdapter = adapter;
@@ -93,21 +80,22 @@ void main() {
       await req;
     } catch (_) {}
 
-    final Map<String, Object?>? legacy = await plugin.observe(kCtx);
-    expect(legacy, isNotNull,
-        reason: 'legacy observe() must emit with a completed request');
+    // The plugin is no longer idle once a request completes.
+    expect(plugin.isPerceptionIdle(), isFalse);
 
     final Map<String, Object?> perceptionFrag = _harvestFragment(plugin);
-
-    assertObservationEquivalent(
-      _wrapObs(legacy!),
-      _wrapObs(perceptionFrag),
-    );
+    expect(perceptionFrag['in_flight'], isEmpty);
+    final Map<String, Object?> completed =
+        (perceptionFrag['recent_completed']! as List).single
+            as Map<String, Object?>;
+    expect(completed['host'], 'api.example.com');
+    expect(completed['path'], '/users');
+    expect(completed['status'], 200);
 
     await plugin.dispose();
   });
 
-  test('idle state: legacy observe() returns null (no dio key in observation)',
+  test('idle state: isPerceptionIdle() is true (binding suppresses the ns)',
       () async {
     final _HangingAdapter adapter = _HangingAdapter();
     final Dio testDio = Dio()..httpClientAdapter = adapter;
@@ -116,15 +104,10 @@ void main() {
       PluginContext(namespace: 'dio', scheduler: SchedulerBinding.instance),
     );
 
-    // No requests sent — plugin is completely idle.
-    final Map<String, Object?>? legacy = await plugin.observe(kCtx);
-    expect(legacy, isNull,
-        reason: 'legacy observe() must return null when idle');
-
-    // Perception fragment is non-null (empty lists) but the null-gate in the
-    // binding must suppress it — verify the gate logic: rawFragments[ns]==null
-    // means we skip. We can't exercise the binding directly here, but we assert
-    // that the legacy contract (null == idle) is stable so the gate is correct.
+    // No requests sent — plugin is completely idle. The binding's
+    // isPerceptionIdle() gate (reproducing the retired observe()==null)
+    // suppresses the dio namespace entirely.
+    expect(plugin.isPerceptionIdle(), isTrue);
     expect(adapter.pending, isEmpty);
     await plugin.dispose();
   });

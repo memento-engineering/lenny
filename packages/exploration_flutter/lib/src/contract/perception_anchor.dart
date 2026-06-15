@@ -4,18 +4,17 @@ library;
 /// RouterDelegate, …) and a perception build.
 ///
 /// dio's `DioPerception` can read a plain Dart model (the interceptor) directly,
-/// so it needs no anchor. The router's legacy fragment is computed from
-/// Flutter's Navigator/RouterDelegate — imperative widget-tree state, not a
-/// plain model. A [PerceptionAnchor] is the tiny adapter that captures a
-/// synchronous SNAPSHOT of that state at observation time and feeds it into the
-/// perception build, so the perception path reads the same state at the same
-/// moment legacy `observe()` does.
+/// so it needs no anchor. The router's fragment is computed from Flutter's
+/// Navigator/RouterDelegate — imperative widget-tree state, not a plain model.
+/// A [PerceptionAnchor] is the tiny adapter that captures a synchronous
+/// SNAPSHOT of that state at observation time and feeds it into the perception
+/// build.
 abstract class PerceptionAnchor<T> {
   /// Reads a synchronous snapshot of the underlying imperative state.
   T read();
 }
 
-/// Value-type snapshot of route state — the exact triple the legacy router
+/// Value-type snapshot of route state — the exact triple the router
 /// observation fragment carries.
 class RouteSnapshot {
   /// Creates a route snapshot.

@@ -28,8 +28,6 @@ class _FakePlugin extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
-  @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
   Future<void> onActionExecuted(ExecutedAction action) async {}

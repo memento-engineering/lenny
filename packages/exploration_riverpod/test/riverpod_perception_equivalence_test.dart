@@ -13,18 +13,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
 /// Build a plugin whose observer is installed on its container.
-({RiverpodExplorationPlugin plugin, ProviderContainer container}) _wired({
-  int budget = 1024,
-}) {
+({
+  RiverpodExplorationPlugin plugin,
+  ProviderContainer container,
+  ExplorationProviderObserver observer
+}) _wired() {
   final ExplorationProviderObserver observer = ExplorationProviderObserver();
   final ProviderContainer container =
       ProviderContainer(observers: <ProviderObserver>[observer]);
   final RiverpodExplorationPlugin plugin = RiverpodExplorationPlugin(
     container: container,
     observer: observer,
-    observationBudgetBytes: budget,
   );
-  return (plugin: plugin, container: container);
+  return (plugin: plugin, container: container, observer: observer);
 }
 
 Map<String, Object?> _harvestFragment(RiverpodExplorationPlugin plugin) {
@@ -36,15 +37,6 @@ Map<String, Object?> _harvestFragment(RiverpodExplorationPlugin plugin) {
     owner.dispose();
   }
 }
-
-Map<String, Object?> _wrapObs(Map<String, Object?> riverpodFrag) =>
-    <String, Object?>{
-      'semantics': <Object?>[],
-      'routes': <Object?>[],
-      'errors': <Object?>[],
-      'stability': <String, Object?>{},
-      'plugins': <String, Object?>{'riverpod': riverpodFrag},
-    };
 
 /// Resolve the committed golden regardless of the cwd the runner uses.
 File _goldenFile() {
@@ -67,16 +59,10 @@ void main() {
 
   PluginContext ctx() =>
       PluginContext(namespace: 'riverpod', scheduler: scheduler);
-  ObservationContext oc(int t) =>
-      ObservationContext(turn: t, sinceLastAction: Duration.zero);
 
-  test(
-      'live providers + change: perception fragment equals legacy fragment',
+  test('live providers + change: perception fragment surfaces the change',
       () async {
-    final ({
-      RiverpodExplorationPlugin plugin,
-      ProviderContainer container
-    }) w = _wired();
+    final w = _wired();
     addTearDown(w.container.dispose);
     await w.plugin.initialize(ctx());
 
@@ -87,39 +73,38 @@ void main() {
     // didUpdateProvider -> _pending
     w.container.read(counter.notifier).state = 1;
 
-    // observe() FIRST: flushes _pending into the ring stamped at_turn:3.
-    // This mirrors the binding (observeAll before the perception loop), so the
-    // ring is in the same drained state when the perception build reads it.
-    final Map<String, Object?>? legacy = await w.plugin.observe(oc(3));
-    expect(legacy, isNotNull,
-        reason: 'legacy observe() must emit with a live provider + change');
+    // prepareForObservation() flushes _pending into the ring (turn 0),
+    // exactly as the binding does before reading the perception fragment.
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isFalse);
 
     final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
-
-    assertObservationEquivalent(
-      _wrapObs(legacy!),
-      _wrapObs(perceptionFrag),
+    expect(perceptionFrag['invalidatable_providers'], contains('counter'));
+    final List<Object?> ch =
+        perceptionFrag['recent_state_changes']! as List<Object?>;
+    expect(
+      ch.any((Object? e) {
+        final Map<Object?, Object?> m = e! as Map<Object?, Object?>;
+        return m['provider_id'] == 'counter' && m['at_turn'] == 0;
+      }),
+      isTrue,
     );
   });
 
-  test('idle state: legacy observe() returns null (null-gate suppresses ns)',
+  test('idle state: isPerceptionIdle() is true (binding suppresses the ns)',
       () async {
-    final ({
-      RiverpodExplorationPlugin plugin,
-      ProviderContainer container
-    }) w = _wired();
+    final w = _wired();
     addTearDown(w.container.dispose);
     await w.plugin.initialize(ctx());
 
     // No providers read — plugin is idle.
-    final Map<String, Object?>? legacy = await w.plugin.observe(oc(0));
-    expect(legacy, isNull,
-        reason: 'legacy observe() must return null when idle');
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isTrue,
+        reason: 'isPerceptionIdle() must be true when idle');
 
     // buildPerception() on an empty observer emits non-null empty-list Fields;
-    // the binding null-gate (exploration_binding.dart: rawFragments[ns]==null
-    // -> continue) is what suppresses the riverpod ns. Document the stable
-    // empty shape so the gate's single source of truth (observe()==null) holds.
+    // the binding's isPerceptionIdle() gate is what suppresses the riverpod
+    // ns. Document the stable empty shape.
     final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
     expect(perceptionFrag, <String, Object?>{
       'invalidatable_providers': <String>[],
@@ -129,10 +114,7 @@ void main() {
 
   test('golden: perception fragment matches committed riverpod golden',
       () async {
-    final ({
-      RiverpodExplorationPlugin plugin,
-      ProviderContainer container
-    }) w = _wired();
+    final w = _wired();
     addTearDown(w.container.dispose);
     await w.plugin.initialize(ctx());
 
@@ -150,9 +132,10 @@ void main() {
     // didUpdateProvider only on userListProvider -> single pending change.
     w.container.read(userListProvider.notifier).state = 1;
 
-    // Flush the pending change stamped at_turn:2.
-    final Map<String, Object?>? legacy = await w.plugin.observe(oc(2));
-    expect(legacy, isNotNull);
+    // The golden's at_turn:2 is a curated fixture. Production flushes at
+    // turn 0; drive the observer ring directly to stamp the change at turn 2
+    // so the harvested fragment is byte-equivalent to the committed golden.
+    w.observer.flushPendingAt(2);
 
     final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
 

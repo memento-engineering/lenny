@@ -7,19 +7,17 @@ import 'internals.dart';
 /// Perception-native view of the Riverpod observation fragment.
 ///
 /// Reads the SAME [ExplorationProviderObserver] the plugin holds, so the
-/// derived lists are byte-identical to the legacy `observe()` fragment for
-/// the untruncated case. Mirrors `DioPerception`.
+/// derived lists are the plugin's sole observation surface. Mirrors
+/// `DioPerception`.
 ///
 /// Note: this emits the FULL tree (no in-fragment truncation, no `truncated`
-/// key). The binding's downstream `encodeWithBudget` applies budget. Legacy
-/// `observe()` retains its own `_budgeted` trimming; the two truncation
-/// strategies intentionally differ and the equivalence golden exercises only
-/// the untruncated path.
+/// key). The binding's downstream `encodeWithBudget` is the single
+/// truncation authority.
 ///
-/// It does NOT flush the observer ring: `buildPerception()` takes no
-/// `ObservationContext`/turn. In the binding's dual path, `observe()` runs
-/// first (and performs `flushPendingAt`), then this build reads the
-/// already-drained ring.
+/// It does NOT flush the observer ring: `buildPerception()` takes no turn
+/// argument. The plugin's `prepareForObservation()` hook performs
+/// `flushPendingAt` first (called by the binding before build), so this
+/// build reads the already-drained ring.
 class RiverpodPerception extends StatelessPerception {
   const RiverpodPerception(this._o);
 

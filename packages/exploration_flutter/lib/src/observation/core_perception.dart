@@ -6,13 +6,12 @@ import 'package:genesis_perception/genesis_perception.dart';
 /// (PRD §9.2): `semantics`, `routes`, `errors`, `stability`, and the
 /// optional `screenshot_png_b64`.
 ///
-/// Core is NOT a registered [ExplorationPlugin] — its fragment is
-/// assembled in-line by the binding (`buildCoreFragment`) rather than via
-/// `observe()`, and it must sit at the response top level, not nested
-/// under `plugins.<ns>`. Therefore core deliberately does NOT flow through
-/// the binding's generic `perceptionNativePlugins` loop (which would emit
-/// `plugins.core`). Instead it is built/serialized through this dedicated
-/// perception path.
+/// Core is NOT a registered [ExplorationPlugin] — its fragment must sit at
+/// the response top level, not nested under `plugins.<ns>`. Therefore core
+/// deliberately does NOT flow through the binding's generic plugin
+/// observation loop (which emits `plugins.<ns>`). Instead the binding builds
+/// the core `Seed` from [buildCorePerceptionSeed] and serializes it through
+/// this dedicated perception path at the top level.
 ///
 /// Each [Field] value is assigned verbatim by `serializePerceptionFragment`
 /// (no re-serialization, no transformation), so feeding the SAME already-

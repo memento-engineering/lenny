@@ -6,7 +6,6 @@ import 'package:genesis_perception/genesis_perception.dart';
 
 import 'dio_perception.dart';
 import 'dio_tracking_interceptor.dart';
-import 'observation_budget.dart';
 
 /// Reference plugin for `package:dio` (PRD §7.4, §18).
 ///
@@ -41,30 +40,8 @@ class ExplorationDioPlugin extends ExplorationPlugin with PerceptionPlugin {
   int _estRemaining(int elapsedMs) => elapsedMs >= 600 ? 100 : 600 - elapsedMs;
 
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    final inFlight = _interceptor.inFlight.values.toList();
-    final recent = _interceptor.recentCompleted;
-    if (inFlight.isEmpty && recent.isEmpty) return null;
-
-    final now = _clock();
-    final frag = <String, Object?>{
-      'in_flight': <Map<String, Object?>>[
-        for (final t in inFlight)
-          <String, Object?>{
-            'id': t.id,
-            'method': t.method,
-            'host': t.host,
-            'path': t.path,
-            'elapsed_ms': t.elapsedMs(now),
-            'est_remaining_ms': _estRemaining(t.elapsedMs(now)),
-          },
-      ],
-      'recent_completed': <Map<String, Object?>>[
-        for (final c in recent) c.toJson(),
-      ],
-    };
-    return truncateToBudget(frag, kPluginBudgetBytes);
-  }
+  bool isPerceptionIdle() =>
+      _interceptor.inFlight.isEmpty && _interceptor.recentCompleted.isEmpty;
 
   @override
   Future<BusyState> busyState() async {

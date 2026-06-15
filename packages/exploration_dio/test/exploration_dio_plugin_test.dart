@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:exploration_dio/exploration_dio.dart';
 import 'package:exploration_flutter/contract.dart';
+import 'package:exploration_flutter/test_support/perception_serializer.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
 class _HangingAdapter implements HttpClientAdapter {
   final Map<String, Completer<ResponseBody>> pending =
@@ -64,10 +66,17 @@ Future<void> _pumpUntil(
   }
 }
 
-const ObservationContext _ctx = ObservationContext(
-  turn: 0,
-  sinceLastAction: Duration.zero,
-);
+/// Harvest the dio plugin's observation fragment via the perception path,
+/// exactly as the binding's single observation loop does.
+Map<String, Object?> _harvest(ExplorationDioPlugin plugin) {
+  final PerceptionOwner owner = PerceptionOwner();
+  try {
+    final Branch root = owner.mountRoot(plugin.buildPerception());
+    return serializePerceptionFragment(root);
+  } finally {
+    owner.dispose();
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -79,10 +88,10 @@ void main() {
     expect(p.tools.single.name, 'cancel_in_flight');
   });
 
-  test('observe returns null when idle', () async {
+  test('isPerceptionIdle is true when idle', () async {
     final (p, _, _) = _make();
     await _init(p);
-    expect(await p.observe(_ctx), isNull);
+    expect(p.isPerceptionIdle(), isTrue);
   });
 
   test('busyState reports busy with reason while pending', () async {
@@ -100,7 +109,7 @@ void main() {
     expect(s.estimatedDuration, isNotNull);
   });
 
-  test('observe strips query strings from URLs', () async {
+  test('observation strips query strings from URLs', () async {
     final (p, dio, adapter) = _make();
     await _init(p);
     unawaited(dio
@@ -111,9 +120,9 @@ void main() {
       );
     }));
     await _pumpUntil(() => adapter.pending.isNotEmpty);
-    final frag = await p.observe(_ctx);
-    expect(frag, isNotNull);
-    final entry = (frag!['in_flight']! as List).single as Map<String, Object?>;
+    expect(p.isPerceptionIdle(), isFalse);
+    final frag = _harvest(p);
+    final entry = (frag['in_flight']! as List).single as Map<String, Object?>;
     expect(entry['host'], 'api.example.com');
     expect(entry['path'], '/x');
     expect(entry.containsKey('id'), isTrue);
@@ -150,9 +159,8 @@ void main() {
     }
     expect((await p.busyState()).isBusy, isFalse);
 
-    final frag = await p.observe(_ctx);
-    expect(frag, isNotNull);
-    final c = (frag!['recent_completed']! as List).single as Map<String, Object?>;
+    final frag = _harvest(p);
+    final c = (frag['recent_completed']! as List).single as Map<String, Object?>;
     expect(c['status'], 200);
     expect(
       c.keys,

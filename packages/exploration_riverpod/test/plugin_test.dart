@@ -1,24 +1,34 @@
-import 'dart:convert';
-
 import 'package:exploration_flutter/contract.dart';
+import 'package:exploration_flutter/test_support/perception_serializer.dart';
 import 'package:exploration_riverpod/exploration_riverpod.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
 /// Build a plugin whose observer is installed on its container.
-({RiverpodExplorationPlugin plugin, ProviderContainer container}) wired({
-  int budget = 1024,
-}) {
+({RiverpodExplorationPlugin plugin, ProviderContainer container}) wired() {
   final observer = ExplorationProviderObserver();
   final container =
       ProviderContainer(observers: <ProviderObserver>[observer]);
   final plugin = RiverpodExplorationPlugin(
     container: container,
     observer: observer,
-    observationBudgetBytes: budget,
   );
   return (plugin: plugin, container: container);
+}
+
+/// Drive the plugin's observation exactly as the binding's single loop does:
+/// prepareForObservation() (flush), then harvest the perception fragment.
+Map<String, Object?> harvest(RiverpodExplorationPlugin plugin) {
+  plugin.prepareForObservation();
+  final PerceptionOwner owner = PerceptionOwner();
+  try {
+    final Branch root = owner.mountRoot(plugin.buildPerception());
+    return serializePerceptionFragment(root);
+  } finally {
+    owner.dispose();
+  }
 }
 
 void main() {
@@ -26,8 +36,6 @@ void main() {
   final scheduler = SchedulerBinding.instance;
   PluginContext ctx() =>
       PluginContext(namespace: 'riverpod', scheduler: scheduler);
-  ObservationContext oc(int t) =>
-      ObservationContext(turn: t, sinceLastAction: Duration.zero);
 
   test('namespace + tool name', () {
     final w = wired();
@@ -45,17 +53,19 @@ void main() {
     expect(w.plugin.tools.single.description, contains('provider_id'));
   });
 
-  test('observe before initialize returns null', () async {
+  test('isPerceptionIdle before initialize is true', () async {
     final w = wired();
     addTearDown(w.container.dispose);
-    expect(await w.plugin.observe(oc(0)), isNull);
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isTrue);
   });
 
-  test('observe returns null when container is empty', () async {
+  test('isPerceptionIdle is true when container is empty', () async {
     final w = wired();
     addTearDown(w.container.dispose);
     await w.plugin.initialize(ctx());
-    expect(await w.plugin.observe(oc(1)), isNull);
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isTrue);
   });
 
   test('lists live providers, records change, and tool invalidates',
@@ -69,13 +79,15 @@ void main() {
     // Trigger didUpdateProvider.
     w.container.read(counter.notifier).state = 1;
 
-    final frag = await w.plugin.observe(oc(3));
-    expect(frag, isNotNull);
-    expect(frag!['invalidatable_providers'], contains('counter'));
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isFalse);
+    final frag = harvest(w.plugin);
+    expect(frag['invalidatable_providers'], contains('counter'));
     final ch = frag['recent_state_changes'] as List;
+    // prepareForObservation() stamps the flush at turn 0 (production default).
     expect(
       ch.any((e) =>
-          (e as Map)['provider_id'] == 'counter' && e['at_turn'] == 3),
+          (e as Map)['provider_id'] == 'counter' && e['at_turn'] == 0),
       isTrue,
     );
 
@@ -99,20 +111,6 @@ void main() {
     expect(unknown.error, contains('unknown provider_id'));
   });
 
-  test('observation fragment respects 1024-byte budget with truncation',
-      () async {
-    final w = wired();
-    addTearDown(w.container.dispose);
-    for (var i = 0; i < 200; i++) {
-      w.container.read(StateProvider<int>((r) => 0, name: 'p_$i'));
-    }
-    await w.plugin.initialize(ctx());
-    final frag = await w.plugin.observe(oc(0));
-    final encoded = utf8.encode(jsonEncode(frag));
-    expect(encoded.length, lessThanOrEqualTo(1024));
-    expect(frag!['truncated'], isTrue);
-  });
-
   test('busyState idle + onActionExecuted no-op + dispose clears',
       () async {
     final w = wired();
@@ -125,6 +123,7 @@ void main() {
       result: ToolResult(ok: true),
     ));
     await w.plugin.dispose();
-    expect(await w.plugin.observe(oc(0)), isNull);
+    w.plugin.prepareForObservation();
+    expect(w.plugin.isPerceptionIdle(), isTrue);
   });
 }

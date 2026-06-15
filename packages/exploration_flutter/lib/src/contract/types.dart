@@ -48,20 +48,6 @@ class BusyState {
   static const BusyState idle = BusyState(isBusy: false);
 }
 
-/// Context passed to [ExplorationPlugin.observe].
-class ObservationContext {
-  const ObservationContext({
-    required this.turn,
-    required this.sinceLastAction,
-  });
-
-  /// Monotonically increasing turn counter for the active session.
-  final int turn;
-
-  /// Wall-clock time elapsed since the previous action was executed.
-  final Duration sinceLastAction;
-}
-
 /// Record of a tool the harness just executed; passed to
 /// [ExplorationPlugin.onActionExecuted].
 class ExecutedAction {
