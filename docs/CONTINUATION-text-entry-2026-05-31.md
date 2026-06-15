@@ -35,7 +35,7 @@ The previous lenny-c94 hypothesis ("`enter_text` needs to focus before `setText`
 
 1. **Node split.** The sample app's login fields are
    `Semantics(label:'email', textField:true, child: TextField(...))`
-   (`packages/exploration_flutter/example/sample_app/lib/screens/login_screen.dart:66`).
+   (`packages/leonard_flutter/example/sample_app/lib/screens/login_screen.dart:66`).
    The **agent-facing** semantics node (the wrapper, e.g. stable id 4, `label='email'`)
    advertises **NO actions at all** (no `tap`, no `focus`, no `set_text`). The node that
    actually accepts `set_text` is a **different** node — the editable (`label="Email"`), which
@@ -96,7 +96,7 @@ tap/scroll/gesture coordinate fallbacks on **every** real device, not just text 
 | **lenny-22f** | P1 | open | DPR coordinate bug (physical→logical for pointer fallbacks). Independent of c94. |
 
 **lenny-c94 spec** (in its `design` field): new file
-`packages/exploration_flutter/lib/src/core_tools/editable_resolver.dart` with
+`packages/leonard_flutter/lib/src/core_tools/editable_resolver.dart` with
 `resolveEditableText(Rect targetGlobalRect)`; rewrite of
 `core_tools/tools/enter_text_tool.dart` `call()`; acceptance test that drives the **tool**
 (not `tester.enterText`) against a `Semantics(textField:true, child: TextField())` tree, targets
@@ -106,7 +106,7 @@ the **wrapper** node, asserts the controller text changed, and **fails against c
 **lenny-whn spec** (re-specced this session — the prior build was rejected for a coverage-theatre
 test): PRESERVE the proven `captureAsync()` mechanism (await `SchedulerBinding.instance.endOfFrame`
 when `rootSemanticsNode` is null on first call); REPLACE the theatre integration test with a
-**regular widget test** at `packages/exploration_flutter/test/semantics/semantics_capture_racing_test.dart`
+**regular widget test** at `packages/leonard_flutter/test/semantics/semantics_capture_racing_test.dart`
 that reaches the racing state and asserts sync `capture()` returns `[]` while `captureAsync()`
 returns the populated tree (goes RED if the fix is reverted); ADD a **bounded** `endOfFrame`
 timeout (250 ms) so an occluded/non-pumping window degrades to empty-fast instead of hanging; ADD
@@ -162,11 +162,11 @@ This is left untouched on purpose — the new factory will change how claim/life
 - `main` @ **`2d673a4`** — **no code changes anywhere**. Every fix this session lives only as a
   spec in a bead. Nothing to unwind.
 - No `whn/c94/22f` worktrees; no leftover flutter/dart/probe processes; instrumentation reverted;
-  probe (`packages/exploration_agent/tool/probe_enter_text.dart`) deleted (the other `tool/`
+  probe (`packages/leonard_agent/tool/probe_enter_text.dart`) deleted (the other `tool/`
   scripts there are pre-existing — leave them).
 - Uncommitted, pre-existing, **non-code** (do not "clean up" blindly):
   `.claude/skills/harden/` (the harden skill — keep), `.beads/interactions.jsonl`, `.gitignore`,
-  `.factoryskills/sessions.jsonl`, `packages/exploration_flutter/example/sample_app/macos/Podfile`.
+  `.factoryskills/sessions.jsonl`, `packages/leonard_flutter/example/sample_app/macos/Podfile`.
 - `origin/fs/lenny-whn/core-semantics-capture-returns-0-nodes-o` still exists on the remote
   (local copy removed).
 
@@ -185,7 +185,7 @@ This is left untouched on purpose — the new factory will change how claim/life
    - Wire the iPad mini (`00008110-001651523CE3801E`). It must show in `flutter devices`
      **without** `(wireless)` — if it shows wireless while plugged in, uncheck "Connect via
      network" in Xcode → Devices (wireless VM-service discovery hangs ~75 s).
-   - `cd packages/exploration_flutter/example/sample_app && flutter run -d <id> --no-devtools`
+   - `cd packages/leonard_flutter/example/sample_app && flutter run -d <id> --no-devtools`
      (background). Grab the `Dart VM Service … http://127.0.0.1:PORT/TOKEN/` line → convert to
      `ws://127.0.0.1:PORT/TOKEN/ws`. The app **stays attached**; only the CLI recompiles.
    - **Build the app from a worktree that carries whn's semantics + c94's enter_text fix** (or
@@ -197,7 +197,7 @@ This is left untouched on purpose — the new factory will change how claim/life
 5. Use the **`/harden text entry`** skill to orchestrate.
 
 ### Useful probe recipe (re-derive if needed)
-A standalone Dart script using `package:vm_service` (deps live in `exploration_agent`) can drive
+A standalone Dart script using `package:vm_service` (deps live in `leonard_agent`) can drive
 the live app deterministically: connect to the ws URI, pick the isolate exposing
 `ext.flutter.exploration.core.get_semantics`, then call extensions:
 - `core.get_semantics` → `{semantics:[{id,role,rect,label?,state?,actions?}], count}`
@@ -227,15 +227,15 @@ This is how the node-split + DPR facts in §2 were captured.
 
 | Concern | File |
 |---|---|
-| `enter_text` tool (rewrite target, c94) | `packages/exploration_flutter/lib/src/core_tools/tools/enter_text_tool.dart` |
-| `globalRectOf` / `hitTest*` (DPR bug, 22f) | `packages/exploration_flutter/lib/src/core_tools/dispatch.dart` |
-| `captureAsync`/`capture`, `_walk`, `_actions` (whn) | `packages/exploration_flutter/lib/src/semantics/semantics_capture.dart` |
-| Extension registration + arg decode | `packages/exploration_flutter/lib/src/binding/exploration_binding.dart` |
-| `lookupNode`, `snapshotSemanticsAsync`, `decodeServiceExtensionParams` | `packages/exploration_flutter/lib/src/core_tools/core_plugin.dart` |
-| `snapshotSemantics()` call to migrate (whn) | `packages/exploration_flutter/lib/src/core_tools/tools/scroll_tools.dart:188` |
-| element-tree access punt (related: lenny-37d) | `packages/exploration_flutter/lib/src/core_tools/tools/inspect_widget_tool.dart` |
-| element-tree walk precedent to reuse | `packages/exploration_flutter/lib/src/observation/core_fragment.dart` |
-| sample app login fields (wrapper/editable split) | `packages/exploration_flutter/example/sample_app/lib/screens/login_screen.dart` |
+| `enter_text` tool (rewrite target, c94) | `packages/leonard_flutter/lib/src/core_tools/tools/enter_text_tool.dart` |
+| `globalRectOf` / `hitTest*` (DPR bug, 22f) | `packages/leonard_flutter/lib/src/core_tools/dispatch.dart` |
+| `captureAsync`/`capture`, `_walk`, `_actions` (whn) | `packages/leonard_flutter/lib/src/semantics/semantics_capture.dart` |
+| Extension registration + arg decode | `packages/leonard_flutter/lib/src/binding/leonard_binding.dart` |
+| `lookupNode`, `snapshotSemanticsAsync`, `decodeServiceExtensionParams` | `packages/leonard_flutter/lib/src/core_tools/core_extension.dart` |
+| `snapshotSemantics()` call to migrate (whn) | `packages/leonard_flutter/lib/src/core_tools/tools/scroll_tools.dart:188` |
+| element-tree access punt (related: lenny-37d) | `packages/leonard_flutter/lib/src/core_tools/tools/inspect_widget_tool.dart` |
+| element-tree walk precedent to reuse | `packages/leonard_flutter/lib/src/observation/core_fragment.dart` |
+| sample app login fields (wrapper/editable split) | `packages/leonard_flutter/example/sample_app/lib/screens/login_screen.dart` |
 | the harden loop | `.claude/skills/harden/` |
 
 ## 11. Other open blockers (not this session's target)

@@ -25,14 +25,14 @@ finding is the opposite of duplication: a free capability Leonard is *missing*.
 - **`leonard_agent`** — pure-Dart: the perception-action loop, tool-registry
   projection, observation diffing, model providers (swift-infer / Anthropic /
   OpenAI), trajectory JSONL, the `vm_service` client seam.
-- **Plugin contract** — `LeonardExtension` + `LeonardTool`
+- **Extension contract** — `LeonardExtension` + `LeonardTool`
   (name + description + JSON `inputSchema` + `call`) registered into a
   `ExtensionRegistry`; each tool becomes a VM-service extension; observation
   fragments + busy-state + 3-strike isolation. **MCP-tool-shaped**, carried over
   `dart:developer` extensions rather than the MCP protocol.
 - **`leonard_devtools`** — a real DevTools extension (correctly *adopts*
   `devtools_extensions` + `dtd`; DTD used only for filesystem persistence).
-- **dio / riverpod / router** — reference plugins (Dio interceptor / Riverpod
+- **dio / riverpod / router** — reference extensions (Dio interceptor / Riverpod
   observer / Navigator-Router).
 - **Transport** — raw `vm_service` end-to-end. No MCP, no DWDS, no `dart_mcp`.
 
@@ -60,7 +60,7 @@ finding is the opposite of duplication: a free capability Leonard is *missing*.
 - **Stability-gated observation** (`FrameStabilityTracker`, wait-for-settle) — the MCP tools are imperative one-shot RPCs with no settle concept.
 - **Budgeted / curated / diffed agent-shaped JSON** vs the raw `DiagnosticsNode` firehose.
 - **The autonomous perception-action loop** (budgets, failure modes, trajectory) — the MCP server is *driven* by an external agent, it isn't a loop.
-- **The plugin contract** (observation fragments + busy-state + 3-strike isolation) — richer than plain MCP tools.
+- **The extension contract** (observation fragments + busy-state + 3-strike isolation) — richer than plain MCP tools.
 
 ## Recommendation
 
