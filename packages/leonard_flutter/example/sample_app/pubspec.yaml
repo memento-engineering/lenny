@@ -1,0 +1,27 @@
+name: sample_app
+description: Dogfood + PRD §23 success-criteria fixture for the Flutter Exploration Agent.
+publish_to: none
+resolution: workspace
+
+environment:
+  flutter: ">=3.41.0"
+  sdk: ^3.11.0
+
+dependencies:
+  dio: ^5.7.0
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.6.0
+  leonard_dio: any
+  leonard_flutter: any
+  leonard_riverpod: any
+  leonard_router: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.1.0
+
+flutter:
+  uses-material-design: true

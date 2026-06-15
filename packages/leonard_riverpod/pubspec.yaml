@@ -1,0 +1,24 @@
+name: leonard_riverpod
+description: Reference extension (leonard_riverpod) for the Flutter Exploration Agent.
+publish_to: none
+resolution: workspace
+
+environment:
+  flutter: ">=3.41.0"
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.0
+  genesis_perception:
+    git:
+      url: git@github.com:memento-engineering/genesis.git
+      ref: 41ec0ec
+      path: packages/perception
+  leonard_flutter: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.1.0

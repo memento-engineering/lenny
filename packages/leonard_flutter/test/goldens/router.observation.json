@@ -1,0 +1,15 @@
+{
+  "semantics": [
+    {"id": 1, "role": "text", "label": "Home", "rect": [0, 0, 320, 40]}
+  ],
+  "routes": ["home"],
+  "errors": [],
+  "stability": {"policy": "action_relative", "reason": "idle"},
+  "extensions": {
+    "router": {
+      "current_route_name": "home",
+      "stack": ["login", "home"],
+      "arguments": null
+    }
+  }
+}
