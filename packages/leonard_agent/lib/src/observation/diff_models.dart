@@ -14,7 +14,7 @@ import 'models.dart';
 class ObservationDiff {
   const ObservationDiff({required this.core, required this.plugins});
 
-  /// Empty diff — no route/node/error changes, no plugin entries.
+  /// Empty diff — no route/node/error changes, no extension entries.
   /// Used by validation-retry to append synthetic UserTurns carrying only
   /// a `toolResult` (no real observation change).
   factory ObservationDiff.empty() => const ObservationDiff(
@@ -31,7 +31,7 @@ class ObservationDiff {
   /// Diff over the core fragment.
   final CoreDiff core;
 
-  /// Per-namespace plugin diff.
+  /// Per-namespace extension diff.
   final Map<String, ExtensionDiff> plugins;
 
   Map<String, dynamic> toJson() {
@@ -80,7 +80,7 @@ class CoreDiff {
   };
 }
 
-/// Sealed plugin diff; one of [ExtensionDiffStructured], [ExtensionDiffOpaque],
+/// Sealed extension diff; one of [ExtensionDiffStructured], [ExtensionDiffOpaque],
 /// [ExtensionDiffAdded], [ExtensionDiffRemoved].
 @immutable
 sealed class ExtensionDiff {
@@ -135,7 +135,7 @@ class ExtensionDiffOpaque extends ExtensionDiff {
   };
 }
 
-/// Plugin namespace appears in `curr` but not in `prev`.
+/// Extension namespace appears in `curr` but not in `prev`.
 class ExtensionDiffAdded extends ExtensionDiff {
   const ExtensionDiffAdded({required this.current});
 
@@ -148,7 +148,7 @@ class ExtensionDiffAdded extends ExtensionDiff {
   };
 }
 
-/// Plugin namespace appears in `prev` but not in `curr` (e.g. plugin
+/// Extension namespace appears in `prev` but not in `curr` (e.g. extension
 /// auto-disabled in cx6.18).
 class ExtensionDiffRemoved extends ExtensionDiff {
   const ExtensionDiffRemoved({required this.previous});
@@ -190,7 +190,7 @@ class NodeChange {
   };
 }
 
-/// One key-level change inside a structured plugin diff.
+/// One key-level change inside a structured extension diff.
 @immutable
 class ChangedValue {
   const ChangedValue({required this.prev, required this.curr});

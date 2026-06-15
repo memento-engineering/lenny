@@ -6,8 +6,8 @@ import 'internals.dart';
 
 /// Perception-native view of the Riverpod observation fragment.
 ///
-/// Reads the SAME [LeonardProviderObserver] the plugin holds, so the
-/// derived lists are the plugin's sole observation surface. Mirrors
+/// Reads the SAME [LeonardProviderObserver] the extension holds, so the
+/// derived lists are the extension's sole observation surface. Mirrors
 /// `DioPerception`.
 ///
 /// Note: this emits the FULL tree (no in-fragment truncation, no `truncated`
@@ -15,7 +15,7 @@ import 'internals.dart';
 /// truncation authority.
 ///
 /// It does NOT flush the observer ring: `buildPerception()` takes no turn
-/// argument. The plugin's `prepareForObservation()` hook performs
+/// argument. The extension's `prepareForObservation()` hook performs
 /// `flushPendingAt` first (called by the binding before build), so this
 /// build reads the already-drained ring.
 class RiverpodPerception extends StatelessPerception {

@@ -1,5 +1,5 @@
 /// Regression test for lenny-dzh: the DevTools Prompt tab must load its
-/// plugin manifest by reusing an already-connected `VmService` (via
+/// extension manifest by reusing an already-connected `VmService` (via
 /// `probeManifest` → `VmServiceClient.fromVmService`), never by opening
 /// its own `vm_service_io` connection — which crashes on web with
 /// `Unsupported operation: Platform._version`.
@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vm_service/vm_service.dart';
 
 /// Hand-rolled fake `VmService` — answers the handshake extension with
-/// one plugin and overrides nothing else.
+/// one extension and overrides nothing else.
 class _FakeVmService extends VmService {
   _FakeVmService() : super(const Stream<dynamic>.empty(), (_) {});
 
@@ -48,7 +48,7 @@ Future<LeonardSession> _noSession() async =>
 void main() {
   testWidgets(
     'manifest probe built from probeManifest(fakeVmService, id) loads '
-    'the plugin manifest — no vm_service_io',
+    'the extension manifest — no vm_service_io',
     (tester) async {
       final fake = _FakeVmService();
       Future<List<ExtensionManifestEntry>> probe() =>

@@ -59,7 +59,7 @@ void main() {
       );
     });
 
-    test('detects divergent plugin fragment', () {
+    test('detects divergent extension fragment', () {
       final Map<String, Object?> base = _loadGolden('dio');
       final Map<String, Object?> diverged = Map<String, Object?>.from(base)
         ..['extensions'] = <String, Object?>{

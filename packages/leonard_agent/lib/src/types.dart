@@ -8,19 +8,19 @@ class HandshakeResult {
   /// Contract version reported by the binding.
   final String contractVersion;
 
-  /// Active plugins reported by the binding, with pre-namespaced tools.
+  /// Active extensions reported by the binding, with pre-namespaced tools.
   final List<ExtensionManifestEntry> plugins;
 }
 
-/// One entry in the handshake plugin manifest.
+/// One entry in the handshake extension manifest.
 class ExtensionManifestEntry {
   const ExtensionManifestEntry({required this.namespace, required this.tools});
 
-  /// Plugin namespace (e.g. `router`).
+  /// Extension namespace (e.g. `router`).
   final String namespace;
 
   /// Bare tool tokens as reported by the binding's handshake (e.g.
-  /// `go` for the `router` plugin) — NOT namespaced. Callers that need
+  /// `go` for the `router` extension) — NOT namespaced. Callers that need
   /// the fully-qualified `<namespace>.<tool>` form join them with
   /// [namespace].
   final List<String> tools;
@@ -58,7 +58,7 @@ class TurnBegan extends SessionProgressEvent {
   final int turn;
 }
 
-/// Emitted when [LeonardSession.disableExtension] auto-disables a plugin.
+/// Emitted when [LeonardSession.disableExtension] auto-disables a extension.
 class ExtensionAutoDisabled extends SessionProgressEvent {
   const ExtensionAutoDisabled(this.namespace, this.reason);
   final String namespace;

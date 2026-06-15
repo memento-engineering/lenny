@@ -21,14 +21,14 @@ class PolicyTick {
   /// Wall-clock duration the loop ran, in ms.
   final int durationMs;
 
-  /// Plugins still reporting busy at termination. Empty for `idle` and
+  /// Extensions still reporting busy at termination. Empty for `idle` and
   /// `quietFrame` terminations by construction.
   final List<ExtensionBusy> extensionsBusy;
 }
 
-/// Signature of the per-iteration plugin busy-state poller.
+/// Signature of the per-iteration extension busy-state poller.
 ///
-/// Each entry's key is a plugin namespace; isolation of throwing
+/// Each entry's key is a extension namespace; isolation of throwing
 /// `busyState()` calls (returning `BusyState.idle` and incrementing the
 /// strike counter) is the caller's responsibility — typically wrapping
 /// `ExtensionRegistry.busyStateAll`.
@@ -37,9 +37,9 @@ typedef BusyStatesPoller = Future<List<MapEntry<String, BusyState>>> Function();
 /// Drives the stable-observation polling loop.
 ///
 /// The loop polls cx6.4's [FrameworkBusySnapshot] and (via
-/// [pollBusyStates]) every plugin's [BusyState], folding both into the
+/// [pollBusyStates]) every extension's [BusyState], folding both into the
 /// active policy's termination predicate. The poller is expected to
-/// isolate plugin exceptions; thrown plugins must contribute a non-busy
+/// isolate extension exceptions; thrown extensions must contribute a non-busy
 /// entry so the loop is never aborted.
 class PolicyLoop {
   PolicyLoop({

@@ -95,7 +95,7 @@ class LeonardSession {
     }
   }
 
-  /// Plugins that have been auto-disabled this session (via
+  /// Extensions that have been auto-disabled this session (via
   /// [disableExtension]). Returned as an unmodifiable view.
   Set<String> get disabledExtensions => UnmodifiableSetView<String>(_disabled);
 
@@ -109,7 +109,7 @@ class LeonardSession {
     return h;
   }
 
-  /// Perform the binding handshake and capture contract version + plugin
+  /// Perform the binding handshake and capture contract version + extension
   /// manifest. Emits [SessionStarted] exactly once on success.
   ///
   /// Throws [StateError] if called twice. Propagates
@@ -207,7 +207,7 @@ class LeonardSession {
 
   /// Record an auto-disable for [namespace] with a human-readable
   /// [reason]. Emits [ExtensionAutoDisabled]. Idempotent — disabling the
-  /// same plugin twice still emits, so listeners can surface repeats.
+  /// same extension twice still emits, so listeners can surface repeats.
   void disableExtension(String namespace, String reason) {
     _disabled.add(namespace);
     _emit(ExtensionAutoDisabled(namespace, reason));

@@ -1,6 +1,6 @@
 /// Per-turn structural diff between two [Observation] snapshots.
 ///
-/// PRD §11.3: harness authors the diff. Plugins owning a delta-friendly
+/// PRD §11.3: harness authors the diff. Extensions owning a delta-friendly
 /// shape get a structured key-level delta; opaque blobs fall back to a
 /// previous-vs-current pair. First-turn behaviour is "all-added" because
 /// the prior is `Observation.empty()`.

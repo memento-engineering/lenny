@@ -5,13 +5,13 @@
 ///
 /// 1. stabilize
 /// 2. deserialize core fragment
-/// 3. deserialize plugin fragments
+/// 3. deserialize extension fragments
 /// 4. diff
 /// 5. build prompt
 /// 6. decide
 /// 7. validate
 /// 8. act
-/// 9. notify plugins
+/// 9. notify extensions
 /// 10. persist
 ///
 /// The 10-step ordering is load-bearing. Tests assert exact call
@@ -120,7 +120,7 @@ class LoopDriver {
   /// sees the structured failure on its next decide call.
   Map<String, dynamic>? _pendingToolResult;
 
-  /// Plugin auto-disable counter (PRD §17, threshold = 3).
+  /// Extension auto-disable counter (PRD §17, threshold = 3).
   final ExtensionFailureTracker extensionFailures = ExtensionFailureTracker();
 
   // ---- introspection (visible for tests / wiring) ----
@@ -191,7 +191,7 @@ class LoopDriver {
   }
 
   Future<TurnRecord> _runTurnInner(int idx) async {
-    // step 1+2+3: stabilize + deserialize (core + plugin fragments).
+    // step 1+2+3: stabilize + deserialize (core + extension fragments).
     final Observation curr = await _host.observe();
     await _accountExtensionStrikes(curr);
 
@@ -199,7 +199,7 @@ class LoopDriver {
     final ObservationDiff diff = ObservationDiffer.diff(_prev, curr);
 
     // step 5: build prompt against the CURRENT merged tool list
-    // (auto-disabled plugins already excluded). Append a UserTurn
+    // (auto-disabled extensions already excluded). Append a UserTurn
     // carrying any pending failed-action carry-forward, trim stale
     // observations to stay under the token budget, then snapshot.
     final List<ToolDescriptor> mergedTools = _host.mergedTools();
@@ -253,7 +253,7 @@ class LoopDriver {
       _doneReason = rawReason is String ? rawReason : null;
     }
 
-    // step 9: notify plugins.
+    // step 9: notify extensions.
     await _host.notifyExtensions(
       v.decision.action.tool,
       v.decision.action.args,
@@ -352,8 +352,8 @@ class LoopDriver {
       if (ns == _kCoreNamespace) continue;
       final ExtensionFragment? frag = curr.plugins[ns];
       // A strike is an actual observe() failure, signalled by the binding as
-      // an `error` key in the fragment data map (PRD §17 plugin isolation
-      // contract). A null/absent fragment means the plugin simply had nothing
+      // an `error` key in the fragment data map (PRD §17 extension isolation
+      // contract). A null/absent fragment means the extension simply had nothing
       // to report this turn (e.g. dio with no in-flight or recent requests) —
       // that is healthy, not a failure. Conflating "no data" with "errored"
       // auto-disabled dio after 3 quiet turns (lenny-jox).

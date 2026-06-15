@@ -40,7 +40,7 @@ class _EchoTool extends LeonardTool {
       ToolResult(ok: true, value: args['text']);
 }
 
-/// User plugin under namespace `sample` contributing one tool, `echo`.
+/// User extension under namespace `sample` contributing one tool, `echo`.
 ///
 /// Deliberately does NOT call `ctx.registerExtension` from
 /// [initialize] — the test reaches the tool through the binding's
@@ -49,7 +49,7 @@ class _EchoTool extends LeonardTool {
 /// [LeonardBinding.invokeExtensionTool]. Extension tools register their
 /// VM service extensions via `dart:developer.registerExtension`
 /// directly from inside [CoreExtension.initialize] (see
-/// `core_plugin_registration_test.dart`); this test exists precisely
+/// `core_extension_registration_test.dart`); this test exists precisely
 /// to cover the in-process wire-contract dispatch without a live VM.
 class _SampleEchoExtension extends LeonardExtension {
   @override
@@ -95,7 +95,7 @@ void main() {
     binding = LeonardBinding.ensureInitialized(
       extensions: <LeonardExtension>[_SampleEchoExtension()],
     )!;
-    // Plugin initialization runs in a microtask; flush it so the merged
+    // Extension initialization runs in a microtask; flush it so the merged
     // tool map is populated before any extension lookup.
     await Future<void>.delayed(Duration.zero);
     // The observation path runs PolicyLoop, which awaits

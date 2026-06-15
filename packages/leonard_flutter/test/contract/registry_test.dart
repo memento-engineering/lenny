@@ -158,16 +158,16 @@ void main() {
     await r.initializeAll();
     for (var i = 0; i < 5; i++) {
       final out = await r.busyStateAll();
-      // Both plugins always yield a BusyState entry (the thrower's is the
+      // Both extensions always yield a BusyState entry (the thrower's is the
       // idle fallback from the registry guard), so the map order is stable.
       expect(
         out.map((MapEntry<String, BusyState> e) => e.key).toList(),
         <String>['x', 'y'],
       );
     }
-    // The throwing plugin is dispatched 3 times, then auto-disabled.
+    // The throwing extension is dispatched 3 times, then auto-disabled.
     expect(log.where((s) => s == 'busy:x').length, 3);
-    // The healthy plugin keeps being dispatched every iteration.
+    // The healthy extension keeps being dispatched every iteration.
     expect(log.where((s) => s == 'busy:y').length, 5);
   });
 

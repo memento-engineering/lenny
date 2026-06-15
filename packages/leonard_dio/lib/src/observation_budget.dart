@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// Per-plugin observation budget in bytes (PRD §7.4).
+/// Per-extension observation budget in bytes (PRD §7.4).
 const int kExtensionBudgetBytes = 1024;
 
 /// Trim [frag] until its UTF-8 JSON encoding fits inside [budget] bytes.

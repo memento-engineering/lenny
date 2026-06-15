@@ -1,6 +1,6 @@
-/// Value types for the v1 plugin contract (PRD §7).
+/// Value types for the v1 extension contract (PRD §7).
 ///
-/// EXPERIMENTAL — v1 plugin contract. See [LeonardExtension] for the
+/// EXPERIMENTAL — v1 extension contract. See [LeonardExtension] for the
 /// full versioning posture.
 library;
 
@@ -26,11 +26,11 @@ class ToolResult {
   final String? error;
 }
 
-/// Whether a plugin reports the app as busy (settling, loading, animating, ...).
+/// Whether a extension reports the app as busy (settling, loading, animating, ...).
 class BusyState {
   const BusyState({required this.isBusy, this.reason, this.estimatedDuration});
 
-  /// `true` when the plugin reports an in-flight activity.
+  /// `true` when the extension reports an in-flight activity.
   final bool isBusy;
 
   /// Optional human-readable reason (e.g. "navigating", "loading users").
@@ -39,7 +39,7 @@ class BusyState {
   /// Optional estimate for when busy is expected to clear.
   final Duration? estimatedDuration;
 
-  /// Idle sentinel returned by exception-isolated dispatch and by plugins
+  /// Idle sentinel returned by exception-isolated dispatch and by extensions
   /// that have no contribution.
   static const BusyState idle = BusyState(isBusy: false);
 }

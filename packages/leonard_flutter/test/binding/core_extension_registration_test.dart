@@ -44,13 +44,13 @@ void main() {
         _UserExtensionOk(),
       ],
     )!;
-    // Plugin initialization runs in a microtask; flush it so VM service
+    // Extension initialization runs in a microtask; flush it so VM service
     // extensions are registered before any extension lookup.
     await Future<void>.delayed(Duration.zero);
   });
 
   test(
-    'host-installed CoreExtension reserves the "core" namespace; user plugin '
+    'host-installed CoreExtension reserves the "core" namespace; user extension '
     'claiming "core" is skipped',
     () {
       final Map<String, LeonardTool> merged = binding.extensionRegistry
@@ -74,7 +74,7 @@ void main() {
   );
 
   test('merged tool map carries every core.<tool> entry', () {
-    // Plugin VM service extensions are registered directly via
+    // Extension VM service extensions are registered directly via
     // `dart:developer.registerExtension` from inside CoreExtension.initialize
     // (ExtensionContext path), not the binding's local
     // `_extensionCallbacks` map. The merged tool map is the

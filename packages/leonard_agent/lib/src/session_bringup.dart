@@ -31,7 +31,7 @@ import 'types.dart';
 /// ```
 typedef BringUpResult = ({SessionHeader header, DefaultLoopHost host});
 
-/// Build the plugin manifest, assemble a [SessionHeader], compose a
+/// Build the extension manifest, assemble a [SessionHeader], compose a
 /// [DefaultLoopHost], and return both.
 ///
 /// **Pre-condition:** [session] must have already been started via
@@ -65,7 +65,7 @@ Future<BringUpResult> bringUpSession({
   Map<String, dynamic>? extraConfig,
 }) async {
   // session.start was called by the caller before bringUpSession.
-  // Build the plugin manifest from the completed handshake.
+  // Build the extension manifest from the completed handshake.
   final List<ExtensionManifestRecord> manifest = <ExtensionManifestRecord>[
     for (final ExtensionManifestEntry p in session.handshake.plugins)
       ExtensionManifestRecord(

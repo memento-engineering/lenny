@@ -48,12 +48,12 @@ class _InvalidateTool extends LeonardTool {
   }
 }
 
-/// Reference Riverpod plugin for the Flutter Exploration Agent.
+/// Reference Riverpod extension for the Flutter Exploration Agent.
 ///
-/// Hosts MUST construct a `ProviderContainer` with this plugin's
-/// [observer] installed (`ProviderContainer(observers: [plugin.observer])`)
+/// Hosts MUST construct a `ProviderContainer` with this extension's
+/// [observer] installed (`ProviderContainer(observers: [extension.observer])`)
 /// AND pass that same container to this constructor; otherwise the
-/// plugin will report no providers and `invalidate_provider` will be a
+/// extension will report no providers and `invalidate_provider` will be a
 /// no-op.
 class RiverpodLeonardExtension extends LeonardExtension
     with PerceptionExtension {
@@ -68,7 +68,7 @@ class RiverpodLeonardExtension extends LeonardExtension
   bool _initialized = false;
   late final _InvalidateTool _tool = _InvalidateTool(_c, _o);
 
-  /// The observer this plugin uses to track providers; hosts include it
+  /// The observer this extension uses to track providers; hosts include it
   /// in their `ProviderContainer(observers: [...])`.
   LeonardProviderObserver get observer => _o;
 

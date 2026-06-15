@@ -6,8 +6,8 @@ import 'extension.dart';
 
 /// Marks an [LeonardExtension] as the sole observation surface for its
 /// namespace. The binding's single observation loop emits a
-/// `plugins.<namespace>` fragment for every registered plugin that mixes
-/// this in (subject to [isPerceptionIdle]); plugins that do NOT mix it in
+/// `extensions.<namespace>` fragment for every registered extension that mixes
+/// this in (subject to [isPerceptionIdle]); extensions that do NOT mix it in
 /// contribute no fragment (mirroring the retired `observe() => null`).
 ///
 /// The two non-build members below relocate behaviors the retired
@@ -19,11 +19,11 @@ import 'extension.dart';
 ///   live inside `observe()` (e.g. riverpod's `flushPendingAt`). The binding
 ///   calls it BEFORE [isPerceptionIdle] and [buildPerception] each turn.
 mixin PerceptionExtension on LeonardExtension {
-  /// Build the perception tree serialized into this plugin's fragment.
+  /// Build the perception tree serialized into this extension's fragment.
   Seed buildPerception();
 
-  /// Whether the plugin has nothing to contribute this turn. When `true`,
-  /// the binding emits no `plugins.<namespace>` fragment — the exact
+  /// Whether the extension has nothing to contribute this turn. When `true`,
+  /// the binding emits no `extensions.<namespace>` fragment — the exact
   /// suppression the retired `observe() => null` provided. Defaults to
   /// `false` (always contribute). Evaluated AFTER [prepareForObservation].
   bool isPerceptionIdle() => false;

@@ -19,7 +19,7 @@
 /// method equals `ext.exploration.core.get_stable_observation`,
 /// the fake returns `{type: 'Observation', value: <fixture.body>}` and
 /// bypasses the binding's real handler. Every other extension and
-/// plugin tool routes normally regardless.
+/// extension tool routes normally regardless.
 ///
 /// The fixture parameter is `Object?` (NOT a typed
 /// `ObservationFixture?`) because `leonard_flutter` cannot depend
@@ -54,7 +54,7 @@ class BindingVmServiceFake extends VmService {
   /// `ext.exploration.core.get_stable_observation` return
   /// `{type: 'Observation', value: (observationFixture as dynamic).body}`
   /// instead of executing the binding's real handler. Other extensions
-  /// and plugin tools route normally regardless. (lenny-cx6.48)
+  /// and extension tools route normally regardless. (lenny-cx6.48)
   ///
   /// Typed `Object?` to keep `leonard_flutter` independent of
   /// `leonard_agent`; the body is read via `dynamic` dispatch.
@@ -89,7 +89,7 @@ class BindingVmServiceFake extends VmService {
           in (args ?? const <String, dynamic>{}).entries)
         e.key: e.value is String ? e.value as String : jsonEncode(e.value),
     };
-    // Route by registry, not by URL prefix. Plugin tools (registered via
+    // Route by registry, not by URL prefix. Extension tools (registered via
     // ExtensionContext.registerExtension) live in extensionRegistry.mergedTools()
     // keyed by '<ns>.<tool>'. Binding-owned extensions (handshake,
     // get_stable_observation, get_recent_errors, screenshot,

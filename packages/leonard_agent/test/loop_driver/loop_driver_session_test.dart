@@ -338,7 +338,7 @@ void main() {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       // For 3 turns: router fragment carries an error. After that the
-      // plugin is disabled; subsequent observations are clean.
+      // extension is disabled; subsequent observations are clean.
       int turn = 0;
       final host = _FakeHost(
         tools: <ToolDescriptor>[_coreWait()],

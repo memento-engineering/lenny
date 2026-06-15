@@ -5,7 +5,7 @@
 /// The handshake's `ExtensionManifestEntry` list only carries
 /// pre-namespaced tool *names*; full [ToolDescriptor]s (including
 /// `inputSchema`) are supplied by the caller (cx6.20 CLI / cx6.21
-/// DevTools) keyed by plugin namespace. This host intersects that
+/// DevTools) keyed by extension namespace. This host intersects that
 /// descriptor map with the active handshake namespaces, then subtracts
 /// auto-disabled namespaces to produce the per-turn merged tool list.
 ///
@@ -16,10 +16,10 @@
 /// connection_lost`. Method-level `RPCError`s — i.e. extension-reported
 /// failures with non-transport codes — propagate unwrapped.
 ///
-/// Plugin notification (`onActionExecutedAll`) runs *inside* the target
+/// Extension notification (`onActionExecutedAll`) runs *inside* the target
 /// app's `LeonardBinding` during the same `executeAction`
 /// round-trip, so the harness-side [notifyExtensions] is intentionally a
-/// no-op — dispatching again here would double-fire plugin handlers.
+/// no-op — dispatching again here would double-fire extension handlers.
 library;
 
 import 'package:vm_service/vm_service.dart' show RPCError;
@@ -46,7 +46,7 @@ class DefaultLoopHost implements LoopHost {
   /// Build a host on top of an already-`start()`ed [LeonardSession].
   ///
   /// * [coreTools] — base tool list always included in `mergedTools()`.
-  /// * [extensionTools] — plugin tool descriptors keyed by namespace.
+  /// * [extensionTools] — extension tool descriptors keyed by namespace.
   ///   Entries whose key is absent from the handshake manifest are
   ///   ignored; entries whose namespace is later auto-disabled are
   ///   excluded from `mergedTools()`/`activeExtensionNamespaces()`.
@@ -137,10 +137,10 @@ class DefaultLoopHost implements LoopHost {
     Map<String, dynamic> args,
     Map<String, dynamic> result,
   ) async {
-    // Intentionally empty. Plugin-side notification
+    // Intentionally empty. Extension-side notification
     // (`ExtensionRegistry.onActionExecutedAll`) runs in-process inside the
     // binding during `executeAction`. Dispatching again here would
-    // double-fire plugin handlers.
+    // double-fire extension handlers.
   }
 
   /// Wrap a session/client call so that transport failures surface as

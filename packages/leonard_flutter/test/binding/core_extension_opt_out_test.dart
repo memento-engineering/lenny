@@ -50,7 +50,7 @@ void main() {
       extensions: <LeonardExtension>[_UserCoreExtension()],
       installCoreExtension: false,
     )!;
-    // Plugin initialization runs in a microtask; flush before
+    // Extension initialization runs in a microtask; flush before
     // inspecting the merged tool map.
     await Future<void>.delayed(Duration.zero);
 

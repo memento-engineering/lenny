@@ -13,12 +13,12 @@ const Map<TerminatedBy, String> kTerminatedByWireNames = <TerminatedBy, String>{
   TerminatedBy.budget: 'budget',
 };
 
-/// Per-plugin busy descriptor included in the response's
+/// Per-extension busy descriptor included in the response's
 /// `stability.extensions_busy[]` list (PRD §9.2).
 class ExtensionBusy {
   const ExtensionBusy(this.namespace, {this.reason, this.estMs});
 
-  /// Plugin namespace (matches its registry namespace).
+  /// Extension namespace (matches its registry namespace).
   final String namespace;
 
   /// Optional human-readable reason from `BusyState.reason`.
@@ -58,7 +58,7 @@ class StabilityMetadata {
   /// Verbatim JSON projection of the cx6.4 framework busy snapshot.
   final Map<String, Object?> frameworkBusy;
 
-  /// Plugins that reported `BusyState.isBusy == true` at termination.
+  /// Extensions that reported `BusyState.isBusy == true` at termination.
   /// For `idle` / `quiet_frame` terminations this is empty by
   /// construction (the loop only stops once everyone is idle).
   final List<ExtensionBusy> extensionsBusy;

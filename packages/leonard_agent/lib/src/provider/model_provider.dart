@@ -1,7 +1,7 @@
 import 'action_schema.dart';
 import 'types.dart';
 
-/// Provider contract for model backends used by the exploration agent.
+/// Provider contract for model backends used by the Leonard agent.
 ///
 /// Concrete implementations land in .15 (swift-infer / local MLX) and
 /// .16 / .36 / .37 (frontier providers).

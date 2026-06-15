@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 /// Stability policy selector for [getStableObservation] (PRD §9.1).
 ///
 /// - [actionRelative] (default): terminate on the first of route change,
-///   semantics change, all-idle (framework + plugins), or
+///   semantics change, all-idle (framework + extensions), or
 ///   `actionRelativeBudgetMs` elapsed.
 /// - [quietFrame]: terminate after `quietFrameN` consecutive idle
 ///   frames. No wall-clock cap on this policy itself.
@@ -65,7 +65,7 @@ class ObservationRequest {
   /// When `true`, the response includes `screenshot_png_b64` from cx6.7.
   final bool includeScreenshot;
 
-  /// Per-namespace plugin observation budget overrides, in bytes. Plugins
+  /// Per-namespace extension observation budget overrides, in bytes. Extensions
   /// not present in the map fall back to the 1024-byte default. The sum
   /// of effective budgets is capped at 2048 bytes; overshoots are scaled
   /// proportionally (see `distributeExtensionBudgets`).

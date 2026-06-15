@@ -49,13 +49,13 @@ BudgetedJson encodeWithBudget(Map<String, Object?> fragment, int budget) {
 /// Default core fragment serialized budget, in bytes (PRD §11.4).
 const int kCoreBudgetBytes = 4096;
 
-/// Default per-plugin observation budget, in bytes.
+/// Default per-extension observation budget, in bytes.
 const int kDefaultExtensionBudgetBytes = 1024;
 
-/// Total cap on the sum of per-plugin observation budgets, in bytes.
+/// Total cap on the sum of per-extension observation budgets, in bytes.
 const int kExtensionBudgetTotalCapBytes = 2048;
 
-/// Compute the effective per-plugin budget map.
+/// Compute the effective per-extension budget map.
 ///
 /// For each namespace in [namespaces] (registration order), the
 /// effective budget is `requested[ns]` if present, otherwise [defaultPer].

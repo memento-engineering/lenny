@@ -14,7 +14,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // Controllers start EMPTY: the exploration agent must type the credentials
+  // Controllers start EMPTY: the Leonard agent must type the credentials
   // itself rather than tapping a prefilled form. This makes login an honest
   // text-entry test for every model tier (lenny-cx6.55). The fake API still
   // accepts only demo@example.com / password, so e2e goals supply the creds.

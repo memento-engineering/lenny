@@ -1,4 +1,4 @@
-/// Public surface of the v1 plugin contract (PRD §7).
+/// Public surface of the v1 extension contract (PRD §7).
 ///
 /// EXPERIMENTAL — types and behaviour exported here are subject to the
 /// versioning posture documented on [LeonardExtension].

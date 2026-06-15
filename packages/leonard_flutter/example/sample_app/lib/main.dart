@@ -22,7 +22,7 @@ class SampleApp implements LeonardApp {
       observers: <ProviderObserver>[observer],
     );
 
-    // Materialize Dio + Router from the shared container so the plugins
+    // Materialize Dio + Router from the shared container so the extensions
     // observe the exact instances the app uses (PRD §7).
     final dio = container.read(dioProvider);
     final router = buildRouter(container);

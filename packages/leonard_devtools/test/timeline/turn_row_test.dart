@@ -101,7 +101,7 @@ void main() {
       },
     );
 
-    test('plugin fragments surface as namespace: changed', () {
+    test('extension fragments surface as namespace: changed', () {
       final summary = TurnRow.describeDiff(const {
         'core': <String, dynamic>{},
         'extensions': {

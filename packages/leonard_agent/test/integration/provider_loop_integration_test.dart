@@ -1,4 +1,4 @@
-/// End-to-end provider-loop integration test for the exploration agent
+/// End-to-end provider-loop integration test for the Leonard agent
 /// (bead lenny-cx6.41).
 ///
 /// Sibling to `packages/leonard_flutter/test/binding_e2e_integration_test.dart`
@@ -131,7 +131,7 @@ MockClient _streamingMock(String body) => MockClient.streaming(
 );
 
 /// Tool descriptor matching the production-realistic qualified name
-/// (`router.navigate`) the test plugin contributes via the registry.
+/// (`router.navigate`) the test extension contributes via the registry.
 /// Default tools list for every scenario, including
 /// `unknownToolBareNavigate`: the unprefixed wire name `'navigate'` no
 /// longer resolves via `lookupTool`, so after cx6.40 the provider
@@ -192,7 +192,7 @@ class _Scenario {
 
   /// Happy path — provider emits a well-formed
   /// `tool_use{name: 'router_navigate', input: {route_name: 'settings'}}`;
-  /// the session routes the call through the binding and the test plugin
+  /// the session routes the call through the binding and the test extension
   /// records exactly one invocation with `route_name == 'settings'`.
   static final _Scenario happyPath = _Scenario(
     id: 'happyPathSwiftInfer',

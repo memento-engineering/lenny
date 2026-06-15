@@ -20,7 +20,7 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   /// drives navigation through this callback (e.g. go_router's `goNamed`)
   /// instead of Navigator-1.0 `pushNamed`, which requires an
   /// `onGenerateRoute` handler that is null under `MaterialApp.router`
-  /// (lenny-18q). Left null, the plugin falls back to `pushNamed` so
+  /// (lenny-18q). Left null, the extension falls back to `pushNamed` so
   /// Navigator-1.0 apps keep working unchanged.
   final Future<void> Function(
     String routeName,
@@ -47,7 +47,7 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   Future<void> dispose() async {}
 
   /// Reproduces the retired `observe() == null` suppression: when the route
-  /// walk yields no snapshot, the binding emits no `plugins.router`
+  /// walk yields no snapshot, the binding emits no `extensions.router`
   /// fragment.
   @override
   bool isPerceptionIdle() => readSnapshot() == null;

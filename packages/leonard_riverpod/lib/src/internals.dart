@@ -42,7 +42,7 @@ class _Ring<T> {
 /// records the most-recent updates as a fixed-capacity ring buffer.
 ///
 /// Hosts MUST install this on their `ProviderContainer(observers: [...])`
-/// for the plugin to surface anything via its perception fragment.
+/// for the extension to surface anything via its perception fragment.
 class LeonardProviderObserver extends ProviderObserver {
   LeonardProviderObserver({int ringCapacity = 16})
     : _changes = _Ring<StateChange>(ringCapacity);
@@ -58,7 +58,7 @@ class LeonardProviderObserver extends ProviderObserver {
 
   /// Drain provider-update notifications recorded since the last call,
   /// stamping each with [atTurn] and appending into the ring buffer.
-  /// Called by the plugin from `prepareForObservation()` (production
+  /// Called by the extension from `prepareForObservation()` (production
   /// stamps turn 0) before each perception build reads the ring.
   void flushPendingAt(int atTurn) {
     for (final id in _pending) {

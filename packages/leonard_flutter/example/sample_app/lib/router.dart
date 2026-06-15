@@ -10,7 +10,7 @@ import 'screens/settings_screen.dart';
 import 'screens/terms_screen.dart';
 import 'state/auth_provider.dart';
 
-/// Root navigator key shared with the Exploration Router plugin so the
+/// Root navigator key shared with the Exploration Router extension so the
 /// agent observes the same Navigator stack the app drives.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 

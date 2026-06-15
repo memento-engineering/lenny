@@ -2,7 +2,7 @@
 /// `LeonardSession` (and its underlying `VmServiceClient`).
 ///
 /// Encapsulates the slice of session/client surface the driver needs
-/// — observation, action execution, plugin-notification, plugin
+/// — observation, action execution, extension-notification, extension
 /// disable, dynamic tool list. Tests inject a fake; production wires
 /// up `LeonardSession.toLoopHost()`.
 library;
@@ -25,8 +25,8 @@ abstract class LoopHost {
     Map<String, dynamic> args,
   );
 
-  /// PRD §10 step 9 — fan out the executed action to plugins.
-  /// Implementations may no-op when there are no active plugins.
+  /// PRD §10 step 9 — fan out the executed action to extensions.
+  /// Implementations may no-op when there are no active extensions.
   Future<void> notifyExtensions(
     String tool,
     Map<String, dynamic> args,
@@ -38,12 +38,12 @@ abstract class LoopHost {
   /// [activeExtensionNamespaces] results.
   void disableExtension(String namespace, String reason);
 
-  /// PRD §16.2 — merged tool list (host core + active plugin tools)
-  /// regenerated each turn. Auto-disabled plugins must already be
+  /// PRD §16.2 — merged tool list (host core + active extension tools)
+  /// regenerated each turn. Auto-disabled extensions must already be
   /// excluded.
   List<ToolDescriptor> mergedTools();
 
-  /// Active plugin namespaces this turn. Auto-disabled plugins must
+  /// Active extension namespaces this turn. Auto-disabled extensions must
   /// already be excluded.
   Set<String> activeExtensionNamespaces();
 

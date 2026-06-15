@@ -16,7 +16,7 @@
 ///
 /// On the harness side we re-bundle the top-level `semantics`, `routes`,
 /// `errors` keys into a [CoreFragment] so the rest of the harness can talk
-/// in `Observation { core, plugins, stability }` terms (PRD §11.1).
+/// in `Observation { core, extensions, stability }` terms (PRD §11.1).
 ///
 /// All types are `@immutable`, JSON round-trippable, and value-equal.
 library;
@@ -109,7 +109,7 @@ class Observation {
   /// Core fragment (semantics nodes, route stack, runtime errors).
   final CoreFragment core;
 
-  /// Plugin fragments keyed by namespace.
+  /// Extension fragments keyed by namespace.
   final Map<String, ExtensionFragment> plugins;
 
   /// Stability metadata block from the binding.
@@ -343,12 +343,12 @@ class RuntimeError {
       Object.hash(seq, message, Object.hashAll(frames), wallClockOffsetMs);
 }
 
-/// One plugin's contribution to the observation bundle.
+/// One extension's contribution to the observation bundle.
 ///
-/// Wire shape today is just `plugins: { ns: <bare-data-map> }` (cx6.8).
+/// Wire shape today is just `extensions: { ns: <bare-data-map> }` (cx6.8).
 /// The harness wraps each entry into [ExtensionFragment] with `namespace =
 /// ns`, `data = bare-data-map`, and `deltaFriendly` driven by an opt-in
-/// flag the plugin can set under either `_delta_friendly` or
+/// flag the extension can set under either `_delta_friendly` or
 /// `delta_friendly` inside its data map. Default: `false` (i.e. the
 /// differ falls back to `previous/current` opaque diffs — PRD §11.3).
 @immutable
@@ -359,7 +359,7 @@ class ExtensionFragment {
     required this.deltaFriendly,
   });
 
-  /// Decode a single plugin fragment. [namespace] is the key from the
+  /// Decode a single extension fragment. [namespace] is the key from the
   /// outer `plugins` map; [raw] is whatever the binding emitted under it.
   factory ExtensionFragment.fromJson(String namespace, Object? raw) {
     Map<String, dynamic> data;
@@ -414,7 +414,7 @@ class ExtensionFragment {
   int get hashCode => Object.hash(namespace, deltaFriendly, _deepHash(data));
 }
 
-/// Subset of the binding's per-plugin "busy at termination" descriptor.
+/// Subset of the binding's per-extension "busy at termination" descriptor.
 @immutable
 class ExtensionBusy {
   const ExtensionBusy({required this.namespace, this.reason, this.estMs});

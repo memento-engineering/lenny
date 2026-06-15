@@ -7,7 +7,7 @@ import 'package:genesis_perception/genesis_perception.dart';
 import 'dio_perception.dart';
 import 'dio_tracking_interceptor.dart';
 
-/// Reference plugin for `package:dio` (PRD §7.4, §18).
+/// Reference extension for `package:dio` (PRD §7.4, §18).
 ///
 /// Tracks every request the host app issues through the supplied [Dio]
 /// instance and contributes:

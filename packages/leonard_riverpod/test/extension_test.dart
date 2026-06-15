@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Build a plugin whose observer is installed on its container.
+/// Build a extension whose observer is installed on its container.
 ({RiverpodLeonardExtension plugin, ProviderContainer container}) wired() {
   final observer = LeonardProviderObserver();
   final container = ProviderContainer(observers: <ProviderObserver>[observer]);
@@ -17,7 +17,7 @@ import 'package:genesis_perception/genesis_perception.dart';
   return (plugin: plugin, container: container);
 }
 
-/// Drive the plugin's observation exactly as the binding's single loop does:
+/// Drive the extension's observation exactly as the binding's single loop does:
 /// prepareForObservation() (flush), then harvest the perception fragment.
 Map<String, Object?> harvest(RiverpodLeonardExtension plugin) {
   plugin.prepareForObservation();

@@ -20,7 +20,7 @@ class RouterPerception extends StatelessPerception {
   @override
   Seed build(PerceptionContext ctx) {
     final RouteSnapshot? snap = _anchor.read();
-    // The plugin's isPerceptionIdle() (readSnapshot()==null) suppresses this
+    // The extension's isPerceptionIdle() (readSnapshot()==null) suppresses this
     // fragment when there is no route, so build() is only reached with a
     // non-null snapshot; fall back to an empty triple defensively.
     return Node(

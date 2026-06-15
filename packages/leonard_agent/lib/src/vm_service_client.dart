@@ -100,7 +100,7 @@ class VmServiceClient {
   }
 
   /// Exchange the `ext.exploration.core.handshake` contract
-  /// version and active plugin manifest.
+  /// version and active extension manifest.
   ///
   /// Throws [BindingNotInitializedError] when the extension is absent
   /// (RPC error code `-32601`, "method not found").
@@ -148,7 +148,7 @@ class VmServiceClient {
   /// [name] is unqualified or has a leading/trailing dot.
   ///
   /// Each value in [args] is JSON-encoded on the wire so the binding's
-  /// `_decodeParams`/`_tryDecode` (`core_plugin.dart:156-172`) round-trips
+  /// `_decodeParams`/`_tryDecode` (`core_extension.dart:156-172`) round-trips
   /// nested maps and lists. Scalars survive either form; encoding
   /// uniformly avoids special-casing.
   Future<Map<String, dynamic>> executeAction(
@@ -173,8 +173,8 @@ class VmServiceClient {
     return _safeCall(ext, encoded);
   }
 
-  /// Generic escape hatch for plugin-provided extensions (used by .12 to
-  /// pull plugin contributions). The [extension] string is passed
+  /// Generic escape hatch for extension-provided extensions (used by .12 to
+  /// pull extension contributions). The [extension] string is passed
   /// through verbatim.
   Future<Map<String, dynamic>> callExtension(
     String extension,

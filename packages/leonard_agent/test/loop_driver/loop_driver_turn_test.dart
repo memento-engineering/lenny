@@ -615,7 +615,7 @@ void main() {
           final sink = _MemorySink();
           final writer = await _newWriter(sink);
           // 'core' is in activeExtensionNamespaces; curr.plugins never has 'core'.
-          // 'dio' is also active but always absent from plugins — a healthy plugin
+          // 'dio' is also active but always absent from extensions — a healthy extension
           // that simply has nothing to report (no in-flight/recent requests), NOT
           // a failure (lenny-jox).
           final host = _FakeHost(

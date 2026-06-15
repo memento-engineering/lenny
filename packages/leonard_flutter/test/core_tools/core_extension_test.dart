@@ -35,7 +35,7 @@ void main() {
   });
 
   test(
-    'ExtensionRegistry rejects user plugin that claims namespace "core"',
+    'ExtensionRegistry rejects user extension that claims namespace "core"',
     () {
       final SemanticsCapture cap = SemanticsCapture();
       final CoreExtension host = CoreExtension(semantics: cap);
