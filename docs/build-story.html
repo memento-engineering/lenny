@@ -146,10 +146,13 @@
   <!-- ───────────────────────── 1. THE ITCH ───────────────────────── -->
   <section id="c1" data-name="the itch">
     <h2 class="reveal"><span class="num">01 — the itch</span>"It looked too early."</h2>
-    <p class="reveal lead">Watch an LLM drive a web browser long enough and you see the same failure
-      over and over: it clicks something, immediately reads the page, and acts on a half-rendered
-      snapshot. It's racing animations, network calls, partial DOM. A huge slice of agent failures
-      are just <i>"I looked before the app was done reacting."</i></p>
+    <p class="reveal lead">The itch was a question: could you wire an LLM straight into a live
+      Flutter app — over the Dart VM service — and have it perceive the app and drive itself
+      through it, turn after turn? The catch is perception. A UI agent is only as good as its
+      observation, and the classic failure is acting before the app is done reacting: it does
+      something, immediately reads the screen, and acts on a half-settled snapshot — racing
+      animations, network calls, partial renders. A huge slice of agent failures are just
+      <i>"I looked before the app was done reacting."</i></p>
     <p class="reveal d1">Flutter is built differently in a way that helps. The framework hands you the
       frame lifecycle directly. There's a screen-reader-grade <span class="mono">semantics tree</span>
       of the UI. And any package in a debug build can register handlers on the VM service protocol —

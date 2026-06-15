@@ -14,12 +14,16 @@ That last clause is the whole bet. More on it below.
 
 ---
 
-## Why bother — what's broken with browser agents
+## Why bother — the bet
 
-If you've watched an LLM drive a web browser, you've seen the failure mode: the
-agent clicks something, immediately reads the page, and acts on a half-rendered
-snapshot. It's racing animations, network calls, and partial DOM updates. A big
-chunk of agent failures are "I looked too early."
+The question Leonard set out to answer: can you wire an LLM straight into a live
+Flutter app — over the Dart VM service — and have it perceive the app's real state
+and drive itself through it, turn after turn?
+
+The hard part is perception. A UI agent is only as good as its observation, and the
+classic failure is acting *too early* — the agent does something, immediately reads
+the screen, and acts on a half-settled snapshot. It's racing animations, network
+calls, and partial renders. A big chunk of agent failures are "I looked too early."
 
 Flutter is structurally different in a way that helps:
 
@@ -33,7 +37,7 @@ Flutter is structurally different in a way that helps:
   debug-mode Flutter app can register handlers on the VM service protocol. That's
   our hook.
 
-So instead of "screenshot → guess → hope," Leonard gets: *act → wait until the
+So instead of "look → guess → hope," Leonard gets: *act → wait until the
 framework says it's stable → read a structured observation → decide.* One turn =
 one trustworthy snapshot.
 
@@ -338,9 +342,9 @@ IPC, it just renders the same in-memory session state the CLI drives.
 
 ## The takeaway slide
 
-> **Browser agents look too early and don't know it. Flutter hands you the frame
+> **Wire an LLM straight into a running Flutter app: the Dart VM hands you the frame
 > lifecycle, a semantics tree, and an extension channel — so Leonard's agent always
-> acts on a settled, structured snapshot. And because every app is a different pile
+> acts on a settled, structured snapshot instead of a guess. And because every app is a different pile
 > of libraries, the core stays tiny and policy-free while extensions — living in your
 > app — teach the agent about your router, your state, your network client.**
 >

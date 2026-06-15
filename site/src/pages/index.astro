@@ -8,16 +8,16 @@ import TurnDelta from '../components/TurnDelta.astro';
 import SummaryEvolution from '../components/SummaryEvolution.astro';
 import architecture from '../diagrams/architecture.svg?raw';
 ---
-<Layout title="Leonard — a Flutter agent for Leonard">
+<Layout title="Leonard — a Flutter agent">
   <Hero
     name="Leonard"
     tagline="An agent that drives a real Flutter app — and knows when it's done reacting."
     pitch="Leonard is an agent harness for running Flutter apps in debug mode. It taps, types, scrolls, and looks — but it always waits for the frame to settle and lets the app's own libraries report what's going on. One trustworthy observation per turn."
   />
-  <Section id="problem" title="Agents look too early">
-    <p>Watch an LLM drive a browser and you see the failure mode: it clicks, immediately reads a half-rendered DOM, and acts on the snapshot. It's racing animations, network calls, partial updates. A big chunk of agent failures are &ldquo;I looked too early.&rdquo;</p>
+  <Section id="problem" title="The bet: wire an LLM straight into a running app">
+    <p>Can you connect an LLM directly to a live Flutter app — over the Dart VM service — and have it perceive the app&rsquo;s real state and drive itself through it, turn after turn? That&rsquo;s the question Leonard set out to answer. The hard part is perception: a UI agent is only as good as its observation, and the classic failure is acting <em>too early</em> — reading the screen mid-animation, mid-navigation, or mid-load, then acting on a snapshot that&rsquo;s already stale.</p>
   </Section>
-  <Section id="the-bet" title="The bet: Flutter gives you ground truth">
+  <Section id="the-bet" title="Flutter gives you ground truth">
     <ul>
       <li><strong>Frame lifecycle.</strong> Flutter's scheduler knows when work is pending and when a frame committed — so &ldquo;is the app still settling?&rdquo; has a real answer.</li>
       <li><strong>Semantics tree.</strong> The screen-reader view gives interactable elements at a clean level, not raw pixels.</li>

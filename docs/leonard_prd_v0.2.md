@@ -16,7 +16,7 @@ The harness operates against the *real running app*, not a test entrypoint. Real
 
 ## 2. Motivation
 
-Browser automation agents have a chronic problem: they don't know when their actions complete. Every observation is a snapshot of indeterminate freshness, and a large fraction of failures are races against animations, network calls, or partial renders.
+A UI agent is only as good as its observation. The chronic problem is freshness: the agent doesn't know when its last action has actually completed, so every observation is a snapshot of indeterminate staleness, and a large fraction of failures are races against animations, network calls, or partial renders.
 
 Flutter is structurally different. The framework's `SchedulerBinding` exposes the frame lifecycle directly — pending frames, transient callbacks (animations), persistent callbacks (per-frame work), pointer event processing, and microtask state are all introspectable. Combined with the semantics tree, route stack, and runtime error stream, this gives an agent something rare: discrete, indexable time grounded in observable signals about what the app is actually doing.
 
