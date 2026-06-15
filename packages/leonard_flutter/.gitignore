@@ -29,3 +29,10 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
+
+# The DevTools extension bundle is a RELEASE ARTIFACT and MUST ship in the
+# published package — `pub publish` honors .gitignore, and 0.1.0 omitted the
+# bundle because the repo-root `build/` rule excluded it. Un-ignore it here
+# (deeper .gitignore wins) so the compiled extension is tracked and published.
+!extension/devtools/build/
+!extension/devtools/build/**
