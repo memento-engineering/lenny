@@ -5,11 +5,12 @@ import 'package:exploration_flutter/contract.dart';
 import 'package:exploration_flutter/exploration_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
 const String _ext =
     'ext.exploration.core.get_stable_observation';
 
-class _PluginA extends ExplorationPlugin {
+class _PluginA extends ExplorationPlugin with PerceptionPlugin {
   const _PluginA();
   @override
   String get namespace => 'a';
@@ -18,8 +19,8 @@ class _PluginA extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async =>
-      <String, Object?>{'pluginA': true, 'turn': ctx.turn};
+  Seed buildPerception() =>
+      Node('a', children: <Seed>[Field('pluginA', true)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -28,7 +29,7 @@ class _PluginA extends ExplorationPlugin {
   Future<void> dispose() async {}
 }
 
-class _PluginB extends ExplorationPlugin {
+class _PluginB extends ExplorationPlugin with PerceptionPlugin {
   const _PluginB();
   @override
   String get namespace => 'b';
@@ -37,8 +38,7 @@ class _PluginB extends ExplorationPlugin {
   @override
   Future<void> initialize(PluginContext ctx) async {}
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async =>
-      <String, Object?>{'pluginB': 1};
+  Seed buildPerception() => Node('b', children: <Seed>[Field('pluginB', 1)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override

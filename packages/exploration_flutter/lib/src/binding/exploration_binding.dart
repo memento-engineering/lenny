@@ -8,13 +8,13 @@ import 'package:genesis_perception/genesis_perception.dart';
 import '../contract/perception_plugin.dart';
 import '../contract/plugin.dart';
 import '../contract/registry.dart';
-import '../contract/types.dart';
 import '../core_tools/core_plugin.dart';
 import '../diagnostics/interactive_semantics_auditor.dart';
 import '../diagnostics/interactive_semantics_warning.dart';
 import '../errors/error_ring_buffer.dart';
 import '../observation/budgeted_json.dart';
 import '../observation/core_fragment.dart';
+import '../observation/core_perception.dart';
 import '../observation/observation_request.dart';
 import '../observation/policy_loop.dart';
 import '../observation/stability_metadata.dart';
@@ -384,8 +384,6 @@ class ExplorationBinding extends WidgetsFlutterBinding
                 <String, Object?>{
                   'namespace': m.namespace,
                   'tools': m.tools,
-                  if (_pluginRegistry.isPerceptionNative(m.namespace))
-                    'perception_native': true,
                 },
             ],
           }),
@@ -633,7 +631,13 @@ class ExplorationBinding extends WidgetsFlutterBinding
       }
     }
 
-    final Map<String, Object?> core = await buildCoreFragment(
+    // Core fragment via the SINGLE perception path: compute the same
+    // primitives buildCoreFragment used, build the core Seed from them,
+    // mount/serialize. serializePerceptionFragment strips the top
+    // Node('core') name and emits {semantics, routes, errors, stability
+    // [, screenshot_png_b64]} in that key order — byte-identical to the
+    // retired buildCoreFragment map.
+    final CoreFragmentValues coreValues = await computeCoreFragmentValues(
       captureSemantics: _semanticsCapture.captureAsync,
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
       stability: stability,
@@ -642,6 +646,17 @@ class ExplorationBinding extends WidgetsFlutterBinding
           req.includeScreenshot ? screenshotCaptureOrNull : null,
       errorCursor: req.errorCursor,
     );
+    _perceptionOwner.unmountRoot();
+    final Branch coreRoot = _perceptionOwner.mountRoot(
+      buildCorePerceptionSeed(
+        semantics: coreValues.semantics,
+        routes: coreValues.routes,
+        errors: coreValues.errors,
+        stability: coreValues.stability,
+        screenshot: coreValues.screenshot,
+      ),
+    );
+    final Map<String, Object?> core = serializePerceptionFragment(coreRoot);
 
     // Enforce the 4KB core budget: on overrun, replace with the
     // truncation marker (still as a JSON object) and warn.
@@ -660,49 +675,29 @@ class ExplorationBinding extends WidgetsFlutterBinding
     final List<String> namespaces = _pluginRegistry.namespaces;
     final Map<String, int> budgets =
         distributePluginBudgets(req.pluginBudgets, namespaces);
-    final ObservationContext ctx = ObservationContext(
-      turn: 0,
-      sinceLastAction: Duration(milliseconds: tick.durationMs),
-    );
-    final Map<String, Map<String, Object?>> rawFragments =
-        await _pluginRegistry.observeAll(ctx);
 
     final Map<String, Object?> pluginsOut = <String, Object?>{};
 
-    // Legacy path — skip perception-native namespaces (handled below)
-    for (final String ns in namespaces) {
-      if (_pluginRegistry.isPerceptionNative(ns)) continue;
-      final Map<String, Object?>? frag = rawFragments[ns];
-      if (frag == null) continue;
-      final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
-      if (enc.truncated) {
-        developer.log(
-          'plugin $ns fragment truncated '
-          '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
-          'budget ${budgets[ns]})',
-          name: 'exploration',
-        );
-        pluginsOut[ns] = jsonDecode(enc.json);
-      } else {
-        pluginsOut[ns] = frag;
-      }
-    }
-
-    // Perception-native path: mount → build → serialize → budget
-    for (final ExplorationPlugin plugin
-        in _pluginRegistry.perceptionNativePlugins) {
+    // SINGLE observation loop, registration order. Tools-only plugins
+    // (no PerceptionPlugin mixin) contribute no fragment — exactly
+    // mirroring the retired observe() => null. For each PerceptionPlugin:
+    // prepareForObservation() (side-effect seam) runs FIRST, then the
+    // idle gate (reproduces observe()==null suppression), then
+    // mount → build → serialize → budget under build isolation.
+    for (final ExplorationPlugin plugin in _pluginRegistry.plugins) {
+      if (plugin is! PerceptionPlugin) continue;
+      final PerceptionPlugin pp = plugin;
       final String ns = plugin.namespace;
-      // Mirror legacy null-gate: if observe() returned null, skip this ns.
-      if (rawFragments[ns] == null) continue;
       try {
+        pp.prepareForObservation();
+        if (pp.isPerceptionIdle()) continue;
         _perceptionOwner.unmountRoot();
-        final Branch root = _perceptionOwner
-            .mountRoot((plugin as PerceptionPlugin).buildPerception());
+        final Branch root = _perceptionOwner.mountRoot(pp.buildPerception());
         final Map<String, Object?> frag = serializePerceptionFragment(root);
         final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
         if (enc.truncated) {
           developer.log(
-            'plugin $ns (perception-native) fragment truncated '
+            'plugin $ns fragment truncated '
             '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
             'budget ${budgets[ns]})',
             name: 'exploration',
@@ -713,7 +708,7 @@ class ExplorationBinding extends WidgetsFlutterBinding
         }
       } catch (err, st) {
         developer.log(
-          'plugin $ns (perception-native) threw during build: $err\n$st',
+          'plugin $ns threw during observation: $err\n$st',
           name: 'exploration',
         );
       }

@@ -4,17 +4,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:exploration_flutter/contract.dart';
-import 'package:exploration_flutter/test_support/observation_equivalence.dart';
 import 'package:exploration_flutter/test_support/perception_serializer.dart';
 import 'package:exploration_router/exploration_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
-
-const ObservationContext _kCtx = ObservationContext(
-  turn: 0,
-  sinceLastAction: Duration.zero,
-);
 
 Widget _app(GlobalKey<NavigatorState> key) => WidgetsApp(
   navigatorKey: key,
@@ -83,38 +77,25 @@ Map<String, Object?> _harvest(Seed seed) {
 Map<String, Object?> _harvestPlugin(RouterPlugin plugin) =>
     _harvest(plugin.buildPerception());
 
-Map<String, Object?> _wrapObs(Map<String, Object?> routerFrag) =>
-    <String, Object?>{
-      'semantics': <Object?>[],
-      'routes': <Object?>[],
-      'errors': <Object?>[],
-      'stability': <String, Object?>{},
-      'plugins': <String, Object?>{'router': routerFrag},
-    };
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('Navigator happy path: perception fragment equals legacy', (
+  testWidgets('Navigator happy path: perception fragment surfaces the route', (
     t,
   ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
     final plugin = RouterPlugin(navigatorKey: k);
 
-    final Map<String, Object?>? legacy = await plugin.observe(_kCtx);
-    expect(
-      legacy,
-      isNotNull,
-      reason: 'legacy observe() must emit with a mounted Navigator',
-    );
+    expect(plugin.isPerceptionIdle(), isFalse,
+        reason: 'a mounted Navigator yields a route snapshot');
 
     final Map<String, Object?> perceptionFrag = _harvestPlugin(plugin);
-
-    assertObservationEquivalent(_wrapObs(legacy!), _wrapObs(perceptionFrag));
+    expect(perceptionFrag['current_route_name'], '/');
+    expect(perceptionFrag['stack'], <String>['/']);
   });
 
-  testWidgets('arguments-present path: perception arguments equal legacy', (
+  testWidgets('arguments-present path: perception carries the arguments', (
     t,
   ) async {
     final k = GlobalKey<NavigatorState>();
@@ -127,52 +108,36 @@ void main() {
     expect(r.ok, isTrue);
     await t.pumpAndSettle();
 
-    final Map<String, Object?>? legacy = await plugin.observe(_kCtx);
-    expect(legacy, isNotNull);
-    expect(legacy!['arguments'], {'tab': 'profile'});
-
     final Map<String, Object?> perceptionFrag = _harvestPlugin(plugin);
-
-    expect(perceptionFrag['arguments'], legacy['arguments']);
-    assertObservationEquivalent(_wrapObs(legacy), _wrapObs(perceptionFrag));
+    expect(perceptionFrag['arguments'], {'tab': 'profile'});
   });
 
-  test('RouterDelegate (declarative) path: perception equals legacy', () async {
+  test('RouterDelegate (declarative) path: perception reads the config',
+      () async {
     final plugin = RouterPlugin(
       navigatorKey: GlobalKey<NavigatorState>(),
       routerDelegate: _FakeDelegate('/checkout/payment'),
     );
 
-    final Map<String, Object?>? legacy = await plugin.observe(_kCtx);
-    expect(legacy, isNotNull);
-    expect(legacy!['current_route_name'], '/checkout/payment');
-    expect(legacy['stack'], ['/checkout/payment']);
-    expect(legacy['arguments'], isNull);
-
+    expect(plugin.isPerceptionIdle(), isFalse);
     final Map<String, Object?> perceptionFrag = _harvestPlugin(plugin);
-
-    assertObservationEquivalent(_wrapObs(legacy), _wrapObs(perceptionFrag));
+    expect(perceptionFrag['current_route_name'], '/checkout/payment');
+    expect(perceptionFrag['stack'], ['/checkout/payment']);
+    expect(perceptionFrag['arguments'], isNull);
   });
 
   test(
-    'idle null-gate: legacy observe() is null when no surface yields a route',
+    'idle gate: isPerceptionIdle() is true when no surface yields a route',
     () async {
       final plugin = RouterPlugin(
         navigatorKey: GlobalKey<NavigatorState>(),
         routerDelegate: _FakeDelegate(null),
       );
 
-      final Map<String, Object?>? legacy = await plugin.observe(_kCtx);
-      expect(
-        legacy,
-        isNull,
-        reason:
-            'binding null-gate (exploration_binding.dart:696) suppresses '
-            'the perception fragment when observe() is null',
-      );
-
-      // The shared snapshot reader is null too, so the anchor agrees with
-      // observe(): the perception path is never reached for an idle plugin.
+      // isPerceptionIdle() reproduces the retired observe()==null suppression;
+      // the binding skips the router ns entirely. The shared snapshot reader is
+      // null too, so the idle gate and the anchor can never drift.
+      expect(plugin.isPerceptionIdle(), isTrue);
       expect(plugin.readSnapshot(), isNull);
     },
   );

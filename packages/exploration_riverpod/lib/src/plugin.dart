@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:exploration_flutter/contract.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:genesis_perception/genesis_perception.dart';
@@ -61,14 +59,11 @@ class RiverpodExplorationPlugin extends ExplorationPlugin with PerceptionPlugin 
   RiverpodExplorationPlugin({
     required ProviderContainer container,
     ExplorationProviderObserver? observer,
-    int observationBudgetBytes = 1024,
   })  : _c = container,
-        _o = observer ?? ExplorationProviderObserver(),
-        _budget = observationBudgetBytes;
+        _o = observer ?? ExplorationProviderObserver();
 
   final ProviderContainer _c;
   final ExplorationProviderObserver _o;
-  final int _budget;
   bool _initialized = false;
   late final _InvalidateTool _tool = _InvalidateTool(_c, _o);
 
@@ -87,49 +82,21 @@ class RiverpodExplorationPlugin extends ExplorationPlugin with PerceptionPlugin 
     _initialized = true;
   }
 
+  /// Pre-build side-effect seam (relocated from the retired `observe()`):
+  /// drain the observer's pending updates into the change ring before the
+  /// idle check and build read it. Production always stamped turn 0.
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    if (!_initialized) return null;
-    _o.flushPendingAt(ctx.turn);
-    final ids = _o.live.keys.toList(growable: false);
-    final ch = _o
-        .recentChanges()
-        .map((c) => c.toJson())
-        .toList(growable: false);
-    if (ids.isEmpty && ch.isEmpty) return null;
-    return _budgeted(ids, ch);
+  void prepareForObservation() {
+    if (_initialized) _o.flushPendingAt(0);
   }
 
-  Map<String, Object?> _budgeted(
-    List<String> ids,
-    List<Map<String, Object?>> ch,
-  ) {
-    Map<String, Object?> shape(List<String> xs, {bool truncated = false}) {
-      final m = <String, Object?>{
-        'invalidatable_providers': xs,
-        'recent_state_changes': ch,
-      };
-      if (truncated) m['truncated'] = true;
-      return m;
-    }
-
-    int size(Map<String, Object?> m) => utf8.encode(jsonEncode(m)).length;
-
-    final full = shape(ids);
-    if (size(full) <= _budget) return full;
-
-    var lo = 0;
-    var hi = ids.length;
-    while (lo < hi) {
-      final mid = (lo + hi + 1) >> 1;
-      if (size(shape(ids.sublist(0, mid), truncated: true)) <= _budget) {
-        lo = mid;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return shape(ids.sublist(0, lo), truncated: true);
-  }
+  /// Reproduces the retired `observe() == null` suppression. Evaluated by
+  /// the binding AFTER [prepareForObservation], so `recentChanges()`
+  /// already reflects the just-flushed pending updates — matching the old
+  /// flush-then-null-gate ordering.
+  @override
+  bool isPerceptionIdle() =>
+      !_initialized || (_o.live.isEmpty && _o.recentChanges().isEmpty);
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;

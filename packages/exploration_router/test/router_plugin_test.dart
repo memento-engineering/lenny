@@ -1,9 +1,20 @@
-import 'package:exploration_flutter/contract.dart';
+import 'package:exploration_flutter/test_support/perception_serializer.dart';
 import 'package:exploration_router/exploration_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 
-const _ctx = ObservationContext(turn: 0, sinceLastAction: Duration.zero);
+/// Harvest the router plugin's observation fragment via the perception path,
+/// exactly as the binding's single observation loop does.
+Map<String, Object?> _harvest(RouterPlugin plugin) {
+  final PerceptionOwner owner = PerceptionOwner();
+  try {
+    final Branch root = owner.mountRoot(plugin.buildPerception());
+    return serializePerceptionFragment(root);
+  } finally {
+    owner.dispose();
+  }
+}
 
 Widget _app(GlobalKey<NavigatorState> key) => WidgetsApp(
       navigatorKey: key,
@@ -43,22 +54,24 @@ void main() {
     expect((await p.busyState()).isBusy, isFalse);
   });
 
-  testWidgets('observe returns Navigator fragment with route name and stack',
+  testWidgets('observation has Navigator fragment with route name and stack',
       (t) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
-    final f = await RouterPlugin(navigatorKey: k).observe(_ctx);
-    expect(f!['current_route_name'], '/');
+    final p = RouterPlugin(navigatorKey: k);
+    expect(p.isPerceptionIdle(), isFalse);
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/');
     expect(f['stack'], ['/']);
   });
 
-  testWidgets('observe returns null when NavigatorState not mounted',
+  testWidgets('isPerceptionIdle is true when NavigatorState not mounted',
       (t) async {
     final p = RouterPlugin(navigatorKey: GlobalKey<NavigatorState>());
-    expect(await p.observe(_ctx), isNull);
+    expect(p.isPerceptionIdle(), isTrue);
   });
 
-  testWidgets('navigate pushes named route and observe sees it', (t) async {
+  testWidgets('navigate pushes named route and observation sees it', (t) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
     final p = RouterPlugin(navigatorKey: k);
@@ -69,8 +82,8 @@ void main() {
     await t.pumpAndSettle();
     expect(r.ok, isTrue);
     expect(r.value, {'route_name': '/settings'});
-    final f = await p.observe(_ctx);
-    expect(f!['current_route_name'], '/settings');
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/settings');
     expect(f['arguments'], {'tab': 'profile'});
   });
 
@@ -129,18 +142,19 @@ void main() {
     // The seam handled navigation; Navigator-1.0 pushNamed must NOT have run,
     // so the Navigator stack is untouched (still at root).
     await t.pumpAndSettle();
-    final f = await p.observe(_ctx);
-    expect(f!['current_route_name'], '/');
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/');
   });
 
-  test('declarative-only: observe reads RouterDelegate.currentConfiguration',
+  test('declarative-only: reads RouterDelegate.currentConfiguration',
       () async {
     final p = RouterPlugin(
       navigatorKey: GlobalKey<NavigatorState>(),
       routerDelegate: _FakeDelegate('/checkout/payment'),
     );
-    final f = await p.observe(_ctx);
-    expect(f!['current_route_name'], '/checkout/payment');
+    expect(p.isPerceptionIdle(), isFalse);
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/checkout/payment');
     expect(f['stack'], ['/checkout/payment']);
     expect(f['arguments'], isNull);
   });
@@ -152,8 +166,8 @@ void main() {
       navigatorKey: k,
       routerDelegate: _FakeDelegate('/declarative'),
     );
-    final f = await p.observe(_ctx);
-    expect(f!['current_route_name'], '/');
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/');
   });
 
   test('declarative fallback when Navigator unmounted', () async {
@@ -161,26 +175,16 @@ void main() {
       navigatorKey: GlobalKey<NavigatorState>(),
       routerDelegate: _FakeDelegate('/fallback'),
     );
-    final f = await p.observe(_ctx);
-    expect(f!['current_route_name'], '/fallback');
+    final f = _harvest(p);
+    expect(f['current_route_name'], '/fallback');
   });
 
-  test('returns null when neither surface yields a route', () async {
+  test('isPerceptionIdle is true when neither surface yields a route',
+      () async {
     final p = RouterPlugin(
       navigatorKey: GlobalKey<NavigatorState>(),
       routerDelegate: _FakeDelegate(null),
     );
-    expect(await p.observe(_ctx), isNull);
-  });
-
-  test('observation fragment caps at 1024 bytes with _truncated marker',
-      () async {
-    final p = RouterPlugin(
-      navigatorKey: GlobalKey<NavigatorState>(),
-      routerDelegate: _FakeDelegate('x' * 2000),
-    );
-    final f = await p.observe(_ctx);
-    expect(f!['_truncated'], isTrue);
-    expect(f['stack'], isEmpty);
+    expect(p.isPerceptionIdle(), isTrue);
   });
 }

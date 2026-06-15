@@ -37,12 +37,6 @@ class _OrderPlugin extends ExplorationPlugin {
   }
 
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    log.add('obs:$namespace');
-    return <String, Object?>{'k': 1, 'unknown_future_field': 'opaque'};
-  }
-
-  @override
   Future<BusyState> busyState() async {
     log.add('busy:$namespace');
     return BusyState.idle;
@@ -59,12 +53,12 @@ class _OrderPlugin extends ExplorationPlugin {
   }
 }
 
-class _ThrowOnObserve extends _OrderPlugin {
-  _ThrowOnObserve(super.namespace, {required super.log});
+class _ThrowOnBusy extends _OrderPlugin {
+  _ThrowOnBusy(super.namespace, {required super.log});
 
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    log.add('obs:$namespace');
+  Future<BusyState> busyState() async {
+    log.add('busy:$namespace');
     throw StateError('boom');
   }
 }
@@ -131,9 +125,6 @@ void main() {
     r.register(_OrderPlugin('a', log: log));
     r.register(_OrderPlugin('b', log: log));
     await r.initializeAll();
-    await r.observeAll(
-      const ObservationContext(turn: 0, sinceLastAction: Duration.zero),
-    );
     await r.busyStateAll();
     await r.onActionExecutedAll(
       const ExecutedAction(
@@ -146,8 +137,6 @@ void main() {
     expect(log, <String>[
       'init:a',
       'init:b',
-      'obs:a',
-      'obs:b',
       'busy:a',
       'busy:b',
       'act:a',
@@ -157,33 +146,23 @@ void main() {
     ]);
   });
 
-  test('observe fragment passes unknown fields through', () async {
-    final r = build();
-    r.register(_OrderPlugin('a', log: <String>[]));
-    await r.initializeAll();
-    final out = await r.observeAll(
-      const ObservationContext(turn: 0, sinceLastAction: Duration.zero),
-    );
-    expect(
-      out['a'],
-      <String, Object?>{'k': 1, 'unknown_future_field': 'opaque'},
-    );
-  });
-
   test('per-method exception isolation and 3-strikes auto-disable', () async {
     final log = <String>[];
     final r = build();
-    r.register(_ThrowOnObserve('x', log: log));
+    r.register(_ThrowOnBusy('x', log: log));
     r.register(_OrderPlugin('y', log: log));
     await r.initializeAll();
     for (var i = 0; i < 5; i++) {
-      final out = await r.observeAll(
-        ObservationContext(turn: i, sinceLastAction: Duration.zero),
-      );
-      expect(out.containsKey('x'), isFalse);
-      expect(out.containsKey('y'), isTrue);
+      final out = await r.busyStateAll();
+      // Both plugins always yield a BusyState entry (the thrower's is the
+      // idle fallback from the registry guard), so the map order is stable.
+      expect(out.map((MapEntry<String, BusyState> e) => e.key).toList(),
+          <String>['x', 'y']);
     }
-    expect(log.where((s) => s == 'obs:x').length, 3);
+    // The throwing plugin is dispatched 3 times, then auto-disabled.
+    expect(log.where((s) => s == 'busy:x').length, 3);
+    // The healthy plugin keeps being dispatched every iteration.
+    expect(log.where((s) => s == 'busy:y').length, 5);
   });
 
   test('dispose isolation runs every plugin', () async {

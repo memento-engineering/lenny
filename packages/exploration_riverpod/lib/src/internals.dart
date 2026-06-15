@@ -42,7 +42,7 @@ class _Ring<T> {
 /// records the most-recent updates as a fixed-capacity ring buffer.
 ///
 /// Hosts MUST install this on their `ProviderContainer(observers: [...])`
-/// for the plugin to surface anything via `observe()`.
+/// for the plugin to surface anything via its perception fragment.
 class ExplorationProviderObserver extends ProviderObserver {
   ExplorationProviderObserver({int ringCapacity = 16})
       : _changes = _Ring<StateChange>(ringCapacity);
@@ -58,8 +58,8 @@ class ExplorationProviderObserver extends ProviderObserver {
 
   /// Drain provider-update notifications recorded since the last call,
   /// stamping each with [atTurn] and appending into the ring buffer.
-  /// Called by the plugin from `observe()` so each entry's `at_turn`
-  /// matches the most recent `ObservationContext.turn`.
+  /// Called by the plugin from `prepareForObservation()` (production
+  /// stamps turn 0) before each perception build reads the ring.
   void flushPendingAt(int atTurn) {
     for (final id in _pending) {
       _changes.add(StateChange(providerId: id, atTurn: atTurn));
