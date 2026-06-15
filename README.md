@@ -17,10 +17,6 @@
 
 ---
 
-> Okay, so what am I doing? Oh, I'm chasing this guy. No, he's chasing me.
->
-> — [Leonard Shelby](https://duckduckgo.com/?q=memento)
-
 Leonard is an agent harness for running Flutter apps in debug mode. It taps, types,
 scrolls, and looks — the way a person would — but it always waits for the frame to
 settle first, and lets the app's own libraries report what's going on. The result
@@ -87,6 +83,10 @@ Every turn is the same shape:
 5. **Act** — run the tool (core or extension) and append the turn to the trajectory log.
 
 For the full, illustrated tour, read [`docs/how-leonard-works.md`](docs/how-leonard-works.md).
+
+> Okay, so what am I doing? Oh, I'm chasing this guy. No, he's chasing me.
+>
+> — [Leonard Shelby](https://duckduckgo.com/?q=memento)
 
 ## Packages
 
