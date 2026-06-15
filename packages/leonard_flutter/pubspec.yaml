@@ -12,10 +12,9 @@ dependencies:
     sdk: flutter
   flutter_test:
     sdk: flutter
-  # Perception framework — lives in memento-engineering/genesis post-cutover
-  # (lenny ADR 0001 lineage). Pinned git dep; the transitive genesis_tree is
-  # pinned via dependency_overrides at the workspace root. See ADR 0002
-  # addendum (lenny-wisp-5h5).
+  # Perception framework — lives in memento-engineering/genesis post-cutover.
+  # Pinned git dep; the transitive genesis_tree is pinned via
+  # dependency_overrides at the workspace root.
   genesis_perception:
     git:
       url: git@github.com:memento-engineering/genesis.git
