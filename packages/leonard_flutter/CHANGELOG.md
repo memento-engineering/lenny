@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Fix: ship the compiled DevTools extension bundle in the published package.
+  0.1.0 omitted `extension/devtools/build/` because the repo-root `build/`
+  `.gitignore` rule excluded it (`pub publish` honors `.gitignore`), so the
+  "Leonard" DevTools tab was missing for consumers. The bundle is now
+  un-ignored and shipped.
+
 ## 0.1.0
 
 - Host `WidgetsBinding` (`LeonardBinding`) with a single-path perception
