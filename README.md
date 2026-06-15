@@ -22,14 +22,17 @@ scrolls, and looks — the way a person would — but it always waits for the fr
 settle first, and lets the app's own libraries report what's going on. The result
 is **one trustworthy observation per turn**.
 
-## The problem: agents look too early
+## The bet: wire an LLM straight into a running app
 
-Watch an LLM drive a browser and you see the failure mode — it clicks, immediately
-reads a half-rendered DOM, and acts on that snapshot. It's racing animations, network
-calls, and partial updates. A large fraction of agent failures are simply *"I looked
-too early."*
+Leonard set out to answer one question: can you connect an LLM directly to a live
+Flutter app — over the Dart VM service — and have it perceive the app's real state and
+drive itself through it, turn after turn? It can.
 
-Flutter is structurally different in a way that helps:
+The hard part is perception. A UI agent is only as good as its observation, and the
+classic failure is acting *too early* — reading the screen mid-animation,
+mid-navigation, or mid-load, then acting on a snapshot that's already stale.
+
+Flutter makes this tractable in a way most UIs don't:
 
 - **Frame lifecycle.** Flutter's scheduler knows when work is pending and when a frame
   has committed — so *"is the app still settling?"* has a real answer.

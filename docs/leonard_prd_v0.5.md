@@ -31,7 +31,7 @@ The deliverable is the perception-action primitive plus the extension contract. 
 
 ## 2. Motivation
 
-Browser automation agents have a chronic problem: they don't know when their actions complete. Every observation is a snapshot of indeterminate freshness, and a large fraction of failures are races against animations, network calls, or partial renders.
+A UI agent is only as good as its observation. The chronic problem is freshness: the agent doesn't know when its last action has actually completed, so every observation is a snapshot of indeterminate staleness, and a large fraction of failures are races against animations, network calls, or partial renders.
 
 Flutter is structurally different. The framework's `SchedulerBinding` exposes the frame lifecycle directly. The semantics tree exposes interactable elements at a screen-reader level of abstraction. The VM service extension protocol (`registerExtension` from `dart:developer`) is a publicly available extensibility surface that any package in the running app can register handlers against. Combined, this gives us an environment where an LLM-driven agent can operate with native temporal grounding, structured observations, and a path for ecosystem extensibility.
 
