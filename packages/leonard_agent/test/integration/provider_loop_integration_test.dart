@@ -1,8 +1,7 @@
-/// End-to-end provider-loop integration test for the Leonard agent
-/// (bead lenny-cx6.41).
+/// End-to-end provider-loop integration test for the Leonard agent.
 ///
-/// Sibling to `packages/leonard_flutter/test/binding_e2e_integration_test.dart`
-/// (lenny-cvl.4): cvl.4 closed the binding-side wire gap; this file
+/// Sibling to `packages/leonard_flutter/test/binding_e2e_integration_test.dart`,
+/// which closed the binding-side wire gap; this file
 /// closes the provider-side gap by driving a real [LeonardSession]
 /// against a real [SwiftInferModelProvider] whose `http.Client` is a
 /// `package:http/testing.dart` [MockClient.streaming] replaying canned
@@ -15,7 +14,7 @@
 /// click Start, read minified JS stack traces). The
 /// `unknownToolBareNavigate` scenario is the direct regression for the
 /// swift-infer trace `msg_333DE0C006B` (qwen3.6-27b returned
-/// `"navigate"` without the `router_` prefix); after cx6.40 the
+/// `"navigate"` without the `router_` prefix); the
 /// provider fails closed at the unknown-tool guard with
 /// [SchemaRejection] before the call ever reaches the binding.
 ///
@@ -29,7 +28,7 @@
 /// | `noToolUseBlock`         | text-only stream, no `content_block_start` of type tool_use  | forward guard: provider rejects with SchemaRejection. |
 /// | `midStreamDone`          | tool_use start then `[DONE]` before `input_json_delta`       | regression-lock for current bubble-through path. |
 ///
-/// All five scenarios are forward-looking guards after cx6.40 landed.
+/// All five scenarios are forward-looking guards.
 /// The `unknownToolBareNavigate` scenario locks the regression by
 /// asserting [SchemaRejection] is thrown before the call ever reaches
 /// the binding.
@@ -44,8 +43,8 @@
 /// [ModelProvider] in the repo (the swift-infer gateway, the
 /// `AnthropicProvider`, the `OpenAIProvider`) parses the same
 /// `tool_use{name, input}` content-block shape through
-/// `frontier/tool_helpers.dart`. cx6.40 flipped the
-/// `unknownToolBareNavigate` matcher to
+/// `frontier/tool_helpers.dart`. The
+/// `unknownToolBareNavigate` matcher is
 /// `throwsA(isA<SchemaRejection>())`; future widening of
 /// `expectScenario`'s `provider:` parameter from the concrete
 /// `SwiftInferModelProvider` to the [ModelProvider] interface remains
@@ -55,13 +54,13 @@
 ///
 /// The in-process [VmService] bridge is the shared
 /// `BindingVmServiceFake` from
-/// `package:leonard_flutter/test_support/binding_vm_service_fake.dart`
-/// (hoisted by lenny-imr). Any wire-contract change in `cvl.*`
+/// `package:leonard_flutter/test_support/binding_vm_service_fake.dart`.
+/// Any wire-contract change
 /// (extension prefixes, `args` encoding, RPC error codes) updates the
 /// single shared class — no manual mirror discipline anymore.
 // The test-private `expectScenario` helper accepts a private `_Scenario`
 // parameter; both stay file-private to keep the registry from leaking
-// out of the test. cx6.40 will widen the helper without unprivatizing.
+// out of the test. A future widening of the helper can keep it private.
 // ignore_for_file: library_private_types_in_public_api
 library;
 
@@ -134,7 +133,7 @@ MockClient _streamingMock(String body) => MockClient.streaming(
 /// (`router.navigate`) the test extension contributes via the registry.
 /// Default tools list for every scenario, including
 /// `unknownToolBareNavigate`: the unprefixed wire name `'navigate'` no
-/// longer resolves via `lookupTool`, so after cx6.40 the provider
+/// longer resolves via `lookupTool`, so the provider
 /// throws [SchemaRejection] at the unknown-tool guard before the call
 /// ever reaches `VmServiceClient.executeAction`.
 final ToolDescriptor _routerNavigateDescriptor = ToolDescriptor(
@@ -214,7 +213,7 @@ class _Scenario {
   /// `frontier/tool_helpers.dart`'s `unknownToolRejection` fires and
   /// the provider throws [SchemaRejection] before the call ever
   /// reaches `session.act` (and therefore never reaches the binding or
-  /// cvl.3's qualified-name guard). The scenario uses the default
+  /// the qualified-name guard). The scenario uses the default
   /// `[router.navigate]` tool list — no override — so the unknown-tool
   /// guard is what trips, exactly mirroring the production wire shape.
   static final _Scenario unknownToolBareNavigate = _Scenario(
@@ -321,13 +320,13 @@ class _Scenario {
 ///
 /// The closure runs `provider.decide(...)` followed by
 /// `session.act(...)` — any throw from either step propagates to the
-/// matcher. cx6.40's validation step will reuse this entry point to
+/// matcher. The validation step reuses this entry point to
 /// re-assert the unknown-tool case as [SchemaRejection]; keep the
 /// `tools` parameter injected (not a hardcoded const) so callers can
 /// extend the fixture's tool list without forking this helper.
 ///
-/// Typed against [SwiftInferModelProvider] today; cx6.40 may widen the
-/// signature to [ModelProvider] once the Anthropic / OpenAI variants
+/// Typed against [SwiftInferModelProvider] today; the
+/// signature may widen to [ModelProvider] once the Anthropic / OpenAI variants
 /// are parametrised over the same scenario registry.
 Future<void> expectScenario({
   required LeonardSession session,

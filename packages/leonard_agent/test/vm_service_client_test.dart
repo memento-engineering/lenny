@@ -65,9 +65,9 @@ void main() {
       expect(fake.lastMethod, equals('ext.exploration.core.handshake'));
       expect(fake.lastIsolateId, equals('iso-1'));
       expect(result.contractVersion, equals('2'));
-      expect(result.plugins, hasLength(1));
-      expect(result.plugins.first.namespace, equals('router'));
-      expect(result.plugins.first.tools, equals(<String>['go']));
+      expect(result.extensions, hasLength(1));
+      expect(result.extensions.first.namespace, equals('router'));
+      expect(result.extensions.first.tools, equals(<String>['go']));
     });
 
     test(

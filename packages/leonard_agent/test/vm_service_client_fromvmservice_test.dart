@@ -2,7 +2,7 @@
 /// [VmServiceClient] / [LeonardSession] from an already-connected
 /// [VmService] must not require `package:vm_service/vm_service_io.dart`
 /// (which pulls in `dart:io` and crashes on web with
-/// `Unsupported operation: Platform._version`). See lenny-dzh.
+/// `Unsupported operation: Platform._version`).
 library;
 
 import 'package:leonard_agent/leonard_agent.dart';
@@ -37,7 +37,7 @@ void main() {
     () async {
       final client = VmServiceClient.fromVmService(_FakeVmService(), 'iso-1');
       final result = await client.handshake();
-      expect(result.plugins, isEmpty);
+      expect(result.extensions, isEmpty);
       expect(result.contractVersion, equals('1.0.0'));
     },
   );
@@ -45,7 +45,7 @@ void main() {
   test('LeonardSession.fromVmService starts without vm_service_io', () async {
     final session = LeonardSession.fromVmService(_FakeVmService(), 'iso-1');
     await session.start('goal', const LeonardConfig());
-    expect(session.handshake.plugins, isEmpty);
+    expect(session.handshake.extensions, isEmpty);
     await session.end();
   });
 }

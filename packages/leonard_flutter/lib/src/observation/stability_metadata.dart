@@ -55,7 +55,7 @@ class StabilityMetadata {
   /// Wall-clock duration the policy loop ran for, in ms.
   final int durationMs;
 
-  /// Verbatim JSON projection of the cx6.4 framework busy snapshot.
+  /// Verbatim JSON projection of the framework busy snapshot.
   final Map<String, Object?> frameworkBusy;
 
   /// Extensions that reported `BusyState.isBusy == true` at termination.

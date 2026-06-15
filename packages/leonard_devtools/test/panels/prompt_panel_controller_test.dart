@@ -10,7 +10,7 @@ class _FakeSession implements LeonardSession {
   _FakeSession({
     this.handshakeResult = const HandshakeResult(
       contractVersion: '1.0',
-      plugins: <ExtensionManifestEntry>[],
+      extensions: <ExtensionManifestEntry>[],
     ),
   });
 
@@ -131,7 +131,7 @@ void main() {
   test(
     'start pins the default operating guide as the loop host agentsMd',
     () async {
-      // Regression for lenny-wisp-0go2a.4: the panel used to pass agentsMd:'',
+      // Regression: the panel used to pass agentsMd:'',
       // shipping the model a bare goal with no methodology / Finishing rule,
       // which caused premature core.done on multi-step goals.
       final fake = _FakeSession();
@@ -235,7 +235,7 @@ void main() {
       final fake = _FakeSession(
         handshakeResult: const HandshakeResult(
           contractVersion: '1.0',
-          plugins: <ExtensionManifestEntry>[
+          extensions: <ExtensionManifestEntry>[
             // Handshake carries BARE tool names; buildExtensionTools prefixes
             // the namespace to produce the qualified ToolDescriptor.name.
             ExtensionManifestEntry(namespace: 'router', tools: <String>['go']),
@@ -265,7 +265,8 @@ void main() {
       expect(fake.capturedWriter, isA<TrajectoryWriter>());
       expect(fake.capturedHost, isA<DefaultLoopHost>());
 
-      // mergedTools() must reflect enabledExtensionNamespaces ∩ handshake.plugins.
+      // mergedTools() must reflect enabledExtensionNamespaces ∩ the handshake
+      // extension manifest.
       final host = fake.capturedHost!;
       final names = host.mergedTools().map((t) => t.name).toSet();
       expect(names, <String>{

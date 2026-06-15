@@ -35,7 +35,7 @@ class CoreToolError implements Exception {
   final String message;
 
   /// Convert to the standard `ToolResult(ok: false, error: '<code>: <msg>')`
-  /// shape consumed by the cx6.14 action validator.
+  /// shape consumed by the action validator.
   ToolResult toToolResult() => ToolResult(ok: false, error: '$code: $message');
 
   @override
@@ -64,7 +64,7 @@ class CoreExtension extends LeonardExtension {
   /// [_CoreTool] subclasses short-circuit with `session_terminated`.
   bool _terminated = false;
 
-  /// Whether [DoneTool] has run; surfaced for the loop driver (cx6.18)
+  /// Whether [DoneTool] has run; surfaced for the loop driver
   /// and consumed by [CoreTool.terminatedGuard].
   bool get terminated => _terminated;
 

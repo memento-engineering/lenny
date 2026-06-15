@@ -1,7 +1,7 @@
-/// Append-only chat-shape conversation manager (lenny-wisp-cl4).
+/// Append-only chat-shape conversation manager.
 ///
-/// Replaces the per-turn scratch-rebuild prompt assembler (PromptAssembler,
-/// shipped by lenny-cx6.13) whose every-turn system-message mutation
+/// Replaces the per-turn scratch-rebuild prompt assembler (PromptAssembler)
+/// whose every-turn system-message mutation
 /// invalidated the KV-cache prefix and dropped thinking traces between
 /// turns. The system message is frozen at construction and never mutates;
 /// each turn is appended via [appendUserTurn] / [appendAssistantTurn].
@@ -78,7 +78,7 @@ class ConversationBuilder {
 
   int estimatedTokens() {
     // Whitespace-split token estimate. Same logic as the deleted
-    // WhitespaceTokenCounter.count() (cx6.13) — the counter abstraction
+    // WhitespaceTokenCounter.count() — the counter abstraction
     // had exactly one consumer (PromptAssembler, also deleted), so
     // inlining here keeps the builder self-contained without reviving
     // a one-use type.
@@ -89,7 +89,7 @@ class ConversationBuilder {
             ? 3
             : _renderer.render(t.observation).split(RegExp(r'\s+')).length;
         // Conservative flat-rate accounting for a screenshot content
-        // block (cx6.7). Better to trim early than overflow.
+        // block. Better to trim early than overflow.
         if (!t.trimmed && t.observation.screenshot != null) n += 1500;
       } else if (t is AssistantTurn) {
         n += t.thinking.split(RegExp(r'\s+')).length + 10;

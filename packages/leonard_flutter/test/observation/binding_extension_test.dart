@@ -18,7 +18,8 @@ class _ExtensionA extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() => Node('a', children: <Seed>[Field('pluginA', true)]);
+  Seed buildPerception() =>
+      Node('a', children: <Seed>[Field('extensionA', true)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -36,7 +37,7 @@ class _ExtensionB extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() => Node('b', children: <Seed>[Field('pluginB', 1)]);
+  Seed buildPerception() => Node('b', children: <Seed>[Field('extensionB', 1)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -134,7 +135,7 @@ void main() {
     });
   });
 
-  group('PluginOrder', () {
+  group('ExtensionOrder', () {
     test(
       'extension fragments preserve registration order under "extensions"',
       () async {
@@ -146,11 +147,11 @@ void main() {
         final Map<String, Object?> obs =
             (jsonDecode(body) as Map<String, Object?>)['value']!
                 as Map<String, Object?>;
-        final Map<String, Object?> plugins =
+        final Map<String, Object?> extensions =
             obs['extensions']! as Map<String, Object?>;
-        expect(plugins.keys.toList(), <String>['a', 'b']);
-        expect((plugins['a']! as Map<String, Object?>)['pluginA'], isTrue);
-        expect((plugins['b']! as Map<String, Object?>)['pluginB'], 1);
+        expect(extensions.keys.toList(), <String>['a', 'b']);
+        expect((extensions['a']! as Map<String, Object?>)['extensionA'], isTrue);
+        expect((extensions['b']! as Map<String, Object?>)['extensionB'], 1);
       },
     );
   });

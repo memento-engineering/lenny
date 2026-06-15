@@ -3,8 +3,8 @@
 ///
 /// This is the only place inside `package:leonard_agent` that depends
 /// on `package:vm_service`. Everything else routes through this seam so
-/// later stories (.12 observation, .14 model provider, .17 validator,
-/// .19 writer, .21 DevTools transport) share one abstraction.
+/// the observation puller, model provider, validator, trajectory writer,
+/// and DevTools transport share one abstraction.
 library;
 
 import 'dart:convert';
@@ -48,7 +48,7 @@ class VmServiceClient {
   /// `serviceManager.service` connection rather than opening its own.
   /// The caller owns the connection's lifetime, so a client built this
   /// way is BORROWED: [dispose] is a no-op and will NOT tear down a
-  /// connection it did not create (lenny-wisp-0go2a.3).
+  /// connection it did not create.
   factory VmServiceClient.fromVmService(VmService vm, String isolateId) {
     return VmServiceClient._(vm, isolateId);
   }
@@ -80,7 +80,7 @@ class VmServiceClient {
   /// Importing `package:vm_service/vm_service_io.dart` transitively pulls
   /// in `dart:io`. The library-level CI guard
   /// (`tool/check_no_dart_io.dart`) checks for *direct* `dart:io` imports
-  /// in `lib/`; story .21 will swap this entrypoint for a conditional
+  /// in `lib/`; future work will swap this entrypoint for a conditional
   /// import / DevTools-supplied `VmService`.
   static Future<VmServiceClient> connect(Uri wsUri) async {
     final VmService vm = await vmServiceConnectUri(wsUri.toString());
@@ -117,7 +117,7 @@ class VmServiceClient {
         'Handshake response missing or malformed protocolVersion: $rawVersion',
       );
     }
-    final List<ExtensionManifestEntry> plugins = <ExtensionManifestEntry>[];
+    final List<ExtensionManifestEntry> extensions = <ExtensionManifestEntry>[];
     if (rawExtensions is List) {
       for (final Object? entry in rawExtensions) {
         if (entry is! Map) continue;
@@ -130,12 +130,12 @@ class VmServiceClient {
             if (tool is String) toolList.add(tool);
           }
         }
-        plugins.add(
+        extensions.add(
           ExtensionManifestEntry(namespace: namespace, tools: toolList),
         );
       }
     }
-    return HandshakeResult(contractVersion: rawVersion, plugins: plugins);
+    return HandshakeResult(contractVersion: rawVersion, extensions: extensions);
   }
 
   /// Invoke the per-tool VM service extension that the binding registers
@@ -173,7 +173,7 @@ class VmServiceClient {
     return _safeCall(ext, encoded);
   }
 
-  /// Generic escape hatch for extension-provided extensions (used by .12 to
+  /// Generic escape hatch for extension-provided extensions (used to
   /// pull extension contributions). The [extension] string is passed
   /// through verbatim.
   Future<Map<String, dynamic>> callExtension(
@@ -186,7 +186,7 @@ class VmServiceClient {
   /// ([fromVmService], e.g. DevTools' shared `serviceManager.service`)
   /// must not tear down a connection it does not own, so dispose is a
   /// no-op there. This is what stops a DevTools session teardown from
-  /// killing the panel's live link to the app (lenny-wisp-0go2a.3).
+  /// killing the panel's live link to the app.
   Future<void> dispose() =>
       _ownsConnection ? _vm.dispose() : Future<void>.value();
 

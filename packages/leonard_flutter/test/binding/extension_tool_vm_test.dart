@@ -61,7 +61,7 @@ void main() {
         binding.debugHasRegisteredExtension('ext.exploration.testplugin.echo'),
         isTrue,
         reason:
-            'plugin tool must be registered via _registerExtension '
+            'extension tool must be registered via _registerExtension '
             'so _extensionCallbacks is populated',
       );
     },

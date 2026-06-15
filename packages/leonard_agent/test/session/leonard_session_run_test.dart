@@ -119,7 +119,7 @@ void main() {
           buildIdentifier: 'b',
           modelIdentifier: 'fake',
           harnessVersion: '0.1',
-          plugins: <ExtensionManifestRecord>[],
+          extensions: <ExtensionManifestRecord>[],
           config: <String, dynamic>{},
         ),
       );
@@ -148,7 +148,7 @@ void main() {
         buildIdentifier: 'b',
         modelIdentifier: 'fake',
         harnessVersion: '0.1',
-        plugins: <ExtensionManifestRecord>[],
+        extensions: <ExtensionManifestRecord>[],
         config: <String, dynamic>{},
       ),
     );

@@ -10,7 +10,7 @@ void main() {
       expect(o.core.routeStack, isEmpty);
       expect(o.core.nodes, isEmpty);
       expect(o.core.errors, isEmpty);
-      expect(o.plugins, isEmpty);
+      expect(o.extensions, isEmpty);
       expect(o.stability.policy, equals(''));
       expect(o.stability.durationMs, equals(0));
     });
@@ -21,7 +21,7 @@ void main() {
   });
 
   group('Observation.fromJson', () {
-    test('rebundles flat wire format into core+plugins+stability', () {
+    test('rebundles flat wire format into core+extensions+stability', () {
       final Map<String, dynamic> wire = <String, dynamic>{
         'semantics': <Map<String, dynamic>>[
           <String, dynamic>{
@@ -64,13 +64,13 @@ void main() {
       expect(o.core.routeStack, equals(<String>['/home']));
       expect(o.core.errors, hasLength(1));
       expect(o.core.errors.first.message, equals('boom'));
-      expect(o.plugins.keys, equals(<String>{'router'}));
-      expect(o.plugins['router']!.namespace, equals('router'));
+      expect(o.extensions.keys, equals(<String>{'router'}));
+      expect(o.extensions['router']!.namespace, equals('router'));
       expect(
-        o.plugins['router']!.data,
+        o.extensions['router']!.data,
         equals(<String, dynamic>{'path': '/home'}),
       );
-      expect(o.plugins['router']!.deltaFriendly, isFalse);
+      expect(o.extensions['router']!.deltaFriendly, isFalse);
       expect(o.stability.policy, equals('action_relative'));
       expect(o.stability.terminatedBy, equals('idle'));
       expect(o.stability.durationMs, equals(42));
@@ -87,10 +87,10 @@ void main() {
           'router': <String, dynamic>{'path': '/x', '_delta_friendly': true},
         },
       });
-      expect(o.plugins['router']!.deltaFriendly, isTrue);
+      expect(o.extensions['router']!.deltaFriendly, isTrue);
       // Flag should still be visible inside `data` — we don't strip it,
       // but we treat it as a control marker for diff selection.
-      expect(o.plugins['router']!.data['path'], equals('/x'));
+      expect(o.extensions['router']!.data['path'], equals('/x'));
     });
 
     test('extension fragment supports envelope shape', () {
@@ -103,9 +103,9 @@ void main() {
           },
         },
       });
-      expect(o.plugins['router']!.deltaFriendly, isTrue);
+      expect(o.extensions['router']!.deltaFriendly, isTrue);
       expect(
-        o.plugins['router']!.data,
+        o.extensions['router']!.data,
         equals(<String, dynamic>{'path': '/x'}),
       );
     });
@@ -208,7 +208,7 @@ void main() {
     });
   });
 
-  group('Observation.screenshot (lenny-wisp-cl4)', () {
+  group('Observation.screenshot', () {
     test('Observation.empty() has null screenshot', () {
       expect(Observation.empty().screenshot, isNull);
     });

@@ -1,4 +1,4 @@
-/// Drift guard for lenny-wisp-0go2a.4: the CLI's human-editable
+/// Drift guard: the CLI's human-editable
 /// `templates/AGENTS.md` and the web-bundled `kDefaultAgentsMd` const (used
 /// by the DevTools panel, which can't read files) must stay in sync, so the
 /// CLI and DevTools agents share one operating guide. Compared modulo

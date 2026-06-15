@@ -4,8 +4,7 @@
 ///
 /// Without this, a host that passes `agentsMd: ''` ships the model only
 /// the bare Goal + tool schemas (no methodology, no "Finishing" rule),
-/// which causes premature `core.done` on multi-step goals
-/// (lenny-wisp-0go2a.4).
+/// which causes premature `core.done` on multi-step goals.
 ///
 /// Kept byte-identical (modulo trailing whitespace) to
 /// `packages/leonard_cli/templates/AGENTS.md` so the DevTools and CLI

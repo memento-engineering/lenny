@@ -26,11 +26,13 @@ class JsonObservationRenderer implements ObservationRenderer {
 
   @override
   String render(Observation obs) {
-    final List<String> sortedExtensionKeys = obs.plugins.keys.toList()..sort();
+    final List<String> sortedExtensionKeys = obs.extensions.keys.toList()
+      ..sort();
     return jsonEncode(<String, dynamic>{
       'core': obs.core.toJson(),
       'extensions': <String, dynamic>{
-        for (final String k in sortedExtensionKeys) k: obs.plugins[k]!.toJson(),
+        for (final String k in sortedExtensionKeys)
+          k: obs.extensions[k]!.toJson(),
       },
       'stability': obs.stability.toJson(),
     });

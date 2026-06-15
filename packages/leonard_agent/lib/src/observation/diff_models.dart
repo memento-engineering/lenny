@@ -1,7 +1,7 @@
 /// Typed result of [ObservationDiffer.diff] (PRD §11.3, §11.4).
 ///
-/// Diff is harness-authored, fed verbatim into the next prompt (cx6.13)
-/// and into the trajectory (cx6.19). Output is deterministic: maps emit
+/// Diff is harness-authored, fed verbatim into the next prompt
+/// and into the trajectory. Output is deterministic: maps emit
 /// keys in sorted order so identical inputs produce byte-identical JSON.
 library;
 
@@ -12,7 +12,7 @@ import 'models.dart';
 /// Top-level diff: per-turn delta over [Observation].
 @immutable
 class ObservationDiff {
-  const ObservationDiff({required this.core, required this.plugins});
+  const ObservationDiff({required this.core, required this.extensions});
 
   /// Empty diff — no route/node/error changes, no extension entries.
   /// Used by validation-retry to append synthetic UserTurns carrying only
@@ -25,21 +25,21 @@ class ObservationDiff {
       nodesChanged: <NodeChange>[],
       errorsAdded: <RuntimeError>[],
     ),
-    plugins: <String, ExtensionDiff>{},
+    extensions: <String, ExtensionDiff>{},
   );
 
   /// Diff over the core fragment.
   final CoreDiff core;
 
   /// Per-namespace extension diff.
-  final Map<String, ExtensionDiff> plugins;
+  final Map<String, ExtensionDiff> extensions;
 
   Map<String, dynamic> toJson() {
-    final List<String> sortedKeys = plugins.keys.toList()..sort();
+    final List<String> sortedKeys = extensions.keys.toList()..sort();
     return <String, dynamic>{
       'core': core.toJson(),
       'extensions': <String, dynamic>{
-        for (final String k in sortedKeys) k: plugins[k]!.toJson(),
+        for (final String k in sortedKeys) k: extensions[k]!.toJson(),
       },
     };
   }
@@ -149,7 +149,7 @@ class ExtensionDiffAdded extends ExtensionDiff {
 }
 
 /// Extension namespace appears in `prev` but not in `curr` (e.g. extension
-/// auto-disabled in cx6.18).
+/// auto-disabled).
 class ExtensionDiffRemoved extends ExtensionDiff {
   const ExtensionDiffRemoved({required this.previous});
 

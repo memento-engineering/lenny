@@ -4,7 +4,7 @@ import 'dart:typed_data';
 /// Encodes a PNG screenshot for both Anthropic image content blocks and
 /// OpenAI `image_url` parts. Pure Dart; no `dart:io`.
 ///
-/// Consumed by `AnthropicModelProvider` (.36) and `OpenAiModelProvider` (.37).
+/// Consumed by `AnthropicModelProvider` and `OpenAiModelProvider`.
 class VisionImage {
   const VisionImage._(this.base64Png);
 
@@ -16,7 +16,7 @@ class VisionImage {
       VisionImage._(base64Encode(bytes));
 
   /// Build a [VisionImage] from an already-encoded base64 PNG string.
-  /// Used by providers when forwarding `Observation.screenshot` (cx6.7).
+  /// Used by providers when forwarding `Observation.screenshot`.
   factory VisionImage.fromBase64(String b64) => VisionImage._(b64);
 
   /// Anthropic-shaped image content block.

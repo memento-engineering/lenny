@@ -87,9 +87,9 @@ class LeonardPanelHostState extends State<LeonardPanelHost> {
     final gen = ++_probeGen;
     _manifest.value = const ManifestProbeLoading();
     try {
-      final plugins = await widget.manifestProbe();
+      final extensions = await widget.manifestProbe();
       if (gen != _probeGen || !mounted) return;
-      _manifest.value = ManifestProbeLoaded(plugins);
+      _manifest.value = ManifestProbeLoaded(extensions);
     } on BindingNotInitializedError {
       if (gen != _probeGen || !mounted) return;
       _manifest.value = const ManifestProbeBindingMissing();

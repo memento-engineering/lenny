@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 /// A deliberately tall scrollable screen whose only purpose is to exercise
-/// the Leonard agent's `core.scroll` tool on-device (lenny-cx6.56).
+/// the Leonard agent's `core.scroll` tool on-device.
 ///
 /// The "Accept Terms" switch lives at the very bottom of a list of
 /// fixed-height sections that overflow any phone or tablet viewport, so the

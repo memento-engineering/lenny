@@ -78,7 +78,7 @@ class TurnRow extends StatelessWidget {
   }
 
   /// Builds the diff one-liner. Reads `diff.core` for node/route deltas
-  /// and surfaces any extension-namespaced fragments in `diff.plugins`.
+  /// and surfaces any extension-namespaced fragments in `diff.extensions`.
   static String describeDiff(Map<String, dynamic> diff) {
     final parts = <String>[];
 
@@ -104,9 +104,9 @@ class TurnRow extends StatelessWidget {
       }
     }
 
-    final plugins = diff['extensions'];
-    if (plugins is Map) {
-      for (final entry in plugins.entries) {
+    final extensions = diff['extensions'];
+    if (extensions is Map) {
+      for (final entry in extensions.entries) {
         parts.add('${entry.key}: changed');
       }
     }

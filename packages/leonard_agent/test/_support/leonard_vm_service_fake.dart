@@ -3,7 +3,7 @@
 ///
 /// Replaces [BindingVmServiceFake] (from leonard_flutter/test_support/)
 /// for tests that only need scripted RPC responses — no real Flutter binding,
-/// no dart:ui, no flutter_test. (lenny-5o8)
+/// no dart:ui, no flutter_test.
 ///
 /// Construction:
 /// ```dart
@@ -78,7 +78,7 @@ class LeonardVmServiceFake extends VmService {
        super(const Stream<dynamic>.empty(), (_) {});
 
   /// Scripted response for `ext.exploration.core.handshake`.
-  /// Must include at least `protocolVersion` (String) and `plugins`
+  /// Must include at least `protocolVersion` (String) and `extensions`
   /// (List) to satisfy [VmServiceClient.handshake]'s decode.
   final Map<String, dynamic> handshakeResponse;
 

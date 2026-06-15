@@ -33,7 +33,7 @@ void main() => runApp(const LeonardDevToolsExtension());
 /// The DevTools extension is a Flutter **web** build, so it must never
 /// open its own VM-service websocket (`package:vm_service/vm_service_io.dart`
 /// pulls in `dart:io`, which throws `Unsupported operation: Platform._version`
-/// on web — see lenny-dzh). Instead the manifest probe and the
+/// on web). Instead the manifest probe and the
 /// Start-button session both reuse the live, web-safe connection DevTools
 /// already holds: `serviceManager.service` (a `package:web` JS websocket)
 /// pinned to `serviceManager.isolateManager.mainIsolate`.

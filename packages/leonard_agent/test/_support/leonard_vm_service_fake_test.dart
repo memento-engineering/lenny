@@ -1,5 +1,5 @@
 // packages/leonard_agent/test/_support/leonard_vm_service_fake_test.dart
-/// Smoke tests for [LeonardVmServiceFake] (lenny-5o8).
+/// Smoke tests for [LeonardVmServiceFake].
 ///
 /// Confirms the three dispatch layers (handshake, observation, handler
 /// table), the `calls` recording, and end-to-end integration with
@@ -22,8 +22,8 @@ import 'leonard_vm_service_fake.dart';
 
 Map<String, dynamic> _handshake({
   String version = '1',
-  List<dynamic> plugins = const <dynamic>[],
-}) => <String, dynamic>{'protocolVersion': version, 'extensions': plugins};
+  List<dynamic> extensions = const <dynamic>[],
+}) => <String, dynamic>{'protocolVersion': version, 'extensions': extensions};
 
 Map<String, dynamic> _bundle({
   List<String> routes = const <String>['login'],
@@ -133,7 +133,7 @@ void main() {
       final fake = LeonardVmServiceFake(
         handshakeResponse: _handshake(
           version: '1',
-          plugins: <dynamic>[
+          extensions: <dynamic>[
             <String, dynamic>{
               'namespace': 'router',
               'tools': <String>['navigate'],
@@ -144,8 +144,8 @@ void main() {
       final session = LeonardSession.fromVmService(fake, 'isolate-0');
       await session.start('test goal', const LeonardConfig());
       expect(session.handshake.contractVersion, '1');
-      expect(session.handshake.plugins, hasLength(1));
-      expect(session.handshake.plugins.first.namespace, 'router');
+      expect(session.handshake.extensions, hasLength(1));
+      expect(session.handshake.extensions.first.namespace, 'router');
       await session.end();
     });
 

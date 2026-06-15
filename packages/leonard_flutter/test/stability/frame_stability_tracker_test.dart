@@ -15,7 +15,7 @@ void _runFrame(SchedulerBinding binding, Duration ts) {
 void main() {
   // LeonardBinding installs as the WidgetsBinding the first time
   // ensureInitialized runs in this isolate; subsequent calls are
-  // idempotent (cx6.2 contract). All tests in this file share it.
+  // idempotent. All tests in this file share it.
   late LeonardBinding binding;
 
   setUpAll(() {

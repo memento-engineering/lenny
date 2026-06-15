@@ -62,8 +62,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// When `true` (production default), [_wireExtensions] constructs and
   /// registers a host-owned [CoreExtension] FIRST, reserving the `core`
   /// namespace before any user extensions are registered. Test harnesses
-  /// that need to stand in their own `core` extension (the dogfood loop —
-  /// see lenny-cx6.45) set this to `false` via the `@visibleForTesting`
+  /// that need to stand in their own `core` extension (the dogfood loop)
+  /// set this to `false` via the `@visibleForTesting`
   /// param on [ensureInitialized]; the real CoreExtension is then never
   /// constructed and the namespace is available for a user extension.
   final bool _installCoreExtension;
@@ -100,7 +100,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// per-extension error-handler chain.
   late final ExtensionRegistry _extensionRegistry;
 
-  /// Bounded ring buffer of recent runtime errors (cx6.9).
+  /// Bounded ring buffer of recent runtime errors.
   late final ErrorRingBuffer _errors;
 
   /// Session-start anchor used to compute `wallClockOffsetMs` for error
@@ -127,12 +127,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// prevents re-hooking; this flag is a defence-in-depth guard.
   bool _errorHooksInstalled = false;
 
-  /// User-supplied list, registration order preserved. cx6.3 reads it.
-  List<LeonardExtension> get plugins => List.unmodifiable(_extensions);
+  /// User-supplied list, registration order preserved.
+  List<LeonardExtension> get extensions => List.unmodifiable(_extensions);
 
   /// The wired extension registry. Extensions are registered in the order they
-  /// appear in the `extensions` argument to [ensureInitialized]; downstream
-  /// beads (cx6.6 core action tools, cx6.8 stable observation) dispatch
+  /// appear in the `extensions` argument to [ensureInitialized]; the core
+  /// action tools and stable-observation primitive dispatch
   /// through this registry.
   ExtensionRegistry get extensionRegistry => _extensionRegistry;
 
@@ -182,7 +182,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// [LeonardBinding._] (which boots the superclass and installs
   /// the framework's default `FlutterError.onError`). The default is
   /// captured here AFTER boot so the chain forwards into it.
-  void _wireExtensions(List<LeonardExtension> plugins) {
+  void _wireExtensions(List<LeonardExtension> extensions) {
     _sessionClock = Stopwatch()..start();
     _errors = ErrorRingBuffer(
       capacity: _errorBufferCapacity,
@@ -192,9 +192,9 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     // Host-install CoreExtension FIRST so namespace `core` is reserved
     // before user extensions are registered. The registry's existing
     // duplicate-namespace check then rejects any user extension claiming
-    // `core` (PRD §12.1, AC #2 of cx6.6).
+    // `core` (PRD §12.1).
     //
-    // Test harnesses (e.g. the dogfood loop — lenny-cx6.45) may pass
+    // Test harnesses (e.g. the dogfood loop) may pass
     // `installCoreExtension: false` to [ensureInitialized] so a caller-
     // supplied stand-in extension can claim the `core` namespace. The
     // production path (`LeonardBinding.run` and the default
@@ -204,11 +204,11 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       _extensionRegistry.register(CoreExtension(semantics: _semanticsCapture));
     }
     // Register each unique extension namespace into the registry. The
-    // legacy `plugins` getter preserves the verbatim list (including
-    // duplicates) per cx6.2's contract, but the registry enforces
+    // public `extensions` getter preserves the verbatim list (including
+    // duplicates), but the registry enforces
     // namespace uniqueness — duplicate registrations are logged and
     // skipped so lifecycle dispatch sees each extension exactly once.
-    for (final LeonardExtension p in plugins) {
+    for (final LeonardExtension p in extensions) {
       try {
         _extensionRegistry.register(p);
       } on StateError catch (e) {
@@ -282,7 +282,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       // zone so Flutter's `BindingBase.debugCheckZone` does not flag a
       // mismatch between "zone where the binding was initialized" and
       // "zone where runApp was called". The zone also intercepts user
-      // microtasks for the `pendingMicrotasks` edge signal (cx6.7).
+      // microtasks for the `pendingMicrotasks` edge signal.
       late final LeonardBinding binding;
       late final LeonardAppConfig cfg;
       runZoned<void>(
@@ -393,7 +393,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     ) async {
       // captureAsync (not the deprecated sync capture) so the agent's
       // primary perception path waits out the first-frame semantics-flush
-      // race instead of returning [] on a cold start (lenny-whn).
+      // race instead of returning [] on a cold start.
       final List<Map<String, Object>> recs = await _semanticsCapture
           .captureAsync();
       return developer.ServiceExtensionResponse.result(
@@ -582,7 +582,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
   /// Compose the stable-observation bundle for the current turn.
   ///
-  /// Polls cx6.4's framework signals + every extension's `busyState()`
+  /// Polls the framework signals + every extension's `busyState()`
   /// until [req]'s policy terminates, then captures the merged JSON
   /// observation: core fragment + per-extension fragments under
   /// `extensions.<namespace>`.
@@ -672,10 +672,10 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     // prepareForObservation() (side-effect seam) runs FIRST, then the
     // idle gate (reproduces observe()==null suppression), then
     // mount → build → serialize → budget under build isolation.
-    for (final LeonardExtension plugin in _extensionRegistry.plugins) {
-      if (plugin is! PerceptionExtension) continue;
-      final PerceptionExtension pp = plugin;
-      final String ns = plugin.namespace;
+    for (final LeonardExtension extension in _extensionRegistry.extensions) {
+      if (extension is! PerceptionExtension) continue;
+      final PerceptionExtension pp = extension;
+      final String ns = extension.namespace;
       try {
         pp.prepareForObservation();
         if (pp.isPerceptionIdle()) continue;
@@ -685,7 +685,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
         if (enc.truncated) {
           developer.log(
-            'plugin $ns fragment truncated '
+            'extension $ns fragment truncated '
             '(was ${jsonDecode(enc.json)['originalBytes']} bytes, '
             'budget ${budgets[ns]})',
             name: 'exploration',
@@ -696,7 +696,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         }
       } catch (err, st) {
         developer.log(
-          'plugin $ns threw during observation: $err\n$st',
+          'extension $ns threw during observation: $err\n$st',
           name: 'exploration',
         );
       }
@@ -880,8 +880,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// the binding's `pendingMicrotasks` edge signal flips immediately when
   /// the user-mode app schedules a microtask. Wrap the user `runApp` (or
   /// app entrypoint) with `runZoned(..., zoneSpecification: spec)` to
-  /// install — currently consumed by integration tests; cx6.7's
-  /// `installAndRun` will install it for production.
+  /// install — currently consumed by integration tests; the
+  /// `installAndRun` entry point will install it for production.
   static ZoneSpecification stabilityZoneSpec(LeonardBinding binding) {
     return ZoneSpecification(
       scheduleMicrotask:

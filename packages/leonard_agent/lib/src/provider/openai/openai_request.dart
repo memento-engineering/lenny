@@ -23,8 +23,8 @@ import '../types.dart';
 /// assistant turns are rendered as plain `tool_calls` only.
 ///
 /// When [schemaErrorNote] is non-null a system note is appended instructing
-/// the model to retry with a tool_call matching the declared tools (.18's
-/// retry-once contract via [SchemaRejection]).
+/// the model to retry with a tool_call matching the declared tools (the
+/// loop driver's retry-once contract via [SchemaRejection]).
 Map<String, dynamic> buildOpenAiRequest({
   required String model,
   required ConversationSnapshot snapshot,

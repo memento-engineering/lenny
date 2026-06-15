@@ -101,7 +101,7 @@ List<MapEntry<String, BusyState>> _busyExtensions(
 
 void main() {
   group('action-relative termination conditions', () {
-    test('idle: framework + all plugins idle on first poll', () async {
+    test('idle: framework + all extensions idle on first poll', () async {
       // PolicyLoop reads semHash and routeHash twice per iteration in the
       // action-relative branch (initial + check). Provide >=2 entries so
       // the script does not run dry on the second read.

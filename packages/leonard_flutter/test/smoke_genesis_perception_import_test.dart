@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Smoke test for the genesis→lenny perception dependency edge (lenny-wisp-5h5).
+/// Smoke test for the genesis→lenny perception dependency edge.
 ///
 /// Confirms the pinned git dep on `genesis_perception` plus the `genesis_tree`
 /// dependency_override resolve, and that the public barrel

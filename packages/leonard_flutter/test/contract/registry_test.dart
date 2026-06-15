@@ -115,7 +115,7 @@ void main() {
     expect(r2.mergedTools, throwsArgumentError);
   });
 
-  test('rejects intra-plugin tool collision', () {
+  test('rejects intra-extension tool collision', () {
     final r = build();
     r.register(
       _OrderExtension('x', log: <String>[], toolNames: const ['t', 't']),
@@ -171,7 +171,7 @@ void main() {
     expect(log.where((s) => s == 'busy:y').length, 5);
   });
 
-  test('dispose isolation runs every plugin', () async {
+  test('dispose isolation runs every extension', () async {
     final log = <String>[];
     final r = build();
     r.register(_ThrowOnDispose('a', log: log));

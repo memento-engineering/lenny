@@ -1,6 +1,5 @@
 /// Guards the bundled operating guide that web hosts (DevTools) pin to the
-/// system prompt in lieu of the CLI's file-based AGENTS.md. See
-/// lenny-wisp-0go2a.4.
+/// system prompt in lieu of the CLI's file-based AGENTS.md.
 library;
 
 import 'package:leonard_agent/leonard_agent.dart';

@@ -86,7 +86,7 @@ class LeonardSession {
   Stream<TurnEvent> get turnEvents => _turnEvents.stream;
 
   /// Internal: forward a per-turn event to [turnEvents]. The loop driver
-  /// (cx6.18) calls this at PRD §10 step boundaries; ordinary callers
+  /// calls this at PRD §10 step boundaries; ordinary callers
   /// should not invoke it directly.
   @internal
   void emitTurnEvent(TurnEvent e) {
@@ -164,8 +164,8 @@ class LeonardSession {
   /// (PRD §11.3 first-turn behaviour: all-added).
   ///
   /// The returned diff is harness-authored and consumed verbatim by the
-  /// next-prompt assembler (cx6.13) and the trajectory writer (cx6.19);
-  /// validators (cx6.17) consume the typed `observation` field.
+  /// next-prompt assembler and the trajectory writer;
+  /// validators consume the typed `observation` field.
   Future<({Observation observation, ObservationDiff diff})> observeWithDiff({
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) async {
@@ -177,8 +177,8 @@ class LeonardSession {
   }
 
   /// Execute a tool action. The [action] map must contain `name`
-  /// (String) and `args` (Map). Action validation is .17's job — this
-  /// method only marshals the call.
+  /// (String) and `args` (Map). Action validation is the validator's job —
+  /// this method only marshals the call.
   Future<Map<String, dynamic>> act(Map<String, dynamic> action) async {
     _ensureStarted('act');
     final Object? rawName = action['name'];

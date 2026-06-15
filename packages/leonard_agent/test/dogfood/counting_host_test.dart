@@ -1,4 +1,4 @@
-/// Unit tests for [CountingLoopHost] (bead lenny-cx6.43, step 6).
+/// Unit tests for [CountingLoopHost].
 library;
 
 import 'package:leonard_agent/leonard_agent.dart' show LoopHost, Observation;

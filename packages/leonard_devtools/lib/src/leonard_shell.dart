@@ -238,8 +238,8 @@ class _PromptTabBody extends StatelessWidget {
           ManifestProbeFailed(:final message) => _BindingMissingBanner(
             message: 'Binding not detected: $message',
           ),
-          ManifestProbeLoaded(:final plugins) => PromptTabMount(
-            plugins: plugins,
+          ManifestProbeLoaded(:final extensions) => PromptTabMount(
+            extensions: extensions,
             store: store,
             catalog: catalog,
             promptConfigStore: promptConfigStore,

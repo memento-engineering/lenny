@@ -5,17 +5,17 @@
 /// `extensionRegistry.mergedTools()` go to `invokeExtensionTool`;
 /// everything else falls through to `invokeServiceExtension`).
 ///
-/// Hoisted from three sibling clones by bead lenny-imr:
-///   - `packages/leonard_flutter/test/binding_e2e_integration_test.dart` (lenny-cvl.4 origin)
-///   - `packages/leonard_agent/test/integration/provider_loop_integration_test.dart` (lenny-cx6.41)
-///   - `packages/leonard_agent/test/_support/binding_vm_service_fake.dart` (lenny-cx6.43)
+/// Hoisted from three sibling clones:
+///   - `packages/leonard_flutter/test/binding_e2e_integration_test.dart` (origin)
+///   - `packages/leonard_agent/test/integration/provider_loop_integration_test.dart`
+///   - `packages/leonard_agent/test/_support/binding_vm_service_fake.dart`
 ///
 /// Lives under `lib/test_support/` so it's importable as
 /// `package:leonard_flutter/test_support/binding_vm_service_fake.dart`
 /// but is NOT re-exported from `lib/leonard_flutter.dart` — opt-in
 /// test-only surface.
 ///
-/// Optional [observationFixture] (lenny-cx6.48): when non-null AND the
+/// Optional [observationFixture]: when non-null AND the
 /// method equals `ext.exploration.core.get_stable_observation`,
 /// the fake returns `{type: 'Observation', value: <fixture.body>}` and
 /// bypasses the binding's real handler. Every other extension and
@@ -54,7 +54,7 @@ class BindingVmServiceFake extends VmService {
   /// `ext.exploration.core.get_stable_observation` return
   /// `{type: 'Observation', value: (observationFixture as dynamic).body}`
   /// instead of executing the binding's real handler. Other extensions
-  /// and extension tools route normally regardless. (lenny-cx6.48)
+  /// and extension tools route normally regardless.
   ///
   /// Typed `Object?` to keep `leonard_flutter` independent of
   /// `leonard_agent`; the body is read via `dynamic` dispatch.
@@ -72,7 +72,7 @@ class BindingVmServiceFake extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
-    // Fixture-serving short-circuit (lenny-cx6.48). When a fixture is
+    // Fixture-serving short-circuit. When a fixture is
     // configured, the binding's empty-tree observation is bypassed for
     // exactly this one method; everything else falls through to the
     // registry/extension routing below.

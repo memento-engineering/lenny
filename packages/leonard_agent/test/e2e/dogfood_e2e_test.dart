@@ -1,4 +1,4 @@
-/// End-to-end dogfood test (bead lenny-cx6.43).
+/// End-to-end dogfood test.
 ///
 /// Drives the shared [AgentDogfoodHarness] against a live swift-infer
 /// endpoint. Skips when either of the required env vars
@@ -15,7 +15,7 @@
 ///     loop completes (or surfaces a typedException) with the trace
 ///     and tool-call count reported.
 ///   * `unknownToolNameSurvives` — regression-lock for the qwen3.6-27b
-///     bare-tool-name bug (cx6.40). When the model returns a bare
+///     bare-tool-name bug. When the model returns a bare
 ///     `navigate` without the namespace prefix, the harness must
 ///     surface `outcome == typedException` with a `SchemaRejection`
 ///     cause, NOT crash.
@@ -149,7 +149,7 @@ void main() {
       );
       expect(r.toolCallCount, greaterThanOrEqualTo(0));
 
-      // lenny-cx6.47: per-turn dogfood_turn lines must be emitted
+      // Per-turn dogfood_turn lines must be emitted
       // whenever the LoopDriver actually entered a turn (i.e. the run
       // did NOT exit via a pre-turn typed exception). The
       // typedException outcome covers handshake-time failures where
@@ -218,7 +218,7 @@ void main() {
         reason: 'tracePath=${r.tracePath} exception=${r.exception}',
       );
       if (r.outcome == DogfoodOutcome.typedException) {
-        // Regression-lock for cx6.40: bare-tool-name from the model
+        // Regression-lock: bare-tool-name from the model
         // must surface as SchemaRejection, never crash.
         expect(
           r.exception,

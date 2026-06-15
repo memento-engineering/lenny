@@ -1,5 +1,4 @@
-/// Observation-fixture loader for the dogfood harness
-/// (bead lenny-cx6.43).
+/// Observation-fixture loader for the dogfood harness.
 ///
 /// Reads a JSON file matching the binding's `core.get_stable_observation`
 /// response shape and returns it as the canned observation the harness
@@ -70,7 +69,7 @@ class ObservationFixture {
   /// without touching disk. The public constructor remains private to
   /// preserve the `loadFromFile` / `empty` factory contract; this
   /// `@visibleForTesting` factory is the documented seam used by
-  /// `BindingVmServiceFake` and harness unit tests in lenny-cx6.48.
+  /// `BindingVmServiceFake` and harness unit tests.
   @visibleForTesting
   static ObservationFixture forTest(String path, Map<String, dynamic> body) =>
       ObservationFixture._(path, body);

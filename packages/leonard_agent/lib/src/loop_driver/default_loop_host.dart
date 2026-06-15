@@ -4,8 +4,8 @@
 ///
 /// The handshake's `ExtensionManifestEntry` list only carries
 /// pre-namespaced tool *names*; full [ToolDescriptor]s (including
-/// `inputSchema`) are supplied by the caller (cx6.20 CLI / cx6.21
-/// DevTools) keyed by extension namespace. This host intersects that
+/// `inputSchema`) are supplied by the caller (CLI / DevTools)
+/// keyed by extension namespace. This host intersects that
 /// descriptor map with the active handshake namespaces, then subtracts
 /// auto-disabled namespaces to produce the per-turn merged tool list.
 ///
@@ -62,7 +62,7 @@ class DefaultLoopHost implements LoopHost {
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) : _session = session,
        _coreTools = List<ToolDescriptor>.unmodifiable(coreTools),
-       _pluginTools = <String, List<ToolDescriptor>>{
+       _extensionTools = <String, List<ToolDescriptor>>{
          for (final MapEntry<String, List<ToolDescriptor>> e
              in extensionTools.entries)
            e.key: List<ToolDescriptor>.unmodifiable(e.value),
@@ -73,7 +73,7 @@ class DefaultLoopHost implements LoopHost {
 
   final LeonardSession _session;
   final List<ToolDescriptor> _coreTools;
-  final Map<String, List<ToolDescriptor>> _pluginTools;
+  final Map<String, List<ToolDescriptor>> _extensionTools;
   final String _goal;
   final String _agentsMd;
   final StabilityPolicy _policy;
@@ -88,8 +88,8 @@ class DefaultLoopHost implements LoopHost {
   @override
   Set<String> activeExtensionNamespaces() {
     return <String>{
-      for (final p in _session.handshake.plugins)
-        if (_pluginTools.containsKey(p.namespace) &&
+      for (final p in _session.handshake.extensions)
+        if (_extensionTools.containsKey(p.namespace) &&
             !_disabled.contains(p.namespace))
           p.namespace,
     };
@@ -99,7 +99,7 @@ class DefaultLoopHost implements LoopHost {
   List<ToolDescriptor> mergedTools() {
     final List<ToolDescriptor> out = <ToolDescriptor>[..._coreTools];
     for (final String ns in activeExtensionNamespaces()) {
-      out.addAll(_pluginTools[ns]!);
+      out.addAll(_extensionTools[ns]!);
     }
     return List<ToolDescriptor>.unmodifiable(out);
   }
@@ -109,7 +109,7 @@ class DefaultLoopHost implements LoopHost {
     // Defense-in-depth: core is essential and must never be removed.
     // The primary guard lives in LoopDriver._accountExtensionStrikes, but
     // we reject any call here too to prevent future callers from
-    // accidentally stripping core tools (lenny-4jn).
+    // accidentally stripping core tools.
     if (namespace == _kCoreNamespace) return;
     if (_disabled.add(namespace)) {
       _session.disableExtension(namespace, reason);

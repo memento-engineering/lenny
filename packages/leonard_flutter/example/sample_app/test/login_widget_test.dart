@@ -39,7 +39,7 @@ void main() {
 
     expect(find.widgetWithText(ElevatedButton, 'Sign In'), findsOneWidget);
 
-    // Fields start EMPTY (lenny-cx6.55) — type the valid demo credentials,
+    // Fields start EMPTY — type the valid demo credentials,
     // then tap Sign In.
     await tester.enterText(find.byType(TextField).at(0), 'demo@example.com');
     await tester.enterText(find.byType(TextField).at(1), 'password');

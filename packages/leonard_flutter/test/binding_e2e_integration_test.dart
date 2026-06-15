@@ -1,11 +1,10 @@
-/// End-to-end integration test for the agent ↔ binding wire contract
-/// (parent epic lenny-cvl).
+/// End-to-end integration test for the agent ↔ binding wire contract.
 ///
 /// Boots a real [LeonardBinding] with the host-installed [CoreExtension]
 /// plus a test-local `_SampleEchoExtension` and drives
 /// handshake → observation → tool call through the agent's
-/// [VmServiceClient] / [LeonardSession]. The siblings lenny-cvl.1–3
-/// reconciled the three surfaces independently; this test exercises all
+/// [VmServiceClient] / [LeonardSession]. The three surfaces were
+/// reconciled independently; this test exercises all
 /// three at once against the same binding so future drift between the
 /// agent and the binding cannot ship undetected.
 library;
@@ -70,7 +69,7 @@ class _SampleEchoExtension extends LeonardExtension {
 /// raises the JSON-RPC "method not found" error — what a live VM would
 /// emit if the target isolate has no `LeonardBinding` installed.
 /// Used by the regression guard for the original "Binding not detected"
-/// symptom (the parent epic lenny-cvl).
+/// symptom.
 class _RejectingVmService extends VmService {
   _RejectingVmService() : super(const Stream<dynamic>.empty(), (_) {});
 
@@ -128,7 +127,7 @@ void main() {
       final HandshakeResult h = await client.handshake();
       expect(h.contractVersion, '2');
       final Map<String, List<String>> byNs = <String, List<String>>{
-        for (final ExtensionManifestEntry p in h.plugins) p.namespace: p.tools,
+        for (final ExtensionManifestEntry p in h.extensions) p.namespace: p.tools,
       };
       expect(byNs.keys, containsAll(<String>['core', 'sample']));
       expect(byNs['sample'], <String>['echo']);

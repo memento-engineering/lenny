@@ -1,5 +1,5 @@
 /// Tests for the `installCoreExtension` opt-out seam on
-/// [LeonardBinding.ensureInitialized] (bead lenny-cx6.45).
+/// [LeonardBinding.ensureInitialized].
 ///
 /// When `installCoreExtension: false`, the binding skips constructing and
 /// registering the host-owned [CoreExtension], freeing the `core`
@@ -44,8 +44,8 @@ class _NoopTool extends LeonardTool {
 void main() {
   tearDown(() async => LeonardBinding.debugReset());
 
-  test('installCoreExtension: false allows a user "core" plugin and omits the '
-      'real core tool surface', () async {
+  test('installCoreExtension: false allows a user "core" extension and omits '
+      'the real core tool surface', () async {
     final LeonardBinding binding = LeonardBinding.ensureInitialized(
       extensions: <LeonardExtension>[_UserCoreExtension()],
       installCoreExtension: false,
@@ -59,7 +59,7 @@ void main() {
     expect(
       merged.keys,
       contains('core.noop'),
-      reason: 'user "core" plugin tool must register',
+      reason: 'user "core" extension tool must register',
     );
     expect(
       merged.keys,

@@ -31,7 +31,7 @@ Widget _host({
   home: Scaffold(
     body: PromptPanel(
       modelsState: state,
-      plugins: const [],
+      extensions: const [],
       running: false,
       onStart: (_) {},
       onStop: () {},

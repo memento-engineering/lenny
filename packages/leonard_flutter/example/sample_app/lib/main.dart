@@ -34,7 +34,7 @@ class SampleApp implements LeonardApp {
           routerDelegate: router.routerDelegate,
           // go_router uses the Router API (no Navigator.onGenerateRoute), so
           // drive navigation via goNamed — matching the app's own
-          // context.go(...) — instead of Navigator-1.0 pushNamed (lenny-18q).
+          // context.go(...) — instead of Navigator-1.0 pushNamed.
           navigate: (String name, Map<String, Object?>? args) async =>
               router.goNamed(name, extra: args),
         ),

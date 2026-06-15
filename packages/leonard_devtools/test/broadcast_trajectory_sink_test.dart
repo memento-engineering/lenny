@@ -16,7 +16,7 @@ void main() {
       buildIdentifier: 'devtools',
       modelIdentifier: 'm',
       harnessVersion: 'v',
-      plugins: <ExtensionManifestRecord>[],
+      extensions: <ExtensionManifestRecord>[],
       config: <String, dynamic>{},
     );
     await sink.writeLine(jsonEncode(header.toJson()));
@@ -56,7 +56,7 @@ void main() {
         buildIdentifier: 'devtools',
         modelIdentifier: 'm',
         harnessVersion: 'v',
-        plugins: <ExtensionManifestRecord>[],
+        extensions: <ExtensionManifestRecord>[],
         config: <String, dynamic>{},
       ),
     );

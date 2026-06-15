@@ -1,4 +1,4 @@
-/// Regression for lenny-wisp-0go2a.3: a BORROWED [VmServiceClient] (built
+/// Regression: a BORROWED [VmServiceClient] (built
 /// via `fromVmService` — e.g. DevTools reusing the shared
 /// `serviceManager.service`) must NOT dispose the underlying [VmService] on
 /// teardown, while an OWNING client (`connect`) must. The old unconditional

@@ -39,7 +39,7 @@ class SemanticsCapture {
   /// root is always synchronously available after layout), so a seam is the
   /// only way to exercise the recovery path in a CI widget test. [captureAsync]
   /// recovers by awaiting `endOfFrame` and re-reading; the deprecated [capture]
-  /// does not. See lenny-whn and `semantics_capture_racing_test.dart`.
+  /// does not. See `semantics_capture_racing_test.dart`.
   @visibleForTesting
   bool debugRaceNextRootLookup = false;
 
@@ -214,7 +214,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     // space, not the device's. Applying only the node's own transform
     // collapses every nested row to its parent-local origin — e.g. all
     // list rows resolve to [0,0,w,56], so sibling SwitchListTiles share one
-    // rect and _filterObscured drops the actionable ones (lenny-a3s).
+    // rect and _filterObscured drops the actionable ones.
     // Accumulate ancestor transforms to get true device-space rects,
     // matching globalRectOf (dispatch.dart).
     final Matrix4 global = (parentTransform ?? Matrix4.identity()).multiplied(

@@ -45,7 +45,7 @@ void main() {
       expect(out['router']!.single.name, 'router.navigate');
       expect(out['riverpod']!.single.name, 'riverpod.invalidate_provider');
       // Permissive object schema so the model can call the tool;
-      // binding-side ActionValidator (cx6.17) is the authoritative check.
+      // binding-side ActionValidator is the authoritative check.
       expect(out['router']!.single.inputSchema['type'], 'object');
     });
 

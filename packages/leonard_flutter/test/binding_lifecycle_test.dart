@@ -40,17 +40,17 @@ void main() {
     expect(WidgetsBinding.instance, same(initial));
   });
 
-  test('preserves plugin list verbatim (order + duplicates)', () {
-    expect(initial.plugins.map((p) => p.namespace).toList(), <String>[
+  test('preserves extension list verbatim (order + duplicates)', () {
+    expect(initial.extensions.map((p) => p.namespace).toList(), <String>[
       'a',
       'b',
       'a',
     ]);
   });
 
-  test('plugins getter returns an unmodifiable list', () {
+  test('extensions getter returns an unmodifiable list', () {
     expect(
-      () => initial.plugins.add(const _StubExtension('c')),
+      () => initial.extensions.add(const _StubExtension('c')),
       throwsUnsupportedError,
     );
   });
@@ -64,12 +64,12 @@ void main() {
       isTrue,
       reason:
           'second call must return the existing binding without '
-          'replacing the plugin list',
+          'replacing the extension list',
     );
     expect(
-      initial.plugins.map((p) => p.namespace).toList(),
+      initial.extensions.map((p) => p.namespace).toList(),
       <String>['a', 'b', 'a'],
-      reason: 'idempotent call must not mutate the stored plugin list',
+      reason: 'idempotent call must not mutate the stored extension list',
     );
   });
 }

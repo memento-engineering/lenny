@@ -31,7 +31,7 @@ void assertObservationEquivalent(
       perceptionExtensions[ns],
       equals(legacyExtensions[ns]),
       reason:
-          'plugin "$ns" fragment must match between '
+          'extension "$ns" fragment must match between '
           'legacy and perception paths',
     );
   }

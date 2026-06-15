@@ -1,4 +1,4 @@
-/// End-to-end observation-fixture flow test (lenny-5tn).
+/// End-to-end observation-fixture flow test.
 ///
 /// Proves that when [LeonardVmServiceFake] is constructed with a scripted
 /// observation bundle, the agent-side [LeonardSession]'s observation pull
@@ -8,8 +8,8 @@
 /// `AgentDogfoodHarness` records on each turn carries `node_count > 0`
 /// and the fixture's route stack under `core`.
 ///
-/// Replaces the Flutter-dependent `BindingVmServiceFake` variant written for
-/// lenny-cx6.48. This file no longer imports `package:leonard_flutter`,
+/// Replaces the Flutter-dependent `BindingVmServiceFake` variant.
+/// This file no longer imports `package:leonard_flutter`,
 /// `package:flutter_test`, or `dart:ui`. The test runs under `dart test`.
 ///
 /// Why not drive the full [AgentDogfoodHarness.run] loop here: a successful

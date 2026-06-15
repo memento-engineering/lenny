@@ -25,7 +25,7 @@ the end of a `/harden` cycle.
   it bills pay-as-you-go API) plus the swift-infer tokens. It self-skips cleanly if absent.
 - Flutter ≥ 3.44, Melos bootstrapped, signing team `<APPLE_TEAM_ID>`, bundle `com.nicospencer.sampleApp`.
 - The app is built **from a branch/worktree that carries the fixes you want to test.** For fixes
-  already on `main` (e.g. `lenny-whn` semantics, `lenny-c94` enter_text, `lenny-22f` DPR), build
+  already on `main` (semantics, enter_text, DPR), build
   from `main`. The app supplies the binding; the agent CLI (run from `main`) supplies the agent/tools.
 
 ---
@@ -103,14 +103,14 @@ the turn's `observation.core`, and the `[model]` line. That capture is the seed 
 | Scenario | Goal string | Exercises | Pass signal |
 |---|---|---|---|
 | **Smoke (tap-only)** — the milestone | `Sign in to the app` | `core.tap` on a pre-filled login | `core.tap` Sign In ok → routeStack `home` → `done` |
-| **Text entry** — verifies `lenny-c94`/`whn`/`22f` | `Log in by typing the email and password, then sign in` (use the app's valid creds) | `core.enter_text` into the `Semantics(textField:true)` wrapper nodes → tap | each `core.enter_text` `result.ok:true` (controller value set) → tap Sign In → `home` → `done` |
-| **Navigation** (blocked) | `Open Settings` | `router.navigate` / `core.tap` | **known-broken for go_router — see lenny-18q** |
+| **Text entry** — verifies semantics / enter_text / DPR | `Log in by typing the email and password, then sign in` (use the app's valid creds) | `core.enter_text` into the `Semantics(textField:true)` wrapper nodes → tap | each `core.enter_text` `result.ok:true` (controller value set) → tap Sign In → `home` → `done` |
+| **Navigation** (blocked) | `Open Settings` | `router.navigate` / `core.tap` | **known-broken for go_router** |
 
 > **Text-entry caveat:** the sample login fields may be **pre-filled** with valid creds, so a model
 > may tap Sign In without typing. To genuinely exercise `enter_text`, phrase the goal to require
 > changing a field (e.g. "change the email to `user@example.com`, then sign in") and verify the
 > trajectory shows an `executed_action` of `core.enter_text` with `result.ok:true`. The on-device
-> proof of `lenny-c94` is that `enter_text` against the wrapper node now succeeds (it used to return
+> proof is that `enter_text` against the wrapper node now succeeds (it used to return
 > `target_unreachable: … does not advertise SemanticsAction.setText`).
 
 ## 6. Reset / teardown / troubleshooting
@@ -123,12 +123,12 @@ the turn's `observation.core`, and the `[model]` line. That capture is the seed 
 - **`core.nodes` empty (agent blind):** on macOS desktop this is usually an **occluded window** —
   foreground it (`osascript -e 'tell application "System Events" to set frontmost of (first process
   whose name contains "sample") to true'`) or use the wired iOS device (no occlusion). On a fresh
-  app the first capture used to race; that's fixed by `captureAsync` (`lenny-whn`, merged).
-- **A `core.*` tool vanished mid-run / `oneOf violated`:** the `core` plugin was auto-disabled after
-  3 observation failures (fixed: `core` is exempt — `lenny-4jn`, merged). If it recurs, check
-  `loop_driver._accountPluginStrikes`.
-- **Coordinate-fallback taps miss on a Retina device:** physical-vs-logical px bug, fixed by
-  `lenny-22f` (merged). If a synthesized tap/scroll lands off-target, re-check `globalRectOf`.
+  app the first capture used to race; that's fixed by `captureAsync` (merged).
+- **A `core.*` tool vanished mid-run / `oneOf violated`:** the `core` extension was auto-disabled after
+  3 observation failures (fixed: `core` is exempt, merged). If it recurs, check
+  `loop_driver._accountExtensionStrikes`.
+- **Coordinate-fallback taps miss on a Retina device:** physical-vs-logical px bug, fixed (merged).
+  If a synthesized tap/scroll lands off-target, re-check `globalRectOf`.
 - **Reuse the device app; only recompile the CLI.** Rebuild the app **only** when you change
   `leonard_flutter` (binding-side) code.
 
@@ -154,8 +154,8 @@ can be cross-referenced via the `debug-inference` skill. Ad-hoc prompt tuning:
 This runbook generalizes the **2026-05-31 milestone** (Leonard completed a goal on the wired
 iPad: tap Sign In → login→home → `core.done`) and the `/harden` dogfood loop
 (`.claude/skills/harden/`). The text-entry scenario in §5 is the next thing to verify on-device now
-that `lenny-c94` (widget-tree `enter_text`), `lenny-whn` (semantics `captureAsync`), and `lenny-22f`
-(DPR coordinate fix) are merged to `main` (commits `2c95c8a`, `ac4f82e`, `053bce5`).
+that the widget-tree `enter_text`, the semantics `captureAsync`, and the DPR coordinate fix are
+merged to `main` (commits `2c95c8a`, `ac4f82e`, `053bce5`).
 
 **Related:** `/harden <integration>` (the fix-finding loop), `docs/how-leonard-works.md`,
 `docs/CONTINUATION-text-entry-2026-05-31.md` (now largely closed out — its three beads are merged).

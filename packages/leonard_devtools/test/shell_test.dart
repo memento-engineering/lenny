@@ -7,8 +7,8 @@ import 'package:leonard_devtools/src/manifest_probe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-ManifestProbe _staticProbe(List<ExtensionManifestEntry> plugins) {
-  return () async => plugins;
+ManifestProbe _staticProbe(List<ExtensionManifestEntry> extensions) {
+  return () async => extensions;
 }
 
 ManifestProbe _throwingProbe(Object error) {

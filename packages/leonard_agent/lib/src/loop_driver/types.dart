@@ -115,7 +115,7 @@ class TurnFailure implements Exception {
 /// websocket dropped). The driver translates this into a
 /// [HarnessError.connectionLost] termination.
 ///
-/// Distinct from [BindingNotInitializedError] (.11), which is raised
+/// Distinct from [BindingNotInitializedError], which is raised
 /// during handshake — before any turns run — and propagates unwrapped.
 class VmServiceConnectionLost implements Exception {
   const VmServiceConnectionLost([this.cause]);

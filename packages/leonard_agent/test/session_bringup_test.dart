@@ -65,9 +65,9 @@ void main() {
     expect(result.header.modelIdentifier, 'test-model');
     expect(result.header.buildIdentifier, 'test-build');
     expect(result.header.harnessVersion, '0.0.0');
-    expect(result.header.plugins, hasLength(1));
-    expect(result.header.plugins.first.namespace, 'router');
-    expect(result.header.plugins.first.contractVersion, '0.1');
+    expect(result.header.extensions, hasLength(1));
+    expect(result.header.extensions.first.namespace, 'router');
+    expect(result.header.extensions.first.contractVersion, '0.1');
     expect(result.header.config['extra_key'], 42);
     expect(result.host, isA<DefaultLoopHost>());
   });

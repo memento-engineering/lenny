@@ -135,8 +135,7 @@ void main() {
     expect((body!['tools'] as List).length, 1);
   });
 
-  test('tool_choice:any forces a tool call (parity with anthropic, '
-      'lenny-cx6.52)', () async {
+  test('tool_choice:any forces a tool call (parity with anthropic)', () async {
     Map<String, dynamic>? body;
     final m = _stream(
       _toolUseSse(),

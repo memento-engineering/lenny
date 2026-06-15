@@ -176,7 +176,7 @@ void main() {
   });
 
   group('ExtensionDisabledRow widget', () {
-    testWidgets('plugin-disabled variant renders namespace + reason', (
+    testWidgets('extension-disabled variant renders namespace + reason', (
       tester,
     ) async {
       await tester.pumpWidget(

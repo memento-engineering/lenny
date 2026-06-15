@@ -2,7 +2,7 @@ import 'package:leonard_agent/leonard_agent.dart' show LeonardConfig;
 
 /// Identifier + display label for a model surfaced in the prompt panel's
 /// model dropdown. The widget is fed a list of these from the host so it
-/// stays free of hardcoded model ids (PRD §6.3 / cx6.22 AC).
+/// stays free of hardcoded model ids.
 class ModelDescriptor {
   const ModelDescriptor({required this.id, required this.label});
 
@@ -18,7 +18,7 @@ class ModelDescriptor {
 
 /// Immutable value snapshot of the prompt-panel form that is handed to
 /// [LeonardSession] when the user presses Start. Implemented as a
-/// value class so cx6.31 (mid-turn interrupt) can extend the wire shape
+/// value class so a future mid-turn interrupt can extend the wire shape
 /// without restructuring the widget contract.
 class PromptPanelConfig {
   const PromptPanelConfig({
@@ -40,7 +40,7 @@ class PromptPanelConfig {
       LeonardConfig(maxTurns: maxTurns, sessionBudget: wallClockBudget);
 
   /// Serializes form-level fields. [modelId] is intentionally absent —
-  /// model selection is owned by the provider-config layer (lenny-0wd).
+  /// model selection is owned by the provider-config layer.
   Map<String, dynamic> toJson() => <String, dynamic>{
     'goal': goal,
     'maxTurns': maxTurns,

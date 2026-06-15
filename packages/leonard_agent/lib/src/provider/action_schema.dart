@@ -9,7 +9,7 @@ import 'types.dart';
 /// Composed fresh on every turn from the merged tool list (PRD §16.2):
 /// `action` is a `oneOf` discriminated union over each tool's name and
 /// `inputSchema`. Schema-violating output throws [SchemaRejection]; the
-/// loop driver (.18) retries once per PRD §17.
+/// loop driver retries once per PRD §17.
 class ActionSchema {
   ActionSchema._(this.jsonSchema, this._validator);
 

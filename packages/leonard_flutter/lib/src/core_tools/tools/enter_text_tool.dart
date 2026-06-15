@@ -50,7 +50,7 @@ class EnterTextTool extends CoreTool {
     // resolveEditableText intersects against RenderBox.localToGlobal rects,
     // which are logical pixels; globalRectOf returns physical pixels (it walks
     // the semantics-root DPR transform). Convert via logicalRectOf so the
-    // intersection works on DPR>1 devices (lenny-8k3; same class as lenny-22f).
+    // intersection works on DPR>1 devices.
     final Rect logicalRect = logicalRectOf(node);
     final EditableTextState? editable = resolveEditableText(logicalRect);
     if (editable == null) {

@@ -55,7 +55,7 @@ class ExtensionRegistry {
 
   /// Extension namespaces in registration order (post de-duplication).
   ///
-  /// Read by cx6.8's stable-observation primitive to map per-extension
+  /// Read by the stable-observation primitive to map per-extension
   /// observation fragments back to their owning extension and to enforce
   /// per-extension budget overrides.
   List<String> get namespaces => List<String>.unmodifiable(<String>[
@@ -65,7 +65,7 @@ class ExtensionRegistry {
   /// Extension manifest: ordered `(namespace, bare tool names)` records,
   /// one per registered extension (post de-duplication). Read by the
   /// binding's `core.handshake` extension to build the handshake
-  /// `plugins` array. Does not finalize the registry.
+  /// `extensions` array. Does not finalize the registry.
   List<({String namespace, List<String> tools})> get manifest =>
       List<({String namespace, List<String> tools})>.unmodifiable(
         <({String namespace, List<String> tools})>[
@@ -81,7 +81,7 @@ class ExtensionRegistry {
 
   /// All registered extensions, in registration order. Read by the binding's
   /// single observation loop, which gates on `is PerceptionExtension`.
-  List<LeonardExtension> get plugins => List<LeonardExtension>.unmodifiable(
+  List<LeonardExtension> get extensions => List<LeonardExtension>.unmodifiable(
     <LeonardExtension>[for (final _Entry e in _entries) e.plugin],
   );
 
@@ -103,7 +103,7 @@ class ExtensionRegistry {
     }
     for (final e in _entries) {
       if (e.plugin.namespace == p.namespace) {
-        throw StateError('duplicate plugin namespace: ${p.namespace}');
+        throw StateError('duplicate extension namespace: ${p.namespace}');
       }
     }
     _entries.add(

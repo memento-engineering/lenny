@@ -25,7 +25,7 @@ import 'swift_infer_config.dart';
 /// Web-compatible: pure Dart over `package:http`; no `dart:io`.
 ///
 /// Retry contract: throws [SchemaRejection] on a malformed response;
-/// the loop driver (.18) owns retry policy per .14's contract.
+/// the loop driver owns retry policy per the ModelProvider contract.
 class SwiftInferModelProvider implements ModelProvider {
   SwiftInferModelProvider({required this.config, http.Client? client})
     : _client = client ?? http.Client();
@@ -54,7 +54,7 @@ class SwiftInferModelProvider implements ModelProvider {
 
   /// Build the multi-turn `messages` array for the swift-infer Anthropic-
   /// compat endpoint. Vision is gated on [SwiftInferConfig.enableVision]
-  /// per spec — the host-side capability check (cx6.7) is re-asserted
+  /// per spec — the host-side capability check is re-asserted
   /// at the provider so trajectory replay / test injection can't smuggle
   /// an image through a vision-disabled config.
   List<Map<String, dynamic>> _buildMessages(ConversationSnapshot snapshot) {
@@ -151,7 +151,7 @@ class SwiftInferModelProvider implements ModelProvider {
       // (anthropic_provider.dart sends the same). Without it the gateway
       // lets the model answer with prose, which surfaces here as a
       // "no tool_use block" SchemaRejection and a wasted turn (weaker
-      // models like qwen do this often). See lenny-cx6.52.
+      // models like qwen do this often).
       'tool_choice': const <String, dynamic>{'type': 'any'},
       'messages': _buildMessages(snapshot),
     };

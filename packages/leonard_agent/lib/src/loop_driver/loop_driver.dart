@@ -37,13 +37,14 @@ import 'types.dart';
 import 'validation_retry.dart';
 
 /// Tool name used by the model to declare voluntary success
-/// (PRD §10, cx6.6 core action set).
+/// (PRD §10, core action set).
 const String _kCoreDoneTool = 'core.done';
 
 /// Reserved namespace for built-in core actions (tap/enter_text/done/etc.).
 /// Core's observation health is carried in [CoreFragment] (curr.core), NOT
-/// in curr.plugins['core'] — so core must be exempt from the plugin-strike
-/// mechanism. Value must match [CoreExtension.namespace] == 'core'
+/// in curr.extensions['core'] — so core must be exempt from the
+/// extension-strike mechanism. Value must match
+/// [CoreExtension.namespace] == 'core'
 /// (packages/leonard_flutter/lib/src/core_tools/core_extension.dart:87).
 const String _kCoreNamespace = 'core';
 
@@ -345,18 +346,18 @@ class LoopDriver {
   Future<void> _accountExtensionStrikes(Observation curr) async {
     for (final String ns in _host.activeExtensionNamespaces()) {
       // 'core' is exempt: its health is tracked via curr.core (nodes/
-      // routeStack/errors), not curr.plugins['core'], which is always null
+      // routeStack/errors), not curr.extensions['core'], which is always null
       // by design (CoreExtension is tools-only — it contributes no perception
       // fragment). Auto-disabling core would collapse the action-schema oneOf
-      // and stall the agent (lenny-4jn).
+      // and stall the agent.
       if (ns == _kCoreNamespace) continue;
-      final ExtensionFragment? frag = curr.plugins[ns];
+      final ExtensionFragment? frag = curr.extensions[ns];
       // A strike is an actual observe() failure, signalled by the binding as
       // an `error` key in the fragment data map (PRD §17 extension isolation
       // contract). A null/absent fragment means the extension simply had nothing
       // to report this turn (e.g. dio with no in-flight or recent requests) —
       // that is healthy, not a failure. Conflating "no data" with "errored"
-      // auto-disabled dio after 3 quiet turns (lenny-jox).
+      // auto-disabled dio after 3 quiet turns.
       final bool errored = frag != null && frag.data['error'] != null;
       if (!errored) {
         extensionFailures.recordSuccess(ns);
@@ -389,7 +390,7 @@ class LoopDriver {
   ///
   /// On termination the trajectory writer is closed with the final
   /// footer (idempotently). [BindingNotInitializedError] is raised by
-  /// `LeonardSession.start()` (PRD .11) before [runSession] is
+  /// `LeonardSession.start()` before [runSession] is
   /// invoked, so it is never observed here.
   Future<SessionTermination> runSession() async {
     _sessionStart = _clock();

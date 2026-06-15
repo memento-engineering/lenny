@@ -186,7 +186,7 @@ Register it from your app entrypoint (PRD §7.6):
 
 ```dart
 void main() {
-  LeonardBinding.ensureInitialized(plugins: [HelloExtension()]);
+  LeonardBinding.ensureInitialized(extensions: [HelloExtension()]);
   runApp(const MyApp());
 }
 ```
@@ -199,15 +199,15 @@ The host repo ships three reference extensions as readable source. Each one is a
 
 ### 3.1 `leonard_router` (action contribution)
 
-_Slotted in when [lenny-cx6.25] lands. Will demonstrate raw `Router`/`Navigator` integration and the `navigate_to` action shape._
+_Will demonstrate raw `Router`/`Navigator` integration and the `navigate_to` action shape._
 
 ### 3.2 `leonard_riverpod` (structured state observation)
 
-_Slotted in when [lenny-cx6.26] lands. Will demonstrate provider-graph fragments and the `invalidate_provider` action._
+_Will demonstrate provider-graph fragments and the `invalidate_provider` action._
 
 ### 3.3 `leonard_dio` (busy-state hook)
 
-_Slotted in when [lenny-cx6.27] lands. Will demonstrate `busyState()` returning `isBusy=true` while requests are in flight._
+_Will demonstrate `busyState()` returning `isBusy=true` while requests are in flight._
 
 ## 4. Conventions
 
@@ -231,7 +231,7 @@ If your tools accept an identifier (a session ID, a route name, a provider key) 
 
 ## 5. Anti-patterns
 
-Each of the four mistakes below is silent on the happy path and corrosive on the failure path. The registry's per-method 3-strikes auto-disable (cx6.3 step 4) catches repeated exceptions in `observe`/`busyState`/`onActionExecuted` and quietly drops the extension from subsequent dispatch — so the cost of a swallowed bug is your extension disappearing mid-session with no signal in the user's logs.
+Each of the four mistakes below is silent on the happy path and corrosive on the failure path. The registry's per-method 3-strikes auto-disable catches repeated exceptions in `observe`/`busyState`/`onActionExecuted` and quietly drops the extension from subsequent dispatch — so the cost of a swallowed bug is your extension disappearing mid-session with no signal in the user's logs.
 
 ### 5.1 Don't subclass the binding
 
@@ -268,7 +268,7 @@ class VerboseLoggerExtension implements LeonardExtension {
 
 ### 6.2 Composition extensions
 
-A composition extension instantiates the tool, wires interceptors, and emits observations from the seam. The reference `leonard_dio` extension (forward-reference: lenny-cx6.27) is the canonical case: it constructs `Dio`, attaches a counting interceptor, and reports busy while requests are in flight. The extension owns the interceptor; the wrapped tool stays unmodified.
+A composition extension instantiates the tool, wires interceptors, and emits observations from the seam. The reference `leonard_dio` extension is the canonical case: it constructs `Dio`, attaches a counting interceptor, and reports busy while requests are in flight. The extension owns the interceptor; the wrapped tool stays unmodified.
 
 ```dart
 class DioExtension implements LeonardExtension {
@@ -311,7 +311,7 @@ v1 host does not read this file. Adopting the convention now means well-behaved 
 Per PRD §7.7, the contract guarantees:
 
 - Adding a tool to `tools` is non-breaking. Existing agents ignore unknown tool names; new agents discover the addition through tool listing.
-- Expanding an `observe` fragment with new fields is non-breaking. The host treats unknown fields as opaque pass-through (verified by the cx6.3 contract test `'observe fragment passes unknown fields through'`).
+- Expanding an `observe` fragment with new fields is non-breaking. The host treats unknown fields as opaque pass-through (verified by the contract test `'observe fragment passes unknown fields through'`).
 - Refining `busyState` heuristics is non-breaking. The shape stays `BusyState`; only the conditions under which `isBusy=true` is returned shift.
 
 Extension authors should release as often as they want.
@@ -322,7 +322,7 @@ Extension authors should release as often as they want.
 
 **Fix.** Write a custom-widget extension specific to the app's design system. Walk the element tree from `WidgetsBinding.instance.rootElement`, identify bespoke widgets by their runtime type (`is MyAppButton`, `is MyAppCard`), and contribute a structured fragment of `{type, key, label}` triples plus targeting tools that accept those keys. The extension owns the keys (it minted them) and surfaces them per §4.4, so the agent can target widgets the framework never knew were interactive.
 
-**Diagnostic hook.** The host diagnostic from lenny-cx6.10 warns when interactive widgets ship without semantics; its warning text points users at this section. If you see that warning in a host's logs, the resolution is "ship a custom-widget extension" — not "patch the host."
+**Diagnostic hook.** The host diagnostic warns when interactive widgets ship without semantics; its warning text points users at this section. If you see that warning in a host's logs, the resolution is "ship a custom-widget extension" — not "patch the host."
 
 ```dart
 import 'package:flutter/widgets.dart';

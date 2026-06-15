@@ -6,24 +6,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Build a extension whose observer is installed on its container.
-({RiverpodLeonardExtension plugin, ProviderContainer container}) wired() {
+/// Build an extension whose observer is installed on its container.
+({RiverpodLeonardExtension extension, ProviderContainer container}) wired() {
   final observer = LeonardProviderObserver();
   final container = ProviderContainer(observers: <ProviderObserver>[observer]);
-  final plugin = RiverpodLeonardExtension(
+  final extension = RiverpodLeonardExtension(
     container: container,
     observer: observer,
   );
-  return (plugin: plugin, container: container);
+  return (extension: extension, container: container);
 }
 
 /// Drive the extension's observation exactly as the binding's single loop does:
 /// prepareForObservation() (flush), then harvest the perception fragment.
-Map<String, Object?> harvest(RiverpodLeonardExtension plugin) {
-  plugin.prepareForObservation();
+Map<String, Object?> harvest(RiverpodLeonardExtension extension) {
+  extension.prepareForObservation();
   final PerceptionOwner owner = PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(plugin.buildPerception());
+    final Branch root = owner.mountRoot(extension.buildPerception());
     return serializePerceptionFragment(root);
   } finally {
     owner.dispose();
@@ -39,46 +39,46 @@ void main() {
   test('namespace + tool name', () {
     final w = wired();
     addTearDown(w.container.dispose);
-    expect(w.plugin.namespace, 'riverpod');
-    expect(w.plugin.tools.single.name, 'invalidate_provider');
-    final schema = w.plugin.tools.single.inputSchema.raw;
+    expect(w.extension.namespace, 'riverpod');
+    expect(w.extension.tools.single.name, 'invalidate_provider');
+    final schema = w.extension.tools.single.inputSchema.raw;
     expect(schema['type'], 'object');
     expect(schema['additionalProperties'], false);
     expect(schema['required'], <String>['provider_id']);
     expect((schema['properties'] as Map)['provider_id'], <String, Object?>{
       'type': 'string',
     });
-    expect(w.plugin.tools.single.description, contains('provider_id'));
+    expect(w.extension.tools.single.description, contains('provider_id'));
   });
 
   test('isPerceptionIdle before initialize is true', () async {
     final w = wired();
     addTearDown(w.container.dispose);
-    w.plugin.prepareForObservation();
-    expect(w.plugin.isPerceptionIdle(), isTrue);
+    w.extension.prepareForObservation();
+    expect(w.extension.isPerceptionIdle(), isTrue);
   });
 
   test('isPerceptionIdle is true when container is empty', () async {
     final w = wired();
     addTearDown(w.container.dispose);
-    await w.plugin.initialize(ctx());
-    w.plugin.prepareForObservation();
-    expect(w.plugin.isPerceptionIdle(), isTrue);
+    await w.extension.initialize(ctx());
+    w.extension.prepareForObservation();
+    expect(w.extension.isPerceptionIdle(), isTrue);
   });
 
   test('lists live providers, records change, and tool invalidates', () async {
     final counter = StateProvider<int>((r) => 0, name: 'counter');
     final w = wired();
     addTearDown(w.container.dispose);
-    await w.plugin.initialize(ctx());
+    await w.extension.initialize(ctx());
     // Trigger didAddProvider.
     expect(w.container.read(counter), 0);
     // Trigger didUpdateProvider.
     w.container.read(counter.notifier).state = 1;
 
-    w.plugin.prepareForObservation();
-    expect(w.plugin.isPerceptionIdle(), isFalse);
-    final frag = harvest(w.plugin);
+    w.extension.prepareForObservation();
+    expect(w.extension.isPerceptionIdle(), isFalse);
+    final frag = harvest(w.extension);
     expect(frag['invalidatable_providers'], contains('counter'));
     final ch = frag['recent_state_changes'] as List;
     // prepareForObservation() stamps the flush at turn 0 (production default).
@@ -89,7 +89,7 @@ void main() {
       isTrue,
     );
 
-    final res = await w.plugin.tools.single.call(<String, Object?>{
+    final res = await w.extension.tools.single.call(<String, Object?>{
       'provider_id': 'counter',
     });
     expect(res.ok, isTrue);
@@ -98,13 +98,13 @@ void main() {
   test('tool reports unknown provider_id and bad input', () async {
     final w = wired();
     addTearDown(w.container.dispose);
-    await w.plugin.initialize(ctx());
+    await w.extension.initialize(ctx());
 
-    final missing = await w.plugin.tools.single.call(const <String, Object?>{});
+    final missing = await w.extension.tools.single.call(const <String, Object?>{});
     expect(missing.ok, isFalse);
     expect(missing.error, contains('provider_id'));
 
-    final unknown = await w.plugin.tools.single.call(const <String, Object?>{
+    final unknown = await w.extension.tools.single.call(const <String, Object?>{
       'provider_id': 'nope',
     });
     expect(unknown.ok, isFalse);
@@ -114,17 +114,17 @@ void main() {
   test('busyState idle + onActionExecuted no-op + dispose clears', () async {
     final w = wired();
     addTearDown(w.container.dispose);
-    await w.plugin.initialize(ctx());
-    expect((await w.plugin.busyState()).isBusy, isFalse);
-    await w.plugin.onActionExecuted(
+    await w.extension.initialize(ctx());
+    expect((await w.extension.busyState()).isBusy, isFalse);
+    await w.extension.onActionExecuted(
       const ExecutedAction(
         toolName: 'core.tap',
         args: <String, Object?>{},
         result: ToolResult(ok: true),
       ),
     );
-    await w.plugin.dispose();
-    w.plugin.prepareForObservation();
-    expect(w.plugin.isPerceptionIdle(), isTrue);
+    await w.extension.dispose();
+    w.extension.prepareForObservation();
+    expect(w.extension.isPerceptionIdle(), isTrue);
   });
 }

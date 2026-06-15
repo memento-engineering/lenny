@@ -17,7 +17,7 @@ void main() {
 
       // Run inside the stability zone so the binding can intercept the
       // scheduleMicrotask call. Outside this zone, the microtask edge
-      // signal is intentionally inert (cx6.7 will install the zone for
+      // signal is intentionally inert (the zone is installed for
       // production via LeonardBinding.installAndRun).
       await runZoned<Future<void>>(() async {
         scheduleMicrotask(() {});

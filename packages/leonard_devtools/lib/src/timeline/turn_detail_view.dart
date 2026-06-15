@@ -33,7 +33,7 @@ class TurnDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final core = record.observation['core'];
-    final plugins = record.observation['extensions'];
+    final extensions = record.observation['extensions'];
     final routeStack = (core is Map ? core['route_stack'] : null);
     final routeLabel = routeStack is List
         ? routeStack.map((s) => s.toString()).join(' -> ')
@@ -75,8 +75,8 @@ class TurnDetailView extends StatelessWidget {
               ],
             ),
           ),
-          if (plugins is Map)
-            for (final entry in plugins.entries)
+          if (extensions is Map)
+            for (final entry in extensions.entries)
               _Section(
                 title: 'Extension: ${entry.key}',
                 child: ExpansionTile(

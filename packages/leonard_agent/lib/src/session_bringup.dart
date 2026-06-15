@@ -46,7 +46,7 @@ typedef BringUpResult = ({SessionHeader header, DefaultLoopHost host});
 /// * [harnessVersion] — stamped into the header.
 /// * [coreTools] — base tools always included in `host.mergedTools()`.
 /// * [extensionTools] — per-namespace tool descriptors (caller builds from
-///   `session.handshake.plugins` after `session.start` returns).
+///   `session.handshake.extensions` after `session.start` returns).
 /// * [agentsMd] — pre-loaded AGENTS.md text forwarded to the host.
 /// * [agentsMdHash] — hash stamped into the header (defaults to `''`).
 /// * [extraConfig] — additional key/value pairs merged into
@@ -67,7 +67,7 @@ Future<BringUpResult> bringUpSession({
   // session.start was called by the caller before bringUpSession.
   // Build the extension manifest from the completed handshake.
   final List<ExtensionManifestRecord> manifest = <ExtensionManifestRecord>[
-    for (final ExtensionManifestEntry p in session.handshake.plugins)
+    for (final ExtensionManifestEntry p in session.handshake.extensions)
       ExtensionManifestRecord(
         namespace: p.namespace,
         packageVersion: 'unknown',
@@ -85,7 +85,7 @@ Future<BringUpResult> bringUpSession({
     buildIdentifier: buildIdentifier,
     modelIdentifier: modelIdentifier,
     harnessVersion: harnessVersion,
-    plugins: manifest,
+    extensions: manifest,
     config: config0,
   );
 

@@ -12,9 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Build a extension whose observer is installed on its container.
+/// Build an extension whose observer is installed on its container.
 ({
-  RiverpodLeonardExtension plugin,
+  RiverpodLeonardExtension extension,
   ProviderContainer container,
   LeonardProviderObserver observer,
 })
@@ -23,17 +23,17 @@ _wired() {
   final ProviderContainer container = ProviderContainer(
     observers: <ProviderObserver>[observer],
   );
-  final RiverpodLeonardExtension plugin = RiverpodLeonardExtension(
+  final RiverpodLeonardExtension extension = RiverpodLeonardExtension(
     container: container,
     observer: observer,
   );
-  return (plugin: plugin, container: container, observer: observer);
+  return (extension: extension, container: container, observer: observer);
 }
 
-Map<String, Object?> _harvestFragment(RiverpodLeonardExtension plugin) {
+Map<String, Object?> _harvestFragment(RiverpodLeonardExtension extension) {
   final PerceptionOwner owner = PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(plugin.buildPerception());
+    final Branch root = owner.mountRoot(extension.buildPerception());
     return serializePerceptionFragment(root);
   } finally {
     owner.dispose();
@@ -67,7 +67,7 @@ void main() {
     () async {
       final w = _wired();
       addTearDown(w.container.dispose);
-      await w.plugin.initialize(ctx());
+      await w.extension.initialize(ctx());
 
       final StateProvider<int> counter = StateProvider<int>(
         (Ref r) => 0,
@@ -80,10 +80,10 @@ void main() {
 
       // prepareForObservation() flushes _pending into the ring (turn 0),
       // exactly as the binding does before reading the perception fragment.
-      w.plugin.prepareForObservation();
-      expect(w.plugin.isPerceptionIdle(), isFalse);
+      w.extension.prepareForObservation();
+      expect(w.extension.isPerceptionIdle(), isFalse);
 
-      final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
+      final Map<String, Object?> perceptionFrag = _harvestFragment(w.extension);
       expect(perceptionFrag['invalidatable_providers'], contains('counter'));
       final List<Object?> ch =
           perceptionFrag['recent_state_changes']! as List<Object?>;
@@ -102,12 +102,12 @@ void main() {
     () async {
       final w = _wired();
       addTearDown(w.container.dispose);
-      await w.plugin.initialize(ctx());
+      await w.extension.initialize(ctx());
 
       // No providers read — extension is idle.
-      w.plugin.prepareForObservation();
+      w.extension.prepareForObservation();
       expect(
-        w.plugin.isPerceptionIdle(),
+        w.extension.isPerceptionIdle(),
         isTrue,
         reason: 'isPerceptionIdle() must be true when idle',
       );
@@ -115,7 +115,7 @@ void main() {
       // buildPerception() on an empty observer emits non-null empty-list Fields;
       // the binding's isPerceptionIdle() gate is what suppresses the riverpod
       // ns. Document the stable empty shape.
-      final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
+      final Map<String, Object?> perceptionFrag = _harvestFragment(w.extension);
       expect(perceptionFrag, <String, Object?>{
         'invalidatable_providers': <String>[],
         'recent_state_changes': <Map<String, Object?>>[],
@@ -128,7 +128,7 @@ void main() {
     () async {
       final w = _wired();
       addTearDown(w.container.dispose);
-      await w.plugin.initialize(ctx());
+      await w.extension.initialize(ctx());
 
       // Fixture matching goldens/riverpod.observation.json:
       //   live providers: userListProvider, authStateProvider (in that order)
@@ -153,7 +153,7 @@ void main() {
       // so the harvested fragment is byte-equivalent to the committed golden.
       w.observer.flushPendingAt(2);
 
-      final Map<String, Object?> perceptionFrag = _harvestFragment(w.plugin);
+      final Map<String, Object?> perceptionFrag = _harvestFragment(w.extension);
 
       final Map<String, Object?> golden =
           (jsonDecode(_goldenFile().readAsStringSync())

@@ -19,8 +19,8 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   /// App-provided navigation seam for Router-API apps. When set, [_NavigateTool]
   /// drives navigation through this callback (e.g. go_router's `goNamed`)
   /// instead of Navigator-1.0 `pushNamed`, which requires an
-  /// `onGenerateRoute` handler that is null under `MaterialApp.router`
-  /// (lenny-18q). Left null, the extension falls back to `pushNamed` so
+  /// `onGenerateRoute` handler that is null under `MaterialApp.router`.
+  /// Left null, the extension falls back to `pushNamed` so
   /// Navigator-1.0 apps keep working unchanged.
   final Future<void> Function(
     String routeName,
@@ -107,9 +107,9 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
 }
 
 class _NavigateTool extends LeonardTool {
-  _NavigateTool(this._plugin);
+  _NavigateTool(this._extension);
 
-  final RouterExtension _plugin;
+  final RouterExtension _extension;
 
   @override
   String get name => 'navigate';
@@ -143,8 +143,8 @@ class _NavigateTool extends LeonardTool {
 
     // Prefer the app-provided navigation seam (Router-API apps such as
     // go_router, where Navigator.onGenerateRoute is null and pushNamed cannot
-    // resolve a named route — lenny-18q).
-    final navigate = _plugin.navigate;
+    // resolve a named route).
+    final navigate = _extension.navigate;
     if (navigate != null) {
       try {
         await navigate(rn, routeArgs);
@@ -155,7 +155,7 @@ class _NavigateTool extends LeonardTool {
     }
 
     // Fallback: Navigator-1.0 named routes (apps that supply onGenerateRoute).
-    final state = _plugin.navigatorKey.currentState;
+    final state = _extension.navigatorKey.currentState;
     if (state == null) {
       return const ToolResult(
         ok: false,

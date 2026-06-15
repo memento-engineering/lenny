@@ -9,20 +9,20 @@ void main() {
       expect(r, isA<ManifestProbeResult>());
     });
 
-    test('ManifestProbeLoaded round-trips plugins', () {
+    test('ManifestProbeLoaded round-trips extensions', () {
       const entries = [
         ExtensionManifestEntry(namespace: 'router', tools: ['router.go']),
         ExtensionManifestEntry(namespace: 'dio', tools: ['dio.respondNext']),
       ];
       const r = ManifestProbeLoaded(entries);
-      expect(r.plugins, hasLength(2));
-      expect(r.plugins.first.namespace, 'router');
-      expect(r.plugins[1].tools, contains('dio.respondNext'));
+      expect(r.extensions, hasLength(2));
+      expect(r.extensions.first.namespace, 'router');
+      expect(r.extensions[1].tools, contains('dio.respondNext'));
     });
 
     test('ManifestProbeLoaded accepts empty list', () {
       const r = ManifestProbeLoaded(<ExtensionManifestEntry>[]);
-      expect(r.plugins, isEmpty);
+      expect(r.extensions, isEmpty);
     });
 
     test('ManifestProbeBindingMissing constructs', () {
