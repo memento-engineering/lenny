@@ -8,11 +8,11 @@ import TurnDelta from '../components/TurnDelta.astro';
 import SummaryEvolution from '../components/SummaryEvolution.astro';
 import architecture from '../diagrams/architecture.svg?raw';
 ---
-<Layout title="Lenny — a Flutter exploration agent">
+<Layout title="Leonard — a Flutter exploration agent">
   <Hero
-    name="Lenny"
+    name="Leonard"
     tagline="An agent that drives a real Flutter app — and knows when it's done reacting."
-    pitch="Lenny is an agent harness for running Flutter apps in debug mode. It taps, types, scrolls, and looks — but it always waits for the frame to settle and lets the app's own libraries report what's going on. One trustworthy observation per turn."
+    pitch="Leonard is an agent harness for running Flutter apps in debug mode. It taps, types, scrolls, and looks — but it always waits for the frame to settle and lets the app's own libraries report what's going on. One trustworthy observation per turn."
   />
   <Section id="problem" title="Agents look too early">
     <p>Watch an LLM drive a browser and you see the failure mode: it clicks, immediately reads a half-rendered DOM, and acts on the snapshot. It's racing animations, network calls, partial updates. A big chunk of agent failures are &ldquo;I looked too early.&rdquo;</p>
@@ -25,9 +25,9 @@ import architecture from '../diagrams/architecture.svg?raw';
     </ul>
     <p>Put together: <em>one trustworthy observation per turn.</em></p>
   </Section>
-  <Section id="how-it-works" title="Architecture: a tiny policy-free host + plugins">
-    <p>The host is literally a custom <code>WidgetsBinding</code> — it claims the framework's lifecycle slot in <code>main()</code>, registers a handful of VM-service extensions, and otherwise gets out of the way. Outside debug mode it doesn't install at all. Plugins live <em>in your app</em> and contribute tools, observation fragments, and lifecycle hooks.</p>
-    <figure set:html={architecture} aria-label="Lenny architecture: CLI/DevTools frontends, the harness loop, model providers, and the target app with its binding + plugins."></figure>
+  <Section id="how-it-works" title="Architecture: a tiny policy-free host + extensions">
+    <p>The host is literally a custom <code>WidgetsBinding</code> — it claims the framework's lifecycle slot in <code>main()</code>, registers a handful of VM-service extensions, and otherwise gets out of the way. Outside debug mode it doesn't install at all. Extensions live <em>in your app</em> and contribute tools, observation fragments, and lifecycle hooks.</p>
+    <figure set:html={architecture} aria-label="Leonard architecture: CLI/DevTools frontends, the harness loop, model providers, and the target app with its binding + extensions."></figure>
     <p>Every turn is the same shape — the perception-action loop:</p>
     <LoopTurn />
   </Section>
@@ -42,18 +42,18 @@ import architecture from '../diagrams/architecture.svg?raw';
   </Section>
   <Section id="surfaces" title="Two surfaces, one loop">
     <ul>
-      <li><strong>Scriptable CLI</strong> — <code>exploration_cli</code>: headless, for CI and batch trajectory collection.</li>
-      <li><strong>In-IDE DevTools panel</strong> — an Exploration tab with <strong>Prompt</strong>, <strong>Thinking</strong>, and <strong>Timeline</strong> views; runs the same loop in-panel and shows the model's reasoning live.</li>
+      <li><strong>Scriptable CLI</strong> — <code>leonard_cli</code>: headless, for CI and batch trajectory collection.</li>
+      <li><strong>In-IDE DevTools panel</strong> — a Leonard tab with <strong>Prompt</strong>, <strong>Thinking</strong>, and <strong>Timeline</strong> views; runs the same loop in-panel and shows the model's reasoning live.</li>
     </ul>
     <p>Neither reimplements anything — the loop is a library.</p>
   </Section>
-  <Section id="plugins" title="Reference plugins — and write your own">
+  <Section id="extensions" title="Reference extensions — and write your own">
     <ul>
-      <li><code>exploration_router</code> — exposes the current route stack.</li>
-      <li><code>exploration_riverpod</code> — reports which providers are loading.</li>
-      <li><code>exploration_dio</code> — reports in-flight HTTP requests.</li>
+      <li><code>leonard_router</code> — exposes the current route stack.</li>
+      <li><code>leonard_riverpod</code> — reports which providers are loading.</li>
+      <li><code>leonard_dio</code> — reports in-flight HTTP requests.</li>
     </ul>
-    <p>Know about <em>your</em> stack? <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/plugin_authoring_guide.md">Write a plugin</a> — it ships in your app's <code>pubspec.yaml</code>, not in the harness.</p>
+    <p>Know about <em>your</em> stack? <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> — it ships in your app's <code>pubspec.yaml</code>, not in the harness.</p>
   </Section>
   <Section id="models" title="Model backends">
     <ul>
@@ -63,6 +63,6 @@ import architecture from '../diagrams/architecture.svg?raw';
     </ul>
   </Section>
   <Section id="status" title="Status: v1 PoC">
-    <p>This is a proof of concept. The architecture is real and the loop runs end to end, but APIs will move, coverage is partial, and you should expect rough edges. Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/flutter_exploration_agent_prd_v0.5.md">PRD</a> for where it's headed.</p>
+    <p>This is a proof of concept. The architecture is real and the loop runs end to end, but APIs will move, coverage is partial, and you should expect rough edges. Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a> for where it's headed.</p>
   </Section>
 </Layout>

@@ -1,6 +1,6 @@
 # leonard_devtools
 
-DevTools extension for the Flutter Exploration Agent. Surfaces three tabs
+DevTools extension for Leonard. Surfaces three tabs
 (Prompt, Thinking, Timeline) inside the connected app's DevTools instance and
 runs the harness in-panel so trajectories persist via the Dart Tooling Daemon
 filesystem APIs (no extra IPC, no `dart:io`). See PRD §22.
@@ -30,7 +30,7 @@ drift to diff against.
 
 The host package `leonard_flutter` ships
 `extension/devtools/config.yaml`, so any app whose pubspec transitively
-depends on `leonard_flutter` automatically surfaces the **Exploration**
+depends on `leonard_flutter` automatically surfaces the **Leonard**
 tab in standalone DevTools, the VS Code DevTools view, and the Android Studio
 DevTools view. A duplicate `extension/devtools/config.yaml` is kept inside
 this package for standalone development against the simulated DevTools
@@ -65,7 +65,7 @@ real DevTools instance attached to `sample_app`.
   (it runs the `Build DevTools Extension` preLaunchTask first). This starts
   the target app and CLI; **open DevTools separately** — click the DevTools
   URL printed in the Run console (or run `dart devtools --vm-service-uri=<uri>`)
-  and open the **Exploration** tab.
+  and open the **Leonard** tab.
 
 ### Attaching a debugger
 

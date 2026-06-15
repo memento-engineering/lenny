@@ -1,6 +1,6 @@
 # leonard_agent
 
-Web-compatible harness library for the Flutter Exploration Agent. This
+Web-compatible harness library for Leonard. This
 package MUST NOT import `dart:io` (enforced by
 `tool/check_no_dart_io.sh`); concrete sinks and frontends live in sibling
 packages (CLI, DevTools extension).
@@ -74,7 +74,7 @@ can be sliced out by readers without parsing the core payload.
 
 Emitted when a plugin is auto-disabled mid-session (e.g. after
 repeated failures). The `turn` field is the index of the next turn
-the plugin is absent from — the timeline panel (.24) renders this as
+the plugin is absent from — the timeline panel renders this as
 the auto-disable point.
 
 ```json

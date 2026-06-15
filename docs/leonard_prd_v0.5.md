@@ -1,4 +1,4 @@
-# Flutter Exploration Agent — PRD
+# Leonard — PRD
 
 **Status:** Draft v0.5
 **Author:** Nico
@@ -92,9 +92,9 @@ The first audience shapes the host. The plugin authors shape the ecosystem.
 
 ## 6. Architecture
 
-### 6.1 The host binding (`exploration_flutter`)
+### 6.1 The host binding (`leonard_flutter`)
 
-A Dart package the user adds to their Flutter app. Provides `ExplorationBinding extends WidgetsFlutterBinding`, initialized in `main()` with `kDebugMode` gating. The recommended entry point is `ExplorationBinding.run(ExplorationApp)`, which claims the `WidgetsBinding` slot before any user code constructs Flutter-aware objects (e.g. `GoRouter`, `MaterialApp`). The lower-level `ensureInitialized(plugins:)` surface remains for tests and headless agents that own ordering. The binding:
+A Dart package the user adds to their Flutter app. Provides `LeonardBinding extends WidgetsFlutterBinding`, initialized in `main()` with `kDebugMode` gating. The recommended entry point is `LeonardBinding.run(LeonardApp)`, which claims the `WidgetsBinding` slot before any user code constructs Flutter-aware objects (e.g. `GoRouter`, `MaterialApp`). The lower-level `ensureInitialized(plugins:)` surface remains for tests and headless agents that own ordering. The binding:
 
 - Replaces the default `WidgetsBinding`. Conflicts with `IntegrationTestWidgetsFlutterBinding` and other custom bindings; only one binding per process.
 - Registers a small set of *core* VM service extensions for the perception-action primitives the host owns.
@@ -119,21 +119,21 @@ The host does not own:
 - Anything about specific analytics, telemetry, or logging libraries
 - Anything about specific custom design systems beyond the configuration knobs Marionette also exposes (which can themselves be a plugin in this design)
 
-### 6.2 The harness library (`exploration_agent`)
+### 6.2 The harness library (`leonard_agent`)
 
 A Dart library that contains the perception-action loop. Connects to the running app via VM service URI; calls the binding's extensions to capture observations and execute actions; calls the model provider to decide on next actions; persists trajectories.
 
 The harness is a *library*, not an executable. Two frontends in v1 consume it:
 
-**CLI frontend (`exploration_cli`).** A Dart command-line tool. Scriptable, headless, the right interface for CI runs and batch trajectory collection. Takes a goal as argument or stdin, streams progress to stdout, writes the trajectory to disk.
+**CLI frontend (`leonard_cli`).** A Dart command-line tool. Scriptable, headless, the right interface for CI runs and batch trajectory collection. Takes a goal as argument or stdin, streams progress to stdout, writes the trajectory to disk.
 
-**DevTools extension panel (`exploration_devtools`).** An in-IDE panel built on `package:devtools_extensions`. Provides interactive prompt entry, live thinking-trace streaming, and an interactive session timeline. Same harness, same binding, same VM service connection — just rendered as UI rather than CLI output.
+**DevTools extension panel (`leonard_devtools`).** An in-IDE panel built on `package:devtools_extensions`. Provides interactive prompt entry, live thinking-trace streaming, and an interactive session timeline. Same harness, same binding, same VM service connection — just rendered as UI rather than CLI output.
 
-Splitting the harness from its frontend means we don't reimplement the loop. Both frontends are thin shells around the same `ExplorationSession` API.
+Splitting the harness from its frontend means we don't reimplement the loop. Both frontends are thin shells around the same `LeonardSession` API.
 
-### 6.3 The DevTools extension (`exploration_devtools`)
+### 6.3 The DevTools extension (`leonard_devtools`)
 
-A Flutter web app embedded as a tab in DevTools. Uses `package:devtools_extensions` for the extension framework, which gives us VM service connection, theming, and IDE integration for free. The extension auto-discovers when the user's app depends on `exploration_flutter`, and shows up as an "Exploration" tab in DevTools regardless of whether the user opens DevTools standalone, from VS Code, or from Android Studio.
+A Flutter web app embedded as a tab in DevTools. Uses `package:devtools_extensions` for the extension framework, which gives us VM service connection, theming, and IDE integration for free. The extension auto-discovers when the user's app depends on `leonard_flutter`, and shows up as a "Leonard" tab in DevTools regardless of whether the user opens DevTools standalone, from VS Code, or from Android Studio.
 
 Three panels in v1, each focused:
 
@@ -145,7 +145,7 @@ Three panels in v1, each focused:
 
 The panel deliberately does not duplicate everything the CLI does. It does not yet expose: long-form trajectory analytics, batch session runs, headless replay (v2 anyway), or plugin authoring tools. Those remain CLI-only or out of v1 entirely.
 
-The panel runs the harness loop *inside the extension web app itself*, not as a separate process. This is feasible because DevTools extensions are full Flutter web apps with Dart capability and an established VM service connection. Running the harness in-panel means there's no extra IPC layer between the UI and the loop — the panel renders the same in-memory `ExplorationSession` state that drives the CLI.
+The panel runs the harness loop *inside the extension web app itself*, not as a separate process. This is feasible because DevTools extensions are full Flutter web apps with Dart capability and an established VM service connection. Running the harness in-panel means there's no extra IPC layer between the UI and the loop — the panel renders the same in-memory `LeonardSession` state that drives the CLI.
 
 ### 6.4 Why a plugin architecture
 
@@ -163,7 +163,7 @@ Three reasons, in order of how much they shape the design:
 
 `integration_test` is the right substrate for **trajectory replay** (§15.4) where deterministic time and stubbed network are features, not bugs. That's a v2 feature.
 
-`ExplorationBinding.run(...)` defuses the order-of-operations failure where a user constructs `GoRouter` (which calls `WidgetsFlutterBinding.ensureInitialized()` internally) before `ExplorationBinding.ensureInitialized(...)`. With `run`, the binding slot is claimed first; subsequent `WidgetsFlutterBinding.ensureInitialized()` calls become idempotent no-ops. The §6.5 install gate (rejecting `IntegrationTestWidgetsFlutterBinding` and other custom subclasses) remains active and unchanged.
+`LeonardBinding.run(...)` defuses the order-of-operations failure where a user constructs `GoRouter` (which calls `WidgetsFlutterBinding.ensureInitialized()` internally) before `LeonardBinding.ensureInitialized(...)`. With `run`, the binding slot is claimed first; subsequent `WidgetsFlutterBinding.ensureInitialized()` calls become idempotent no-ops. The §6.5 install gate (rejecting `IntegrationTestWidgetsFlutterBinding` and other custom subclasses) remains active and unchanged.
 
 ## 7. The plugin contract
 
@@ -172,17 +172,17 @@ This is the load-bearing part of the v0.3 design. The contract is intentionally 
 ### 7.1 The plugin interface
 
 ```dart
-abstract class ExplorationPlugin {
+abstract class LeonardExtension {
   /// Stable namespace. Used for tool prefixing and observation fragment keys.
   /// Must match `^[a-z][a-z0-9_]*$`. Must be unique within a session.
   String get namespace;
 
   /// Tools this plugin contributes.
-  List<ExplorationTool> get tools;
+  List<LeonardTool> get tools;
 
   /// Called once at host initialization, before any observation or action.
   /// Plugins register VM service extensions, install hooks, etc., here.
-  Future<void> initialize(PluginContext context);
+  Future<void> initialize(ExtensionContext context);
 
   /// Called by the host before each observation capture.
   /// Returns a structured fragment merged into the observation under
@@ -208,7 +208,7 @@ abstract class ExplorationPlugin {
 A plugin's tools are typed Dart functions exposed to the agent:
 
 ```dart
-class ExplorationTool {
+class LeonardTool {
   String get name;              // Namespaced: "go_router.navigate_to"
   String get description;       // For the model's tool selection
   JsonSchema get inputSchema;
@@ -260,17 +260,17 @@ This is the mechanism that solves the "wait for in-flight network requests" prob
 
 ### 7.5 Lifecycle hooks (additional to the core methods)
 
-Plugins that need framework-level hooks can request them through `PluginContext` rather than subclassing the binding:
+Plugins that need framework-level hooks can request them through `ExtensionContext` rather than subclassing the binding:
 
 ```dart
-class PluginContext {
+class ExtensionContext {
   /// Register a chained error handler. The host calls all registered handlers
   /// in registration order; each returns whether the error was handled.
   void registerErrorHandler(ErrorHandler handler);
 
   /// Register a callback for VM service extension methods.
   void registerExtension(String suffix, ExtensionHandler handler);
-  // The host registers this as `ext.flutter.${plugin.namespace}.${suffix}`.
+  // The host registers this as `ext.exploration.${plugin.namespace}.${suffix}`.
 
   /// Subscribe to per-frame callbacks if the plugin needs them.
   /// Use sparingly; this runs on every frame.
@@ -287,11 +287,11 @@ Plugins are registered at host initialization:
 ```dart
 void main() {
   if (kDebugMode) {
-    ExplorationBinding.ensureInitialized(
+    LeonardBinding.ensureInitialized(
       plugins: [
-        RouterExplorationPlugin(navigatorKey: rootNavigatorKey),
-        RiverpodExplorationPlugin(container: providerContainer),
-        DioExplorationPlugin(dio: appDio),
+        RouterExtension(navigatorKey: rootNavigatorKey),
+        RiverpodLeonardExtension(container: providerContainer),
+        LeonardDioExtension(dio: appDio),
       ],
     );
   } else {
@@ -309,7 +309,7 @@ This alignment matters for ecosystem coherence. A package that wants to support 
 
 ### 7.7 Versioning posture
 
-Plugin updates that add tools, expand observation fragments, or refine busy-state heuristics are **not breaking changes**. Plugin authors should release as often as they want. The host treats unfamiliar fields in observation fragments as opaque and passes them through; new tools simply appear in the merged tool list. Breaking changes are reserved for changes to the plugin contract itself (the `ExplorationPlugin` interface), which the host versions explicitly.
+Plugin updates that add tools, expand observation fragments, or refine busy-state heuristics are **not breaking changes**. Plugin authors should release as often as they want. The host treats unfamiliar fields in observation fragments as opaque and passes them through; new tools simply appear in the merged tool list. Breaking changes are reserved for changes to the plugin contract itself (the `LeonardExtension` interface), which the host versions explicitly.
 
 This posture mirrors the Packaged AI Assets design's stance on resource updates and reflects the same underlying principle: AI integration improvements should not be gated on semver overhead.
 
@@ -333,7 +333,7 @@ For our exploration agent in v1, neither is necessary. Our agent's interaction m
 - A user-facing chat interface for the exploration agent is on the roadmap (v2 at earliest).
 - A plugin author needs to inject app-specific reference material into the agent's context that doesn't fit cleanly into the per-turn observation budget. (Today they can just put it in their observation fragment; the budget enforcement is the only real reason to want a separate resource channel.)
 
-**The plugin contract should leave room for these.** Specifically, the `extension/exploration/config.yaml` manifest should use a structure compatible with adding `resources:` and `prompts:` keys later, and the plugin Dart interface should be able to add `List<ExplorationResource>` and `List<ExplorationPrompt>` getters in a backward-compatible way. Plugins that author resources/prompts for a coding-time agent today (via Packaged AI Assets) should be able to share the same source files when our resource/prompt support arrives.
+**The plugin contract should leave room for these.** Specifically, the `extension/exploration/config.yaml` manifest should use a structure compatible with adding `resources:` and `prompts:` keys later, and the plugin Dart interface should be able to add `List<LeonardResource>` and `List<LeonardPrompt>` getters in a backward-compatible way. Plugins that author resources/prompts for a coding-time agent today (via Packaged AI Assets) should be able to share the same source files when our resource/prompt support arrives.
 
 This isn't speculative complexity — it's a documented v2 path that prevents painting ourselves into a corner.
 
@@ -470,7 +470,7 @@ JSON-schema-constrained for `{action: {tool, args}, summary_update, rationale?, 
 
 The harness is designed primarily around running against an MLX-served Qwen3.6-35B-A3B at 8-bit quantization, on a 96GB M3 Ultra. Key facts about this model that shape the design:
 
-**Vision-language model, not text-only.** Qwen3.6-35B-A3B is image-text-to-text. Screenshots are a first-class input modality, not an optional fallback. We default screenshots **on** for the exploration agent. The semantics tree remains the primary action surface, but screenshots give the model fallback context for screens with sparse semantics (heavily custom-painted UI, charts, image-heavy content) and for visual disambiguation when the agent is unsure which of several similar-looking nodes to act on.
+**Vision-language model, not text-only.** Qwen3.6-35B-A3B is image-text-to-text. Screenshots are a first-class input modality, not an optional fallback. We default screenshots **on** for Leonard. The semantics tree remains the primary action surface, but screenshots give the model fallback context for screens with sparse semantics (heavily custom-painted UI, charts, image-heavy content) and for visual disambiguation when the agent is unsure which of several similar-looking nodes to act on.
 
 **MoE with strong agentic posture.** 35B total parameters, ~3B active per forward pass. Reported benchmarks show SWE-bench Verified 73.4, Terminal-Bench 2.0 51.5, MCPMark 37.0. The model is trained for tool-use as a first-class workload. The merged tool list of ~14 tools (host + 3 reference plugins) is well within the size class this model handles competently; tool-selection accuracy is unlikely to be the bottleneck.
 
@@ -503,17 +503,17 @@ Frontier (Claude Sonnet 4.6+, GPT-5-class via API) as fallback for tasks where t
 ### Ships in v1
 
 **Core:**
-- `exploration_flutter` — the host binding package. `ExplorationBinding`, plugin contract, core tools, stability policies, VM service extensions.
-- `exploration_agent` — the harness library. Perception-action loop, model providers (local MLX, Anthropic, OpenAI), trajectory persistence. Consumed by both v1 frontends.
+- `leonard_flutter` — the host binding package. `LeonardBinding`, plugin contract, core tools, stability policies, VM service extensions.
+- `leonard_agent` — the harness library. Perception-action loop, model providers (local MLX, Anthropic, OpenAI), trajectory persistence. Consumed by both v1 frontends.
 
 **Frontends:**
-- `exploration_cli` — command-line tool. Goal as argument or stdin, streams progress, writes trajectory to disk. Right interface for CI runs and batch trajectory collection.
-- `exploration_devtools` — DevTools extension panel. Three sub-panels: prompt entry with model/budget configuration, live thinking-trace stream, interactive session timeline. Auto-discovered by DevTools when the user's app depends on `exploration_flutter`. Works in standalone DevTools, VS Code, and Android Studio.
+- `leonard_cli` — command-line tool. Goal as argument or stdin, streams progress, writes trajectory to disk. Right interface for CI runs and batch trajectory collection.
+- `leonard_devtools` — DevTools extension panel. Three sub-panels: prompt entry with model/budget configuration, live thinking-trace stream, interactive session timeline. Auto-discovered by DevTools when the user's app depends on `leonard_flutter`. Works in standalone DevTools, VS Code, and Android Studio.
 
 **Reference plugins:**
-- `exploration_router` — routing observation + `navigate` tool. Targets Flutter's built-in `Router` and `Navigator` primitives directly. No third-party routing dependency. Validates the routing-diversity solution by demonstrating the contract can express the most general case; framework-specific plugins (`go_router`, `auto_route`, `beamer`) become straightforward to author by following this pattern.
-- `exploration_riverpod` — state observation + `invalidate_provider` tool. Validates structured state contribution.
-- `exploration_dio` — networking observation + busy-state hook + `cancel_in_flight` tool. Validates the busy-state mechanism.
+- `leonard_router` — routing observation + `navigate` tool. Targets Flutter's built-in `Router` and `Navigator` primitives directly. No third-party routing dependency. Validates the routing-diversity solution by demonstrating the contract can express the most general case; framework-specific plugins (`go_router`, `auto_route`, `beamer`) become straightforward to author by following this pattern.
+- `leonard_riverpod` — state observation + `invalidate_provider` tool. Validates structured state contribution.
+- `leonard_dio` — networking observation + busy-state hook + `cancel_in_flight` tool. Validates the busy-state mechanism.
 
 **Documentation:**
 - AGENTS.md template
@@ -542,9 +542,9 @@ Not a section of the host, but a deliverable: a guide for writing a plugin. Incl
 - The reference plugins as readable source.
 - Conventions: namespace selection, observation budget management, when to report busy.
 - Anti-patterns: subclassing the binding, hogging frame callbacks, returning unbounded observation fragments, swallowing exceptions.
-- A template package generator (`exploration_plugin create my_plugin`).
+- A template package generator (`leonard_extension create my_extension`).
 
-See: [Plugin Authoring Guide](./plugin_authoring_guide.md).
+See: [Extension Authoring Guide](./extension_authoring_guide.md).
 
 ## 20. Wrapping existing tools as plugins
 
@@ -556,9 +556,9 @@ Marionette is the most relevant existing tool. It's reasonable to want a `Marion
 
 Three approaches, in viability order:
 
-**Inheritance (preferred).** `ExplorationBinding extends MarionetteBinding`. Inherits all `ext.flutter.marionette.*` extensions; the plugin is a Dart-side shim that exposes them through the contract. Contingent on `MarionetteBinding` being open to extension (Apache 2.0 license is permissive but the class itself may be hostile to subclassing). Verify in source before committing.
+**Inheritance (preferred).** `LeonardBinding extends MarionetteBinding`. Inherits all `ext.flutter.marionette.*` extensions; the plugin is a Dart-side shim that exposes them through the contract. Contingent on `MarionetteBinding` being open to extension (Apache 2.0 license is permissive but the class itself may be hostile to subclassing). Verify in source before committing.
 
-**Reimplementation.** Reimplement Marionette's primitives in our own binding. Marionette's surface is small enough that this is bounded work. Loses free updates but avoids inheritance fragility. The reimplemented plugin would be `exploration_marionette_compat`, intentionally API-shaped after Marionette without sharing code.
+**Reimplementation.** Reimplement Marionette's primitives in our own binding. Marionette's surface is small enough that this is bounded work. Loses free updates but avoids inheritance fragility. The reimplemented plugin would be `leonard_marionette_compat`, intentionally API-shaped after Marionette without sharing code.
 
 **Coexistence.** Not viable. Two bindings cannot coexist in a single Flutter app.
 
@@ -579,7 +579,7 @@ This taxonomy belongs in the plugin authoring guide.
 
 - The 800ms default for action-relative stability still needs empirical tuning against real apps.
 - Tool-selection accuracy with the dynamic merged tool list on Qwen3.6-35B-A3B is *probably* fine given the model's reported agentic-coding benchmarks (SWE-bench Verified 73.4, MCPMark 37.0, MCP-Atlas 62.8), but should be validated empirically once the harness is running. The pre-build verification of `mlx-vlm` tool-call parser support (§16.3) is the more pressing dependency.
-- Should plugins be able to declare hard dependencies on other plugins (`exploration_dio` requires `exploration_logging`)? Default position: no. Plugins should be independent. Revisit if it becomes a real friction.
+- Should plugins be able to declare hard dependencies on other plugins (`leonard_dio` requires `leonard_logging`)? Default position: no. Plugins should be independent. Revisit if it becomes a real friction.
 - For plugin-contributed tools that target plugin-owned identifiers (`provider_id`, `request_id`), how does the agent learn what valid IDs look like? Default: each plugin's observation fragment includes the IDs it'll accept as inputs to its tools. Document this convention.
 - Should the DevTools panel allow the user to *interrupt* the agent mid-turn — e.g., to cancel a long generation, or to inject a hint into the running summary? Default position: yes, both, but only if it's cheap to implement on top of the existing session state. If it adds meaningful complexity, defer to v2. The user will benefit from being able to stop a session that's clearly going off the rails without having to wait for the budget to expire.
 
@@ -605,5 +605,5 @@ This taxonomy belongs in the plugin authoring guide.
 - A third party can write a working plugin (any of the four taxonomies in §20.2) by reading only the plugin authoring guide, with no need to read host source.
 - The reference plugins individually compose with each other and with apps that use only some of `Router`/`Navigator`, Riverpod, and Dio. None of the reference plugins is required to run a session.
 - A 30-minute exploration session produces a trajectory file under 50MB, reviewable both in the CLI viewer and in the DevTools timeline panel without performance degradation.
-- The DevTools panel auto-discovers when the user's app depends on `exploration_flutter` and presents a usable prompt-and-watch loop within 30 seconds of the developer opening DevTools — no manual configuration, no separate process to launch.
+- The DevTools panel auto-discovers when the user's app depends on `leonard_flutter` and presents a usable prompt-and-watch loop within 30 seconds of the developer opening DevTools — no manual configuration, no separate process to launch.
 - The thinking-trace stream in the DevTools panel keeps up with the model's generation rate (no perceptible lag between token production and display) on the M3 Ultra target hardware.

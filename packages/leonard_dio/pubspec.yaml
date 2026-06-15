@@ -1,5 +1,5 @@
 name: leonard_dio
-description: Reference extension (dio) for the Flutter Exploration Agent.
+description: Reference extension (dio) for Leonard.
 publish_to: none
 resolution: workspace
 

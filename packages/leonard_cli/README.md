@@ -1,6 +1,6 @@
 # leonard_cli
 
-Command-line entrypoint for lenny's exploration agent. Connects to a
+Command-line entrypoint for Leonard. Connects to a
 running Flutter VM service, drives the perception-action loop, and
 streams a trajectory file to disk.
 

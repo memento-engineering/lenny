@@ -1,5 +1,5 @@
 name: diagnostic_fixture
-description: Sample-app fixture for the cx6.10 connect-time semantics diagnostic.
+description: Sample-app fixture for the connect-time semantics diagnostic.
 publish_to: none
 resolution: workspace
 

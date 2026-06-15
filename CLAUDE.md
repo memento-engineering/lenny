@@ -78,12 +78,12 @@ Requires two environment variables:
 
 The test self-skips when these are absent, so `melos run test:e2e` is safe to run locally without them — all three scenarios will be reported as skipped.
 
-### Perf tests (`exploration_devtools`)
+### Perf tests (`leonard_devtools`)
 
 Tests tagged `perf` are excluded from `melos run test` by default (via `dart_test.yaml` in that package). To run them explicitly:
 
 ```bash
-flutter test packages/exploration_devtools --tags=perf
+flutter test packages/leonard_devtools --tags=perf
 ```
 
 ## Architecture Overview
