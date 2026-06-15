@@ -18,8 +18,8 @@ import 'openai_request.dart';
 
 /// `ModelProvider` for GPT-5-class models. Frontier-tier defaults are
 /// applied per [FrontierDefaults]; retry-once on schema rejection is
-/// enforced inside [decide] (per .18's contract for frontier providers
-/// that issue an HTTP round-trip per turn).
+/// enforced inside [decide] (per the loop driver's contract for frontier
+/// providers that issue an HTTP round-trip per turn).
 class OpenAiModelProvider implements ModelProvider {
   /// Build an [OpenAiModelProvider].
   ///

@@ -44,10 +44,10 @@ Future<void> _pumpUntil(
   }
 }
 
-Map<String, Object?> _harvestFragment(LeonardDioExtension plugin) {
+Map<String, Object?> _harvestFragment(LeonardDioExtension extension) {
   final PerceptionOwner owner = PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(plugin.buildPerception());
+    final Branch root = owner.mountRoot(extension.buildPerception());
     return serializePerceptionFragment(root);
   } finally {
     owner.dispose();
@@ -62,8 +62,8 @@ void main() {
     () async {
       final _HangingAdapter adapter = _HangingAdapter();
       final Dio testDio = Dio()..httpClientAdapter = adapter;
-      final LeonardDioExtension plugin = LeonardDioExtension(testDio);
-      await plugin.initialize(
+      final LeonardDioExtension extension = LeonardDioExtension(testDio);
+      await extension.initialize(
         ExtensionContext(
           namespace: 'dio',
           scheduler: SchedulerBinding.instance,
@@ -88,9 +88,9 @@ void main() {
       } catch (_) {}
 
       // The extension is no longer idle once a request completes.
-      expect(plugin.isPerceptionIdle(), isFalse);
+      expect(extension.isPerceptionIdle(), isFalse);
 
-      final Map<String, Object?> perceptionFrag = _harvestFragment(plugin);
+      final Map<String, Object?> perceptionFrag = _harvestFragment(extension);
       expect(perceptionFrag['in_flight'], isEmpty);
       final Map<String, Object?> completed =
           (perceptionFrag['recent_completed']! as List).single
@@ -99,7 +99,7 @@ void main() {
       expect(completed['path'], '/users');
       expect(completed['status'], 200);
 
-      await plugin.dispose();
+      await extension.dispose();
     },
   );
 
@@ -108,8 +108,8 @@ void main() {
     () async {
       final _HangingAdapter adapter = _HangingAdapter();
       final Dio testDio = Dio()..httpClientAdapter = adapter;
-      final LeonardDioExtension plugin = LeonardDioExtension(testDio);
-      await plugin.initialize(
+      final LeonardDioExtension extension = LeonardDioExtension(testDio);
+      await extension.initialize(
         ExtensionContext(
           namespace: 'dio',
           scheduler: SchedulerBinding.instance,
@@ -119,9 +119,9 @@ void main() {
       // No requests sent — extension is completely idle. The binding's
       // isPerceptionIdle() gate (reproducing the retired observe()==null)
       // suppresses the dio namespace entirely.
-      expect(plugin.isPerceptionIdle(), isTrue);
+      expect(extension.isPerceptionIdle(), isTrue);
       expect(adapter.pending, isEmpty);
-      await plugin.dispose();
+      await extension.dispose();
     },
   );
 }

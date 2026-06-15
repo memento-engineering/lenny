@@ -62,7 +62,7 @@ class ObservationRequest {
   /// Wall-clock cap for `bounded-stability` policy, in ms.
   final int boundedStabilityBudgetMs;
 
-  /// When `true`, the response includes `screenshot_png_b64` from cx6.7.
+  /// When `true`, the response includes `screenshot_png_b64`.
   final bool includeScreenshot;
 
   /// Per-namespace extension observation budget overrides, in bytes. Extensions
@@ -71,7 +71,7 @@ class ObservationRequest {
   /// proportionally (see `distributeExtensionBudgets`).
   final Map<String, int> extensionBudgets;
 
-  /// Cursor for the cx6.9 error ring. When `null`, `0` is used (i.e. the
+  /// Cursor for the error ring. When `null`, `0` is used (i.e. the
   /// full retained history is returned).
   final int? errorCursor;
 

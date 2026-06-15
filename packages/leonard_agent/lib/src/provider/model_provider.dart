@@ -3,11 +3,11 @@ import 'types.dart';
 
 /// Provider contract for model backends used by the Leonard agent.
 ///
-/// Concrete implementations land in .15 (swift-infer / local MLX) and
-/// .16 / .36 / .37 (frontier providers).
+/// Concrete implementations include the swift-infer / local MLX backend
+/// and the frontier providers (Anthropic / OpenAI).
 ///
 /// Retry contract: on a schema violation, providers throw
-/// [SchemaRejection]. The loop driver (.18) retries the turn once with
+/// [SchemaRejection]. The loop driver retries the turn once with
 /// the validation error injected back into the prompt; a second failure
 /// counts as a failed turn (PRD §17). Provider implementations MUST NOT
 /// retry internally — the driver owns retry policy.
@@ -27,7 +27,7 @@ abstract class ModelProvider {
   /// (for carry-forward into the next assistant turn).
   ///
   /// Throws [SchemaRejection] when the model output cannot be parsed
-  /// against [schema]. The caller (.18) retries once on rejection.
+  /// against [schema]. The caller retries once on rejection.
   Future<ModelDecision> decide(
     ConversationSnapshot snapshot,
     ActionSchema schema,

@@ -56,7 +56,7 @@ Response _resp(Map<String, dynamic> json) {
 ///     [executeActionHandler] — `args` arrives JSON-encoded per value
 ///     (mirrors the real binding's `_decodeParams`).
 _FakeVmService _fakeVm({
-  List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
+  List<Map<String, dynamic>> extensions = const <Map<String, dynamic>>[],
   Future<Map<String, dynamic>> Function(String method, Map<String, dynamic>?)?
   observationHandler,
   Future<Map<String, dynamic>> Function(String method, Map<String, dynamic>?)?
@@ -66,7 +66,7 @@ _FakeVmService _fakeVm({
     if (method == 'ext.exploration.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': '1.0.0',
-        'extensions': plugins,
+        'extensions': extensions,
       });
     }
     if (method == 'ext.exploration.core.get_stable_observation') {
@@ -128,7 +128,7 @@ ToolDescriptor _tool(String name) => ToolDescriptor(
 );
 
 // ===========================================================================
-// Trajectory sink for the integration test (step 7.7).
+// Trajectory sink for the integration test.
 // ===========================================================================
 
 class _MemorySink extends TrajectorySink {
@@ -187,9 +187,9 @@ void main() {
   });
 
   group('DefaultLoopHost.mergedTools / activeExtensionNamespaces', () {
-    test('mergedTools returns core ∪ active plugin descriptors', () async {
+    test('mergedTools returns core ∪ active extension descriptors', () async {
       final vm = _fakeVm(
-        plugins: <Map<String, dynamic>>[
+        extensions: <Map<String, dynamic>>[
           <String, dynamic>{
             'namespace': 'router',
             'tools': <String>['router.go'],
@@ -229,7 +229,7 @@ void main() {
       // Handshake reports `router` and `unknown` extensions; only `router`
       // has descriptors. The unknown namespace is silently ignored.
       final vm = _fakeVm(
-        plugins: <Map<String, dynamic>>[
+        extensions: <Map<String, dynamic>>[
           <String, dynamic>{
             'namespace': 'router',
             'tools': <String>['router.go'],
@@ -261,7 +261,7 @@ void main() {
 
     test('mergedTools excludes auto-disabled namespaces', () async {
       final vm = _fakeVm(
-        plugins: <Map<String, dynamic>>[
+        extensions: <Map<String, dynamic>>[
           <String, dynamic>{
             'namespace': 'router',
             'tools': <String>['router.go'],
@@ -298,7 +298,7 @@ void main() {
     test('repeated disable on the same namespace emits ExtensionAutoDisabled '
         'exactly once', () async {
       final vm = _fakeVm(
-        plugins: <Map<String, dynamic>>[
+        extensions: <Map<String, dynamic>>[
           <String, dynamic>{
             'namespace': 'router',
             'tools': <String>['router.go'],
@@ -582,7 +582,7 @@ void main() {
       // strike out at threshold 3 and emit exactly one
       // ExtensionDisabledEvent via the writer.
       final vm = _fakeVm(
-        plugins: <Map<String, dynamic>>[
+        extensions: <Map<String, dynamic>>[
           <String, dynamic>{
             'namespace': 'flaky',
             'tools': <String>['flaky.x'],
@@ -626,7 +626,7 @@ void main() {
           buildIdentifier: 'build',
           modelIdentifier: 'fake',
           harnessVersion: '0.1',
-          plugins: <ExtensionManifestRecord>[],
+          extensions: <ExtensionManifestRecord>[],
           config: <String, dynamic>{},
         ),
       );
@@ -644,18 +644,18 @@ void main() {
       );
 
       // Count extension_disabled records in the trajectory sink.
-      final pluginDisabled = sink.lines
+      final extensionDisabled = sink.lines
           .map((l) => jsonDecode(l) as Map<String, dynamic>)
           .where((r) => r['type'] == 'extension_disabled')
           .toList();
       expect(
-        pluginDisabled,
+        extensionDisabled,
         hasLength(1),
         reason:
             'Exactly one extension_disabled record per auto-disabled '
             'namespace.',
       );
-      expect(pluginDisabled.single['namespace'], 'flaky');
+      expect(extensionDisabled.single['namespace'], 'flaky');
 
       // Driver still ran (turns continue after auto-disable). The
       // session terminates with budget_exhausted because the canned

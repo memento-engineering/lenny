@@ -18,7 +18,7 @@ typedef ValidatorAction = ({String tool, Map<String, dynamic> args});
 
 /// Core tools whose args reference one or more semantic node ids.
 ///
-/// Mirrors the cx6.6 CoreExtension surface: tap / long-press / enter-text /
+/// Mirrors the CoreExtension surface: tap / long-press / enter-text /
 /// scroll / scroll-until-visible / inspect / gesture all take node ids.
 /// `core.system_back`, `core.wait`, and `core.done` do not — they skip
 /// the node pass.

@@ -32,7 +32,7 @@ SessionHeader _hdr() => const SessionHeader(
   buildIdentifier: 'debug-1.0.0',
   modelIdentifier: 'qwen3.6-35b-a3b@8bit',
   harnessVersion: '0.1.0',
-  plugins: [
+  extensions: [
     ExtensionManifestRecord(
       namespace: 'router',
       packageVersion: '1.2.3',

@@ -117,8 +117,8 @@ class PromptPanelController {
         buildIdentifier: 'devtools',
         modelIdentifier: panelCfg.modelId,
         harnessVersion: 'devtools-ch8',
-        plugins: <ExtensionManifestRecord>[
-          for (final ExtensionManifestEntry p in handshake.plugins)
+        extensions: <ExtensionManifestRecord>[
+          for (final ExtensionManifestEntry p in handshake.extensions)
             ExtensionManifestRecord(
               namespace: p.namespace,
               packageVersion: 'unknown',
@@ -137,7 +137,7 @@ class PromptPanelController {
     final Map<String, List<ToolDescriptor>> extensionTools =
         buildExtensionTools(
           requested: <String>{...panelCfg.enabledExtensionNamespaces, 'core'},
-          handshake: handshake.plugins,
+          handshake: handshake.extensions,
         );
     final DefaultLoopHost host = DefaultLoopHost.fromSession(
       session: session,
@@ -146,8 +146,8 @@ class PromptPanelController {
       goal: panelCfg.goal,
       // The model needs the operating guide (methodology + the "Finishing"
       // rule that gates core.done on a VISIBLE success state). Shipping an
-      // empty prompt here caused premature core.done on multi-step goals
-      // (lenny-wisp-0go2a.4). The CLI loads the same guide from
+      // empty prompt here caused premature core.done on multi-step goals.
+      // The CLI loads the same guide from
       // templates/AGENTS.md; the web panel can't read files, so it uses the
       // bundled const.
       agentsMd: kDefaultAgentsMd,

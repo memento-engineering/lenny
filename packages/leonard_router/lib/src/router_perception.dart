@@ -40,11 +40,11 @@ class RouterPerception extends StatelessPerception {
 /// Navigator/RouterDelegate walk, so the perception path and legacy `observe()`
 /// can never drift.
 class RouteSnapshotAnchor implements PerceptionAnchor<RouteSnapshot?> {
-  /// Creates an anchor over [_plugin].
-  const RouteSnapshotAnchor(this._plugin);
+  /// Creates an anchor over [_extension].
+  const RouteSnapshotAnchor(this._extension);
 
-  final RouterExtension _plugin;
+  final RouterExtension _extension;
 
   @override
-  RouteSnapshot? read() => _plugin.readSnapshot();
+  RouteSnapshot? read() => _extension.readSnapshot();
 }

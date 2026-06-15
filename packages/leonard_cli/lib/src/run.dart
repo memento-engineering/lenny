@@ -140,7 +140,7 @@ Future<int> runCli(
     // ----- extension warning block (unchanged) ----------------------------------
     final List<String> unknown = unknownExtensionNamespaces(
       requested: args.extensions,
-      handshake: session.handshake.plugins,
+      handshake: session.handshake.extensions,
     );
     for (final String ns in unknown) {
       stderr.writeln(
@@ -153,7 +153,7 @@ Future<int> runCli(
     final Map<String, List<ToolDescriptor>> extensionTools =
         buildExtensionTools(
           requested: <String>{...args.extensions, 'core'},
-          handshake: session.handshake.plugins,
+          handshake: session.handshake.extensions,
         );
 
     // ----- load the AGENTS.md operating guide (system prompt) ----------
@@ -226,7 +226,7 @@ void _render(Stdout out, SessionProgressEvent e) {
 /// the bundled template is resolved relative to the running script, then a
 /// couple of cwd-relative fallbacks. Returns `('', '')` (empty prompt,
 /// empty hash) when nothing is found — the harness then runs goal-only,
-/// the historical behaviour. See lenny-cx6.53.
+/// the historical behaviour.
 ({String content, String hash}) _loadAgentsMd(String? path, IOSink stderr) {
   final List<String> candidates = <String>[];
   if (path != null && path.isNotEmpty) {

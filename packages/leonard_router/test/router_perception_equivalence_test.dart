@@ -74,8 +74,8 @@ Map<String, Object?> _harvest(Seed seed) {
   }
 }
 
-Map<String, Object?> _harvestExtension(RouterExtension plugin) =>
-    _harvest(plugin.buildPerception());
+Map<String, Object?> _harvestExtension(RouterExtension extension) =>
+    _harvest(extension.buildPerception());
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -85,15 +85,15 @@ void main() {
   ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
-    final plugin = RouterExtension(navigatorKey: k);
+    final extension = RouterExtension(navigatorKey: k);
 
     expect(
-      plugin.isPerceptionIdle(),
+      extension.isPerceptionIdle(),
       isFalse,
       reason: 'a mounted Navigator yields a route snapshot',
     );
 
-    final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
+    final Map<String, Object?> perceptionFrag = _harvestExtension(extension);
     expect(perceptionFrag['current_route_name'], '/');
     expect(perceptionFrag['stack'], <String>['/']);
   });
@@ -103,28 +103,28 @@ void main() {
   ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
-    final plugin = RouterExtension(navigatorKey: k);
-    final r = await plugin.tools.single.call({
+    final extension = RouterExtension(navigatorKey: k);
+    final r = await extension.tools.single.call({
       'route_name': '/settings',
       'arguments': {'tab': 'profile'},
     });
     expect(r.ok, isTrue);
     await t.pumpAndSettle();
 
-    final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
+    final Map<String, Object?> perceptionFrag = _harvestExtension(extension);
     expect(perceptionFrag['arguments'], {'tab': 'profile'});
   });
 
   test(
     'RouterDelegate (declarative) path: perception reads the config',
     () async {
-      final plugin = RouterExtension(
+      final extension = RouterExtension(
         navigatorKey: GlobalKey<NavigatorState>(),
         routerDelegate: _FakeDelegate('/checkout/payment'),
       );
 
-      expect(plugin.isPerceptionIdle(), isFalse);
-      final Map<String, Object?> perceptionFrag = _harvestExtension(plugin);
+      expect(extension.isPerceptionIdle(), isFalse);
+      final Map<String, Object?> perceptionFrag = _harvestExtension(extension);
       expect(perceptionFrag['current_route_name'], '/checkout/payment');
       expect(perceptionFrag['stack'], ['/checkout/payment']);
       expect(perceptionFrag['arguments'], isNull);
@@ -134,7 +134,7 @@ void main() {
   test(
     'idle gate: isPerceptionIdle() is true when no surface yields a route',
     () async {
-      final plugin = RouterExtension(
+      final extension = RouterExtension(
         navigatorKey: GlobalKey<NavigatorState>(),
         routerDelegate: _FakeDelegate(null),
       );
@@ -142,8 +142,8 @@ void main() {
       // isPerceptionIdle() reproduces the retired observe()==null suppression;
       // the binding skips the router ns entirely. The shared snapshot reader is
       // null too, so the idle gate and the anchor can never drift.
-      expect(plugin.isPerceptionIdle(), isTrue);
-      expect(plugin.readSnapshot(), isNull);
+      expect(extension.isPerceptionIdle(), isTrue);
+      expect(extension.readSnapshot(), isNull);
     },
   );
 

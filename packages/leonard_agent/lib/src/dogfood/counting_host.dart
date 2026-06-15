@@ -1,5 +1,4 @@
-/// Tool-call counting [LoopHost] adapter for the dogfood harness
-/// (bead lenny-cx6.43).
+/// Tool-call counting [LoopHost] adapter for the dogfood harness.
 ///
 /// Wraps any [LoopHost] and increments a counter on every successful
 /// [executeAction]. The harness wires this around a [DefaultLoopHost]

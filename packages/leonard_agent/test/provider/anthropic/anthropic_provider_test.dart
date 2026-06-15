@@ -197,8 +197,8 @@ void main() {
       capture: (_, bytes) => captured = _decodeBody(bytes),
     );
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    // Observation.screenshot is the chat-shape vehicle for vision
-    // (lenny-wisp-cl4); the provider gates on capabilities.vision and
+    // Observation.screenshot is the chat-shape vehicle for vision;
+    // the provider gates on capabilities.vision and
     // emits a native Anthropic image content block.
     final obs = Observation.fromJson(<String, dynamic>{
       'screenshot_png_b64': 'AQID',

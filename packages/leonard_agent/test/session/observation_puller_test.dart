@@ -84,7 +84,7 @@ void main() {
         expect(obs.core.nodes.keys, equals(<int>{1}));
         expect(obs.core.routeStack, equals(<String>['/home']));
         expect(
-          obs.plugins['router']!.data,
+          obs.extensions['router']!.data,
           equals(<String, dynamic>{'path': '/home'}),
         );
         expect(obs.stability.terminatedBy, equals('idle'));
@@ -134,7 +134,7 @@ void main() {
 
         final Observation obs = await puller.pull();
         expect(obs.core.nodes.keys, equals(<int>{1}));
-        expect(obs.plugins.keys, equals(<String>{'router'}));
+        expect(obs.extensions.keys, equals(<String>{'router'}));
       },
     );
   });

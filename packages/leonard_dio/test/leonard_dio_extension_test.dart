@@ -40,8 +40,8 @@ class _HangingAdapter implements HttpClientAdapter {
 (LeonardDioExtension, Dio, _HangingAdapter) _make() {
   final adapter = _HangingAdapter();
   final dio = Dio()..httpClientAdapter = adapter;
-  final plugin = LeonardDioExtension(dio);
-  return (plugin, dio, adapter);
+  final extension = LeonardDioExtension(dio);
+  return (extension, dio, adapter);
 }
 
 Future<void> _init(LeonardDioExtension p) async {
@@ -67,10 +67,10 @@ Future<void> _pumpUntil(
 
 /// Harvest the dio extension's observation fragment via the perception path,
 /// exactly as the binding's single observation loop does.
-Map<String, Object?> _harvest(LeonardDioExtension plugin) {
+Map<String, Object?> _harvest(LeonardDioExtension extension) {
   final PerceptionOwner owner = PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(plugin.buildPerception());
+    final Branch root = owner.mountRoot(extension.buildPerception());
     return serializePerceptionFragment(root);
   } finally {
     owner.dispose();

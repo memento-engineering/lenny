@@ -36,7 +36,7 @@ typedef BusyStatesPoller = Future<List<MapEntry<String, BusyState>>> Function();
 
 /// Drives the stable-observation polling loop.
 ///
-/// The loop polls cx6.4's [FrameworkBusySnapshot] and (via
+/// The loop polls the [FrameworkBusySnapshot] and (via
 /// [pollBusyStates]) every extension's [BusyState], folding both into the
 /// active policy's termination predicate. The poller is expected to
 /// isolate extension exceptions; thrown extensions must contribute a non-busy

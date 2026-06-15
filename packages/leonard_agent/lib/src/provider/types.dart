@@ -28,7 +28,7 @@ class ToolDescriptor {
 }
 
 /// Sealed turn hierarchy for the append-only chat conversation
-/// (lenny-wisp-cl4 chat-shape rebuild).
+/// (chat-shape rebuild).
 sealed class ConversationTurn {
   const ConversationTurn();
 }
@@ -70,7 +70,7 @@ class AssistantTurn extends ConversationTurn {
 /// Immutable snapshot of a chat-shape conversation at a point in time.
 ///
 /// Replaces [PromptPayload] for providers built against the
-/// lenny-wisp-cl4 chat-shape rebuild.
+/// chat-shape rebuild.
 class ConversationSnapshot {
   const ConversationSnapshot({
     required this.systemMessage,
@@ -168,7 +168,7 @@ class ThinkingDelta {
 
 /// Thrown when a model response fails JSON-Schema validation.
 ///
-/// The loop driver (.18) catches this and retries the turn once with
+/// The loop driver catches this and retries the turn once with
 /// the [validationError] injected back into the prompt, per PRD §17.
 class SchemaRejection implements Exception {
   const SchemaRejection({

@@ -38,7 +38,7 @@ class _FakeSession implements LeonardSession {
   @override
   HandshakeResult get handshake => const HandshakeResult(
     contractVersion: '1.0',
-    plugins: <ExtensionManifestEntry>[],
+    extensions: <ExtensionManifestEntry>[],
   );
 
   @override
@@ -192,7 +192,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: PromptTabMount(
-              plugins: const <ExtensionManifestEntry>[],
+              extensions: const <ExtensionManifestEntry>[],
               store: store,
               catalog: catalog,
               promptConfigStore: InMemoryPromptPanelConfigStore(),

@@ -110,7 +110,7 @@ void main() {
 
   group('ObservationDiff.toJson', () {
     test(
-      'plugin keys are alphabetized in output regardless of insertion order',
+      'extension keys are alphabetized in output regardless of insertion order',
       () {
         final ObservationDiff d = ObservationDiff(
           core: const CoreDiff(
@@ -120,7 +120,7 @@ void main() {
             nodesChanged: <NodeChange>[],
             errorsAdded: <RuntimeError>[],
           ),
-          plugins: <String, ExtensionDiff>{
+          extensions: <String, ExtensionDiff>{
             'zeta': const ExtensionDiffAdded(current: <String, dynamic>{}),
             'alpha': const ExtensionDiffAdded(current: <String, dynamic>{}),
             'mu': const ExtensionDiffAdded(current: <String, dynamic>{}),

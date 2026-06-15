@@ -18,14 +18,14 @@ void main() {
   });
 
   group('SessionHeader', () {
-    test('emits header type and snake_case keys with nested plugins', () {
+    test('emits header type and snake_case keys with nested extensions', () {
       const h = SessionHeader(
         goal: 'login',
         agentsMdHash: 'sha256:abc',
         buildIdentifier: 'debug-1.0.0',
         modelIdentifier: 'qwen3.6-35b-a3b@8bit',
         harnessVersion: '0.1.0',
-        plugins: [
+        extensions: [
           ExtensionManifestRecord(
             namespace: 'router',
             packageVersion: '1.2.3',
@@ -83,7 +83,7 @@ void main() {
         'core': <String, dynamic>{},
         'extensions': <String, dynamic>{},
       });
-      // v2 (lenny-wisp-cl4): summary_update key is dropped from JSON;
+      // v2: summary_update key is dropped from JSON;
       // thinking takes its place.
       expect(j.containsKey('summary_update'), isFalse);
       expect(j['thinking'], 'I should tap the button');
@@ -202,7 +202,7 @@ void main() {
         final j = f.toJson();
         expect(j['type'], 'footer');
         expect(j['outcome'], 'budget_exhausted');
-        // v2 (lenny-wisp-cl4): final_summary key is dropped from JSON.
+        // v2: final_summary key is dropped from JSON.
         expect(j.containsKey('final_summary'), isFalse);
         expect(j['total_turns'], 25);
         expect(j['total_duration_ms'], 30000);

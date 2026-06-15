@@ -1,4 +1,4 @@
-// Runtime half of the dogfood CLI (bead lenny-cx6.43).
+// Runtime half of the dogfood CLI.
 //
 // Invoked via `flutter test` because the in-process binding boot
 // requires the Flutter SDK; see the rationale comment in
@@ -8,7 +8,7 @@
 // shim can recover it.
 //
 // `LeonardBinding.ensureInitialized` is invoked with
-// `installCoreExtension: false` (lenny-cx6.45) so the runner can register
+// `installCoreExtension: false` so the runner can register
 // its own `_StandInExtension('core', toolNames)` alongside the non-core
 // stand-ins. The dogfood loop exercises model tool selection over the
 // full namespace surface — including `core.*` — without booting a
@@ -151,7 +151,7 @@ void main() {
     final String tracePath = args['trace_out'] as String;
     // Default captureBodies=true so swift-infer's admin trace retains
     // the request/response bodies for downstream `debug-inference`
-    // analysis. Older arg blobs (pre-lenny-cx6.44) lacking the key
+    // analysis. Older arg blobs lacking the key
     // still get capture on. CLI may opt out via `--no-capture-bodies`.
     final bool captureBodies = (args['capture_bodies'] as bool?) ?? true;
 
@@ -184,7 +184,7 @@ void main() {
 
     // Wire the loaded fixture into the binding fake so the agent's
     // `core.get_stable_observation` calls return the fixture body
-    // instead of the real binding's empty-tree response (lenny-cx6.48).
+    // instead of the real binding's empty-tree response.
     final BindingVmServiceFake fake = BindingVmServiceFake(
       binding,
       observationFixture: fixture,

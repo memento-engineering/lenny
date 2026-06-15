@@ -14,12 +14,11 @@ class ObservationDiffer {
   const ObservationDiffer._();
 
   /// Diff `prev` against `curr`. The result is harness-authored and
-  /// included verbatim in the next prompt (cx6.13) and the trajectory
-  /// (cx6.19).
+  /// included verbatim in the next prompt and the trajectory.
   static ObservationDiff diff(Observation prev, Observation curr) {
     return ObservationDiff(
       core: _coreDiff(prev.core, curr.core),
-      plugins: _pluginsDiff(prev.plugins, curr.plugins),
+      extensions: _extensionsDiff(prev.extensions, curr.extensions),
     );
   }
 
@@ -76,7 +75,7 @@ class ObservationDiffer {
     );
   }
 
-  static Map<String, ExtensionDiff> _pluginsDiff(
+  static Map<String, ExtensionDiff> _extensionsDiff(
     Map<String, ExtensionFragment> p,
     Map<String, ExtensionFragment> c,
   ) {

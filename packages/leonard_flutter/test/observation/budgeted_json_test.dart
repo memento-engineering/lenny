@@ -43,7 +43,7 @@ void main() {
   });
 
   group('distributeExtensionBudgets', () {
-    test('defaults to 1024 per plugin when not requested', () {
+    test('defaults to 1024 per extension when not requested', () {
       final Map<String, int> eff = distributeExtensionBudgets(
         const <String, int>{},
         <String>['a', 'b'],

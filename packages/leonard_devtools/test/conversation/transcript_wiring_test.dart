@@ -1,4 +1,4 @@
-/// End-to-end regression for the chat transcript wiring (lenny-wisp-0go2a.2).
+/// End-to-end regression for the chat transcript wiring.
 ///
 /// The redesign's headline feature — the live transcript of a running
 /// session — shipped broken because `PromptTabMount` published the trajectory
@@ -54,7 +54,7 @@ class _FakeSession implements LeonardSession {
   @override
   HandshakeResult get handshake => const HandshakeResult(
     contractVersion: '1.0',
-    plugins: <ExtensionManifestEntry>[],
+    extensions: <ExtensionManifestEntry>[],
   );
 
   @override

@@ -108,7 +108,7 @@ Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
       buildIdentifier: 'build',
       modelIdentifier: 'fake',
       harnessVersion: '0.1',
-      plugins: <ExtensionManifestRecord>[],
+      extensions: <ExtensionManifestRecord>[],
       config: <String, dynamic>{},
     ),
   );

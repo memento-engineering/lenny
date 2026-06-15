@@ -29,7 +29,7 @@ Observation _obs(List<SemanticsNode> nodes) {
       nodes: <int, SemanticsNode>{for (final n in nodes) n.id: n},
       errors: const <RuntimeError>[],
     ),
-    plugins: const <String, ExtensionFragment>{},
+    extensions: const <String, ExtensionFragment>{},
     stability: StabilityMetadata.empty,
   );
 }
@@ -115,7 +115,7 @@ void main() {
       expect(r, isA<ValidationOk>());
     });
 
-    test('returns ok for plugin tool that passes schema, no node check', () {
+    test('returns ok for extension tool that passes schema, no node check', () {
       final obs = _obs(const <SemanticsNode>[]);
       final r = validator.validate(
         (tool: 'router.push', args: <String, dynamic>{'path': '/x'}),

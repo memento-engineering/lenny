@@ -88,9 +88,9 @@ void main() {
     );
   });
 
-  group('PluginIsolation', () {
+  group('ExtensionIsolation', () {
     test(
-      'throwing buildPerception() does not abort; healthy plugin emits',
+      'throwing buildPerception() does not abort; healthy extension emits',
       () async {
         if (!kDebugMode) return;
         // Wait for extension init microtask to run before invoking.
@@ -102,12 +102,12 @@ void main() {
         final Map<String, Object?> obs =
             (jsonDecode(body) as Map<String, Object?>)['value']!
                 as Map<String, Object?>;
-        final Map<String, Object?> plugins =
+        final Map<String, Object?> extensions =
             obs['extensions']! as Map<String, Object?>;
         // The thrower extension produces no fragment (the loop's try/catch
         // isolated it), but healthy extension's fragment is present and untouched.
-        expect(plugins.containsKey('thrower'), isFalse);
-        expect((plugins['healthy']! as Map<String, Object?>)['ok'], isTrue);
+        expect(extensions.containsKey('thrower'), isFalse);
+        expect((extensions['healthy']! as Map<String, Object?>)['ok'], isTrue);
       },
     );
 
@@ -179,9 +179,9 @@ void main() {
     });
   });
 
-  group('PluginBudgetScaling', () {
+  group('ExtensionBudgetScaling', () {
     test(
-      'extensionBudgets sum > 2048 scales each plugin proportionally',
+      'extensionBudgets sum > 2048 scales each extension proportionally',
       () async {
         if (!kDebugMode) return;
         // Three extensions; each requested 1500 -> sum 4500 > 2048.
@@ -202,13 +202,13 @@ void main() {
         final Map<String, Object?> obs =
             (jsonDecode(body) as Map<String, Object?>)['value']!
                 as Map<String, Object?>;
-        final Map<String, Object?> plugins =
+        final Map<String, Object?> extensions =
             obs['extensions']! as Map<String, Object?>;
         // _BigFragment serialises to >680 bytes (2000 ints each rendered
         // as digit + comma). Under the scaled budget it must be replaced
         // with the truncation marker.
         final Map<String, Object?> big =
-            plugins['big']! as Map<String, Object?>;
+            extensions['big']! as Map<String, Object?>;
         expect(big['_truncated'], isTrue);
         expect(
           big['budgetBytes'],

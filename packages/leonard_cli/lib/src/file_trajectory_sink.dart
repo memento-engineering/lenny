@@ -2,7 +2,7 @@
 ///
 /// Lives outside `package:leonard_agent` because that library is
 /// web-compatible and must not import `dart:io`. Pairs with the
-/// DevTools-side DTD sink (cx6.21).
+/// DevTools-side DTD sink.
 library;
 
 import 'dart:convert';

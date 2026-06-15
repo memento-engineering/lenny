@@ -1,5 +1,4 @@
-/// Library entrypoint for the agent dogfood harness
-/// (bead lenny-cx6.43).
+/// Library entrypoint for the agent dogfood harness.
 ///
 /// Construction takes a caller-supplied [VmService] (the test wires it
 /// to a `BindingVmServiceFake` from `test/_support/`; the CLI does the
@@ -70,8 +69,7 @@ class _DiscardSink implements TrajectorySink {
 /// was thrown — the LoopDriver returned a typed termination). The
 /// harness wraps such a termination in this object so the
 /// `dogfood_footer.exception` field carries a human-readable string
-/// instead of `null`, mirroring how thrown exceptions surface
-/// (lenny-cx6.45).
+/// instead of `null`, mirroring how thrown exceptions surface.
 class _HarnessTerminationException implements Exception {
   _HarnessTerminationException(this.harnessError);
 
@@ -127,7 +125,7 @@ class AgentDogfoodHarness {
   /// `observationFixture: fixture` (the CLI runner does this; the
   /// e2e test does the same). The fixture body is wrapped in the
   /// binding's standard `{type: 'Observation', value: <body>}`
-  /// envelope before being returned to the agent (lenny-cx6.48).
+  /// envelope before being returned to the agent.
   final ObservationFixture fixture;
 
   /// Hard cap on loop iterations.
@@ -204,7 +202,7 @@ class AgentDogfoodHarness {
       // [TrajectoryWriter] in [_DogfoodInterceptingTrajectoryWriter]
       // so every `writeTurn(TurnRecord)` from the loop driver also
       // emits a `dogfood_turn` JSONL line on the caller-supplied sink
-      // via [DogfoodTraceWriter]. lenny-cx6.47.
+      // via [DogfoodTraceWriter].
       final _ThinkingAccumulator thinking = _ThinkingAccumulator();
       final _DogfoodInterceptingTrajectoryWriter interceptor =
           _DogfoodInterceptingTrajectoryWriter(
@@ -259,7 +257,7 @@ class AgentDogfoodHarness {
       // thrown-exception paths below) and the run's
       // `DogfoodRunResult.exception` carries the same text. The
       // termination's `harnessError` wire name is threaded into the
-      // footer's `harness_error` field separately. lenny-cx6.45.
+      // footer's `harness_error` field separately.
       if (term.harnessError != null) {
         capturedException = _HarnessTerminationException(term.harnessError!);
       }
@@ -315,7 +313,7 @@ class AgentDogfoodHarness {
       // (the LoopDriver returned a typed `harnessError` termination
       // rather than throwing), surface the wire name on the
       // `harness_error` footer field so post-mortem filtering can
-      // bucket by enum value (lenny-cx6.45).
+      // bucket by enum value.
       String? harnessErrorWire;
       final Object? exc = capturedException;
       if (exc is _HarnessTerminationException) {
@@ -353,7 +351,7 @@ class AgentDogfoodHarness {
 
   // Implementation note: the file-private classes
   // [_ThinkingAccumulator], [_DogfoodInterceptingTrajectoryWriter], and
-  // [_NoopSink] live below the class declaration (lenny-cx6.47).
+  // [_NoopSink] live below the class declaration.
 
   DogfoodOutcome _classify(SessionTermination t, int toolCalls) {
     if (t.harnessError == HarnessError.connectionLost) {
@@ -378,7 +376,7 @@ class AgentDogfoodHarness {
 /// Buckets [TurnThinking] deltas by turn index and surfaces a
 /// truncated excerpt on demand. Cleared on read so each
 /// [DogfoodTraceWriter.writeTurn] consumes only its own deltas.
-/// File-private to the dogfood harness (lenny-cx6.47).
+/// File-private to the dogfood harness.
 class _ThinkingAccumulator {
   final Map<int, StringBuffer> _byTurn = <int, StringBuffer>{};
 
@@ -404,10 +402,10 @@ class _ThinkingAccumulator {
 /// invariants (`header → turns* → footer`) stay unchanged. For every
 /// `writeTurn(TurnRecord)` call we additionally emit one
 /// `dogfood_turn` line on the caller-supplied [DogfoodTraceWriter].
-/// File-private to the dogfood harness (lenny-cx6.47); a
+/// File-private to the dogfood harness; a
 /// `@visibleForTesting` factory under [DogfoodInterceptingWriterForTesting]
 /// at the bottom of this file lets unit tests assert the JSONL shape
-/// without driving the full harness — used by lenny-9am to lock the
+/// without driving the full harness — used to lock the
 /// `provider_request_id` decision-map plumbing end to end.
 class _DogfoodInterceptingTrajectoryWriter extends TrajectoryWriter {
   _DogfoodInterceptingTrajectoryWriter({
@@ -531,7 +529,7 @@ Map<String, dynamic>? _observationSummary(TurnRecord t) {
 
 /// Compact prompt summary: the literal bytes sent to swift-infer are
 /// NOT on [TurnRecord] (full-prompt capture is intentionally out of
-/// scope for cx6.47). We serialize the observation top-level keys and
+/// scope). We serialize the observation top-level keys and
 /// the per-turn diff so post-mortem readers can see what changed each
 /// turn. Truncated to 2000 characters.
 String _summarisePrompt(TurnRecord t) {
@@ -570,7 +568,7 @@ class _NoopSink implements TrajectorySink {
 /// interceptor over a [DogfoodTraceWriter] writing to a memory sink
 /// and call `writeTurn(TurnRecord(..., providerRequestId: ...))`
 /// directly to assert the JSONL `decision.provider_request_id` shape
-/// (lenny-9am AC6 end-to-end).
+/// end-to-end.
 @visibleForTesting
 TrajectoryWriter debugDogfoodInterceptingTrajectoryWriterForTesting({
   required DogfoodTraceWriter trace,

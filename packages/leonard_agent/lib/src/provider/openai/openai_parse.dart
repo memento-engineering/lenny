@@ -14,7 +14,7 @@ import '../types.dart';
 ///
 /// Throws [SchemaRejection] when the response shape is malformed (no
 /// choices, no tool_calls, unparseable arguments) or when the chosen tool
-/// or its arguments fail schema validation. The loop driver (.18) owns
+/// or its arguments fail schema validation. The loop driver owns
 /// retry policy.
 ModelDecision parseOpenAiResponse(
   Map<String, dynamic> body, {
@@ -84,7 +84,7 @@ ModelDecision parseOpenAiResponse(
   validateToolArgs(tool, args);
 
   // Validate the composed envelope against the global ActionSchema so the
-  // returned decision matches .14's contract end-to-end.
+  // returned decision matches the ModelProvider contract end-to-end.
   final String envelope = jsonEncode(<String, dynamic>{
     'action': <String, dynamic>{'tool': tool.name, 'args': args},
   });

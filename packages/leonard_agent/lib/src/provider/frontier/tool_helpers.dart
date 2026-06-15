@@ -45,7 +45,7 @@ SchemaRejection unknownToolRejection(
 /// Validate [args] against [tool.inputSchema] using the same
 /// `package:json_schema` draft-07 path as `ActionSchema`.
 ///
-/// Throws [SchemaRejection] on mismatch — the caller (loop driver, .18)
+/// Throws [SchemaRejection] on mismatch — the caller (the loop driver)
 /// owns retry policy.
 void validateToolArgs(ToolDescriptor tool, Map<String, dynamic> args) {
   final result = JsonSchema.create(

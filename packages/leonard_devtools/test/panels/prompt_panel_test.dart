@@ -34,7 +34,7 @@ ModelCatalogState _state({
 
 Widget _host({
   required bool running,
-  required List<ExtensionManifestEntry> plugins,
+  required List<ExtensionManifestEntry> extensions,
   ModelCatalogState? modelsState,
   void Function(PromptPanelConfig)? onStart,
   VoidCallback? onStop,
@@ -51,7 +51,7 @@ Widget _host({
           _state(
             models: const [ResolvedModel(id: 'mlx', label: 'MLX')],
           ),
-      plugins: plugins,
+      extensions: extensions,
       running: running,
       onStart: onStart ?? (_) {},
       onStop: onStop ?? () {},
@@ -69,7 +69,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [ExtensionManifestEntry(namespace: 'router', tools: [])],
+        extensions: const [ExtensionManifestEntry(namespace: 'router', tools: [])],
       ),
     );
     await tester.pump();
@@ -88,8 +88,8 @@ void main() {
     }
   });
 
-  testWidgets('empty plugin list shows guide hint', (tester) async {
-    await tester.pumpWidget(_host(running: false, plugins: const []));
+  testWidgets('empty extension list shows guide hint', (tester) async {
+    await tester.pumpWidget(_host(running: false, extensions: const []));
     await tester.pump();
 
     expect(find.byKey(const Key('prompt.pluginsEmpty')), findsOneWidget);
@@ -98,7 +98,7 @@ void main() {
   testWidgets('Start with empty goal does not fire onStart', (tester) async {
     var calls = 0;
     await tester.pumpWidget(
-      _host(running: false, plugins: const [], onStart: (_) => calls++),
+      _host(running: false, extensions: const [], onStart: (_) => calls++),
     );
     await tester.pump();
 
@@ -115,7 +115,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [ExtensionManifestEntry(namespace: 'dio', tools: [])],
+        extensions: const [ExtensionManifestEntry(namespace: 'dio', tools: [])],
         onStart: (c) => cfg = c,
       ),
     );
@@ -133,7 +133,7 @@ void main() {
   });
 
   testWidgets('running disables inputs and shows Stop', (tester) async {
-    await tester.pumpWidget(_host(running: true, plugins: const []));
+    await tester.pumpWidget(_host(running: true, extensions: const []));
     await tester.pump();
 
     expect(find.byKey(const Key('prompt.stop')), findsOneWidget);
@@ -149,7 +149,7 @@ void main() {
   testWidgets('Stop fires onStop exactly once', (tester) async {
     var stops = 0;
     await tester.pumpWidget(
-      _host(running: true, plugins: const [], onStop: () => stops++),
+      _host(running: true, extensions: const [], onStop: () => stops++),
     );
     await tester.pump();
 
@@ -164,7 +164,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [],
+        extensions: const [],
         modelsState: _state(
           models: const [
             ResolvedModel(
@@ -184,7 +184,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [],
+        extensions: const [],
         modelsState: _state(
           models: const [ResolvedModel(id: 'unknown-model', label: 'Mystery')],
         ),
@@ -198,7 +198,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [],
+        extensions: const [],
         modelsState: _state(
           models: const [
             ResolvedModel(
@@ -220,7 +220,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        plugins: const [],
+        extensions: const [],
         modelsState: _state(error: 'boom'),
       ),
     );
@@ -238,7 +238,7 @@ void main() {
   testWidgets('reload button fires onReloadModels', (tester) async {
     var calls = 0;
     await tester.pumpWidget(
-      _host(running: false, plugins: const [], onReload: () => calls++),
+      _host(running: false, extensions: const [], onReload: () => calls++),
     );
     await tester.pump();
     // Open settings so the reload button is interactive.
@@ -256,7 +256,7 @@ void main() {
       await tester.pumpWidget(
         _host(
           running: false,
-          plugins: const [
+          extensions: const [
             ExtensionManifestEntry(namespace: 'router', tools: []),
             ExtensionManifestEntry(namespace: 'dio', tools: []),
           ],
@@ -290,13 +290,13 @@ void main() {
   );
 
   testWidgets('settings gear is present in composer row', (tester) async {
-    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pumpWidget(_host(running: false, extensions: const []));
     await tester.pump();
     expect(find.byKey(const Key('prompt.settingsGear')), findsOneWidget);
   });
 
   testWidgets('settings are collapsed by default', (tester) async {
-    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pumpWidget(_host(running: false, extensions: const []));
     await tester.pump();
     final crossFade = tester.widget<AnimatedCrossFade>(
       find.byType(AnimatedCrossFade),
@@ -305,7 +305,7 @@ void main() {
   });
 
   testWidgets('tapping gear opens settings section', (tester) async {
-    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pumpWidget(_host(running: false, extensions: const []));
     await tester.pump();
     await tester.tap(find.byKey(const Key('prompt.settingsGear')));
     await tester.pumpAndSettle();
@@ -316,7 +316,7 @@ void main() {
   });
 
   testWidgets('tapping gear again closes settings section', (tester) async {
-    await tester.pumpWidget(_host(running: false, plugins: const []));
+    await tester.pumpWidget(_host(running: false, extensions: const []));
     await tester.pump();
     await tester.tap(find.byKey(const Key('prompt.settingsGear')));
     await tester.pumpAndSettle();
@@ -342,7 +342,7 @@ void main() {
               valueListenable: configLoadedNotifier,
               builder: (_, configLoaded, __) => PromptPanel(
                 modelsState: _state(),
-                plugins: const [],
+                extensions: const [],
                 running: false,
                 onStart: (_) {},
                 onStop: () {},
@@ -392,7 +392,7 @@ void main() {
               valueListenable: configLoadedNotifier,
               builder: (_, configLoaded, __) => PromptPanel(
                 modelsState: _state(),
-                plugins: const [],
+                extensions: const [],
                 running: false,
                 onStart: (_) {},
                 onStop: () {},
@@ -432,7 +432,7 @@ void main() {
               modelsState: _state(
                 models: const [ResolvedModel(id: 'mlx', label: 'MLX')],
               ),
-              plugins: const [
+              extensions: const [
                 ExtensionManifestEntry(namespace: 'router', tools: []),
               ],
               running: false,

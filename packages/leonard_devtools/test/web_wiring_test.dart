@@ -1,4 +1,4 @@
-/// Regression test for lenny-dzh: the DevTools Prompt tab must load its
+/// Regression test: the DevTools Prompt tab must load its
 /// extension manifest by reusing an already-connected `VmService` (via
 /// `probeManifest` → `VmServiceClient.fromVmService`), never by opening
 /// its own `vm_service_io` connection — which crashes on web with

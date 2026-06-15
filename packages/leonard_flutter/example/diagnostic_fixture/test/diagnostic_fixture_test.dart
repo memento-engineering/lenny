@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const String _diagnosticsExt = 'ext.exploration.core.diagnostics_warnings';
 
-/// Integration test for the cx6.10 connect-time diagnostic. Drives the
+/// Integration test for the connect-time diagnostic. Drives the
 /// fixture's [HitScreen] / [CleanScreen] through the production
 /// [LeonardBinding] and asserts the wire payload returned by
 /// `ext.exploration.core.diagnostics_warnings`.

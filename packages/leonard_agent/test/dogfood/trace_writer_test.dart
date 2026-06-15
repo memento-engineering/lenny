@@ -1,4 +1,4 @@
-/// Unit tests for [DogfoodTraceWriter] (bead lenny-cx6.43, step 4).
+/// Unit tests for [DogfoodTraceWriter].
 library;
 
 import 'dart:convert';
@@ -158,7 +158,7 @@ void main() {
     });
 
     test('footer carries recovery_error when supplied', () async {
-      // Regression for lenny-cx6.44 AC5: the original exception must
+      // Regression: the original exception must
       // not be displaced by a secondary recovery error — both surface
       // as distinct fields on the footer line.
       final sink = _MemorySink();

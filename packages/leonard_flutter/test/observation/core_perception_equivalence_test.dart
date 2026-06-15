@@ -44,9 +44,9 @@ Map<String, Object?> _harvestCoreFragment(Seed seed) {
   }
 }
 
-/// Core lives at the response TOP LEVEL (not under `plugins`), so the
+/// Core lives at the response TOP LEVEL (not under `extensions`), so the
 /// equivalence wrapper carries the four core keys directly and an empty
-/// `plugins` map on both sides.
+/// `extensions` map on both sides.
 Map<String, Object?> _wrap(Map<String, Object?> coreFrag) => <String, Object?>{
   'semantics': coreFrag['semantics'] ?? <Object?>[],
   'routes': coreFrag['routes'] ?? <Object?>[],

@@ -24,16 +24,15 @@ const kAnthropicVisionModels = <String>{'claude-sonnet-4-6', 'claude-opus-4-6'};
 /// `dart:io`.
 ///
 /// Hosts the SHARED frontier helpers (`FrontierDefaults`, `VisionImage`,
-/// `validateToolArgs`, `lookupTool`) consumed by the OpenAI provider
-/// (.37).
+/// `validateToolArgs`, `lookupTool`) consumed by the OpenAI provider.
 ///
 /// Streaming: SSE-decodes the response so Anthropic-native
 /// `thinking_delta` events surface live on [thinking] via the shared
-/// [ThinkingSseDecoder] (cx6.49). Tool calls are accumulated from
+/// [ThinkingSseDecoder]. Tool calls are accumulated from
 /// `input_json_delta` events.
 ///
 /// Retry contract: throws [SchemaRejection] on a malformed response;
-/// the loop driver (.18) owns retry policy per .14's contract.
+/// the loop driver owns retry policy per the ModelProvider contract.
 class AnthropicModelProvider implements ModelProvider {
   AnthropicModelProvider({
     required this.model,
@@ -125,7 +124,7 @@ class AnthropicModelProvider implements ModelProvider {
           'type': 'text',
           'text': 'Diff since last turn:\n${jsonEncode(turn.diff.toJson())}',
         });
-        // Vision gate (defensive — host gate is in cx6.7; provider
+        // Vision gate (defensive — host gate is upstream; provider
         // re-checks capability so trajectory-replay or test injection
         // can't smuggle an image through a vision-blind model).
         final String? shot = turn.observation.screenshot;
@@ -184,7 +183,7 @@ class AnthropicModelProvider implements ModelProvider {
         // requests by default (CORS preflight has no Access-Control-Allow-Origin).
         // This opt-in header makes Anthropic answer the preflight. No-op on
         // native (CLI) runs. It ships the key to the browser — the durable fix
-        // is to run provider HTTP app-side over the VM service (see lenny-vgu8).
+        // is to run provider HTTP app-side over the VM service.
         'anthropic-dangerous-direct-browser-access': 'true',
       })
       ..body = jsonEncode(body);

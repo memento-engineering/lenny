@@ -1,6 +1,6 @@
 /// Value types for the dogfood harness. Library-internal: not exported
 /// from `lib/leonard_agent.dart` per the harness's "private until
-/// the pattern proves itself" policy (bead lenny-cx6.43).
+/// the pattern proves itself" policy.
 library;
 
 import 'package:meta/meta.dart';

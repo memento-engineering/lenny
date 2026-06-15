@@ -122,7 +122,7 @@ void main() {
 
   testWidgets(
     'nested rows get distinct device-space rects; stacked SwitchListTiles are '
-    'captured as actionable switch nodes at DPR>1 (lenny-a3s)',
+    'captured as actionable switch nodes at DPR>1',
     (WidgetTester tester) async {
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetDevicePixelRatio);

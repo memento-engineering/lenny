@@ -57,7 +57,7 @@ void main() {
     );
   });
 
-  test('core.handshake payload carries the plugins manifest', () async {
+  test('core.handshake payload carries the extensions manifest', () async {
     final String raw = await binding.invokeServiceExtension(
       'ext.exploration.core.handshake',
       const <String, String>{},
@@ -67,9 +67,9 @@ void main() {
     expect(json['bindingType'], 'LeonardBinding');
     expect(json['flutterMode'], 'debug');
     expect(json['extensionCount'], 1);
-    final List<dynamic> plugins = json['extensions'] as List<dynamic>;
+    final List<dynamic> extensions = json['extensions'] as List<dynamic>;
     final Map<String, List<String>> byNs = <String, List<String>>{
-      for (final dynamic p in plugins)
+      for (final dynamic p in extensions)
         (p as Map)['namespace'] as String: (p['tools'] as List).cast<String>(),
     };
     expect(byNs.keys, containsAll(<String>['core', 'router']));

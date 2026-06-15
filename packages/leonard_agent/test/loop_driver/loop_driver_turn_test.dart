@@ -198,7 +198,7 @@ Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
       buildIdentifier: 'build',
       modelIdentifier: 'fake',
       harnessVersion: '0.1',
-      plugins: <ExtensionManifestRecord>[],
+      extensions: <ExtensionManifestRecord>[],
       config: <String, dynamic>{},
     ),
   );
@@ -209,7 +209,7 @@ Observation _emptyObs() => Observation.empty();
 
 Observation _obsWithStability(String terminatedBy) => Observation(
   core: CoreFragment.empty,
-  plugins: const <String, ExtensionFragment>{},
+  extensions: const <String, ExtensionFragment>{},
   stability: StabilityMetadata(
     policy: 'action_relative',
     terminatedBy: terminatedBy,
@@ -222,7 +222,7 @@ Observation _obsWithStability(String terminatedBy) => Observation(
 Observation _obsWithExtensions(Map<String, Map<String, dynamic>> frags) =>
     Observation(
       core: CoreFragment.empty,
-      plugins: <String, ExtensionFragment>{
+      extensions: <String, ExtensionFragment>{
         for (final e in frags.entries)
           e.key: ExtensionFragment(
             namespace: e.key,
@@ -301,7 +301,7 @@ void main() {
     });
 
     test(
-      'failed action: error carries forward as toolResult on next turn (lenny-jfh / lenny-wisp-cl4)',
+      'failed action: error carries forward as toolResult on next turn',
       () async {
         final sink = _MemorySink();
         final writer = await _newWriter(sink);
@@ -465,7 +465,7 @@ void main() {
     });
 
     test(
-      'plugin observation error increments tracker; no auto-disable yet',
+      'extension observation error increments tracker; no auto-disable yet',
       () async {
         final sink = _MemorySink();
         final writer = await _newWriter(sink);
@@ -496,7 +496,7 @@ void main() {
       },
     );
 
-    test('three plugin observation errors auto-disable that plugin', () async {
+    test('three extension observation errors auto-disable that extension', () async {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       final tools = <ToolDescriptor>[
@@ -557,7 +557,7 @@ void main() {
     });
 
     test(
-      'successful plugin observation between failures resets the counter',
+      'successful extension observation between failures resets the counter',
       () async {
         final sink = _MemorySink();
         final writer = await _newWriter(sink);
@@ -607,17 +607,17 @@ void main() {
   });
 
   group(
-    'LoopDriver._accountExtensionStrikes core-namespace exemption (lenny-4jn)',
+    'LoopDriver._accountExtensionStrikes core-namespace exemption',
     () {
       test(
-        'core is never disabled even after 4 turns with no curr.plugins[core]',
+        'core is never disabled even after 4 turns with no curr.extensions[core]',
         () async {
           final sink = _MemorySink();
           final writer = await _newWriter(sink);
-          // 'core' is in activeExtensionNamespaces; curr.plugins never has 'core'.
+          // 'core' is in activeExtensionNamespaces; curr.extensions never has 'core'.
           // 'dio' is also active but always absent from extensions — a healthy extension
           // that simply has nothing to report (no in-flight/recent requests), NOT
-          // a failure (lenny-jox).
+          // a failure.
           final host = _FakeHost(
             observations: List.generate(
               6,
@@ -657,7 +657,7 @@ void main() {
             isNot(contains('core')),
             reason:
                 'core must never be auto-disabled regardless of how many '
-                'turns pass without a curr.plugins[core] entry',
+                'turns pass without a curr.extensions[core] entry',
           );
           expect(
             host.mergedTools().map((t) => t.name),
@@ -668,10 +668,9 @@ void main() {
             host.disabledExtensions,
             isNot(contains('dio')),
             reason:
-                'a plugin that is merely absent from curr.plugins (null '
+                'an extension that is merely absent from curr.extensions (null '
                 'fragment = nothing to report) is healthy and must NOT be '
-                'auto-disabled; only an explicit error fragment is a strike '
-                '(lenny-jox)',
+                'auto-disabled; only an explicit error fragment is a strike',
           );
         },
       );

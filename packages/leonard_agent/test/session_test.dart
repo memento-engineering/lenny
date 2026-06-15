@@ -48,13 +48,13 @@ VmServiceClient _clientWith(
 
 VmServiceClient _handshakeOnlyClient({
   String contractVersion = '1.0.0',
-  List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
+  List<Map<String, dynamic>> extensions = const <Map<String, dynamic>>[],
 }) {
   return _clientWith((method, iso, args) async {
     if (method == 'ext.exploration.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': contractVersion,
-        'extensions': plugins,
+        'extensions': extensions,
       });
     }
     return _resp(<String, dynamic>{});
@@ -66,7 +66,7 @@ void main() {
     test('start performs handshake and emits SessionStarted', () async {
       final session = LeonardSession.forTest(
         _handshakeOnlyClient(
-          plugins: <Map<String, dynamic>>[
+          extensions: <Map<String, dynamic>>[
             <String, dynamic>{
               'namespace': 'router',
               'tools': <String>['router.go'],
@@ -79,7 +79,7 @@ void main() {
       await session.start('login', const LeonardConfig());
 
       expect(session.handshake.contractVersion, equals('1.0.0'));
-      expect(session.handshake.plugins.first.namespace, equals('router'));
+      expect(session.handshake.extensions.first.namespace, equals('router'));
 
       final event = await firstEvent.timeout(const Duration(seconds: 1));
       expect(event, isA<SessionStarted>());

@@ -2,7 +2,7 @@ import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// The on-device bug (lenny-whn): on a cold start the first semantics read
+// The on-device bug: on a cold start the first semantics read
 // races the flush that `ensureSemantics()` only schedules, so the root is
 // momentarily null. The `flutter_test` harness cannot reproduce that race —
 // after layout its semantics root is always synchronously available (a fresh

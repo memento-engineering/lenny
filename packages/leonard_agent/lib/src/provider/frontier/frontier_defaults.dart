@@ -1,6 +1,6 @@
 /// Tighter defaults for hosted frontier models. PRD §16.4.
 ///
-/// Consumed by `AnthropicModelProvider` (.36) and `OpenAiModelProvider` (.37).
+/// Consumed by `AnthropicModelProvider` and `OpenAiModelProvider`.
 /// Frontier models warrant lower temperature, smaller observation budgets,
 /// and tighter retry budgets versus the local Qwen3.6 path.
 class FrontierDefaults {
@@ -13,7 +13,7 @@ class FrontierDefaults {
   /// Maximum bytes of observation context per turn.
   static const int maxObservationBytes = 6144;
 
-  /// Maximum retries per turn (loop driver-owned per .14).
+  /// Maximum retries per turn (loop driver-owned).
   static const int maxRetries = 1;
 
   const FrontierDefaults._();

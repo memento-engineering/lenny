@@ -1,5 +1,4 @@
-/// JSONL trace writer adapter for the dogfood harness
-/// (bead lenny-cx6.43).
+/// JSONL trace writer adapter for the dogfood harness.
 ///
 /// Thin wrapper that turns per-turn dogfood events into JSONL lines on
 /// a caller-supplied `TrajectorySink`. The dogfood shape is distinct
@@ -99,7 +98,7 @@ class DogfoodTraceWriter {
   /// `harnessError` (e.g. `connection_lost`, `agent_stuck`); the
   /// human-readable text remains on [exception] so existing readers
   /// stay unchanged, and the enum value lives on `harness_error` for
-  /// filterability (lenny-cx6.45). [recoveryError] is the secondary
+  /// filterability. [recoveryError] is the secondary
   /// exception (if any) raised from the harness's own cleanup path —
   /// surfaced separately so downstream readers can distinguish "the
   /// run failed because X" from "the run failed because X and

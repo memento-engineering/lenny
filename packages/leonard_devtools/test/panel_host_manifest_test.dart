@@ -54,8 +54,8 @@ void main() {
     expect(recorder.calls, 1);
     final value = hostKey.currentState!.manifest.value;
     expect(value, isA<ManifestProbeLoaded>());
-    expect((value as ManifestProbeLoaded).plugins, hasLength(1));
-    expect(value.plugins.first.namespace, 'router');
+    expect((value as ManifestProbeLoaded).extensions, hasLength(1));
+    expect(value.extensions.first.namespace, 'router');
   });
 
   testWidgets(
@@ -119,7 +119,7 @@ void main() {
     // B has already resolved.
     final v = hostKey.currentState!.manifest.value;
     expect(v, isA<ManifestProbeLoaded>());
-    expect((v as ManifestProbeLoaded).plugins.single.namespace, 'dio');
+    expect((v as ManifestProbeLoaded).extensions.single.namespace, 'dio');
 
     // Late completion of A must NOT clobber B.
     completerA.complete(const [
@@ -129,6 +129,6 @@ void main() {
 
     final after = hostKey.currentState!.manifest.value;
     expect(after, isA<ManifestProbeLoaded>());
-    expect((after as ManifestProbeLoaded).plugins.single.namespace, 'dio');
+    expect((after as ManifestProbeLoaded).extensions.single.namespace, 'dio');
   });
 }

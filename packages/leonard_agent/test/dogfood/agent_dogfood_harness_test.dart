@@ -1,4 +1,4 @@
-/// Unit tests for [AgentDogfoodHarness] (bead lenny-cx6.43, step 5).
+/// Unit tests for [AgentDogfoodHarness].
 ///
 /// These tests do NOT exercise swift-infer — that is the role of
 /// `test/e2e/dogfood_e2e_test.dart`. Here we wire stub `VmService`s to
@@ -57,8 +57,7 @@ class _HangingVmService extends VmService {
 /// (which calls `ext.exploration.core.handshake`) and into
 /// the LoopDriver's per-turn observation pull, which hangs until the
 /// per-turn budget trips. Used to assert that the original failure
-/// surfaces — not the historic `StateError: writeHeader must precede`
-/// (lenny-cx6.44 step 1 fix).
+/// surfaces — not the historic `StateError: writeHeader must precede`.
 class _HandshakeOkThenHangingVmService extends VmService {
   _HandshakeOkThenHangingVmService()
     : super(const Stream<dynamic>.empty(), (_) {});
@@ -93,7 +92,7 @@ class _HandshakeOkThenHangingVmService extends VmService {
 /// `harnessError = connectionLost` termination. Used to assert the
 /// harness surfaces the HarnessError name in both
 /// `DogfoodRunResult.exception` and the JSONL footer's
-/// `exception`/`harness_error` fields (lenny-cx6.45).
+/// `exception`/`harness_error` fields.
 class _HandshakeOkThenTransportRpcErrorVmService extends VmService {
   _HandshakeOkThenTransportRpcErrorVmService()
     : super(const Stream<dynamic>.empty(), (_) {});
@@ -273,7 +272,7 @@ void main() {
     test(
       'failed turn does not mask original error with StateError',
       () async {
-        // Regression for lenny-cx6.44: when LoopDriver.runTurn enters its
+        // Regression: when LoopDriver.runTurn enters its
         // failure branch and writes through its own TrajectoryWriter, the
         // header invariant used to trip with
         // `StateError: writeHeader must precede turns/events`, masking the
@@ -319,7 +318,7 @@ void main() {
 
     test('harnessError termination surfaces exception text and harness_error '
         'footer field', () async {
-      // Regression for lenny-cx6.45: when the LoopDriver returns a
+      // Regression: when the LoopDriver returns a
       // typed `harnessError`-shaped SessionTermination (rather than
       // throwing), the harness must synthesize a sentinel exception so
       // `DogfoodRunResult.exception` and the JSONL footer's `exception`
@@ -361,7 +360,7 @@ void main() {
     test(
       'dogfood_turn line emitted on turn_timeout failed-turn path',
       () async {
-        // Regression for lenny-cx6.47: the harness must call
+        // Regression: the harness must call
         // DogfoodTraceWriter.writeTurn for every LoopDriver turn — even
         // failed turns. _HandshakeOkThenHangingVmService lets the
         // handshake succeed and then hangs every subsequent call. The
@@ -529,7 +528,7 @@ void main() {
     // exposed at the bottom of agent_dogfood_harness.dart to drive the
     // exact same writer the harness wires into the LoopDriver — proving
     // that a TurnRecord carrying providerRequestId surfaces on the
-    // dogfood_turn.decision wire shape (lenny-9am AC6).
+    // dogfood_turn.decision wire shape.
 
     TurnRecord buildTurn({String? providerRequestId}) => TurnRecord(
       index: 0,
@@ -567,7 +566,7 @@ void main() {
           buildIdentifier: 'test',
           modelIdentifier: 'qwen3.6',
           harnessVersion: 'test',
-          plugins: <ExtensionManifestRecord>[],
+          extensions: <ExtensionManifestRecord>[],
           config: <String, dynamic>{},
         ),
       );
@@ -596,7 +595,7 @@ void main() {
           buildIdentifier: 'test',
           modelIdentifier: 'qwen3.6',
           harnessVersion: 'test',
-          plugins: <ExtensionManifestRecord>[],
+          extensions: <ExtensionManifestRecord>[],
           config: <String, dynamic>{},
         ),
       );

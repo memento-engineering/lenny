@@ -120,13 +120,13 @@ void main() {
       beforeSeq + 1,
       reason: 'ring buffer must record',
     );
-    expect(firstCalls, hasLength(1), reason: 'first plugin handler must run');
+    expect(firstCalls, hasLength(1), reason: 'first extension handler must run');
     expect(
       thirdCalls,
       hasLength(1),
       reason:
-          'thrower plugin handler exception must not block subsequent '
-          'plugin handlers',
+          'thrower extension handler exception must not block subsequent '
+          'extension handlers',
     );
   });
 

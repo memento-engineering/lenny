@@ -73,11 +73,11 @@ class SessionHeader implements TrajectoryRecord {
   final String buildIdentifier;
   final String modelIdentifier;
   final String harnessVersion;
-  final List<ExtensionManifestRecord> plugins;
+  final List<ExtensionManifestRecord> extensions;
   final Map<String, dynamic> config;
 
-  /// Trajectory schema version. New writers emit 2 (chat-shape rebuild,
-  /// lenny-wisp-cl4: `TurnRecord.thinking` replaces `summary_update`,
+  /// Trajectory schema version. New writers emit 2 (chat-shape rebuild:
+  /// `TurnRecord.thinking` replaces `summary_update`,
   /// `SessionFooter.final_summary` dropped). v1 readers tolerate the
   /// new shape; v2 readers tolerate v1 by defaulting absent fields.
   final int schemaVersion;
@@ -88,7 +88,7 @@ class SessionHeader implements TrajectoryRecord {
     required this.buildIdentifier,
     required this.modelIdentifier,
     required this.harnessVersion,
-    required this.plugins,
+    required this.extensions,
     required this.config,
     this.schemaVersion = 2,
   });
@@ -99,7 +99,7 @@ class SessionHeader implements TrajectoryRecord {
     buildIdentifier: j['build_identifier'] as String,
     modelIdentifier: j['model_identifier'] as String,
     harnessVersion: j['harness_version'] as String,
-    plugins: [
+    extensions: [
       for (final p in (j['extensions'] as List? ?? const []))
         ExtensionManifestRecord.fromJson(p as Map<String, dynamic>),
     ],
@@ -115,7 +115,7 @@ class SessionHeader implements TrajectoryRecord {
     'build_identifier': buildIdentifier,
     'model_identifier': modelIdentifier,
     'harness_version': harnessVersion,
-    'extensions': plugins.map((p) => p.toJson()).toList(),
+    'extensions': extensions.map((p) => p.toJson()).toList(),
     'config': config,
   };
 }

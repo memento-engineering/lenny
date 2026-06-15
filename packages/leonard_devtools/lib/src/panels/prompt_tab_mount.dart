@@ -31,7 +31,7 @@ import 'provider_config_store.dart';
 class PromptTabMount extends StatefulWidget {
   const PromptTabMount({
     super.key,
-    required this.plugins,
+    required this.extensions,
     required this.store,
     required this.catalog,
     required this.controllerFactory,
@@ -42,7 +42,7 @@ class PromptTabMount extends StatefulWidget {
   });
 
   /// Extension manifest from the binding handshake.
-  final List<ExtensionManifestEntry> plugins;
+  final List<ExtensionManifestEntry> extensions;
 
   /// Per-provider config persistence.
   final ProviderConfigStore store;
@@ -101,7 +101,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
       await _refresh(reload: false);
     }
     if (!mounted) return;
-    final liveNamespaces = widget.plugins.map((p) => p.namespace).toSet();
+    final liveNamespaces = widget.extensions.map((p) => p.namespace).toSet();
     final promptCfg = await widget.promptConfigStore.load(
       liveNamespaces: liveNamespaces,
     );
@@ -173,7 +173,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
     unawaited(
       widget.promptConfigStore.save(
         cfg,
-        knownNamespaces: widget.plugins.map((p) => p.namespace).toSet(),
+        knownNamespaces: widget.extensions.map((p) => p.namespace).toSet(),
       ),
     );
     _stoppedByUser = false;
@@ -249,7 +249,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
         valueListenable: _state,
         builder: (context, state, _) => PromptPanel(
           modelsState: state,
-          plugins: widget.plugins,
+          extensions: widget.extensions,
           running: _running,
           onStart: _onStart,
           onStop: _onStop,

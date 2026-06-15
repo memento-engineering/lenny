@@ -1,8 +1,8 @@
 /// Single-call typed observation puller.
 ///
 /// Wraps [VmServiceClient.callExtension] to make exactly one VM-service
-/// call to `ext.exploration.core.get_stable_observation` (cx6.8)
-/// and deserializes the response into a typed [Observation] (cx6.12).
+/// call to `ext.exploration.core.get_stable_observation`
+/// and deserializes the response into a typed [Observation].
 ///
 /// Stays internal to `package:leonard_agent` — only the public
 /// [StabilityPolicy] enum is exported. Consumers reach the puller
@@ -12,7 +12,7 @@ library;
 import '../observation/models.dart';
 import '../vm_service_client.dart';
 
-/// Service-extension method we invoke (PRD §10 step 4, cx6.8).
+/// Service-extension method we invoke (PRD §10 step 4).
 const String _kExtGetStableObservation =
     'ext.exploration.core.get_stable_observation';
 

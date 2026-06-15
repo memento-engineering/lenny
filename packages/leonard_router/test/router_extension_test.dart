@@ -6,10 +6,10 @@ import 'package:genesis_perception/genesis_perception.dart';
 
 /// Harvest the router extension's observation fragment via the perception path,
 /// exactly as the binding's single observation loop does.
-Map<String, Object?> _harvest(RouterExtension plugin) {
+Map<String, Object?> _harvest(RouterExtension extension) {
   final PerceptionOwner owner = PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(plugin.buildPerception());
+    final Branch root = owner.mountRoot(extension.buildPerception());
     return serializePerceptionFragment(root);
   } finally {
     owner.dispose();
@@ -98,7 +98,7 @@ void main() {
     expect(r.error, contains('/nope'));
   });
 
-  test('navigate uses the navigation seam when provided (lenny-18q)', () async {
+  test('navigate uses the navigation seam when provided', () async {
     String? gotName;
     Map<String, Object?>? gotArgs;
     final p = RouterExtension(

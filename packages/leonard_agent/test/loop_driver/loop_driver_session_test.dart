@@ -146,7 +146,7 @@ Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
       buildIdentifier: 'build',
       modelIdentifier: 'fake',
       harnessVersion: '0.1',
-      plugins: <ExtensionManifestRecord>[],
+      extensions: <ExtensionManifestRecord>[],
       config: <String, dynamic>{},
     ),
   );
@@ -323,18 +323,18 @@ void main() {
         final t = await driver.runSession();
         expect(t.outcome, SessionOutcome.done);
         // SessionTermination.finalSummary still captures the core.done
-        // reason on the structured return value (lenny-wisp-cl4 keeps the
-        // field on the termination type; only the trajectory footer JSON
+        // reason on the structured return value (the chat-shape rebuild keeps
+        // the field on the termination type; only the trajectory footer JSON
         // drops the final_summary key in v2).
         expect(t.finalSummary, 'login complete');
         final footer = _lastFooter(sink);
         expect(footer['outcome'], 'done');
-        // v2 (lenny-wisp-cl4): final_summary key removed from footer JSON.
+        // v2: final_summary key removed from footer JSON.
         expect(footer.containsKey('final_summary'), isFalse);
       },
     );
 
-    test('plugin auto-disable does NOT terminate session', () async {
+    test('extension auto-disable does NOT terminate session', () async {
       final sink = _MemorySink();
       final writer = await _newWriter(sink);
       // For 3 turns: router fragment carries an error. After that the
@@ -347,7 +347,7 @@ void main() {
           if (turn <= 3) {
             return Observation(
               core: CoreFragment.empty,
-              plugins: <String, ExtensionFragment>{
+              extensions: <String, ExtensionFragment>{
                 'router': ExtensionFragment(
                   namespace: 'router',
                   data: <String, dynamic>{'error': 'boom'},

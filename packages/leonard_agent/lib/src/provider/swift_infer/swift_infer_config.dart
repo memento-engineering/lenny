@@ -6,7 +6,7 @@
 /// Vision (`enableVision`) defaults to `false` until swift-infer's VLM
 /// endpoint is verified end-to-end. When `false`, the provider strips
 /// image content blocks from outgoing requests and reports
-/// `ModelCapabilities.vision = false` so the loop driver (.18) can
+/// `ModelCapabilities.vision = false` so the loop driver can
 /// skip screenshot capture without provider-specific branching.
 ///
 /// Wire-contract parity with `fs agent` (factoryskills' agent

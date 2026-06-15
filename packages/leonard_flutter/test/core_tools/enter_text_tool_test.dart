@@ -54,7 +54,7 @@ void main() {
 
   testWidgets(
     'core.enter_text coerces a string node_id ("5") to int — regression: '
-    'qwen-mlx emits integer args as JSON strings (lenny-cx6.50)',
+    'qwen-mlx emits integer args as JSON strings',
     (WidgetTester tester) async {
       final SemanticsHandle h = tester.ensureSemantics();
       final TextEditingController ctrl = TextEditingController();
@@ -101,7 +101,7 @@ void main() {
 
   testWidgets(
     'core.enter_text resolves the EditableText at devicePixelRatio>1 '
-    '(regression: physical-px target rect vs logical-px render boxes, lenny-8k3)',
+    '(regression: physical-px target rect vs logical-px render boxes)',
     (WidgetTester tester) async {
       // DPR>1 makes physical != logical. globalRectOf returns physical px while
       // resolveEditableText intersects against logical localToGlobal rects, so

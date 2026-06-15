@@ -1,5 +1,5 @@
-/// Regression test for lenny-cx6.46 (originally agent-side; moved to
-/// leonard_flutter under lenny-imr alongside the hoisted fake).
+/// Regression test (originally agent-side; moved to
+/// leonard_flutter alongside the hoisted fake).
 ///
 /// Proves that [BindingVmServiceFake] routes by
 /// `extensionRegistry.mergedTools()` and not by the literal
@@ -15,7 +15,7 @@
 ///     `ext.exploration.` still throws
 ///     `RPCError(..., -32601, ...)`.
 ///
-/// Fixture-serving paths (lenny-cx6.48) are also covered, using a
+/// Fixture-serving paths are also covered, using a
 /// file-local minimal duck-typed body holder (`_FakeFixture`) instead
 /// of `package:leonard_agent/src/dogfood/observation_fixture.dart`
 /// — leonard_flutter cannot depend on leonard_agent, and the
@@ -137,7 +137,7 @@ void main() {
         tap.invoked,
         isTrue,
         reason:
-            'plugin tool must be reached when its <ns>.<tool> '
+            'extension tool must be reached when its <ns>.<tool> '
             'suffix is in mergedTools()',
       );
       expect(tap.lastArgs, <String, Object?>{'x': 0.1, 'y': 0.2});
@@ -161,7 +161,7 @@ void main() {
       'Observation',
       reason:
           'binding-owned observation envelope must come from '
-          'invokeServiceExtension, not the plugin path',
+          'invokeServiceExtension, not the extension path',
     );
     expect(r.json!.containsKey('value'), isTrue);
   });
@@ -173,7 +173,7 @@ void main() {
     );
   });
 
-  group('observation fixture serving (lenny-cx6.48)', () {
+  group('observation fixture serving', () {
     test('returns fixture body wrapped in Observation envelope when '
         'fixture is supplied', () async {
       final Map<String, dynamic> body = <String, dynamic>{
@@ -207,7 +207,7 @@ void main() {
     });
 
     test('fixture short-circuit does not affect other extension routes — '
-        'plugin tool still reaches invokeExtensionTool', () async {
+        'extension tool still reaches invokeExtensionTool', () async {
       // Reuse the `core.tap` extension tool wired in setUpAll. Construct
       // a fixture-armed fake and prove the fixture is irrelevant for
       // non-observation methods: `core.tap` still routes via the

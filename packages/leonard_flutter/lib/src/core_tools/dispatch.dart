@@ -275,7 +275,6 @@ ToolResult? requireField(
   // history, yet it does not adapt), so coercing here is more robust than
   // rejecting. We mutate `args` in place to the schema's expected numeric
   // type so downstream reads (`args[key]! as int`) succeed unchanged.
-  // See lenny-cx6.50.
   if (type == num) {
     if (v is num) return null;
     final num? c = _coerceNum(v);
@@ -315,7 +314,7 @@ ToolResult? requireField(
 /// Accepts an actual `int`, a whole-valued finite `double` (`5.0`), or a
 /// numeric string (`"5"`, `"5.0"`). Returns `null` when the value cannot
 /// losslessly represent an integer (e.g. `"5.5"`, `"abc"`). See
-/// [requireField] / lenny-cx6.50.
+/// [requireField].
 int? _coerceInt(Object? v) {
   if (v is int) return v;
   if (v is double && v.isFinite && v == v.roundToDouble()) return v.toInt();

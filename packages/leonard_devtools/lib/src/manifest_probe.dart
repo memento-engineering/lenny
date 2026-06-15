@@ -22,8 +22,8 @@ class ManifestProbeLoading extends ManifestProbeResult {
 
 /// Probe succeeded; [extensions] is the active extension manifest (possibly empty).
 class ManifestProbeLoaded extends ManifestProbeResult {
-  const ManifestProbeLoaded(this.plugins);
-  final List<ExtensionManifestEntry> plugins;
+  const ManifestProbeLoaded(this.extensions);
+  final List<ExtensionManifestEntry> extensions;
 }
 
 /// Probe could not run because the target app has no
@@ -62,5 +62,5 @@ Future<List<ExtensionManifestEntry>> probeManifest(
 ) async {
   final client = VmServiceClient.fromVmService(vm, isolateId);
   final result = await client.handshake();
-  return result.plugins;
+  return result.extensions;
 }

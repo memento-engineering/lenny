@@ -1,7 +1,7 @@
 /// Typed harness-side mirror of the observation bundle returned by
 /// `ext.exploration.core.get_stable_observation` (PRD §11.1, §11.3).
 ///
-/// The wire format produced by the binding (cx6.8) is:
+/// The wire format produced by the binding is:
 /// ```json
 /// {
 ///   "semantics": [ {id, role, label?, state?, actions?, rect}, ... ],
@@ -30,7 +30,7 @@ import 'package:meta/meta.dart';
 class Observation {
   const Observation({
     required this.core,
-    required this.plugins,
+    required this.extensions,
     required this.stability,
     this.screenshot,
   });
@@ -38,7 +38,7 @@ class Observation {
   /// Empty prior used as the "previous observation" on the first turn.
   factory Observation.empty() => Observation(
     core: CoreFragment.empty,
-    plugins: const <String, ExtensionFragment>{},
+    extensions: const <String, ExtensionFragment>{},
     stability: StabilityMetadata.empty,
   );
 
@@ -83,12 +83,12 @@ class Observation {
       errors: List<RuntimeError>.unmodifiable(errors),
     );
 
-    final Map<String, ExtensionFragment> plugins =
+    final Map<String, ExtensionFragment> extensions =
         <String, ExtensionFragment>{};
     if (rawExtensions is Map) {
       rawExtensions.forEach((Object? k, Object? v) {
         if (k is! String) return;
-        plugins[k] = ExtensionFragment.fromJson(k, v);
+        extensions[k] = ExtensionFragment.fromJson(k, v);
       });
     }
 
@@ -100,7 +100,7 @@ class Observation {
 
     return Observation(
       core: core,
-      plugins: Map<String, ExtensionFragment>.unmodifiable(plugins),
+      extensions: Map<String, ExtensionFragment>.unmodifiable(extensions),
       stability: stability,
       screenshot: screenshot,
     );
@@ -110,22 +110,22 @@ class Observation {
   final CoreFragment core;
 
   /// Extension fragments keyed by namespace.
-  final Map<String, ExtensionFragment> plugins;
+  final Map<String, ExtensionFragment> extensions;
 
   /// Stability metadata block from the binding.
   final StabilityMetadata stability;
 
   /// Optional base64-encoded PNG screenshot. Present only when the binding
-  /// reports `screenshot_png_b64` (cx6.7). Carried through to providers
+  /// reports `screenshot_png_b64`. Carried through to providers
   /// gated on `capabilities.vision`.
   final String? screenshot;
 
   Map<String, dynamic> toJson() {
-    final List<String> sortedKeys = plugins.keys.toList()..sort();
+    final List<String> sortedKeys = extensions.keys.toList()..sort();
     return <String, dynamic>{
       'core': core.toJson(),
       'extensions': <String, dynamic>{
-        for (final String k in sortedKeys) k: plugins[k]!.toJson(),
+        for (final String k in sortedKeys) k: extensions[k]!.toJson(),
       },
       'stability': stability.toJson(),
       if (screenshot != null) 'screenshot_png_b64': screenshot,
@@ -136,7 +136,7 @@ class Observation {
   bool operator ==(Object other) =>
       other is Observation &&
       core == other.core &&
-      _mapEq(plugins, other.plugins) &&
+      _mapEq(extensions, other.extensions) &&
       stability == other.stability &&
       screenshot == other.screenshot;
 
@@ -144,7 +144,7 @@ class Observation {
   int get hashCode => Object.hash(
     core,
     Object.hashAllUnordered(
-      plugins.entries.map(
+      extensions.entries.map(
         (MapEntry<String, ExtensionFragment> e) => Object.hash(e.key, e.value),
       ),
     ),
@@ -210,7 +210,7 @@ class CoreFragment {
 
 /// One semantics node from the captured tree.
 ///
-/// Schema mirrors what the `SemanticsCapture` (cx6.5) emits:
+/// Schema mirrors what the `SemanticsCapture` emits:
 /// `{id, role, label?, state?, actions?, rect}`. `rect` is a four-int list
 /// `[left, top, right, bottom]` in physical pixels.
 @immutable
@@ -345,7 +345,7 @@ class RuntimeError {
 
 /// One extension's contribution to the observation bundle.
 ///
-/// Wire shape today is just `extensions: { ns: <bare-data-map> }` (cx6.8).
+/// Wire shape today is just `extensions: { ns: <bare-data-map> }`.
 /// The harness wraps each entry into [ExtensionFragment] with `namespace =
 /// ns`, `data = bare-data-map`, and `deltaFriendly` driven by an opt-in
 /// flag the extension can set under either `_delta_friendly` or
@@ -360,13 +360,13 @@ class ExtensionFragment {
   });
 
   /// Decode a single extension fragment. [namespace] is the key from the
-  /// outer `plugins` map; [raw] is whatever the binding emitted under it.
+  /// outer `extensions` map; [raw] is whatever the binding emitted under it.
   factory ExtensionFragment.fromJson(String namespace, Object? raw) {
     Map<String, dynamic> data;
     bool deltaFriendly = false;
     if (raw is Map) {
       data = Map<String, dynamic>.from(raw);
-      // Allow a richer envelope shape in case .8/future stories upgrade
+      // Allow a richer envelope shape in case future work upgrades
       // the wire to carry an explicit envelope.
       final Object? envNs = data['namespace'];
       final Object? envData = data['data'];

@@ -19,7 +19,7 @@ class PromptPanel extends StatefulWidget {
   const PromptPanel({
     super.key,
     required this.modelsState,
-    required this.plugins,
+    required this.extensions,
     required this.running,
     required this.onStart,
     required this.onStop,
@@ -40,7 +40,7 @@ class PromptPanel extends StatefulWidget {
 
   /// Extension manifest from the binding handshake. Empty list renders
   /// the empty-state guide hint instead of toggles.
-  final List<ExtensionManifestEntry> plugins;
+  final List<ExtensionManifestEntry> extensions;
 
   /// `true` while a session is in flight.
   final bool running;
@@ -109,7 +109,7 @@ class _PromptPanelState extends State<PromptPanel> {
       _budget = ic.wallClockBudget;
       _enabled = ic.enabledExtensionNamespaces.toSet();
     } else {
-      _enabled = widget.plugins.map((p) => p.namespace).toSet();
+      _enabled = widget.extensions.map((p) => p.namespace).toSet();
       if (widget.configLoaded) _settingsOpen = true;
     }
     _modelId = widget.modelsState.models.isNotEmpty
@@ -304,7 +304,7 @@ class _PromptPanelState extends State<PromptPanel> {
           ),
           onChanged: (v) => _budget = Duration(minutes: int.tryParse(v) ?? 15),
         ),
-        if (widget.plugins.isEmpty)
+        if (widget.extensions.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
@@ -313,7 +313,7 @@ class _PromptPanelState extends State<PromptPanel> {
             ),
           )
         else
-          ...widget.plugins.map(
+          ...widget.extensions.map(
             (p) => CheckboxListTile(
               key: Key('prompt.plugin.${p.namespace}'),
               title: Text(p.namespace),

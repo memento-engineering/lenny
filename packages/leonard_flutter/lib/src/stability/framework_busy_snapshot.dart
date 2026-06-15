@@ -3,9 +3,10 @@ import 'package:meta/meta.dart';
 /// Immutable snapshot of framework-level "busy" signals captured by
 /// `LeonardBinding.frameworkBusySnapshot()`.
 ///
-/// Consumed by the stable-observation primitive (cx6.8) and the timeline
-/// serializer (cx6.10). JSON keys align with the PRD §9.2 `framework_busy`
-/// schema so cx6.8 does not need to translate field names.
+/// Consumed by the stable-observation primitive and the timeline
+/// serializer. JSON keys align with the PRD §9.2 `framework_busy`
+/// schema so the stable-observation primitive does not need to translate
+/// field names.
 @immutable
 class FrameworkBusySnapshot {
   const FrameworkBusySnapshot({
@@ -46,7 +47,7 @@ class FrameworkBusySnapshot {
 
   /// JSON representation aligned with PRD §9.2 `framework_busy`. The
   /// `recent_frame_commits_us` field is intentionally omitted from this
-  /// payload — the host's serializer (cx6.10) projects whichever ring
+  /// payload — the host's serializer projects whichever ring
   /// fields it needs from `recentFrameCommits`.
   Map<String, Object?> toJson() => <String, Object?>{
     'transient_callbacks': transientCallbacks,

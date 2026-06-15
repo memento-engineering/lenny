@@ -3,13 +3,16 @@ library;
 
 /// Result of the `ext.exploration.core.handshake` exchange.
 class HandshakeResult {
-  const HandshakeResult({required this.contractVersion, required this.plugins});
+  const HandshakeResult({
+    required this.contractVersion,
+    required this.extensions,
+  });
 
   /// Contract version reported by the binding.
   final String contractVersion;
 
   /// Active extensions reported by the binding, with pre-namespaced tools.
-  final List<ExtensionManifestEntry> plugins;
+  final List<ExtensionManifestEntry> extensions;
 }
 
 /// One entry in the handshake extension manifest.
@@ -52,7 +55,7 @@ class SessionStarted extends SessionProgressEvent {
   final String goal;
 }
 
-/// Emitted at the start of each turn (consumed by .12 / .23).
+/// Emitted at the start of each turn.
 class TurnBegan extends SessionProgressEvent {
   const TurnBegan(this.turn);
   final int turn;
