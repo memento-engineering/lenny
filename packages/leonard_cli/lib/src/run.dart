@@ -168,7 +168,7 @@ Future<int> runCli(
       agentsMdHash: agents.hash,
       extraConfig: <String, dynamic>{
         'policy': args.policy.wireName,
-        'requested_plugins': args.extensions,
+        'requested_extensions': args.extensions,
       },
     );
     await writer.writeHeader(header);
@@ -206,7 +206,7 @@ void _render(Stdout out, SessionProgressEvent e) {
     SessionStarted(:final goal) => '[session] started: $goal',
     TurnBegan(:final turn) => '[turn $turn] begin',
     ExtensionAutoDisabled(:final namespace, :final reason) =>
-      '[plugin] auto-disabled $namespace ($reason)',
+      '[extension] auto-disabled $namespace ($reason)',
     SessionEnded() => '[session] ended',
   });
 }

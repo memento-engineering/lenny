@@ -40,7 +40,7 @@ Every run mints a stable `sessionId` (`cli-<utc-iso8601>` slugged to
 header-safe characters) and stamps every request with:
 
 * `X-Session-Id: <sessionId>`
-* `X-Conversation-Id: exploration-<sessionId>-<unixMs>` — one
+* `X-Conversation-Id: leonard-<sessionId>-<unixMs>` — one
   conversation per run, groups every turn for inspection. Mirrors
   `fs agent`'s `fsagent-<beadID>-<unixtime>` convention.
 * `X-Swift-Infer-Capture-Bodies: true` — `captureBodies` is on by
@@ -70,7 +70,7 @@ dart run leonard_cli \
   --vm-uri ws://127.0.0.1:54321/abc=/ws \
   --goal "open settings"
 # Inspect captured turn:
-curl "$SWIFT_INFER_ENDPOINT/v1/conversations/exploration-cli-…"
+curl "$SWIFT_INFER_ENDPOINT/v1/conversations/leonard-cli-…"
 ```
 
 ## Nightly dogfood
