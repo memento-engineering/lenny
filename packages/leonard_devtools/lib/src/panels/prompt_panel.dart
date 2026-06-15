@@ -29,7 +29,7 @@ class PromptPanel extends StatefulWidget {
     required this.catalog,
     this.conversationId = '',
     this.extensionGuideUrl =
-        'https://example.com/leonard/extension-authoring',
+        'https://github.com/memento-engineering/lenny/blob/main/docs/extension_authoring_guide.md',
     this.onUseFallback,
     this.initialConfig,
     this.configLoaded = false,
@@ -309,7 +309,7 @@ class _PromptPanelState extends State<PromptPanel> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No plugins registered. See ${widget.extensionGuideUrl}',
+              'No extensions registered. See ${widget.extensionGuideUrl}',
               key: const Key('prompt.pluginsEmpty'),
             ),
           )

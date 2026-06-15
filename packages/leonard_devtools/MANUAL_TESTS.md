@@ -20,7 +20,7 @@ Steps:
 
 1. Build the extension: `tool/build_devtools_extension.sh` (or equivalent).
 2. Launch a Flutter app that exposes `LeonardBinding` and open
-   DevTools → Exploration tab.
+   DevTools → Leonard tab.
 3. In the Prompt panel:
    - Provider: `anthropic`.
    - API key: a real ANTHROPIC key (will be persisted in workspace state).
@@ -58,7 +58,7 @@ Steps:
 3. Click "Test connection" — expect either real model list or "using
    fallback list" badge.
 4. Enter a small goal. Note the conversationId breadcrumb in the panel
-   (e.g. `exploration-panel-<base36>`); copy it.
+   (e.g. `leonard-<sessionId>-<unixms>`); copy it.
 5. Click Start. Wait for SessionEnded (or stop after a few turns).
 6. From a terminal: `curl -H "Authorization: Bearer $TOKEN" \
    http://localhost:8080/v1/conversations/<conversationId>`.
@@ -85,7 +85,7 @@ Steps:
 2. In the Prompt panel, configure any provider (e.g. swift-infer: bearer token +
    endpoint; or anthropic: API key).
 3. Reload DevTools (browser Refresh / DevTools reload button).
-4. Re-open the Exploration extension → Prompt panel.
+4. Re-open the Leonard extension → Prompt panel.
 
 PASS criteria:
 - Previously entered values re-render (secrets masked as ****) without prompting

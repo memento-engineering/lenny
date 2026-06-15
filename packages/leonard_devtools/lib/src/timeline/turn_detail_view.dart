@@ -83,7 +83,7 @@ class TurnDetailView extends StatelessWidget {
           if (plugins is Map)
             for (final entry in plugins.entries)
               _Section(
-                title: 'Plugin: ${entry.key}',
+                title: 'Extension: ${entry.key}',
                 child: ExpansionTile(
                   title: const Text('Show JSON'),
                   children: [

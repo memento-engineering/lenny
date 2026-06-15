@@ -126,7 +126,7 @@ class ExtensionDisabledRow extends StatelessWidget {
       color: scheme.errorContainer,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Text(
-        'plugin disabled (turn ${record.turn}): ${record.namespace} — ${record.reason}',
+        'extension disabled (turn ${record.turn}): ${record.namespace} — ${record.reason}',
         style: TextStyle(color: scheme.onErrorContainer),
       ),
     );

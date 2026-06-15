@@ -71,7 +71,7 @@ void main() {
 
     testWidgets('renders plugin fragments as expandable JSON sections', (tester) async {
       await tester.pumpWidget(_wrap(TurnDetailView(record: _turn())));
-      expect(find.text('Plugin: router'), findsOneWidget);
+      expect(find.text('Extension: router'), findsOneWidget);
       // Body of the ExpansionTile is collapsed by default.
       expect(find.textContaining('"route": "/login"'), findsNothing);
     });
