@@ -3,15 +3,15 @@
   //
   // Conventions:
   //   - All Flutter targets default to macOS (the only platform sample_app
-  //     scaffolds for v1; see packages/exploration_flutter/example/sample_app/README.md).
+  //     scaffolds for v1; see packages/leonard_flutter/example/sample_app/README.md).
   //   - Sample-app configs set `cwd` to the package so `flutter run` and the
   //     Dart-Code extension resolve the right `pubspec.yaml` from the workspace.
-  //   - The "exploration_cli (attach to running app)" config prompts for a VM
+  //   - The "leonard_cli (attach to running app)" config prompts for a VM
   //     service URI — copy it from the Flutter run console after the app boots.
-  //   - Compound "Sample app + exploration_cli" boots the app first; once it
+  //   - Compound "Sample app + leonard_cli" boots the app first; once it
   //     prints `Dart VM service is listening on ws://...`, paste that URI when
   //     the CLI prompts.
-  //   - "exploration_devtools (standalone web)" runs the panel via the
+  //   - "leonard_devtools (standalone web)" runs the panel via the
   //     devtools_extensions simulated environment (Chrome web target, no
   //     bundle rebuild); use it for fast widget/layout iteration. The
   //     dogfood compound is the only path that exercises real DTD/VM.
@@ -24,9 +24,9 @@
       "default": "ws://127.0.0.1:0/ws"
     },
     {
-      "id": "explorationGoal",
+      "id": "leonardGoal",
       "type": "promptString",
-      "description": "Exploration goal (natural language)",
+      "description": "Leonard goal (natural language)",
       "default": "Log in with demo@example.com/password, change the theme to dark, then log out."
     }
   ],
@@ -36,11 +36,11 @@
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "cwd": "${workspaceFolder}/packages/leonard_flutter/example/sample_app",
       "flutterMode": "debug",
       // Rebuild the DevTools extension bundle before launching so the
       // panel served to Chrome always reflects the current source
-      // (lenny-1l8: rebuild-on-demand, never commit).
+      // (rebuild-on-demand, never commit).
       "preLaunchTask": "Build DevTools Extension",
       "presentation": {
         "group": "1_sample_app",
@@ -52,7 +52,7 @@
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "cwd": "${workspaceFolder}/packages/leonard_flutter/example/sample_app",
       "flutterMode": "profile",
       "preLaunchTask": "Build DevTools Extension",
       "presentation": {
@@ -65,7 +65,7 @@
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "cwd": "${workspaceFolder}/packages/leonard_flutter/example/sample_app",
       "flutterMode": "release",
       "presentation": {
         "group": "1_sample_app",
@@ -77,42 +77,42 @@
       "type": "dart",
       "request": "launch",
       "program": "test/",
-      "cwd": "${workspaceFolder}/packages/exploration_flutter/example/sample_app",
+      "cwd": "${workspaceFolder}/packages/leonard_flutter/example/sample_app",
       "presentation": {
         "group": "1_sample_app",
         "order": 4
       }
     },
     {
-      "name": "exploration_cli (attach to running app)",
+      "name": "leonard_cli (attach to running app)",
       "type": "dart",
       "request": "launch",
-      "program": "bin/exploration_cli.dart",
-      "cwd": "${workspaceFolder}/packages/exploration_cli",
+      "program": "bin/leonard_cli.dart",
+      "cwd": "${workspaceFolder}/packages/leonard_cli",
       "args": [
         "--vm-uri",
         "${input:vmServiceUri}",
         "--goal",
-        "${input:explorationGoal}",
-        "--plugins",
+        "${input:leonardGoal}",
+        "--extensions",
         "router,riverpod,dio"
       ],
       "presentation": {
-        "group": "2_exploration_cli",
+        "group": "2_leonard_cli",
         "order": 1
       }
     },
     {
-      "name": "exploration_devtools (standalone web)",
+      "name": "leonard_devtools (standalone web)",
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "cwd": "${workspaceFolder}/packages/exploration_devtools",
+      "cwd": "${workspaceFolder}/packages/leonard_devtools",
       "deviceId": "chrome",
       // Runs the panel as a plain Flutter web app against the
       // devtools_extensions simulated environment (fake DTD + fake VM
       // service). NO preLaunchTask: this path deliberately skips the
-      // bundle rebuild (lenny-1l8) — Dart-Code attaches its own VM
+      // bundle rebuild — Dart-Code attaches its own VM
       // service, so breakpoints in lib/** and hot reload on save work.
       // For the real DTD/VM handshake use the dogfood compound instead.
       "args": ["--dart-define=use_simulated_environment=true"],
@@ -124,10 +124,10 @@
   ],
   "compounds": [
     {
-      "name": "Dogfood: sample_app + exploration_cli",
+      "name": "Dogfood: sample_app + leonard_cli",
       "configurations": [
         "sample_app (debug)",
-        "exploration_cli (attach to running app)"
+        "leonard_cli (attach to running app)"
       ],
       "stopAll": true,
       "presentation": {

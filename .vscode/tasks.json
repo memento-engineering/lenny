@@ -1,11 +1,11 @@
 {
   // VS Code tasks for the lenny workspace.
   //
-  // The DevTools extension bundle is rebuild-on-demand (per lenny-1l8):
-  // source lives in packages/exploration_devtools/, but the artifact
+  // The DevTools extension bundle is rebuild-on-demand:
+  // source lives in packages/leonard_devtools/, but the artifact
   // DevTools actually serves is the compiled web build copied into
-  // packages/exploration_flutter/extension/devtools/build/. Without
-  // a fresh rebuild after touching exploration_devtools source, the
+  // packages/leonard_flutter/extension/devtools/build/. Without
+  // a fresh rebuild after touching leonard_devtools source, the
   // dogfood target loads a stale panel.
   //
   // The "Build DevTools Extension" task wraps tool/build_devtools_extension.sh

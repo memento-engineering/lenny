@@ -1,5 +1,5 @@
 description = """
-Run ONE live-device exploration-agent E2E against a Flutter app and verify it
+Run ONE live-device Leonard E2E against a Flutter app and verify it
 drives the app to goal completion.
 
 This is the generic atom: one supplied goal -> one trajectory -> a PASS/FAIL
@@ -28,7 +28,7 @@ kind = "mission"
 [vars]
 
 [vars.goal]
-description = "The exploration goal — the prompt the agent drives toward. Make it sufficiently specified: include any credentials or target state the agent cannot infer from the screen (e.g. 'Log in with email demo@example.com and password password, then ...')."
+description = "The Leonard goal — the prompt the agent drives toward. Make it sufficiently specified: include any credentials or target state the agent cannot infer from the screen (e.g. 'Log in with email demo@example.com and password password, then ...')."
 required    = true
 
 [vars.app_dir]
@@ -43,8 +43,8 @@ default     = "claude"
 description = "Target device id passed to `flutter -d <id>`. Empty = use the single attached non-wireless device."
 default     = ""
 
-[vars.plugins]
-description = "Comma-separated exploration plugin namespaces to enable."
+[vars.extensions]
+description = "Comma-separated extension namespaces to enable."
 default     = "router,riverpod,dio"
 
 [vars.cli]
@@ -102,7 +102,7 @@ binding sticky — always launch fresh per session.
 
 [[steps]]
 id       = "run"
-title    = "Run the exploration agent against the goal"
+title    = "Run Leonard against the goal"
 type     = "task"
 priority = 2
 needs    = ["launch"]
@@ -113,7 +113,7 @@ Drive one agent session toward the goal and capture the trajectory.
 {{cli}} \\
   --vm-uri '<VM_URI>' \\
   --goal '{{goal}}' \\
-  --plugins {{plugins}} \\
+  --extensions {{extensions}} \\
   --model {{model}} \\
   --policy action-relative
 ```
@@ -161,7 +161,7 @@ On FAIL: triage before filing.
   model actually emitted (tool_calls arguments, raw content).
 - Classify the root cause: model behaviour (bad tool args, no tool call, wrong
   target), goal under-specification (the agent could not know something it was
-  never told), or a harness/plugin defect.
+  never told), or a harness/extension defect.
 - File each distinct defect as its own bead with the TRAJECTORY path and the
   request id. Do NOT retrofit findings onto unrelated fixes.
 """

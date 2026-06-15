@@ -23,7 +23,7 @@ the end of a `/harden` cycle.
   is occluded (see §6) — prefer the wired device.
 - `~/.lenny-dogfood.env` exists and exports `ANTHROPIC_API_KEY` (scoped here, **not** `~/.zshenv`, so
   it bills pay-as-you-go API) plus the swift-infer tokens. It self-skips cleanly if absent.
-- Flutter ≥ 3.44, Melos bootstrapped, signing team `D82YXVJWMT`, bundle `com.nicospencer.sampleApp`.
+- Flutter ≥ 3.44, Melos bootstrapped, signing team `<APPLE_TEAM_ID>`, bundle `com.nicospencer.sampleApp`.
 - The app is built **from a branch/worktree that carries the fixes you want to test.** For fixes
   already on `main` (e.g. `lenny-whn` semantics, `lenny-c94` enter_text, `lenny-22f` DPR), build
   from `main`. The app supplies the binding; the agent CLI (run from `main`) supplies the agent/tools.
@@ -81,7 +81,7 @@ Newest file in `packages/leonard_cli/trajectories/*.jsonl`. Read, per turn:
   `agent_stuck` / `budget_exhausted` = did not complete.
 - `observation.core` — `nodes` (count; must be > 0 or the agent is blind — see §6),
   `routeStack`, `errors`.
-- `observation.plugins` — per-plugin fragments (router `current_route_name`/`stack`, riverpod
+- `observation.extensions` — per-extension fragments (router `current_route_name`/`stack`, riverpod
   `invalidatable_providers`, …).
 - `proposed_action` / `executed_action` + `result.ok` / `result.error`, and `validation.reason`.
 - The `[model]` stderr lines (`http=`, `stop_reason=`, `ok=`) — per-call API health. A masked
