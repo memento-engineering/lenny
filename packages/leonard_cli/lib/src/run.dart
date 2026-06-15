@@ -77,7 +77,7 @@ Future<int> runCli(
 
   // ----- build provider (may throw on missing API key) --------------
   // Mint a per-run sessionId so the qwen-mlx tier can stamp every
-  // request with X-Session-Id and an `exploration-<sessionId>-<ms>`
+  // request with X-Session-Id and an `leonard-<sessionId>-<ms>`
   // X-Conversation-Id (mirrors fs agent's `fsagent-<beadID>-<unixtime>`
   // convention). Slug ISO-8601 to keep the value safe for HTTP headers.
   final String sessionId =

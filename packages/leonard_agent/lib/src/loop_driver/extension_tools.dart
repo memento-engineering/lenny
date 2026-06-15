@@ -8,11 +8,11 @@
 /// fully-qualified `<namespace>.<tool>` [ToolDescriptor.name] that
 /// `LoopHost.executeAction` requires. Full JSON-schema input
 /// descriptors live in `package:leonard_flutter` inside the running
-/// app and are not currently fetched over the wire. Until cx6.39 plumbs
-/// full schemas through the contract, this helper emits [ToolDescriptor]s
+/// app and are not currently fetched over the wire. Until full schemas
+/// are plumbed through the contract, this helper emits [ToolDescriptor]s
 /// with a permissive object input schema so the model at least *sees*
-/// the plugin tools and can call them; the binding-side `ActionValidator`
-/// (cx6.17) is the authoritative schema check on every action.
+/// the extension tools and can call them; the binding-side `ActionValidator`
+/// is the authoritative schema check on every action.
 ///
 /// Selection rules:
 ///
@@ -50,8 +50,8 @@ Map<String, List<ToolDescriptor>> buildExtensionTools({
         ToolDescriptor(
           name: '${p.namespace}.$name',
           description:
-              'Plugin tool ${p.namespace}.$name '
-              '(permissive schema; cx6.39 plumbs real one).',
+              'Extension tool ${p.namespace}.$name '
+              '(permissive schema).',
           inputSchema: const <String, dynamic>{
             'type': 'object',
             'additionalProperties': true,

@@ -46,7 +46,7 @@ class _EchoTool extends LeonardTool {
 /// [initialize] — the test reaches the tool through the binding's
 /// `invokeExtensionTool` → `mergedTools()['sample.echo']` seam, which is
 /// the deliberate test-only path documented on
-/// [LeonardBinding.invokeExtensionTool]. Plugin tools register their
+/// [LeonardBinding.invokeExtensionTool]. Extension tools register their
 /// VM service extensions via `dart:developer.registerExtension`
 /// directly from inside [CoreExtension.initialize] (see
 /// `core_plugin_registration_test.dart`); this test exists precisely

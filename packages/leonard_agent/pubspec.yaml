@@ -1,5 +1,6 @@
 name: leonard_agent
 description: Web-compatible harness library.
+version: 1.0.0
 publish_to: none
 resolution: workspace
 

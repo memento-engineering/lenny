@@ -1,0 +1,47 @@
+{
+  "$comment": "Spike 3 single schema source. tool/generate.dart projects this catalog into BOTH lib/src/generated/registry.g.dart (typed Dart factories) and lib/src/generated/tool_schema.g.json (LLM-facing JSON Schema). Edit THIS file, then re-run the generator.",
+  "catalog": "spike3",
+  "catalogVersion": "0.1.0",
+  "types": {
+    "node": {
+      "description": "A named container component. Holds an ordered list of child components referenced by id.",
+      "container": true,
+      "props": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "description": "Human-readable name of this container."
+        }
+      },
+      "dart": {
+        "class": "Node",
+        "import": "package:perception/perception.dart",
+        "positionalProps": ["name"],
+        "namedProps": [],
+        "childrenParam": "children"
+      }
+    },
+    "field": {
+      "description": "A leaf component holding a single named string value. Cannot have children.",
+      "container": false,
+      "props": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "description": "Label identifying this field."
+        },
+        "value": {
+          "type": "string",
+          "required": true,
+          "description": "Current string value of the field."
+        }
+      },
+      "dart": {
+        "class": "Field",
+        "import": "../field.dart",
+        "positionalProps": [],
+        "namedProps": ["name", "value"]
+      }
+    }
+  }
+}

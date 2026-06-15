@@ -12,7 +12,7 @@ jobs:
         with:
           flutter-version: '3.41.4'
           channel: 'stable'
-      - run: dart pub get
+      - run: flutter pub get
       - run: dart pub global activate melos
       - run: ./tool/build_devtools_extension.sh
       - run: dart analyze

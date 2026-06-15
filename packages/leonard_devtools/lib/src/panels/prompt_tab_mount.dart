@@ -150,7 +150,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
         setState(() {
           _running = true;
           _conversationId =
-              'exploration-${DateTime.now().millisecondsSinceEpoch}';
+              'leonard-${DateTime.now().millisecondsSinceEpoch}';
         });
       } else if (event is SessionEnded) {
         setState(() => _running = false);

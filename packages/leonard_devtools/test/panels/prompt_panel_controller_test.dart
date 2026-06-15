@@ -360,7 +360,7 @@ void main() {
       final provider = c.activeProvider as SwiftInferModelProvider;
       expect(provider.config.bearerToken, 'tok');
       expect(provider.config.captureBodies, isTrue);
-      expect(provider.config.conversationId, startsWith('exploration-panel-'));
+      expect(provider.config.conversationId, startsWith('leonard-panel-'));
       expect(provider.capabilities.vision, isTrue);
       expect(provider.capabilities.preserveThinking, isTrue);
 

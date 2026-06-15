@@ -5,12 +5,12 @@ drives the app to goal completion.
 This is the generic atom: one supplied goal -> one trajectory -> a PASS/FAIL
 verdict. Pour it with your own goal/model/app, or compose a suite formula that
 pours it once per scenario. The variable-length perception-action loop stays
-inside exploration_cli / LoopDriver; the steps here are the OUTER orchestration
+inside leonard_cli / LoopDriver; the steps here are the OUTER orchestration
 (pre-flight -> launch -> run -> inspect -> triage) — agent contracts a worker
 executes by reading each step body.
 
 Prereqs: a wired iOS device (USB, not wireless) with the target Flutter app
-built from your working tree, exploration_cli available, and — for
+built from your working tree, leonard_cli available, and — for
 --model qwen-mlx — SWIFT_INFER_ENDPOINT + SWIFT_INFER_AGENT_TOKEN in the env.
 """
 formula  = "lenny-e2e-session"
@@ -48,8 +48,8 @@ description = "Comma-separated exploration plugin namespaces to enable."
 default     = "router,riverpod,dio"
 
 [vars.cli]
-description = "Invocation prefix for exploration_cli — e.g. 'dart run bin/exploration_cli.dart' from the exploration_cli package, or a globally-activated binary."
-default     = "dart run bin/exploration_cli.dart"
+description = "Invocation prefix for leonard_cli — e.g. 'dart run bin/leonard_cli.dart' from the leonard_cli package, or a globally-activated binary."
+default     = "dart run bin/leonard_cli.dart"
 
 [[steps]]
 id       = "preflight"
@@ -118,7 +118,7 @@ Drive one agent session toward the goal and capture the trajectory.
   --policy action-relative
 ```
 
-The newest file under the exploration_cli package's `trajectories/<UTC>.jsonl`
+The newest file under the leonard_cli package's `trajectories/<UTC>.jsonl`
 is this run's record -> TRAJECTORY. (The CLI loads its AGENTS.md operating
 guide into the system prompt; confirm the stderr `info: loaded AGENTS.md ...`
 line appears.)

@@ -96,7 +96,7 @@ SwiftInferModelProvider _buildSwiftInferProvider({
       // captureBodies on by default for dev/PoC: gives us
       // `GET /v1/conversations/<id>` introspection for free.
       captureBodies: true,
-      conversationId: 'exploration-$sessionId-$unixMs',
+      conversationId: 'leonard-$sessionId-$unixMs',
       sessionId: sessionId,
     ),
   );

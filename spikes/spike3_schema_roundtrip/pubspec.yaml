@@ -1,0 +1,16 @@
+name: spike3_schema_roundtrip
+description: >-
+  Spike 3: schema-first codegen + A2UI flat-keyed wire round-trip.
+  ONE schema source (schema/catalog.json) generates BOTH a Dart factory
+  registry and an LLM tool schema; an A2UI v0.9-shaped updateComponents
+  message deserializes through the generated registry into a Perception
+  tree keyed by component id; keyed reconcile turns whole-tree re-emission
+  into a minimal identity-preserving patch. De-risks genesis A2 + A3.
+publish_to: none
+environment:
+  sdk: ^3.11.0
+dependencies:
+  perception:
+    path: ../../packages/perception
+dev_dependencies:
+  test: ^1.25.0
