@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/lenny-icon-256.png" alt="Leonard" width="160" height="160" />
+  <img src="assets/lenny-icon-notext-256.png" alt="Leonard" width="160" height="160" />
 </p>
 
 <h1 align="center">Leonard</h1>
@@ -29,13 +29,13 @@ Flutter app — over the Dart VM service — and have it perceive the app's real
 drive itself through it, turn after turn? It can.
 
 The hard part is perception. A UI agent is only as good as its observation, and the
-classic failure is acting *too early* — reading the screen mid-animation,
+classic failure is acting _too early_ — reading the screen mid-animation,
 mid-navigation, or mid-load, then acting on a snapshot that's already stale.
 
 Flutter makes this tractable in a way most UIs don't:
 
 - **Frame lifecycle.** Flutter's scheduler knows when work is pending and when a frame
-  has committed — so *"is the app still settling?"* has a real answer.
+  has committed — so _"is the app still settling?"_ has a real answer.
 - **Semantics tree.** The screen-reader view of the UI gives interactable elements at a
   clean level of abstraction, not raw pixels.
 - **VM-service hook.** A debug-mode app exposes a service the harness drives over the
@@ -51,7 +51,7 @@ the framework's lifecycle slot in `main()`, registers a handful of VM-service
 extensions, and otherwise gets out of the way. Outside debug/profile mode it doesn't
 install at all.
 
-Everything app-specific lives in **extensions** that ship *in your app* — each contributes
+Everything app-specific lives in **extensions** that ship _in your app_ — each contributes
 some mix of extra **tools** (e.g. `router.navigate`), **observation fragments** (the
 current route stack, which providers are loading), and **lifecycle hooks**. The core
 stays tiny and policy-free; extensions know about your router, your state, your network
@@ -79,10 +79,10 @@ graph TB
 
 Every turn is the same shape:
 
-1. **Stabilize** — wait until the framework *and* every extension agree the app is done reacting.
+1. **Stabilize** — wait until the framework _and_ every extension agree the app is done reacting.
 2. **Observe** — capture one structured snapshot: semantics tree, route stack, errors, extension fragments.
 3. **Decide** — a mechanical diff vs. the last turn plus the model's running summary → the model picks a tool.
-4. **Validate** — reject impossible or malformed tool calls *before* they hit the live app, so a bad call costs a re-prompt, not a turn.
+4. **Validate** — reject impossible or malformed tool calls _before_ they hit the live app, so a bad call costs a re-prompt, not a turn.
 5. **Act** — run the tool (core or extension) and append the turn to the trajectory log.
 
 For the full, illustrated tour, read [`docs/how-leonard-works.md`](docs/how-leonard-works.md).
@@ -96,15 +96,15 @@ For the full, illustrated tour, read [`docs/how-leonard-works.md`](docs/how-leon
 This is a Melos monorepo. The harness is frontend- and framework-agnostic; the host and
 extensions are where Flutter specifics live.
 
-| Package | What it is |
-| --- | --- |
-| [`leonard_agent`](packages/leonard_agent) | The harness loop — web-compatible, frontend-agnostic. Stability policy, action validation, trajectory log, and the model providers. |
-| [`leonard_flutter`](packages/leonard_flutter) | The host: a custom `WidgetsBinding` that claims the lifecycle slot in `main()` and exposes the VM-service extensions the harness drives. |
-| [`leonard_cli`](packages/leonard_cli) | Headless frontend — connects to a running app's VM service and streams a trajectory to disk. |
-| [`leonard_devtools`](packages/leonard_devtools) | In-IDE DevTools extension — the same loop in a panel, with live **Prompt**, **Thinking**, and **Timeline** views. |
-| [`leonard_router`](packages/leonard_router) | Reference extension — route-stack observation and a `router.navigate` tool. |
-| [`leonard_riverpod`](packages/leonard_riverpod) | Reference extension — reports which providers are loading. |
-| [`leonard_dio`](packages/leonard_dio) | Reference extension — reports (and can cancel) in-flight HTTP requests. |
+| Package                                         | What it is                                                                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| [`leonard_agent`](packages/leonard_agent)       | The harness loop — web-compatible, frontend-agnostic. Stability policy, action validation, trajectory log, and the model providers.      |
+| [`leonard_flutter`](packages/leonard_flutter)   | The host: a custom `WidgetsBinding` that claims the lifecycle slot in `main()` and exposes the VM-service extensions the harness drives. |
+| [`leonard_cli`](packages/leonard_cli)           | Headless frontend — connects to a running app's VM service and streams a trajectory to disk.                                             |
+| [`leonard_devtools`](packages/leonard_devtools) | In-IDE DevTools extension — the same loop in a panel, with live **Prompt**, **Thinking**, and **Timeline** views.                        |
+| [`leonard_router`](packages/leonard_router)     | Reference extension — route-stack observation and a `router.navigate` tool.                                                              |
+| [`leonard_riverpod`](packages/leonard_riverpod) | Reference extension — reports which providers are loading.                                                                               |
+| [`leonard_dio`](packages/leonard_dio)           | Reference extension — reports (and can cancel) in-flight HTTP requests.                                                                  |
 
 ## Getting started
 
@@ -155,15 +155,15 @@ live.
 
 ### Model backends
 
-| `--model` | Backend | Required env |
-| --- | --- | --- |
-| `claude` *(default)* | Anthropic | `ANTHROPIC_API_KEY` |
-| `openai` | OpenAI | `OPENAI_API_KEY` |
-| `qwen-mlx` | local Qwen MoE via [swift-infer](packages/leonard_cli/README.md#swift-infer-gateway-qwen-mlx) | `SWIFT_INFER_ENDPOINT`, `SWIFT_INFER_AGENT_TOKEN` |
+| `--model`            | Backend                                                                                       | Required env                                      |
+| -------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `claude` _(default)_ | Anthropic                                                                                     | `ANTHROPIC_API_KEY`                               |
+| `openai`             | OpenAI                                                                                        | `OPENAI_API_KEY`                                  |
+| `qwen-mlx`           | local Qwen MoE via [swift-infer](packages/leonard_cli/README.md#swift-infer-gateway-qwen-mlx) | `SWIFT_INFER_ENDPOINT`, `SWIFT_INFER_AGENT_TOKEN` |
 
 ## Write an extension
 
-An extension is a small Dart class that lives in *your* app's `pubspec.yaml`, not in the
+An extension is a small Dart class that lives in _your_ app's `pubspec.yaml`, not in the
 harness. It can declare tools, contribute an observation fragment in its library's own
 native shape, and gate the stability check. The host namespaces every extension's tools
 (`router.*`, `riverpod.*`, `dio.*`), budgets their output, and orders their hooks.
@@ -191,7 +191,7 @@ but APIs will move, coverage is partial, and you should expect rough edges. It i
 
 - **Flutter only** — not React Native, not native iOS/Android, not the web DOM.
 - **Debug/profile mode only** — release builds don't expose the VM-service extensions it needs.
-- **Not a codegen or test-authoring tool** — it acts on a *running* app; it never writes app code.
+- **Not a codegen or test-authoring tool** — it acts on a _running_ app; it never writes app code.
 - **Not a training pipeline** — it collects trajectories; what you do with them is downstream.
 
 Where it's headed: [`docs/leonard_prd_v0.5.md`](docs/leonard_prd_v0.5.md).
