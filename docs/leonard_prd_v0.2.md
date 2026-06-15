@@ -1,4 +1,4 @@
-# Flutter Exploration Agent — PRD
+# Leonard — PRD (superseded by v0.5)
 
 **Status:** Draft v0.2
 **Author:** Nico
@@ -72,9 +72,9 @@ The first audience shapes the API. The other two are why the trajectory format i
 
 The system is two pieces, communicating over the VM service:
 
-### 6.1 The in-app binding (`exploration_flutter`)
+### 6.1 The in-app binding (`leonard_flutter`)
 
-A Dart package the user adds to their Flutter app. It provides `ExplorationBinding extends WidgetsFlutterBinding`, which the user initializes in `main()` (debug/profile only, gated on `kDebugMode`). The binding:
+A Dart package the user adds to their Flutter app. It provides `LeonardBinding extends WidgetsFlutterBinding`, which the user initializes in `main()` (debug/profile only, gated on `kDebugMode`). The binding:
 
 - Replaces the default `WidgetsBinding`. **This means it conflicts with `IntegrationTestWidgetsFlutterBinding` and other custom bindings; only one is allowed per app instance.** This is a hard constraint of Flutter's architecture, not a design choice.
 - Registers VM service extensions for: capturing the semantics tree, capturing the route stack, executing actions (tap, enter text, scroll, etc.), and querying frame-stability state.
@@ -84,7 +84,7 @@ A Dart package the user adds to their Flutter app. It provides `ExplorationBindi
 
 The binding is intentionally minimal — it is a *publisher* of observable state and an *executor* of actions, nothing else. All policy lives in the harness.
 
-### 6.2 The harness (`exploration_agent`)
+### 6.2 The harness (`leonard_agent`)
 
 A Dart program (CLI for v1) that connects to the running app's VM service URI and orchestrates the agent loop. The harness:
 
@@ -337,10 +337,10 @@ The harness ships with sensible defaults for each tier (lower temperature for sm
 
 ### Ships in v1
 
-- The `exploration_flutter` package: `ExplorationBinding`, VM service extensions, frame-stability signal exposure, semantics tree capture, action execution.
-- The `exploration_agent` harness: perception-action loop, stability policy implementation (action-relative, quiet-frame, bounded-stability), prompt construction, action validation, trajectory logging.
+- The `leonard_flutter` package: `LeonardBinding`, VM service extensions, frame-stability signal exposure, semantics tree capture, action execution.
+- The `leonard_agent` harness: perception-action loop, stability policy implementation (action-relative, quiet-frame, bounded-stability), prompt construction, action validation, trajectory logging.
 - Provider implementations for: local MLX (OpenAI-compatible), Anthropic, OpenAI.
-- A CLI: `exploration_agent --goal "..." --vm-uri ws://... --model <name>`.
+- A CLI: `leonard_agent --goal "..." --vm-uri ws://... --model <name>`.
 - A minimal AGENTS.md template.
 - Open-ended and goal-directed exploration (§13.1, §13.2).
 
@@ -366,7 +366,7 @@ The harness ships with sensible defaults for each tier (lower temperature for sm
 
 ## 18. Risks
 
-- **`ExplorationBinding` adoption friction.** Users have to add a package to their app and modify `main()`. This is the same friction Marionette accepts; it appears to be the unavoidable cost of operating against the real app.
+- **`LeonardBinding` adoption friction.** Users have to add a package to their app and modify `main()`. This is the same friction Marionette accepts; it appears to be the unavoidable cost of operating against the real app.
 - **Custom binding conflicts.** Users who want to also use `integration_test` will hit binding conflicts. Document the constraint clearly; possibly provide a separate `integration_test`-compatible mode in v2 for the replay use case.
 - **Apps with poor semantics.** Without good semantics annotations, the agent operates blind. The binding should warn loudly at connect time when interactive widgets lack semantics, and provide configuration hooks for custom design systems.
 - **Stability policy heuristics fail.** Action-relative policy may terminate prematurely on apps where actions take >800ms to produce visible effects (heavy network calls). The model can request longer waits via `wait_strategy`, but tuning the defaults will require empirical work.

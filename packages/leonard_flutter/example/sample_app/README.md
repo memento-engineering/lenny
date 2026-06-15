@@ -1,14 +1,14 @@
 # sample_app
 
 Moderate-complexity macOS Flutter app used as the dogfood + PRD §23
-success-criteria fixture for the Flutter Exploration Agent. Exercises
-all three reference plugins end-to-end:
+success-criteria fixture for Leonard. Exercises
+all three reference extensions end-to-end:
 
-| Plugin                       | Surface in this app                                     |
+| Extension                    | Surface in this app                                     |
 | ---------------------------- | ------------------------------------------------------- |
-| `RouterPlugin` (go_router)   | 5 routes, auth-guard redirect, shared `navigatorKey`     |
-| `RiverpodExplorationPlugin`  | shared `ProviderContainer` + observer; auth + settings   |
-| `ExplorationDioPlugin`       | one `Dio` instance; every endpoint logged via interceptor |
+| `RouterExtension` (go_router)| 5 routes, auth-guard redirect, shared `navigatorKey`     |
+| `RiverpodLeonardExtension`   | shared `ProviderContainer` + observer; auth + settings   |
+| `LeonardDioExtension`        | one `Dio` instance; every endpoint logged via interceptor |
 
 PRD §23 headline goal: **log in via Navigator-managed routes →
 settings → change Riverpod-managed setting → log out**. This app is
@@ -111,13 +111,13 @@ Two suites run:
 ## Architecture cheat sheet
 
 `lib/main.dart` constructs **one** `ProviderContainer` (with
-`ExplorationProviderObserver` installed) and **one** `Dio`, then
+`LeonardProviderObserver` installed) and **one** `Dio`, then
 hands the same instances to:
 
 - `UncontrolledProviderScope(container: ...)` for the widget tree
-- `RiverpodExplorationPlugin(container: ..., observer: ...)`
-- `ExplorationDioPlugin(dio)`
-- `RouterPlugin(navigatorKey: ..., routerDelegate: router.routerDelegate)`
+- `RiverpodLeonardExtension(container: ..., observer: ...)`
+- `LeonardDioExtension(dio)`
+- `RouterExtension(navigatorKey: ..., routerDelegate: router.routerDelegate)`
 
 …before calling `LeonardBinding.ensureInitialized(plugins: ...)`.
 That single shared-instance principle is what lets the agent see the

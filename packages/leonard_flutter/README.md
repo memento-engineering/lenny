@@ -1,6 +1,6 @@
 # leonard_flutter
 
-Host `WidgetsBinding` for the Flutter Exploration Agent.
+Host `WidgetsBinding` for Leonard.
 
 ## Usage
 
@@ -48,13 +48,13 @@ host- and extension-owned VM service extensions. Format:
 The host registers `ext.exploration.core.handshake` from
 `LeonardBinding.ensureInitialized(...)`. The harness uses it to
 confirm the binding is live and read protocol/version metadata.
-Extensions register through `ExtensionContext` (cx6.3), which auto-prefixes.
+Extensions register through `ExtensionContext`, which auto-prefixes.
 
 ## DevTools panel
 
 This package ships `extension/devtools/config.yaml` so any app that
 transitively depends on `leonard_flutter` automatically surfaces
-the **Exploration** tab in DevTools. The compiled web bundle lives at
+the **Leonard** tab in DevTools. The compiled web bundle lives at
 `extension/devtools/build/` and is **not committed** — rebuild it from
 the repo root with:
 

@@ -3,25 +3,25 @@ import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 const pubspec = `dependencies:
-  exploration_flutter: ^0.1.0
-  exploration_router: ^0.1.0      # optional reference plugins
-  exploration_riverpod: ^0.1.0
-  exploration_dio: ^0.1.0`;
-const mainDart = `import 'package:exploration_flutter/exploration_flutter.dart';
+  leonard_flutter: ^0.1.0
+  leonard_router: ^0.1.0      # optional reference extensions
+  leonard_riverpod: ^0.1.0
+  leonard_dio: ^0.1.0`;
+const mainDart = `import 'package:leonard_flutter/leonard_flutter.dart';
 
-class MyExplorationApp extends ExplorationApp {
+class MyLeonardApp extends LeonardApp {
   @override
-  ExplorationAppConfig build() => ExplorationAppConfig(
-    plugins: [RouterPlugin(), RiverpodPlugin(), DioPlugin()],
+  LeonardAppConfig build() => LeonardAppConfig(
+    plugins: [RouterExtension(), RiverpodLeonardExtension(), LeonardDioExtension()],
     app: MaterialApp(home: HomeScreen()),
   );
 }
 
-void main() => ExplorationBinding.run(MyExplorationApp());`;
-const cliCmd = `dart run exploration_cli --goal "open settings and toggle dark mode" --model qwen-mlx
+void main() => LeonardBinding.run(MyLeonardApp());`;
+const cliCmd = `dart run leonard_cli --goal "open settings and toggle dark mode" --model qwen-mlx
 # or: --model claude   |   --model openai`;
 ---
-<Layout title="Getting started — Lenny">
+<Layout title="Getting started — Leonard">
   <div class="container"><h1>Getting started</h1></div>
   <Section id="prereqs" title="Prerequisites">
     <ul>
@@ -34,7 +34,7 @@ const cliCmd = `dart run exploration_cli --goal "open settings and toggle dark m
     <CodeBlock code={pubspec} lang="yaml" />
   </Section>
   <Section id="wrap-main" title="2. Wrap main()">
-    <p>Implement <code>ExplorationApp.build</code> to return an <code>ExplorationAppConfig</code> with your plugins and your app, then hand it to <code>ExplorationBinding.run</code>:</p>
+    <p>Implement <code>LeonardApp.build</code> to return a <code>LeonardAppConfig</code> with your extensions and your app, then hand it to <code>LeonardBinding.run</code>:</p>
     <CodeBlock code={mainDart} lang="dart" />
   </Section>
   <Section id="run-cli" title="3a. Drive it from the CLI">
@@ -51,12 +51,12 @@ const cliCmd = `dart run exploration_cli --goal "open settings and toggle dark m
     </table>
   </Section>
   <Section id="run-devtools" title="3b. Or drive it from DevTools">
-    <p>Open DevTools for the running app &rarr; the <strong>Exploration</strong> tab &rarr; type your goal &rarr; <strong>Start</strong>. Watch the model's reasoning in <strong>Thinking</strong> and each observed/acted step in <strong>Timeline</strong>.</p>
+    <p>Open DevTools for the running app &rarr; the <strong>Leonard</strong> tab &rarr; type your goal &rarr; <strong>Start</strong>. Watch the model's reasoning in <strong>Thinking</strong> and each observed/acted step in <strong>Timeline</strong>.</p>
   </Section>
   <Section id="next" title="What next">
     <ul>
-      <li><a href="https://github.com/nicholasspencer/lenny/blob/main/docs/plugin_authoring_guide.md">Write a plugin</a> for your own router / state / networking layer.</li>
-      <li>Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/flutter_exploration_agent_prd_v0.5.md">PRD</a>.</li>
+      <li><a href="https://github.com/nicholasspencer/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> for your own router / state / networking layer.</li>
+      <li>Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a>.</li>
     </ul>
   </Section>
 </Layout>

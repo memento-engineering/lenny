@@ -1,13 +1,13 @@
 # Runbook — Live-device E2E dogfood run
 
-**Purpose:** drive the lenny exploration agent against the **real sample app on a real device**
+**Purpose:** drive Leonard against the **real sample app on a real device**
 and judge whether it completes a goal end-to-end (observe → decide → act → `core.done`). This is
 the manual, reproducible version of the 2026-05-31 milestone run (tap "Sign In" → login→home →
 `core.done`). Use it to verify a freshly-merged fix works on-device, or as the acceptance step at
 the end of a `/harden` cycle.
 
 > **Not the same as `melos run test:e2e`.** That is the *automated* dogfood e2e
-> (`packages/exploration_agent/test/e2e/dogfood_e2e_test.dart`): fixture-driven, runs against a
+> (`packages/leonard_agent/test/e2e/dogfood_e2e_test.dart`): fixture-driven, runs against a
 > **swift-infer** endpoint, no device, env-gated on `SWIFT_INFER_ENDPOINT`/`SWIFT_INFER_AGENT_TOKEN`,
 > and self-skips when unset. It's a CI/regression check of the provider+harness, not a live drive of
 > the app. See §7. **This runbook is the on-device drive.**
@@ -40,7 +40,7 @@ flutter devices
 ## 2. Launch the app (stays attached across runs)
 
 ```bash
-cd packages/exploration_flutter/example/sample_app
+cd packages/leonard_flutter/example/sample_app
 flutter run -d 00008110-001651523CE3801E --no-devtools > /tmp/lenny_ipad.log 2>&1 &
 # Wait ~60-90s for the build, then grab the VM service URI:
 grep "Dart VM Service on" /tmp/lenny_ipad.log
@@ -52,30 +52,30 @@ Convert the printed `http://127.0.0.1:PORT/TOKEN/` to the websocket form:
 
 The app **stays attached** — reuse it across many agent runs; only the agent CLI recompiles
 (~10-15 s). There is **no per-iteration app rebuild** unless you change binding-side
-(`exploration_flutter`) code.
+(`leonard_flutter`) code.
 
 ## 3. Run the agent against a goal
 
 ```bash
-cd packages/exploration_cli
+cd packages/leonard_cli
 source ~/.lenny-dogfood.env
-dart run bin/exploration_cli.dart \
+dart run bin/leonard_cli.dart \
   --vm-uri 'ws://127.0.0.1:PORT/TOKEN/ws' \
   --goal '<goal — see §5 scenarios>' \
-  --plugins router,riverpod,dio \
+  --extensions router,riverpod,dio \
   --model claude \
   --policy action-relative
 ```
 
 Flags (from `cli_args.dart`): `--vm-uri` (required, ws://), `--goal` (or pipe via stdin),
 `--model` (`claude`|`openai`|`qwen-mlx`, default `claude`), `--policy`
-(`action-relative`|`frame-stable`|`idle`, default `action-relative`), `--plugins`
+(`action-relative`|`frame-stable`|`idle`, default `action-relative`), `--extensions`
 (comma-separated namespaces), `--output` (default `./trajectories/<UTC-timestamp>.jsonl`).
 A completable goal finishes in a handful of turns (~40-60 s). Background it and let it run.
 
 ## 4. Inspect the trajectory
 
-Newest file in `packages/exploration_cli/trajectories/*.jsonl`. Read, per turn:
+Newest file in `packages/leonard_cli/trajectories/*.jsonl`. Read, per turn:
 
 - `footer.outcome` — **`done` = goal completed** (the agent called `core.done`).
   `agent_stuck` / `budget_exhausted` = did not complete.
@@ -130,7 +130,7 @@ the turn's `observation.core`, and the `[model]` line. That capture is the seed 
 - **Coordinate-fallback taps miss on a Retina device:** physical-vs-logical px bug, fixed by
   `lenny-22f` (merged). If a synthesized tap/scroll lands off-target, re-check `globalRectOf`.
 - **Reuse the device app; only recompile the CLI.** Rebuild the app **only** when you change
-  `exploration_flutter` (binding-side) code.
+  `leonard_flutter` (binding-side) code.
 
 ## 7. Automated variant (CI / no device)
 
@@ -138,24 +138,24 @@ the turn's `observation.core`, and the `[model]` line. That capture is the seed 
 export SWIFT_INFER_ENDPOINT=...   # base URL
 export SWIFT_INFER_AGENT_TOKEN=... # bearer
 melos run test:e2e
-# == dart test packages/exploration_agent/test/e2e/dogfood_e2e_test.dart
+# == dart test packages/leonard_agent/test/e2e/dogfood_e2e_test.dart
 ```
 
 Fixture-driven, three canonical scenarios (`happyPathDarkMode`, `unknownToolNameSurvives`,
 `emptyObservationDoesNotCrash`) against swift-infer. Self-skips when the env vars are unset, so a
 bare `melos run test` won't hang. On failure it prints `tracePath` so the swift-infer `request_id`
 can be cross-referenced via the `debug-inference` skill. Ad-hoc prompt tuning:
-`packages/exploration_agent/tool/agent_dogfood.dart`.
+`packages/leonard_agent/tool/agent_dogfood.dart`.
 
 ---
 
 ## Provenance / template note
 
-This runbook generalizes the **2026-05-31 milestone** (lenny agent completed a goal on the wired
+This runbook generalizes the **2026-05-31 milestone** (Leonard completed a goal on the wired
 iPad: tap Sign In → login→home → `core.done`) and the `/harden` dogfood loop
 (`.claude/skills/harden/`). The text-entry scenario in §5 is the next thing to verify on-device now
 that `lenny-c94` (widget-tree `enter_text`), `lenny-whn` (semantics `captureAsync`), and `lenny-22f`
 (DPR coordinate fix) are merged to `main` (commits `2c95c8a`, `ac4f82e`, `053bce5`).
 
-**Related:** `/harden <integration>` (the fix-finding loop), `docs/how-lenny-works.md`,
+**Related:** `/harden <integration>` (the fix-finding loop), `docs/how-leonard-works.md`,
 `docs/CONTINUATION-text-entry-2026-05-31.md` (now largely closed out — its three beads are merged).

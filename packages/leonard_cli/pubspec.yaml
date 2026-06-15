@@ -1,5 +1,5 @@
 name: leonard_cli
-description: CLI frontend for the Flutter Exploration Agent.
+description: CLI frontend for Leonard.
 publish_to: none
 resolution: workspace
 

@@ -28,10 +28,10 @@ memento's agentic software-engineering platform: **`the_grid`** = building, **`l
 - **Open** (genesis A7): grid's structural snapshot-diff vs genesis keyed reconcile — do bead domains eventually mount as `tree` nodes?
 
 ## Constraint for THIS phase
-**Spike first.** No commits, no concrete ADRs, no production scaffolding yet — genesis stays ADR-only until the spikes green-light the approach. `perception` and `exploration_flutter` still physically live in **lenny**, so **the spikes run in lenny**, not in the (code-empty) genesis repo.
+**Spike first.** No commits, no concrete ADRs, no production scaffolding yet — genesis stays ADR-only until the spikes green-light the approach. `perception` and `leonard_flutter` still physically live in **lenny**, so **the spikes run in lenny**, not in the (code-empty) genesis repo.
 
 ## Spikes (each names the genesis entry it de-risks)
-1. **Headless-Flutter render-tree dump** — a `flutter test` in `exploration_flutter`, pump a widget, dump `debugDumpRenderTree()` to stdout. Proves the full framework runs in a shell with no window. *(A4 oracle · ~½ day)*
+1. **Headless-Flutter render-tree dump** — a `flutter test` in `leonard_flutter`, pump a widget, dump `debugDumpRenderTree()` to stdout. Proves the full framework runs in a shell with no window. *(A4 oracle · ~½ day)*
 2. **Bare-VM ANSI cell grid** — a `dart run` scratch, box-grid via a double-buffered cell diff → ANSI. Proves the VM render surface, zero engine. *(A4 Fork B · ~1 day)*
 3. **Schema + codegen round-trip, one node** — take `perception`'s `Node`/`Field` → schema → codegen registry + tool schema → deserialize an A2UI `surfaceUpdate` back into a tree → reconcile by key. Run identically on the VM and under `flutter test`. *(A2 + A3 · ~1–2 days)*
 4. **Tree → terminal, end-to-end** — wire spike 2's backend to a live `Watch`-driven tree via the owner's dirty set. *(A4 · after 1–3)*
