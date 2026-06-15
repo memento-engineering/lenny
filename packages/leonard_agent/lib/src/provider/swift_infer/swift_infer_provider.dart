@@ -52,6 +52,15 @@ class SwiftInferModelProvider implements ModelProvider {
   /// user-role message. Constant default.
   static const ObservationRenderer _renderer = JsonObservationRenderer();
 
+  /// Abort a response once this many characters of non-tool text (i.e.
+  /// reasoning / prose) have streamed with no `tool_use` block opened.
+  /// Weaker models (qwen) sometimes ruminate to `max_tokens` without ever
+  /// committing to a tool call; this bounds that "vomit" and surfaces the
+  /// existing no-tool_use [SchemaRejection] so the loop retries with a
+  /// fresh sample. Healthy turns emit <~2k chars of thinking before the
+  /// tool_use; observed runaways exceed ~13k. 8000 sits clear of both.
+  static const int _kRunawayThinkCap = 8000;
+
   /// Build the multi-turn `messages` array for the swift-infer Anthropic-
   /// compat endpoint. Vision is gated on [SwiftInferConfig.enableVision]
   /// per spec — the host-side capability check is re-asserted
@@ -205,6 +214,13 @@ class SwiftInferModelProvider implements ModelProvider {
               inThink: inThink,
               sink: thinkingText,
             );
+            if (toolUse == null && raw.length > _kRunawayThinkCap) {
+              // Runaway: streaming reasoning/prose with no tool_use block in
+              // sight. Stop reading instead of letting it run to max_tokens;
+              // the no-tool_use SchemaRejection below triggers a retry (a
+              // fresh sample at temperature usually does not re-runaway).
+              break;
+            }
           } else if (dtype == 'input_json_delta' && inputJsonBuf != null) {
             inputJsonBuf.write(delta['partial_json'] as String? ?? '');
           }
@@ -216,7 +232,10 @@ class SwiftInferModelProvider implements ModelProvider {
 
     if (toolUse == null) {
       throw SchemaRejection(
-        validationError: 'no tool_use block in response',
+        validationError: raw.length > _kRunawayThinkCap
+            ? 'runaway thinking: ${raw.length} chars with no tool_use block '
+                  '(aborted before max_tokens)'
+            : 'no tool_use block in response',
         rawOutput: raw.toString(),
       );
     }

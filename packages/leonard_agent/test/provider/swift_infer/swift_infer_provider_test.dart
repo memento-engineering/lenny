@@ -294,6 +294,66 @@ void main() {
     );
   });
 
+  test('runaway thinking past cap → SchemaRejection (aborts before '
+      'a late tool_use)', () async {
+    // >8000 chars of reasoning, THEN a valid tool_use. If the runaway
+    // guard fires, the stream is abandoned before that tool_use is read,
+    // so decide() must throw rather than return the (late) action.
+    final body = _sse(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'delta': <String, dynamic>{
+          'type': 'text_delta',
+          'text': 'reason ' * 2000, // ~14000 chars, exceeds the 8000 cap
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_start',
+        'content_block': <String, dynamic>{
+          'type': 'tool_use',
+          'id': 't1',
+          'name': 'core_tap',
+        },
+      },
+      <String, dynamic>{
+        'type': 'content_block_delta',
+        'delta': <String, dynamic>{
+          'type': 'input_json_delta',
+          'partial_json': '{"node_id":7}',
+        },
+      },
+      <String, dynamic>{'type': 'message_stop'},
+    ]);
+    final p = SwiftInferModelProvider(config: _cfg(), client: _stream(body));
+    expect(
+      () => p.decide(
+        _prompt(),
+        ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+      ),
+      throwsA(
+        isA<SchemaRejection>().having(
+          (e) => e.validationError,
+          'err',
+          contains('runaway thinking'),
+        ),
+      ),
+    );
+  });
+
+  test('thinking under cap with a tool_use still succeeds', () async {
+    // A normal turn: a few hundred chars of thinking then a tool_use.
+    // Guard must NOT fire.
+    final p = SwiftInferModelProvider(
+      config: _cfg(),
+      client: _stream(_toolUseSse(text: 'thinking a bit ' * 50)),
+    );
+    final d = await p.decide(
+      _prompt(),
+      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+    );
+    expect(d.action.tool, 'core.tap');
+  });
+
   test('ActionSchema rejection escapes unchanged', () async {
     final p = SwiftInferModelProvider(
       config: _cfg(),

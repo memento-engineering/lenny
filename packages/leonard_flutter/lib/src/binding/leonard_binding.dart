@@ -373,6 +373,13 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       String method,
       Map<String, String> parameters,
     ) async {
+      // A handshake marks the start of a new agent session. Clear the
+      // terminal latch a prior DoneTool may have set, so a fresh drive
+      // against an already-finished app isn't dead-on-arrival (every
+      // action short-circuiting with `session_terminated`).
+      for (final LeonardExtension ext in _extensionRegistry.extensions) {
+        if (ext is CoreExtension) ext.resetTermination();
+      }
       return developer.ServiceExtensionResponse.result(
         jsonEncode(<String, Object?>{
           'protocolVersion': '2',

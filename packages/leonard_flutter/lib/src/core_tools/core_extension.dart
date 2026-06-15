@@ -73,6 +73,19 @@ class CoreExtension extends LeonardExtension {
     _terminated = true;
   }
 
+  /// Clears the terminal latch so a fresh agent session can act again.
+  ///
+  /// Invoked by the binding's `core.handshake` handler. A handshake marks
+  /// the start of a new agent session; without this reset the `_terminated`
+  /// flag set by a prior [DoneTool] persists for the life of the app
+  /// process, so any *subsequent* drive against the same running app
+  /// short-circuits every action with `session_terminated`. Safe because
+  /// the handshake runs before any action and the loop stops at `done`, so
+  /// no in-flight session is ever un-terminated mid-run.
+  void resetTermination() {
+    _terminated = false;
+  }
+
   /// Internal: lookup a live [SemanticsNode] by stable id, or null.
   SemanticsNode? lookupNode(int stableId) => _semantics.lookup(stableId);
 
