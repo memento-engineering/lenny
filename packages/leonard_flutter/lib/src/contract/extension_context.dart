@@ -15,7 +15,7 @@ typedef ExtensionHandler =
       Map<String, String> parameters,
     );
 
-/// Per-plugin context handed to [LeonardExtension.initialize].
+/// Per-extension context handed to [LeonardExtension.initialize].
 ///
 /// Auto-namespaces VM service extensions under
 /// `ext.exploration.<namespace>.<suffix>` and gates frame
@@ -26,7 +26,7 @@ class ExtensionContext {
     required SchedulerBinding scheduler,
   }) : _scheduler = scheduler;
 
-  /// The owning plugin's namespace (validated by the registry).
+  /// The owning extension's namespace (validated by the registry).
   final String namespace;
 
   final SchedulerBinding _scheduler;
@@ -41,12 +41,12 @@ class ExtensionContext {
   static String buildExtensionMethodName(String ns, String suffix) =>
       'ext.exploration.$ns.$suffix';
 
-  /// Append [handler] to this plugin's error handler chain.
+  /// Append [handler] to this extension's error handler chain.
   void registerErrorHandler(ErrorHandler handler) {
     errorHandlers.add(handler);
   }
 
-  /// Register a VM service extension under this plugin's namespace.
+  /// Register a VM service extension under this extension's namespace.
   ///
   /// The extension is exposed at
   /// `ext.exploration.<namespace>.<suffix>`.

@@ -10,7 +10,7 @@ import 'types.dart';
 /// Per-method discriminator used by the exception-isolation guard.
 enum _Method { busyState, onActionExecuted }
 
-/// Internal bookkeeping wrapper around a registered plugin.
+/// Internal bookkeeping wrapper around a registered extension.
 class _Entry {
   _Entry(this.plugin, this.context);
 
@@ -35,7 +35,7 @@ class _Entry {
   };
 }
 
-/// Registry that owns plugin lifecycle dispatch for the host binding.
+/// Registry that owns extension lifecycle dispatch for the host binding.
 ///
 /// Enforces:
 /// - namespace shape (`^[a-z][a-z0-9_]*$`) and uniqueness,
@@ -43,7 +43,7 @@ class _Entry {
 /// - registration-order preservation across every dispatch,
 /// - per-method exception isolation with 3-strikes auto-disable
 ///   (PRD §17),
-/// - per-plugin error-handler chaining (`registerErrorHandler`).
+/// - per-extension error-handler chaining (`registerErrorHandler`).
 class ExtensionRegistry {
   ExtensionRegistry({required SchedulerBinding scheduler})
     : _scheduler = scheduler;
@@ -53,17 +53,17 @@ class ExtensionRegistry {
   bool _finalized = false;
   static final RegExp _nsRe = RegExp(r'^[a-z][a-z0-9_]*$');
 
-  /// Plugin namespaces in registration order (post de-duplication).
+  /// Extension namespaces in registration order (post de-duplication).
   ///
-  /// Read by cx6.8's stable-observation primitive to map per-plugin
-  /// observation fragments back to their owning plugin and to enforce
-  /// per-plugin budget overrides.
+  /// Read by cx6.8's stable-observation primitive to map per-extension
+  /// observation fragments back to their owning extension and to enforce
+  /// per-extension budget overrides.
   List<String> get namespaces => List<String>.unmodifiable(<String>[
     for (final _Entry e in _entries) e.plugin.namespace,
   ]);
 
-  /// Plugin manifest: ordered `(namespace, bare tool names)` records,
-  /// one per registered plugin (post de-duplication). Read by the
+  /// Extension manifest: ordered `(namespace, bare tool names)` records,
+  /// one per registered extension (post de-duplication). Read by the
   /// binding's `core.handshake` extension to build the handshake
   /// `plugins` array. Does not finalize the registry.
   List<({String namespace, List<String> tools})> get manifest =>
@@ -79,7 +79,7 @@ class ExtensionRegistry {
         ],
       );
 
-  /// All registered plugins, in registration order. Read by the binding's
+  /// All registered extensions, in registration order. Read by the binding's
   /// single observation loop, which gates on `is PerceptionExtension`.
   List<LeonardExtension> get plugins => List<LeonardExtension>.unmodifiable(
     <LeonardExtension>[for (final _Entry e in _entries) e.plugin],
@@ -117,9 +117,9 @@ class ExtensionRegistry {
   /// Compute the merged tool list keyed by fully-qualified name.
   ///
   /// Tool names must be bare tokens (no `.`); the registry prefixes each
-  /// with the owning plugin's namespace. Throws [ArgumentError] for a
+  /// with the owning extension's namespace. Throws [ArgumentError] for a
   /// dotted tool name and [StateError] for a collision (intra- or
-  /// inter-plugin).
+  /// inter-extension).
   Map<String, LeonardTool> mergedTools() {
     final out = <String, LeonardTool>{};
     for (final e in _entries) {
@@ -145,8 +145,8 @@ class ExtensionRegistry {
   /// Alias for [mergedTools].
   Map<String, LeonardTool> finalize() => mergedTools();
 
-  /// Call [LeonardExtension.initialize] on every registered plugin in
-  /// registration order. Failures are logged and mark the plugin as
+  /// Call [LeonardExtension.initialize] on every registered extension in
+  /// registration order. Failures are logged and mark the extension as
   /// failed; the call never rethrows.
   Future<void> initializeAll() async {
     for (final e in _entries) {
@@ -162,9 +162,9 @@ class ExtensionRegistry {
     }
   }
 
-  /// Dispatch [busyState] across every (non-disabled) plugin in
+  /// Dispatch [busyState] across every (non-disabled) extension in
   /// registration order. Failures yield [BusyState.idle] for the
-  /// affected plugin.
+  /// affected extension.
   Future<List<MapEntry<String, BusyState>>> busyStateAll() async {
     final out = <MapEntry<String, BusyState>>[];
     for (final e in _entries) {
@@ -179,7 +179,7 @@ class ExtensionRegistry {
     return out;
   }
 
-  /// Dispatch [onActionExecuted] across every (non-disabled) plugin in
+  /// Dispatch [onActionExecuted] across every (non-disabled) extension in
   /// registration order.
   Future<void> onActionExecutedAll(ExecutedAction action) async {
     for (final e in _entries) {
@@ -192,8 +192,8 @@ class ExtensionRegistry {
     }
   }
 
-  /// Call [LeonardExtension.dispose] on every registered plugin in
-  /// registration order. Each call is exception-isolated; every plugin
+  /// Call [LeonardExtension.dispose] on every registered extension in
+  /// registration order. Each call is exception-isolated; every extension
   /// is disposed even if earlier ones throw.
   Future<void> disposeAll() async {
     for (final e in _entries) {
@@ -208,9 +208,9 @@ class ExtensionRegistry {
     }
   }
 
-  /// Dispatch [details] through every plugin's error-handler chain in
+  /// Dispatch [details] through every extension's error-handler chain in
   /// registration order. The first handler that returns `true` claims
-  /// the error and short-circuits further dispatch. Plugins flagged
+  /// the error and short-circuits further dispatch. Extensions flagged
   /// [initFailed] are skipped. Per-handler exceptions are logged and
   /// treated as not claiming.
   bool dispatchError(FlutterErrorDetails details) {

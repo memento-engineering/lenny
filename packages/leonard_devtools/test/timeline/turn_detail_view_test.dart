@@ -89,7 +89,7 @@ void main() {
       expect(find.text('(none)'), findsOneWidget);
     });
 
-    testWidgets('renders plugin fragments as expandable JSON sections', (
+    testWidgets('renders extension fragments as expandable JSON sections', (
       tester,
     ) async {
       await tester.pumpWidget(_wrap(TurnDetailView(record: _turn())));

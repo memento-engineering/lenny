@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 ///
 /// Line 1: tool name + first three args, single-line ellipsised.
 /// Line 2: diff summary derived from `diff.core` (nodes added/removed,
-///         route change) and any plugin-namespaced diff fragments.
+///         route change) and any extension-namespaced diff fragments.
 /// Line 3: thinking trace truncated for the row (full text shown in
 ///         the turn detail view).
 class TurnRow extends StatelessWidget {
@@ -78,7 +78,7 @@ class TurnRow extends StatelessWidget {
   }
 
   /// Builds the diff one-liner. Reads `diff.core` for node/route deltas
-  /// and surfaces any plugin-namespaced fragments in `diff.plugins`.
+  /// and surfaces any extension-namespaced fragments in `diff.plugins`.
   static String describeDiff(Map<String, dynamic> diff) {
     final parts = <String>[];
 

@@ -93,7 +93,7 @@ void main() {
       'throwing buildPerception() does not abort; healthy plugin emits',
       () async {
         if (!kDebugMode) return;
-        // Wait for plugin init microtask to run before invoking.
+        // Wait for extension init microtask to run before invoking.
         await Future<void>.delayed(Duration.zero);
         final String body = await binding.invokeServiceExtension(
           _ext,
@@ -104,8 +104,8 @@ void main() {
                 as Map<String, Object?>;
         final Map<String, Object?> plugins =
             obs['extensions']! as Map<String, Object?>;
-        // The thrower plugin produces no fragment (the loop's try/catch
-        // isolated it), but healthy plugin's fragment is present and untouched.
+        // The thrower extension produces no fragment (the loop's try/catch
+        // isolated it), but healthy extension's fragment is present and untouched.
         expect(plugins.containsKey('thrower'), isFalse);
         expect((plugins['healthy']! as Map<String, Object?>)['ok'], isTrue);
       },
@@ -118,12 +118,12 @@ void main() {
         // throws, which is the contract the policy loop relies on. The
         // happy-path coverage in policy_loop_test exercises that path
         // synthetically; this test calls registry.busyStateAll directly
-        // against a plugin that throws, asserting the fallback.
+        // against a extension that throws, asserting the fallback.
         final ExtensionRegistry reg = binding.extensionRegistry;
-        // None of the test plugins throw in busyState, so build a
+        // None of the test extensions throw in busyState, so build a
         // separate isolated registry to assert the fallback contract.
-        // We re-use the binding's plugins to check fallback also applies
-        // when initFailed plugins are skipped.
+        // We re-use the binding's extensions to check fallback also applies
+        // when initFailed extensions are skipped.
         final List<MapEntry<String, BusyState>> states = await reg
             .busyStateAll();
         // Every entry must produce a BusyState (idle or otherwise);
@@ -184,7 +184,7 @@ void main() {
       'extensionBudgets sum > 2048 scales each plugin proportionally',
       () async {
         if (!kDebugMode) return;
-        // Three plugins; each requested 1500 -> sum 4500 > 2048.
+        // Three extensions; each requested 1500 -> sum 4500 > 2048.
         // distributeExtensionBudgets is the source of truth and is unit
         // tested separately. Here we drive end-to-end so an oversized
         // fragment ends up truncated under the scaled budget.

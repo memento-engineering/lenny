@@ -42,14 +42,14 @@ class CoreToolError implements Exception {
   String toString() => 'CoreToolError($code): $message';
 }
 
-/// Host-installed plugin contributing the 10 `core.*` action tools
+/// Host-installed extension contributing the 10 `core.*` action tools
 /// (PRD §12.1).
 ///
 /// The binding registers a single instance of [CoreExtension] BEFORE any
-/// user-supplied plugin, which both (a) exposes the tools at
+/// user-supplied extension, which both (a) exposes the tools at
 /// `ext.exploration.core.<tool>` and (b) reserves the `core`
 /// namespace via [ExtensionRegistry]'s existing duplicate-namespace check
-/// (any user plugin claiming `core` will fail to register and be
+/// (any user extension claiming `core` will fail to register and be
 /// skipped).
 class CoreExtension extends LeonardExtension {
   CoreExtension({required SemanticsCapture semantics}) : _semantics = semantics;
@@ -112,7 +112,7 @@ class CoreExtension extends LeonardExtension {
   Future<void> initialize(ExtensionContext ctx) async {
     // Tool VM-service extensions are registered by the binding
     // (LeonardBinding._registerExtensionToolExtensions) after all
-    // plugins have initialized. CoreExtension no longer registers here
+    // extensions have initialized. CoreExtension no longer registers here
     // to prevent double-registration — developer.registerExtension
     // throws on duplicate names (dart:developer contract).
   }

@@ -136,7 +136,7 @@ void main() {
 
   group('PluginOrder', () {
     test(
-      'plugin fragments preserve registration order under "extensions"',
+      'extension fragments preserve registration order under "extensions"',
       () async {
         if (!kDebugMode) return;
         final String body = await binding.invokeServiceExtension(

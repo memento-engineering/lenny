@@ -100,7 +100,7 @@ _FakeVmService _fakeVm({
     }
     // Action: any extension method under `ext.exploration.` that
     // is not handshake/observation. Includes both core tools
-    // (`...core.tap`) and plugin tools (`...router.go`).
+    // (`...core.tap`) and extension tools (`...router.go`).
     if (method.startsWith('ext.exploration.')) {
       final result = executeActionHandler != null
           ? await executeActionHandler(method, args)
@@ -226,7 +226,7 @@ void main() {
 
     test('activeExtensionNamespaces filters out namespaces missing from '
         'extensionTools map', () async {
-      // Handshake reports `router` and `unknown` plugins; only `router`
+      // Handshake reports `router` and `unknown` extensions; only `router`
       // has descriptors. The unknown namespace is silently ignored.
       final vm = _fakeVm(
         plugins: <Map<String, dynamic>>[
@@ -578,7 +578,7 @@ void main() {
     test('driver writes one extension_disabled record per auto-disabled '
         'namespace via TrajectoryWriter', () async {
       // Three turns where the binding fragment for namespace `flaky`
-      // reports `error`. The driver's plugin-failure tracker should
+      // reports `error`. The driver's extension-failure tracker should
       // strike out at threshold 3 and emit exactly one
       // ExtensionDisabledEvent via the writer.
       final vm = _fakeVm(

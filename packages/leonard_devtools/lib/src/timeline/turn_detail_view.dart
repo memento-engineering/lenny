@@ -16,7 +16,7 @@ Uint8List defaultScreenshotDecoder(String b64) => base64Decode(b64);
 
 /// Detail view pushed when a [TurnRow] is tapped. Renders the proposed
 /// + executed action, validation, model reasoning, route stack,
-/// semantics summary (with expandable JSON), each plugin fragment
+/// semantics summary (with expandable JSON), each extension fragment
 /// (also lazy JSON), and the screenshot if attached (lazy decode).
 class TurnDetailView extends StatelessWidget {
   const TurnDetailView({

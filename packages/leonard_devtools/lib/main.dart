@@ -44,7 +44,7 @@ class LeonardDevToolsExtension extends StatelessWidget {
   Widget build(BuildContext context) => DevToolsExtension(
     child: Builder(
       builder: (BuildContext context) {
-        // Loads the plugin manifest over the live serviceManager VM
+        // Loads the extension manifest over the live serviceManager VM
         // service. When the service / main isolate aren't ready yet,
         // throw BindingNotInitializedError → the host shows
         // "Binding not detected" rather than an uncaught dart:io

@@ -1,4 +1,4 @@
-// Dogfood CLI for the exploration agent. See bead lenny-cx6.43.
+// Dogfood CLI for the Leonard agent. See bead lenny-cx6.43.
 //
 //   dart run packages/leonard_agent/tool/agent_dogfood.dart --help
 //   flutter test packages/leonard_agent/tool/agent_dogfood_runner.dart \

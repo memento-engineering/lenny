@@ -59,7 +59,7 @@ const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
 ///   3. **Semantic-node check** for core tools that target node ids.
 ///      Looks up each id in `observation.core.nodes`. Rejects with
 ///      `node_not_found` if absent, `node_disabled` if `node.state`
-///      contains the literal token `'disabled'`. Plugin-namespaced tools
+///      contains the literal token `'disabled'`. Extension-namespaced tools
 ///      (anything outside the `core.*` set in [_coreNodeTools]) skip
 ///      this pass.
 ///
@@ -111,7 +111,7 @@ class ActionValidator {
 
     // Pass 3: core-tool semantic-node check.
     if (!_coreNodeTools.contains(action.tool)) {
-      // Plugin tools and node-less core tools (system_back / wait /
+      // Extension tools and node-less core tools (system_back / wait /
       // done) only need passes 1+2.
       return const ValidationOk();
     }

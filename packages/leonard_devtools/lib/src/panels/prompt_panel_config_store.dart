@@ -92,7 +92,7 @@ class DtdPromptPanelConfigStore implements PromptPanelConfigStore {
 }
 
 /// Reconciles a deserialized JSON blob against the live manifest.
-/// - ns in live but NOT in known → newly added plugin → enabled.
+/// - ns in live but NOT in known → newly added extension → enabled.
 /// - ns in both live and known → restore persisted enabled/disabled state.
 /// - ns NOT in live → drop silently.
 PromptPanelConfig _reconcile(

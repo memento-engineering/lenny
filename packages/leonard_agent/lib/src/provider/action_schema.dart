@@ -22,7 +22,7 @@ class ActionSchema {
   ///
   /// Per PRD §16.2 this MUST be invoked every turn — there is
   /// intentionally no memoization, since the tool list can change as
-  /// plugins activate or deactivate.
+  /// extensions activate or deactivate.
   factory ActionSchema.fromToolList(List<ToolDescriptor> tools) {
     Map<String, dynamic> variant(ToolDescriptor t) => <String, dynamic>{
       'type': 'object',

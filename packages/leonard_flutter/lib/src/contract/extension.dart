@@ -12,7 +12,7 @@ import 'types.dart';
 /// A single tool exposed by an [LeonardExtension].
 ///
 /// The [name] is a bare token (no `.`); the host registry prefixes it with
-/// the plugin's namespace, producing the fully-qualified name
+/// the extension's namespace, producing the fully-qualified name
 /// `<namespace>.<name>` exposed to the agent.
 abstract class LeonardTool {
   const LeonardTool();
@@ -30,13 +30,13 @@ abstract class LeonardTool {
   Future<ToolResult> call(Map<String, Object?> args);
 }
 
-/// EXPERIMENTAL — v1 plugin contract (PRD §7).
+/// EXPERIMENTAL — v1 extension contract (PRD §7).
 ///
-/// A plugin contributes tools and busy-state signals to a Flutter
-/// Exploration session. Plugins that also observe app state mix in
+/// A extension contributes tools and busy-state signals to a Flutter
+/// Exploration session. Extensions that also observe app state mix in
 /// [PerceptionExtension] and contribute their observation via the perception
 /// path (`buildPerception()`); the binding serializes that into the
-/// `plugins.<namespace>` fragment. Implementations are registered with the
+/// `extensions.<namespace>` fragment. Implementations are registered with the
 /// host binding and dispatched by the [ExtensionRegistry] in registration
 /// order.
 ///
@@ -46,31 +46,31 @@ abstract class LeonardTool {
 ///
 /// v2 extension (PRD §8): List<LeonardResource> get resources and
 /// List<LeonardPrompt> get prompts may be added with default empty
-/// implementations without breaking existing plugins.
+/// implementations without breaking existing extensions.
 abstract class LeonardExtension {
   const LeonardExtension();
 
-  /// Plugin namespace; must match `^[a-z][a-z0-9_]*$`.
+  /// Extension namespace; must match `^[a-z][a-z0-9_]*$`.
   ///
   /// Used to prefix tool names (`<namespace>.<tool>`) and to scope VM
   /// service extensions (`ext.exploration.<namespace>.<suffix>`).
   String get namespace;
 
-  /// Tools this plugin contributes. Returned in stable order.
+  /// Tools this extension contributes. Returned in stable order.
   List<LeonardTool> get tools;
 
   /// Called once per session, in registration order. May register error
   /// handlers, VM extensions, and frame callbacks via [ctx].
   Future<void> initialize(ExtensionContext ctx);
 
-  /// Report whether the plugin considers the app busy.
+  /// Report whether the extension considers the app busy.
   Future<BusyState> busyState();
 
-  /// Notify the plugin that an action just executed.
+  /// Notify the extension that an action just executed.
   Future<void> onActionExecuted(ExecutedAction action);
 
   /// Tear down resources. Called once at session end. Exception-isolated
-  /// by the registry; every plugin's `dispose` runs even if earlier
-  /// plugins throw.
+  /// by the registry; every extension's `dispose` runs even if earlier
+  /// extensions throw.
   Future<void> dispose();
 }

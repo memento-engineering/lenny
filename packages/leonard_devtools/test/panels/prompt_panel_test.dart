@@ -251,7 +251,7 @@ void main() {
   });
 
   testWidgets(
-    'initialConfig pre-fills goal, maxTurns, budget, plugin toggles',
+    'initialConfig pre-fills goal, maxTurns, budget, extension toggles',
     (tester) async {
       await tester.pumpWidget(
         _host(

@@ -25,7 +25,7 @@ import 'panels/provider_config_store.dart';
 /// prompt-panel mount layer consumes both. Tests can pass an in-memory
 /// store; production wires a [DtdProviderConfigStore]. The shell also
 /// drives the Prompt tab off the live manifest probe owned by
-/// [LeonardPanelHost], so plugin toggles reflect the connected app.
+/// [LeonardPanelHost], so extension toggles reflect the connected app.
 ///
 /// The shell is `serviceManager`-free: `main.dart` builds [manifestProbe]
 /// and [sessionFactory] as closures over `serviceManager.service`, so
@@ -44,7 +44,7 @@ class LeonardShell extends StatefulWidget {
        promptConfigStore =
            promptConfigStore ?? InMemoryPromptPanelConfigStore();
 
-  /// Loads the active plugin manifest for [LeonardPanelHost].
+  /// Loads the active extension manifest for [LeonardPanelHost].
   /// Production wires a closure over `serviceManager.service` + the main
   /// isolate id (built on [probeManifest]); tests pass a stub.
   final ManifestProbe manifestProbe;
@@ -57,7 +57,7 @@ class LeonardShell extends StatefulWidget {
   /// Optional listenable that, when it fires, triggers a fresh probe.
   /// Production wires `Listenable.merge([serviceManager.connectedState,
   /// serviceManager.isolateManager.mainIsolate])` so reconnects re-load
-  /// the plugin manifest.
+  /// the extension manifest.
   final Listenable? probeRetrigger;
 
   /// Per-provider config persistence.

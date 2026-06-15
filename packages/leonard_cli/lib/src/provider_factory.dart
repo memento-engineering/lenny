@@ -86,7 +86,7 @@ SwiftInferModelProvider _buildSwiftInferProvider({
       baseUrl: baseUrl,
       model: _kSwiftInferModel,
       // PRD §16.3: Qwen3.6-35B-A3B is image-text-to-text and the CLI
-      // defaults screenshots ON for the exploration agent. The
+      // defaults screenshots ON for the Leonard agent. The
       // SwiftInferConfig default is `enableVision: false` (gated until
       // the gateway's VLM endpoint is verified), so the CLI overrides
       // it explicitly here.

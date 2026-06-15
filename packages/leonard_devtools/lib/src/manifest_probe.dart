@@ -1,6 +1,6 @@
 /// Manifest probe types for the DevTools Prompt panel.
 ///
-/// `LeonardPanelHost` resolves the plugin manifest by calling
+/// `LeonardPanelHost` resolves the extension manifest by calling
 /// `ext.exploration.handshake` through [VmServiceClient]. The shell
 /// renders the result via a `ValueListenable<ManifestProbeResult>` so the
 /// UI reacts to (re)connects without recreating the host.
@@ -20,7 +20,7 @@ class ManifestProbeLoading extends ManifestProbeResult {
   const ManifestProbeLoading();
 }
 
-/// Probe succeeded; [plugins] is the active plugin manifest (possibly empty).
+/// Probe succeeded; [extensions] is the active extension manifest (possibly empty).
 class ManifestProbeLoaded extends ManifestProbeResult {
   const ManifestProbeLoaded(this.plugins);
   final List<ExtensionManifestEntry> plugins;
@@ -39,7 +39,7 @@ class ManifestProbeFailed extends ManifestProbeResult {
   final String message;
 }
 
-/// Function signature for loading the active plugin manifest. The
+/// Function signature for loading the active extension manifest. The
 /// closure owns whatever connection it needs — production wires a
 /// closure over `serviceManager.service` + the main isolate id (see
 /// `main.dart`), built on top of [probeManifest]; tests inject a stub.
@@ -50,7 +50,7 @@ class ManifestProbeFailed extends ManifestProbeResult {
 typedef ManifestProbe = Future<List<ExtensionManifestEntry>> Function();
 
 /// Run the binding handshake over an already-connected [vm] (pinned to
-/// [isolateId]) and return the active plugin manifest.
+/// [isolateId]) and return the active extension manifest.
 ///
 /// Does **not** dispose [vm] — the DevTools extension owns that
 /// connection via `serviceManager`. Errors propagate to the caller (the

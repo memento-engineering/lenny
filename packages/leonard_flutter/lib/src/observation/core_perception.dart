@@ -7,9 +7,9 @@ import 'package:genesis_perception/genesis_perception.dart';
 /// optional `screenshot_png_b64`.
 ///
 /// Core is NOT a registered [LeonardExtension] — its fragment must sit at
-/// the response top level, not nested under `plugins.<ns>`. Therefore core
-/// deliberately does NOT flow through the binding's generic plugin
-/// observation loop (which emits `plugins.<ns>`). Instead the binding builds
+/// the response top level, not nested under `extensions.<ns>`. Therefore core
+/// deliberately does NOT flow through the binding's generic extension
+/// observation loop (which emits `extensions.<ns>`). Instead the binding builds
 /// the core `Seed` from [buildCorePerceptionSeed] and serializes it through
 /// this dedicated perception path at the top level.
 ///

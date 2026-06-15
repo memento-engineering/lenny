@@ -5,7 +5,7 @@ import 'model_catalog.dart';
 import 'prompt_panel_config.dart';
 import 'provider_config.dart';
 
-/// Goal / model / budget / plugin form rendered into the DevTools
+/// Goal / model / budget / extension form rendered into the DevTools
 /// extension's Prompt tab. Stateless w.r.t. running session — owners
 /// pass [running] in and react to [onStart] / [onStop] callbacks.
 ///
@@ -38,7 +38,7 @@ class PromptPanel extends StatefulWidget {
   /// models + loading/error state).
   final ModelCatalogState modelsState;
 
-  /// Plugin manifest from the binding handshake. Empty list renders
+  /// Extension manifest from the binding handshake. Empty list renders
   /// the empty-state guide hint instead of toggles.
   final List<ExtensionManifestEntry> plugins;
 
@@ -66,7 +66,7 @@ class PromptPanel extends StatefulWidget {
   /// no session has started yet.
   final String conversationId;
 
-  /// URL surfaced in the empty-plugin hint.
+  /// URL surfaced in the empty-extension hint.
   final String extensionGuideUrl;
 
   /// Invoked when the user taps the `Use fallback model: <id>` link in

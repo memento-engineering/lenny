@@ -23,7 +23,7 @@ class LeonardPanelHost extends StatefulWidget {
 
   final Widget child;
 
-  /// Loads the active plugin manifest by running the binding handshake.
+  /// Loads the active extension manifest by running the binding handshake.
   /// Production wires a closure over `serviceManager.service`; tests
   /// inject a stub.
   final ManifestProbe manifestProbe;

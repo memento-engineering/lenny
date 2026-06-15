@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 
-/// A plugin whose error handler we can drive from tests.
+/// A extension whose error handler we can drive from tests.
 class _RecordingExtension extends LeonardExtension {
   _RecordingExtension(this.namespace, {required this.handler});
 
@@ -31,7 +31,7 @@ class _RecordingExtension extends LeonardExtension {
 }
 
 void main() {
-  // First plugin: never claims, but records every call.
+  // First extension: never claims, but records every call.
   final List<String> firstCalls = <String>[];
   final _RecordingExtension firstPlugin = _RecordingExtension(
     'alpha',
@@ -41,7 +41,7 @@ void main() {
     },
   );
 
-  // Second plugin: throws on every call.
+  // Second extension: throws on every call.
   final _RecordingExtension throwerPlugin = _RecordingExtension(
     'beta',
     handler: (FlutterErrorDetails _) {
@@ -49,7 +49,7 @@ void main() {
     },
   );
 
-  // Third plugin: claims errors whose message contains 'CLAIM'.
+  // Third extension: claims errors whose message contains 'CLAIM'.
   final List<String> thirdCalls = <String>[];
   final _RecordingExtension claimerPlugin = _RecordingExtension(
     'gamma',
@@ -65,7 +65,7 @@ void main() {
     binding = LeonardBinding.ensureInitialized(
       extensions: <LeonardExtension>[firstPlugin, throwerPlugin, claimerPlugin],
     )!;
-    // Plugin initialization runs in a microtask; flush it so the error
+    // Extension initialization runs in a microtask; flush it so the error
     // handlers are registered before the first test fires errors.
     await Future<void>.delayed(Duration.zero);
   });
@@ -143,7 +143,7 @@ void main() {
     FlutterError.onError!(details);
 
     expect(binding.debugHighestErrorSeq(), beforeSeq + 1);
-    // first plugin (alpha) returns false → chain advances
+    // first extension (alpha) returns false → chain advances
     expect(firstCalls, hasLength(1));
     // beta throws → counts as not-claiming
     // gamma sees 'CLAIM' → returns true → chain stops at gamma
@@ -187,7 +187,7 @@ void main() {
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
     // The host-installed CoreExtension contributes the 10 `core.*` tools
-    // even when no user plugins are supplied. Recording plugins from
+    // even when no user extensions are supplied. Recording extensions from
     // this test fixture expose none of their own.
     final List<String> coreKeys = const <String>[
       'core.tap',

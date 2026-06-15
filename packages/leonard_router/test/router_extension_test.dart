@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Harvest the router plugin's observation fragment via the perception path,
+/// Harvest the router extension's observation fragment via the perception path,
 /// exactly as the binding's single observation loop does.
 Map<String, Object?> _harvest(RouterExtension plugin) {
   final PerceptionOwner owner = PerceptionOwner();

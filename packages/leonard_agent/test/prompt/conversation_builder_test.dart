@@ -204,7 +204,7 @@ void main() {
       final String rendered = r.render(original);
       final Map<String, dynamic> decoded = (jsonDecode(rendered) as Map)
           .cast<String, dynamic>();
-      // The renderer emits core/plugins/stability — reconstructable but
+      // The renderer emits core/extensions/stability — reconstructable but
       // not in the binding's flat wire format; build a fromJson-shaped
       // map from the renderer output's core fields.
       final Map<String, dynamic> flat = <String, dynamic>{

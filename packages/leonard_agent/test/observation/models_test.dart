@@ -81,7 +81,7 @@ void main() {
       expect(o, equals(Observation.empty()));
     });
 
-    test('plugin fragment honours bare delta_friendly flag', () {
+    test('extension fragment honours bare delta_friendly flag', () {
       final Observation o = Observation.fromJson(<String, dynamic>{
         'extensions': <String, dynamic>{
           'router': <String, dynamic>{'path': '/x', '_delta_friendly': true},
@@ -93,7 +93,7 @@ void main() {
       expect(o.plugins['router']!.data['path'], equals('/x'));
     });
 
-    test('plugin fragment supports envelope shape', () {
+    test('extension fragment supports envelope shape', () {
       final Observation o = Observation.fromJson(<String, dynamic>{
         'extensions': <String, dynamic>{
           'router': <String, dynamic>{

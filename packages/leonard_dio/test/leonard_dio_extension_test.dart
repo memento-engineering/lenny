@@ -65,7 +65,7 @@ Future<void> _pumpUntil(
   }
 }
 
-/// Harvest the dio plugin's observation fragment via the perception path,
+/// Harvest the dio extension's observation fragment via the perception path,
 /// exactly as the binding's single observation loop does.
 Map<String, Object?> _harvest(LeonardDioExtension plugin) {
   final PerceptionOwner owner = PerceptionOwner();

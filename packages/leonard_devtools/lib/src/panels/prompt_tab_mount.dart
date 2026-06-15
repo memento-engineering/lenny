@@ -41,7 +41,7 @@ class PromptTabMount extends StatefulWidget {
     this.initialProviderId = 'swift-infer',
   });
 
-  /// Plugin manifest from the binding handshake.
+  /// Extension manifest from the binding handshake.
   final List<ExtensionManifestEntry> plugins;
 
   /// Per-provider config persistence.

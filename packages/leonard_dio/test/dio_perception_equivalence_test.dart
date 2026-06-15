@@ -87,7 +87,7 @@ void main() {
         await req;
       } catch (_) {}
 
-      // The plugin is no longer idle once a request completes.
+      // The extension is no longer idle once a request completes.
       expect(plugin.isPerceptionIdle(), isFalse);
 
       final Map<String, Object?> perceptionFrag = _harvestFragment(plugin);
@@ -116,7 +116,7 @@ void main() {
         ),
       );
 
-      // No requests sent — plugin is completely idle. The binding's
+      // No requests sent — extension is completely idle. The binding's
       // isPerceptionIdle() gate (reproducing the retired observe()==null)
       // suppresses the dio namespace entirely.
       expect(plugin.isPerceptionIdle(), isTrue);

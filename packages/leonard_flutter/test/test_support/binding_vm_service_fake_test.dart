@@ -5,7 +5,7 @@
 /// `extensionRegistry.mergedTools()` and not by the literal
 /// `ext.exploration.core.*` URL prefix:
 ///
-///   - a plugin registered under namespace `core` (deliberately
+///   - a extension registered under namespace `core` (deliberately
 ///     reusing the namespace that previously triggered the routing
 ///     bug) is reached via `invokeExtensionTool`;
 ///   - a binding-owned extension (`core.get_stable_observation`),
@@ -103,7 +103,7 @@ void main() {
       extensions: <LeonardExtension>[_CoreNamespaceExtension(tap)],
       installCoreExtension: false,
     )!;
-    // Plugin initialization runs in a microtask; flush it so the merged
+    // Extension initialization runs in a microtask; flush it so the merged
     // tool map is populated before the fake's first lookup.
     await Future<void>.delayed(Duration.zero);
     // PolicyLoop awaits `SchedulerBinding.endOfFrame`; this test runs
@@ -152,7 +152,7 @@ void main() {
       'ext.exploration.core.get_stable_observation',
     );
     // The binding-owned extension wraps the result in
-    // `{type: 'Observation', value: <bundle>}`; the plugin envelope
+    // `{type: 'Observation', value: <bundle>}`; the extension envelope
     // would have shape `{ok, value, error}`. Asserting on `type`
     // proves we reached `invokeServiceExtension`, not
     // `invokeExtensionTool`.
@@ -208,10 +208,10 @@ void main() {
 
     test('fixture short-circuit does not affect other extension routes — '
         'plugin tool still reaches invokeExtensionTool', () async {
-      // Reuse the `core.tap` plugin tool wired in setUpAll. Construct
+      // Reuse the `core.tap` extension tool wired in setUpAll. Construct
       // a fixture-armed fake and prove the fixture is irrelevant for
       // non-observation methods: `core.tap` still routes via the
-      // registry and the plugin's `tap.call` runs.
+      // registry and the extension's `tap.call` runs.
       tap.invoked = false;
       tap.lastArgs = null;
       final _FakeFixture fixture = _FakeFixture(<String, dynamic>{

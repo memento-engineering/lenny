@@ -25,7 +25,7 @@ import 'leonard_app.dart';
 import 'perception_serializer.dart';
 
 /// Reserved prefix. Format:
-/// `ext.exploration.<core_or_plugin_namespace>.<suffix>`.
+/// `ext.exploration.<core_or_extension_namespace>.<suffix>`.
 /// `core` is reserved for host-owned extensions.
 const String kLeonardExtensionPrefix = 'ext.exploration';
 
@@ -61,11 +61,11 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
   /// When `true` (production default), [_wireExtensions] constructs and
   /// registers a host-owned [CoreExtension] FIRST, reserving the `core`
-  /// namespace before any user plugins are registered. Test harnesses
-  /// that need to stand in their own `core` plugin (the dogfood loop —
+  /// namespace before any user extensions are registered. Test harnesses
+  /// that need to stand in their own `core` extension (the dogfood loop —
   /// see lenny-cx6.45) set this to `false` via the `@visibleForTesting`
   /// param on [ensureInitialized]; the real CoreExtension is then never
-  /// constructed and the namespace is available for a user plugin.
+  /// constructed and the namespace is available for a user extension.
   final bool _installCoreExtension;
   final SemanticsCapture _semanticsCapture = SemanticsCapture();
 
@@ -96,8 +96,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// loop entry point.
   int Function()? _nowMsForTesting;
 
-  /// Wired in [ensureInitialized]; owns plugin lifecycle dispatch and the
-  /// per-plugin error-handler chain.
+  /// Wired in [ensureInitialized]; owns extension lifecycle dispatch and the
+  /// per-extension error-handler chain.
   late final ExtensionRegistry _extensionRegistry;
 
   /// Bounded ring buffer of recent runtime errors (cx6.9).
@@ -107,7 +107,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// entries. Started in [ensureInitialized].
   late final Stopwatch _sessionClock;
 
-  /// Owns the perception tree for perception-native plugins. Mounted and
+  /// Owns the perception tree for perception-native extensions. Mounted and
   /// unmounted per observation turn; disposed via teardown in [_wireExtensions].
   final PerceptionOwner _perceptionOwner = PerceptionOwner();
 
@@ -130,8 +130,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// User-supplied list, registration order preserved. cx6.3 reads it.
   List<LeonardExtension> get plugins => List.unmodifiable(_extensions);
 
-  /// The wired plugin registry. Plugins are registered in the order they
-  /// appear in the `plugins` argument to [ensureInitialized]; downstream
+  /// The wired extension registry. Extensions are registered in the order they
+  /// appear in the `extensions` argument to [ensureInitialized]; downstream
   /// beads (cx6.6 core action tools, cx6.8 stable observation) dispatch
   /// through this registry.
   ExtensionRegistry get extensionRegistry => _extensionRegistry;
@@ -139,7 +139,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// No-op (returns null) outside debug/profile.
   /// Throws [StateError] if a different `WidgetsBinding` is active.
   /// Idempotent: second call returns the same instance and does NOT
-  /// re-install error hooks or re-register plugins.
+  /// re-install error hooks or re-register extensions.
   static LeonardBinding? ensureInitialized({
     required List<LeonardExtension> extensions,
     List<String> extraInteractiveTypes = const <String>[],
@@ -190,24 +190,24 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     );
     _extensionRegistry = ExtensionRegistry(scheduler: this);
     // Host-install CoreExtension FIRST so namespace `core` is reserved
-    // before user plugins are registered. The registry's existing
-    // duplicate-namespace check then rejects any user plugin claiming
+    // before user extensions are registered. The registry's existing
+    // duplicate-namespace check then rejects any user extension claiming
     // `core` (PRD §12.1, AC #2 of cx6.6).
     //
     // Test harnesses (e.g. the dogfood loop — lenny-cx6.45) may pass
     // `installCoreExtension: false` to [ensureInitialized] so a caller-
-    // supplied stand-in plugin can claim the `core` namespace. The
+    // supplied stand-in extension can claim the `core` namespace. The
     // production path (`LeonardBinding.run` and the default
     // `ensureInitialized` invocation) always installs the real
     // CoreExtension.
     if (_installCoreExtension) {
       _extensionRegistry.register(CoreExtension(semantics: _semanticsCapture));
     }
-    // Register each unique plugin namespace into the registry. The
+    // Register each unique extension namespace into the registry. The
     // legacy `plugins` getter preserves the verbatim list (including
     // duplicates) per cx6.2's contract, but the registry enforces
     // namespace uniqueness — duplicate registrations are logged and
-    // skipped so lifecycle dispatch sees each plugin exactly once.
+    // skipped so lifecycle dispatch sees each extension exactly once.
     for (final LeonardExtension p in plugins) {
       try {
         _extensionRegistry.register(p);
@@ -221,7 +221,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     _teardowns.add(() async => _perceptionOwner.dispose());
     _registerCoreExtensions();
     _registerDiagnosticsExtension();
-    // Run plugin initialization in a microtask so it completes before the
+    // Run extension initialization in a microtask so it completes before the
     // first frame without blocking the synchronous return.
     scheduleMicrotask(
       () => _extensionRegistry.initializeAll().then(
@@ -240,13 +240,13 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// Behaviour by mode:
   ///
   /// - **release** (`kReleaseMode`): no binding is installed, no
-  ///   plugins are registered, and [LeonardApp.build] is invoked
+  ///   extensions are registered, and [LeonardApp.build] is invoked
   ///   with a release context whose [LeonardAppContext.binding] is
   ///   `null` and whose [LeonardAppContext.onTeardown] is a no-op.
   ///   `runApp(config.app)` is still called.
   /// - **debug/profile**: claims the [WidgetsBinding] slot, calls
   ///   [LeonardApp.build] with a context that exposes the binding,
-  ///   wires the returned plugins through the same path as
+  ///   wires the returned extensions through the same path as
   ///   [ensureInitialized], then calls `runApp` inside the binding's
   ///   stability zone so user-mode microtasks flip the
   ///   `pendingMicrotasks` edge signal.
@@ -257,7 +257,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   ///
   /// Idempotent: calling `run` a second time in the same process
   /// re-runs [LeonardApp.build] and `runApp` against the existing
-  /// binding without reinstalling it or re-registering plugins.
+  /// binding without reinstalling it or re-registering extensions.
   static void run(LeonardApp app) {
     if (kReleaseMode) {
       final LeonardAppConfig cfg = app.build(const _ReleaseContext());
@@ -339,7 +339,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     _priorFlutterOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
       _errors.add(details.exceptionAsString(), details.stack);
-      // Plugin handler chain — return value intentionally ignored: the ring
+      // Extension handler chain — return value intentionally ignored: the ring
       // buffer always records, and we always forward to the prior handler
       // so framework default behaviour (e.g. dumping to console) survives.
       _extensionRegistry.dispatchError(details);
@@ -488,18 +488,18 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     });
   }
 
-  /// Registers every plugin tool as a real VM service extension so
-  /// live VM-service callers can invoke plugin tools by name.
+  /// Registers every extension tool as a real VM service extension so
+  /// live VM-service callers can invoke extension tools by name.
   ///
   /// Iterates [ExtensionRegistry.mergedTools] (keyed by `<ns>.<tool>`)
   /// and calls [_registerExtension] for each entry, exposing it at
   /// `ext.exploration.<ns>.<tool>`. This also populates
-  /// [_extensionCallbacks] so [invokeServiceExtension] can reach plugin
+  /// [_extensionCallbacks] so [invokeServiceExtension] can reach extension
   /// tools in tests without a live VM connection.
   ///
   /// Called once, in the microtask that runs [ExtensionRegistry.initializeAll],
-  /// after all plugins have finished their own [initialize] callbacks.
-  /// Must be the sole registration site for plugin tools; plugin
+  /// after all extensions have finished their own [initialize] callbacks.
+  /// Must be the sole registration site for extension tools; extension
   /// [initialize] implementations must NOT call
   /// [ExtensionContext.registerExtension] for their own tools (doing so
   /// double-registers and [developer.registerExtension] throws).
@@ -582,10 +582,10 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
   /// Compose the stable-observation bundle for the current turn.
   ///
-  /// Polls cx6.4's framework signals + every plugin's `busyState()`
+  /// Polls cx6.4's framework signals + every extension's `busyState()`
   /// until [req]'s policy terminates, then captures the merged JSON
-  /// observation: core fragment + per-plugin fragments under
-  /// `plugins.<namespace>`.
+  /// observation: core fragment + per-extension fragments under
+  /// `extensions.<namespace>`.
   ///
   /// kDebugMode-gated: callers in release/profile receive a stub empty
   /// observation. The VM extension is not registered in those modes,
@@ -666,7 +666,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
     final Map<String, Object?> extensionsOut = <String, Object?>{};
 
-    // SINGLE observation loop, registration order. Tools-only plugins
+    // SINGLE observation loop, registration order. Tools-only extensions
     // (no PerceptionExtension mixin) contribute no fragment — exactly
     // mirroring the retired observe() => null. For each PerceptionExtension:
     // prepareForObservation() (side-effect seam) runs FIRST, then the
@@ -729,10 +729,10 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     return resp.result ?? '';
   }
 
-  /// Test-only: dispatch a plugin tool by its fully-qualified service
+  /// Test-only: dispatch a extension tool by its fully-qualified service
   /// extension method name (e.g. `ext.exploration.sample.echo`).
   ///
-  /// Plugin tools are registered by [_registerExtensionToolExtensions] via [_registerExtension],
+  /// Extension tools are registered by [_registerExtensionToolExtensions] via [_registerExtension],
   /// which populates both [developer.registerExtension] and [_extensionCallbacks]. They can
   /// therefore also be reached through [invokeServiceExtension]. This helper resolves the
   /// tool via [extensionRegistry]'s `mergedTools()` map (keyed by the qualified `<ns>.<tool>`

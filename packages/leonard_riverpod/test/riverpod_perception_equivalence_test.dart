@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-/// Build a plugin whose observer is installed on its container.
+/// Build a extension whose observer is installed on its container.
 ({
   RiverpodLeonardExtension plugin,
   ProviderContainer container,
@@ -104,7 +104,7 @@ void main() {
       addTearDown(w.container.dispose);
       await w.plugin.initialize(ctx());
 
-      // No providers read — plugin is idle.
+      // No providers read — extension is idle.
       w.plugin.prepareForObservation();
       expect(
         w.plugin.isPerceptionIdle(),
@@ -162,7 +162,7 @@ void main() {
           (golden['extensions'] as Map<String, Object?>)['riverpod']
               as Map<String, Object?>;
 
-      // Pin the plugin fragment byte-for-byte against the committed golden:
+      // Pin the extension fragment byte-for-byte against the committed golden:
       // key names AND declared order via canonical JSON encoding.
       expect(
         jsonEncode(perceptionFrag),
@@ -173,7 +173,7 @@ void main() {
       );
 
       // And via the equivalence gate against the full golden observation: reuse
-      // the golden's non-plugin envelope, swap in the harvested fragment.
+      // the golden's non-extension envelope, swap in the harvested fragment.
       final Map<String, Object?> harvestedObs = <String, Object?>{
         'semantics': golden['semantics'],
         'routes': golden['routes'],

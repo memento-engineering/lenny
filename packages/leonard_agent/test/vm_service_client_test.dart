@@ -43,7 +43,7 @@ Response _resp(Map<String, dynamic> json) {
 
 void main() {
   group('VmServiceClient.handshake', () {
-    test('decodes protocolVersion and plugin manifest', () async {
+    test('decodes protocolVersion and extension manifest', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{
           'protocolVersion': '2',

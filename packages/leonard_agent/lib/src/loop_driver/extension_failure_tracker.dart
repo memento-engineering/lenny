@@ -1,15 +1,15 @@
-/// Tracks consecutive observation failures per plugin namespace.
+/// Tracks consecutive observation failures per extension namespace.
 ///
-/// PRD §17: a plugin that throws three times in a row during
+/// PRD §17: a extension that throws three times in a row during
 /// `observe()`/`busyState()`/`onActionExecuted` is auto-disabled by the
 /// driver. Counters reset on a successful (non-error) observation
-/// fragment. Tracking is per-plugin — one plugin's flakes never
+/// fragment. Tracking is per-extension — one extension's flakes never
 /// interfere with another's counter.
 library;
 
 class ExtensionFailureTracker {
   /// PRD §17 threshold — auto-disable after three consecutive failures
-  /// from the same plugin.
+  /// from the same extension.
   static const int autoDisableThreshold = 3;
 
   final Map<String, int> _counts = <String, int>{};
@@ -20,7 +20,7 @@ class ExtensionFailureTracker {
   /// this turn. Returns `false` for the first and second failures.
   ///
   /// The counter is *not* reset on the auto-disable transition; the
-  /// driver removes the plugin from the active set on the next turn,
+  /// driver removes the extension from the active set on the next turn,
   /// so the counter ceases to advance naturally.
   bool recordFailure(String namespace) {
     final int n = (_counts[namespace] ?? 0) + 1;
