@@ -76,3 +76,13 @@ lenny-whn/
 .claude/skills/merge/
 .claude/skills/route/
 .claude/skills/specify/
+
+# Local scratch / factory runtime state — not part of the repo
+spikes/
+.gc/
+.factoryskills/sessions.jsonl
+.beads/identity.toml
+
+# Env files — never commit secrets
+*.env
+.env

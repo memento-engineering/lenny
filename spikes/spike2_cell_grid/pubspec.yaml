@@ -1,8 +1,0 @@
-name: spike2_cell_grid
-description: >-
-  Spike 2: bare-VM ANSI cell grid with double-buffered diff. Pure stdlib,
-  zero dependencies. De-risks genesis A4 fork B (pure-Dart TUI render
-  surface, no Flutter engine).
-publish_to: none
-environment:
-  sdk: ^3.11.0
