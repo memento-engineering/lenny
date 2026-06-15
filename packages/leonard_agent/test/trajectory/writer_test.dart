@@ -27,35 +27,34 @@ class _RecordingSink implements TrajectorySink {
 }
 
 SessionHeader _hdr() => const SessionHeader(
-      goal: 'login',
-      agentsMdHash: 'sha256:abc',
-      buildIdentifier: 'debug-1.0.0',
-      modelIdentifier: 'qwen3.6-35b-a3b@8bit',
-      harnessVersion: '0.1.0',
-      plugins: [
-        ExtensionManifestRecord(
-          namespace: 'router',
-          packageVersion: '1.2.3',
-          contractVersion: '1.0.0',
-        ),
-      ],
-      config: {'turn_budget_ms': 30000},
-    );
+  goal: 'login',
+  agentsMdHash: 'sha256:abc',
+  buildIdentifier: 'debug-1.0.0',
+  modelIdentifier: 'qwen3.6-35b-a3b@8bit',
+  harnessVersion: '0.1.0',
+  plugins: [
+    ExtensionManifestRecord(
+      namespace: 'router',
+      packageVersion: '1.2.3',
+      contractVersion: '1.0.0',
+    ),
+  ],
+  config: {'turn_budget_ms': 30000},
+);
 
 TurnRecord _turn(int i) => TurnRecord(
-      index: i,
-      observation: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      stability: const {'policy': 'action_relative'},
-      proposedAction: const {'tool': 'core.tap'},
-      validation: const {'result': 'ok', 'retries': 0},
-      executedAction: const {'tool': 'core.tap'},
-      diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      modelMetadata: const {
-        'tokens_in': 10,
-        'tokens_out': 5,
-        'duration_ms': 200,
-      },
-    );
+  index: i,
+  observation: const {
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
+  stability: const {'policy': 'action_relative'},
+  proposedAction: const {'tool': 'core.tap'},
+  validation: const {'result': 'ok', 'retries': 0},
+  executedAction: const {'tool': 'core.tap'},
+  diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
+  modelMetadata: const {'tokens_in': 10, 'tokens_out': 5, 'duration_ms': 200},
+);
 
 void main() {
   group('TrajectoryWriter', () {
@@ -65,11 +64,13 @@ void main() {
       await w.writeHeader(_hdr());
       await w.writeTurn(_turn(0));
       await w.writeTurn(_turn(1));
-      await w.close(const SessionFooter(
-        outcome: SessionOutcome.done,
-        totalTurns: 2,
-        totalDurationMs: 1234,
-      ));
+      await w.close(
+        const SessionFooter(
+          outcome: SessionOutcome.done,
+          totalTurns: 2,
+          totalDurationMs: 1234,
+        ),
+      );
 
       expect(sink.lines.length, 4);
       expect(sink.flushCount, 4);
@@ -77,8 +78,9 @@ void main() {
       for (final l in sink.lines) {
         expect(l.contains('\n'), isFalse);
       }
-      final types =
-          sink.lines.map((l) => jsonDecode(l)['type'] as String).toList();
+      final types = sink.lines
+          .map((l) => jsonDecode(l)['type'] as String)
+          .toList();
       expect(types, ['header', 'turn', 'turn', 'footer']);
     });
 
@@ -87,17 +89,21 @@ void main() {
       final w = TrajectoryWriter(sink);
       await w.writeHeader(_hdr());
       await w.writeTurn(_turn(0));
-      await w.writeExtensionDisabled(const ExtensionDisabledEvent(
-        namespace: 'dio',
-        reason: 'auto_disabled_after_3_failures',
-        turn: 1,
-      ));
+      await w.writeExtensionDisabled(
+        const ExtensionDisabledEvent(
+          namespace: 'dio',
+          reason: 'auto_disabled_after_3_failures',
+          turn: 1,
+        ),
+      );
       await w.writeTurn(_turn(1));
-      await w.close(const SessionFooter(
-        outcome: SessionOutcome.done,
-        totalTurns: 2,
-        totalDurationMs: 100,
-      ));
+      await w.close(
+        const SessionFooter(
+          outcome: SessionOutcome.done,
+          totalTurns: 2,
+          totalDurationMs: 100,
+        ),
+      );
 
       expect(jsonDecode(sink.lines[2]), {
         'type': 'extension_disabled',
@@ -111,12 +117,14 @@ void main() {
       final sink = _RecordingSink();
       final w = TrajectoryWriter(sink);
       await w.writeHeader(_hdr());
-      await w.close(const SessionFooter(
-        outcome: SessionOutcome.harnessError,
-        totalTurns: 0,
-        totalDurationMs: 50,
-        harnessError: 'connection_lost',
-      ));
+      await w.close(
+        const SessionFooter(
+          outcome: SessionOutcome.harnessError,
+          totalTurns: 0,
+          totalDurationMs: 50,
+          harnessError: 'connection_lost',
+        ),
+      );
 
       final last = jsonDecode(sink.lines.last) as Map<String, dynamic>;
       expect(last['type'], 'footer');
@@ -147,11 +155,13 @@ void main() {
       final sink = _RecordingSink();
       final w = TrajectoryWriter(sink);
       await w.writeHeader(_hdr());
-      await w.close(const SessionFooter(
-        outcome: SessionOutcome.done,
-        totalTurns: 0,
-        totalDurationMs: 1,
-      ));
+      await w.close(
+        const SessionFooter(
+          outcome: SessionOutcome.done,
+          totalTurns: 0,
+          totalDurationMs: 1,
+        ),
+      );
       expect(() => w.writeTurn(_turn(0)), throwsStateError);
     });
 

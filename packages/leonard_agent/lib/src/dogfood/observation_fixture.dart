@@ -59,14 +59,12 @@ class ObservationFixture {
   /// Minimal empty observation — what the harness returns when no
   /// fixture is supplied. The agent's prompt assembler will note the
   /// scarcity but must not crash.
-  static ObservationFixture empty() => ObservationFixture._(
-        '<empty>',
-        <String, dynamic>{
-          'frame_id': 1,
-          'semantics': <String, dynamic>{'nodes': <dynamic>[]},
-          'extensions': <String, dynamic>{},
-        },
-      );
+  static ObservationFixture empty() =>
+      ObservationFixture._('<empty>', <String, dynamic>{
+        'frame_id': 1,
+        'semantics': <String, dynamic>{'nodes': <dynamic>[]},
+        'extensions': <String, dynamic>{},
+      });
 
   /// Test-only constructor: build a fixture from an in-memory body
   /// without touching disk. The public constructor remains private to

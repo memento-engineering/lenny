@@ -21,7 +21,6 @@ class _HandlerExtension extends LeonardExtension {
     }
   }
 
-
   @override
   Future<BusyState> busyState() async => BusyState.idle;
 
@@ -46,33 +45,39 @@ void main() {
   test('error handlers run in order; first true short-circuits', () async {
     final calls = <String>[];
     final r = ExtensionRegistry(scheduler: scheduler);
-    r.register(_HandlerExtension(
-      namespace: 'a',
-      handlers: <ErrorHandler>[
-        (FlutterErrorDetails _) {
-          calls.add('a');
-          return false;
-        },
-      ],
-    ));
-    r.register(_HandlerExtension(
-      namespace: 'b',
-      handlers: <ErrorHandler>[
-        (FlutterErrorDetails _) {
-          calls.add('b');
-          return true;
-        },
-      ],
-    ));
-    r.register(_HandlerExtension(
-      namespace: 'c',
-      handlers: <ErrorHandler>[
-        (FlutterErrorDetails _) {
-          calls.add('c');
-          return true;
-        },
-      ],
-    ));
+    r.register(
+      _HandlerExtension(
+        namespace: 'a',
+        handlers: <ErrorHandler>[
+          (FlutterErrorDetails _) {
+            calls.add('a');
+            return false;
+          },
+        ],
+      ),
+    );
+    r.register(
+      _HandlerExtension(
+        namespace: 'b',
+        handlers: <ErrorHandler>[
+          (FlutterErrorDetails _) {
+            calls.add('b');
+            return true;
+          },
+        ],
+      ),
+    );
+    r.register(
+      _HandlerExtension(
+        namespace: 'c',
+        handlers: <ErrorHandler>[
+          (FlutterErrorDetails _) {
+            calls.add('c');
+            return true;
+          },
+        ],
+      ),
+    );
     await r.initializeAll();
     final claimed = r.dispatchError(
       FlutterErrorDetails(exception: StateError('x')),

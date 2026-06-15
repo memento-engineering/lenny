@@ -30,9 +30,9 @@ class _ChangeProfileScreenState extends ConsumerState<ChangeProfileScreen> {
       await ref.read(apiProvider).updateProfile(name: _name.text.trim());
       ref.invalidate(profileProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile saved')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

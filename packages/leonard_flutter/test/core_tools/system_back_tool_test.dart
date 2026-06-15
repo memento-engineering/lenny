@@ -11,19 +11,20 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  test('core.system_back invokes SystemNavigator.pop and returns ok',
-      () async {
+  test('core.system_back invokes SystemNavigator.pop and returns ok', () async {
     final List<MethodCall> calls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform,
-            (MethodCall call) async {
-      calls.add(call);
-      return null;
-    });
+        .setMockMethodCallHandler(SystemChannels.platform, (
+          MethodCall call,
+        ) async {
+          calls.add(call);
+          return null;
+        });
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool sb = plugin.tools
-        .firstWhere((LeonardTool t) => t.name == 'system_back');
+    final LeonardTool sb = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'system_back',
+    );
     final ToolResult r = await sb.call(const <String, Object?>{});
     expect(r.ok, isTrue, reason: r.error);
     expect(calls, hasLength(1));
@@ -31,20 +32,24 @@ void main() {
     cap.dispose();
   });
 
-  test('core.system_back returns system_back_failed on platform throw',
-      () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform,
-            (MethodCall call) async {
-      throw PlatformException(code: 'BOOM');
-    });
-    final SemanticsCapture cap = SemanticsCapture();
-    final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool sb = plugin.tools
-        .firstWhere((LeonardTool t) => t.name == 'system_back');
-    final ToolResult r = await sb.call(const <String, Object?>{});
-    expect(r.ok, isFalse);
-    expect(r.error, contains('system_back_failed'));
-    cap.dispose();
-  });
+  test(
+    'core.system_back returns system_back_failed on platform throw',
+    () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (
+            MethodCall call,
+          ) async {
+            throw PlatformException(code: 'BOOM');
+          });
+      final SemanticsCapture cap = SemanticsCapture();
+      final CoreExtension plugin = CoreExtension(semantics: cap);
+      final LeonardTool sb = plugin.tools.firstWhere(
+        (LeonardTool t) => t.name == 'system_back',
+      );
+      final ToolResult r = await sb.call(const <String, Object?>{});
+      expect(r.ok, isFalse);
+      expect(r.error, contains('system_back_failed'));
+      cap.dispose();
+    },
+  );
 }

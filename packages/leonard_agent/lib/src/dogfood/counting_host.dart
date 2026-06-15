@@ -44,8 +44,7 @@ class CountingLoopHost implements LoopHost {
     String tool,
     Map<String, dynamic> args,
     Map<String, dynamic> result,
-  ) =>
-      _inner.notifyExtensions(tool, args, result);
+  ) => _inner.notifyExtensions(tool, args, result);
 
   @override
   void disableExtension(String namespace, String reason) =>

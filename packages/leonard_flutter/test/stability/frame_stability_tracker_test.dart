@@ -20,8 +20,11 @@ void main() {
 
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(extensions: const [])!;
-    expect(WidgetsBinding.instance, same(binding),
-        reason: 'precondition: LeonardBinding is the active binding');
+    expect(
+      WidgetsBinding.instance,
+      same(binding),
+      reason: 'precondition: LeonardBinding is the active binding',
+    );
   });
 
   test('transient callback count tracks scheduling and firing', () {
@@ -40,19 +43,24 @@ void main() {
   });
 
   test('lastFrameCommitTimestamp updates after a frame', () {
-    final Duration? before =
-        binding.frameworkBusySnapshot().lastFrameCommitTimestamp;
+    final Duration? before = binding
+        .frameworkBusySnapshot()
+        .lastFrameCommitTimestamp;
     // SchedulerBinding adjusts the timestamp by the epoch (the first frame
     // ever observed), so we assert that *some* timestamp lands rather than
     // any specific value. Subsequent frames must produce a strictly later
     // commit timestamp than the previous one.
     _runFrame(binding, const Duration(milliseconds: 90000));
-    final Duration? after =
-        binding.frameworkBusySnapshot().lastFrameCommitTimestamp;
+    final Duration? after = binding
+        .frameworkBusySnapshot()
+        .lastFrameCommitTimestamp;
     expect(after, isNotNull);
     if (before != null) {
-      expect(after! > before, isTrue,
-          reason: 'commit timestamp must advance for a later frame');
+      expect(
+        after! > before,
+        isTrue,
+        reason: 'commit timestamp must advance for a later frame',
+      );
     }
   });
 
@@ -68,8 +76,10 @@ void main() {
     _runFrame(binding, const Duration(milliseconds: 5000));
     final int before = binding.frameworkBusySnapshot().recentSkippedFrames;
     _runFrame(binding, const Duration(milliseconds: 5100));
-    expect(binding.frameworkBusySnapshot().recentSkippedFrames,
-        greaterThan(before));
+    expect(
+      binding.frameworkBusySnapshot().recentSkippedFrames,
+      greaterThan(before),
+    );
   });
 
   test('isAnyFrameworkSignalBusy reflects counters', () {
@@ -88,13 +98,16 @@ void main() {
     for (int i = 0; i < 1000; i++) {
       binding.frameworkBusySnapshot();
     }
-    expect(binding.frameworkBusySnapshot().recentFrameCommits.length,
-        lessThanOrEqualTo(16));
+    expect(
+      binding.frameworkBusySnapshot().recentFrameCommits.length,
+      lessThanOrEqualTo(16),
+    );
   });
 
   test('returned recentFrameCommits is unmodifiable', () {
-    final List<Duration> commits =
-        binding.frameworkBusySnapshot().recentFrameCommits;
+    final List<Duration> commits = binding
+        .frameworkBusySnapshot()
+        .recentFrameCommits;
     expect(() => commits.add(Duration.zero), throwsUnsupportedError);
   });
 }

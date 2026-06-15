@@ -99,7 +99,11 @@ void main() {
   test('prefixes tool names and rejects dotted names', () {
     final r1 = build();
     r1.register(
-      _OrderExtension('router', log: <String>[], toolNames: const ['navigate_to']),
+      _OrderExtension(
+        'router',
+        log: <String>[],
+        toolNames: const ['navigate_to'],
+      ),
     );
     final tools = r1.mergedTools();
     expect(tools.keys, contains('router.navigate_to'));
@@ -156,8 +160,10 @@ void main() {
       final out = await r.busyStateAll();
       // Both plugins always yield a BusyState entry (the thrower's is the
       // idle fallback from the registry guard), so the map order is stable.
-      expect(out.map((MapEntry<String, BusyState> e) => e.key).toList(),
-          <String>['x', 'y']);
+      expect(
+        out.map((MapEntry<String, BusyState> e) => e.key).toList(),
+        <String>['x', 'y'],
+      );
     }
     // The throwing plugin is dispatched 3 times, then auto-disabled.
     expect(log.where((s) => s == 'busy:x').length, 3);

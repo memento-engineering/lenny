@@ -53,8 +53,8 @@ void main() {
     'host-installed CoreExtension reserves the "core" namespace; user plugin '
     'claiming "core" is skipped',
     () {
-      final Map<String, LeonardTool> merged =
-          binding.extensionRegistry.mergedTools();
+      final Map<String, LeonardTool> merged = binding.extensionRegistry
+          .mergedTools();
       const List<String> coreKeys = <String>[
         'core.tap',
         'core.long_press',
@@ -80,8 +80,8 @@ void main() {
     // `_extensionCallbacks` map. The merged tool map is the
     // testable surface that proves all 10 tools made it through
     // registration end-to-end.
-    final Map<String, LeonardTool> merged =
-        binding.extensionRegistry.mergedTools();
+    final Map<String, LeonardTool> merged = binding.extensionRegistry
+        .mergedTools();
     const List<String> tools = <String>[
       'tap',
       'long_press',
@@ -95,18 +95,20 @@ void main() {
       'done',
     ];
     for (final String tool in tools) {
-      expect(merged.containsKey('core.$tool'), isTrue,
-          reason: 'tool core.$tool missing from merged map');
+      expect(
+        merged.containsKey('core.$tool'),
+        isTrue,
+        reason: 'tool core.$tool missing from merged map',
+      );
     }
   });
 
   test(
     'core.wait via the merged tool map rejects out-of-range seconds',
     () async {
-      final LeonardTool wait =
-          binding.extensionRegistry.mergedTools()['core.wait']!;
-      final ToolResult r =
-          await wait.call(<String, Object?>{'seconds': 99});
+      final LeonardTool wait = binding.extensionRegistry
+          .mergedTools()['core.wait']!;
+      final ToolResult r = await wait.call(<String, Object?>{'seconds': 99});
       expect(r.ok, isFalse);
       expect(r.error, contains('schema_violation'));
     },
@@ -115,12 +117,10 @@ void main() {
   test(
     'core.wait via the merged tool map completes for an in-range delay',
     () async {
-      final LeonardTool wait =
-          binding.extensionRegistry.mergedTools()['core.wait']!;
-      final ToolResult r =
-          await wait.call(<String, Object?>{'seconds': 0.05});
+      final LeonardTool wait = binding.extensionRegistry
+          .mergedTools()['core.wait']!;
+      final ToolResult r = await wait.call(<String, Object?>{'seconds': 0.05});
       expect(r.ok, isTrue, reason: r.error);
     },
   );
 }
-

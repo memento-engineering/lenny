@@ -30,14 +30,13 @@ class LiveTimelineSource implements TimelineSource {
   bool _closed = false;
 
   LiveTimelineSource(Stream<TrajectoryRecord> source) {
-    _sub = source.listen(
-      (record) {
-        if (_closed) return;
-        _list.value = List<TrajectoryRecord>.unmodifiable(
-          [..._list.value, record],
-        );
-      },
-    );
+    _sub = source.listen((record) {
+      if (_closed) return;
+      _list.value = List<TrajectoryRecord>.unmodifiable([
+        ..._list.value,
+        record,
+      ]);
+    });
   }
 
   @override
@@ -59,15 +58,15 @@ class BrowseTimelineSource implements TimelineSource {
   bool _closed = false;
 
   BrowseTimelineSource.fromJsonl(String jsonl)
-      : _list = ValueNotifier<List<TrajectoryRecord>>(
-          List<TrajectoryRecord>.unmodifiable(TrajectoryReader.readAll(jsonl)),
-        );
+    : _list = ValueNotifier<List<TrajectoryRecord>>(
+        List<TrajectoryRecord>.unmodifiable(TrajectoryReader.readAll(jsonl)),
+      );
 
   /// Test/perf escape hatch: build directly from an in-memory list.
   BrowseTimelineSource.fromRecords(List<TrajectoryRecord> records)
-      : _list = ValueNotifier<List<TrajectoryRecord>>(
-          List<TrajectoryRecord>.unmodifiable(records),
-        );
+    : _list = ValueNotifier<List<TrajectoryRecord>>(
+        List<TrajectoryRecord>.unmodifiable(records),
+      );
 
   @override
   ValueListenable<List<TrajectoryRecord>> get records => _list;

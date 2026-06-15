@@ -65,8 +65,9 @@ ModelProvider buildPanelProvider(
 }
 
 /// Type for the controller's provider-builder seam.
-typedef PanelProviderFactory = ModelProvider Function(
-  ProviderConfig cfg,
-  String modelId,
-  String sessionId,
-);
+typedef PanelProviderFactory =
+    ModelProvider Function(
+      ProviderConfig cfg,
+      String modelId,
+      String sessionId,
+    );

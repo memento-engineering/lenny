@@ -13,23 +13,20 @@ SemanticsNode _node({
   List<String> state = const <String>[],
   List<String> actions = const <String>['tap'],
   List<int> rect = const <int>[0, 0, 100, 50],
-}) =>
-    SemanticsNode(
-      id: id,
-      role: role,
-      label: label,
-      state: state,
-      actions: actions,
-      rect: rect,
-    );
+}) => SemanticsNode(
+  id: id,
+  role: role,
+  label: label,
+  state: state,
+  actions: actions,
+  rect: rect,
+);
 
 Observation _obs(List<SemanticsNode> nodes) {
   return Observation(
     core: CoreFragment(
       routeStack: const <String>['/'],
-      nodes: <int, SemanticsNode>{
-        for (final n in nodes) n.id: n,
-      },
+      nodes: <int, SemanticsNode>{for (final n in nodes) n.id: n},
       errors: const <RuntimeError>[],
     ),
     plugins: const <String, ExtensionFragment>{},
@@ -39,72 +36,68 @@ Observation _obs(List<SemanticsNode> nodes) {
 
 // Schema requiring a single int `node_id`.
 Map<String, dynamic> _nodeIdSchema() => <String, dynamic>{
-      r'$schema': 'http://json-schema.org/draft-07/schema#',
-      'type': 'object',
-      'required': <String>['node_id'],
-      'properties': <String, dynamic>{
-        'node_id': <String, dynamic>{'type': 'integer'},
-      },
-      'additionalProperties': false,
-    };
+  r'$schema': 'http://json-schema.org/draft-07/schema#',
+  'type': 'object',
+  'required': <String>['node_id'],
+  'properties': <String, dynamic>{
+    'node_id': <String, dynamic>{'type': 'integer'},
+  },
+  'additionalProperties': false,
+};
 
 // Schema for scroll_until_visible: scrollable_id + target_id.
 Map<String, dynamic> _scrollUntilVisibleSchema() => <String, dynamic>{
-      r'$schema': 'http://json-schema.org/draft-07/schema#',
-      'type': 'object',
-      'required': <String>['scrollable_id', 'target_id'],
-      'properties': <String, dynamic>{
-        'scrollable_id': <String, dynamic>{'type': 'integer'},
-        'target_id': <String, dynamic>{'type': 'integer'},
-      },
-      'additionalProperties': false,
-    };
+  r'$schema': 'http://json-schema.org/draft-07/schema#',
+  'type': 'object',
+  'required': <String>['scrollable_id', 'target_id'],
+  'properties': <String, dynamic>{
+    'scrollable_id': <String, dynamic>{'type': 'integer'},
+    'target_id': <String, dynamic>{'type': 'integer'},
+  },
+  'additionalProperties': false,
+};
 
 // Schema for an empty-args tool (e.g. wait, done, system_back).
 Map<String, dynamic> _emptyArgsSchema() => <String, dynamic>{
-      r'$schema': 'http://json-schema.org/draft-07/schema#',
-      'type': 'object',
-      'properties': <String, dynamic>{},
-      'additionalProperties': false,
-    };
+  r'$schema': 'http://json-schema.org/draft-07/schema#',
+  'type': 'object',
+  'properties': <String, dynamic>{},
+  'additionalProperties': false,
+};
 
 ToolDescriptor _tool(String name, Map<String, dynamic> schema) =>
-    ToolDescriptor(
-      name: name,
-      description: 'tool $name',
-      inputSchema: schema,
-    );
+    ToolDescriptor(name: name, description: 'tool $name', inputSchema: schema);
 
 List<ToolDescriptor> _coreToolList() => <ToolDescriptor>[
-      _tool('core.tap', _nodeIdSchema()),
-      _tool('core.long_press', _nodeIdSchema()),
-      _tool('core.enter_text', <String, dynamic>{
-        r'$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'object',
-        'required': <String>['node_id', 'text'],
-        'properties': <String, dynamic>{
-          'node_id': <String, dynamic>{'type': 'integer'},
-          'text': <String, dynamic>{'type': 'string'},
-        },
-        'additionalProperties': false,
-      }),
-      _tool('core.scroll', _nodeIdSchema()),
-      _tool('core.scroll_until_visible', _scrollUntilVisibleSchema()),
-      _tool('core.inspect_widget', _nodeIdSchema()),
-      _tool('core.gesture', _nodeIdSchema()),
-      _tool('core.system_back', _emptyArgsSchema()),
-      _tool('core.wait', _emptyArgsSchema()),
-      _tool('core.done', _emptyArgsSchema()),
-      _tool('router.push', <String, dynamic>{
-        r'$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'object',
-        'required': <String>['path'],
-        'properties': <String, dynamic>{
-          'path': <String, dynamic>{'type': 'string'},
-        },
-        'additionalProperties': false,
-      }),
-    ];
+  _tool('core.tap', _nodeIdSchema()),
+  _tool('core.long_press', _nodeIdSchema()),
+  _tool('core.enter_text', <String, dynamic>{
+    r'$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': <String>['node_id', 'text'],
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer'},
+      'text': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  }),
+  _tool('core.scroll', _nodeIdSchema()),
+  _tool('core.scroll_until_visible', _scrollUntilVisibleSchema()),
+  _tool('core.inspect_widget', _nodeIdSchema()),
+  _tool('core.gesture', _nodeIdSchema()),
+  _tool('core.system_back', _emptyArgsSchema()),
+  _tool('core.wait', _emptyArgsSchema()),
+  _tool('core.done', _emptyArgsSchema()),
+  _tool('router.push', <String, dynamic>{
+    r'$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': <String>['path'],
+    'properties': <String, dynamic>{
+      'path': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  }),
+];
 
 // ---------- Tests ----------
 
@@ -122,14 +115,10 @@ void main() {
       expect(r, isA<ValidationOk>());
     });
 
-    test('returns ok for plugin tool that passes schema, no node check',
-        () {
+    test('returns ok for plugin tool that passes schema, no node check', () {
       final obs = _obs(const <SemanticsNode>[]);
       final r = validator.validate(
-        (
-          tool: 'router.push',
-          args: <String, dynamic>{'path': '/x'},
-        ),
+        (tool: 'router.push', args: <String, dynamic>{'path': '/x'}),
         obs,
         _coreToolList(),
       );
@@ -174,29 +163,28 @@ void main() {
   });
 
   group('schema_invalid', () {
-    test('rejects when required arg is missing, with pointer + description',
-        () {
-      final obs = _obs(<SemanticsNode>[_node(id: 1)]);
-      final r = validator.validate(
-        (tool: 'core.tap', args: const <String, dynamic>{}),
-        obs,
-        _coreToolList(),
-      );
-      expect(r, isA<ValidationReject>());
-      final rej = r as ValidationReject;
-      expect(rej.reason, 'schema_invalid');
-      expect(rej.pointer, isNotNull);
-      expect(rej.description, isNotNull);
-      expect(rej.description, isNotEmpty);
-    });
+    test(
+      'rejects when required arg is missing, with pointer + description',
+      () {
+        final obs = _obs(<SemanticsNode>[_node(id: 1)]);
+        final r = validator.validate(
+          (tool: 'core.tap', args: const <String, dynamic>{}),
+          obs,
+          _coreToolList(),
+        );
+        expect(r, isA<ValidationReject>());
+        final rej = r as ValidationReject;
+        expect(rej.reason, 'schema_invalid');
+        expect(rej.pointer, isNotNull);
+        expect(rej.description, isNotNull);
+        expect(rej.description, isNotEmpty);
+      },
+    );
 
     test('rejects when arg type is wrong', () {
       final obs = _obs(<SemanticsNode>[_node(id: 1)]);
       final r = validator.validate(
-        (
-          tool: 'core.tap',
-          args: const <String, dynamic>{'node_id': 'one'},
-        ),
+        (tool: 'core.tap', args: const <String, dynamic>{'node_id': 'one'}),
         obs,
         _coreToolList(),
       );
@@ -287,16 +275,12 @@ void main() {
   });
 
   group('core.scroll_until_visible', () {
-    test('checks both scrollable_id and target_id (scrollable missing)',
-        () {
+    test('checks both scrollable_id and target_id (scrollable missing)', () {
       final obs = _obs(<SemanticsNode>[_node(id: 2)]);
       final r = validator.validate(
         (
           tool: 'core.scroll_until_visible',
-          args: const <String, dynamic>{
-            'scrollable_id': 99,
-            'target_id': 2,
-          },
+          args: const <String, dynamic>{'scrollable_id': 99, 'target_id': 2},
         ),
         obs,
         _coreToolList(),
@@ -312,10 +296,7 @@ void main() {
       final r = validator.validate(
         (
           tool: 'core.scroll_until_visible',
-          args: const <String, dynamic>{
-            'scrollable_id': 1,
-            'target_id': 99,
-          },
+          args: const <String, dynamic>{'scrollable_id': 1, 'target_id': 99},
         ),
         obs,
         _coreToolList(),
@@ -334,10 +315,7 @@ void main() {
       final r = validator.validate(
         (
           tool: 'core.scroll_until_visible',
-          args: const <String, dynamic>{
-            'scrollable_id': 1,
-            'target_id': 2,
-          },
+          args: const <String, dynamic>{'scrollable_id': 1, 'target_id': 2},
         ),
         obs,
         _coreToolList(),
@@ -348,17 +326,11 @@ void main() {
     });
 
     test('returns ok when both nodes are present and enabled', () {
-      final obs = _obs(<SemanticsNode>[
-        _node(id: 1),
-        _node(id: 2),
-      ]);
+      final obs = _obs(<SemanticsNode>[_node(id: 1), _node(id: 2)]);
       final r = validator.validate(
         (
           tool: 'core.scroll_until_visible',
-          args: const <String, dynamic>{
-            'scrollable_id': 1,
-            'target_id': 2,
-          },
+          args: const <String, dynamic>{'scrollable_id': 1, 'target_id': 2},
         ),
         obs,
         _coreToolList(),

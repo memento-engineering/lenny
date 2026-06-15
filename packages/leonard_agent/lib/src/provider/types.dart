@@ -51,20 +51,17 @@ class UserTurn extends ConversationTurn {
   final bool trimmed;
 
   UserTurn copyWith({Observation? observation, bool? trimmed}) => UserTurn(
-        observation: observation ?? this.observation,
-        diff: diff,
-        toolResult: toolResult,
-        trimmed: trimmed ?? this.trimmed,
-      );
+    observation: observation ?? this.observation,
+    diff: diff,
+    toolResult: toolResult,
+    trimmed: trimmed ?? this.trimmed,
+  );
 }
 
 /// An assistant-role turn: the thinking trace (empty when absent) and
 /// the tool call the model chose.
 class AssistantTurn extends ConversationTurn {
-  const AssistantTurn({
-    required this.thinking,
-    required this.action,
-  });
+  const AssistantTurn({required this.thinking, required this.action});
 
   final String thinking;
   final ({String tool, Map<String, dynamic> args}) action;

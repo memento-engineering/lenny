@@ -9,8 +9,11 @@ import 'package:flutter/scheduler.dart';
 typedef ErrorHandler = bool Function(FlutterErrorDetails details);
 
 /// VM service extension handler signature.
-typedef ExtensionHandler = Future<developer.ServiceExtensionResponse>
-    Function(String method, Map<String, String> parameters);
+typedef ExtensionHandler =
+    Future<developer.ServiceExtensionResponse> Function(
+      String method,
+      Map<String, String> parameters,
+    );
 
 /// Per-plugin context handed to [LeonardExtension.initialize].
 ///
@@ -18,8 +21,10 @@ typedef ExtensionHandler = Future<developer.ServiceExtensionResponse>
 /// `ext.exploration.<namespace>.<suffix>` and gates frame
 /// callbacks through the host scheduler.
 class ExtensionContext {
-  ExtensionContext({required this.namespace, required SchedulerBinding scheduler})
-      : _scheduler = scheduler;
+  ExtensionContext({
+    required this.namespace,
+    required SchedulerBinding scheduler,
+  }) : _scheduler = scheduler;
 
   /// The owning plugin's namespace (validated by the registry).
   final String namespace;

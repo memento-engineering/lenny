@@ -19,16 +19,10 @@ import 'package:vm_service/vm_service.dart';
 // ===========================================================================
 
 class _FakeVmService extends VmService {
-  _FakeVmService(this._handler)
-      : super(
-          const Stream<dynamic>.empty(),
-          (_) {},
-        );
+  _FakeVmService(this._handler) : super(const Stream<dynamic>.empty(), (_) {});
 
-  final Future<Response> Function(
-    String method,
-    Map<String, dynamic>? args,
-  ) _handler;
+  final Future<Response> Function(String method, Map<String, dynamic>? args)
+  _handler;
 
   bool disposed = false;
 
@@ -63,14 +57,10 @@ Response _resp(Map<String, dynamic> json) {
 ///     (mirrors the real binding's `_decodeParams`).
 _FakeVmService _fakeVm({
   List<Map<String, dynamic>> plugins = const <Map<String, dynamic>>[],
-  Future<Map<String, dynamic>> Function(
-    String method,
-    Map<String, dynamic>?,
-  )? observationHandler,
-  Future<Map<String, dynamic>> Function(
-    String method,
-    Map<String, dynamic>?,
-  )? executeActionHandler,
+  Future<Map<String, dynamic>> Function(String method, Map<String, dynamic>?)?
+  observationHandler,
+  Future<Map<String, dynamic>> Function(String method, Map<String, dynamic>?)?
+  executeActionHandler,
 }) {
   return _FakeVmService((method, args) async {
     if (method == 'ext.exploration.core.handshake') {
@@ -122,22 +112,20 @@ _FakeVmService _fakeVm({
 }
 
 Future<LeonardSession> _newStartedSession(_FakeVmService vm) async {
-  final session = LeonardSession.forTest(
-    VmServiceClient.forTest(vm, 'iso-1'),
-  );
+  final session = LeonardSession.forTest(VmServiceClient.forTest(vm, 'iso-1'));
   await session.start('test goal', const LeonardConfig());
   return session;
 }
 
 ToolDescriptor _tool(String name) => ToolDescriptor(
-      name: name,
-      description: 'desc for $name',
-      inputSchema: const <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{},
-        'additionalProperties': false,
-      },
-    );
+  name: name,
+  description: 'desc for $name',
+  inputSchema: const <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{},
+    'additionalProperties': false,
+  },
+);
 
 // ===========================================================================
 // Trajectory sink for the integration test (step 7.7).
@@ -163,11 +151,11 @@ class _FakeProvider extends ModelProvider {
 
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 8000,
-        supportsToolUse: true,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 8000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
@@ -176,8 +164,7 @@ class _FakeProvider extends ModelProvider {
   Future<ModelDecision> decide(
     ConversationSnapshot snapshot,
     ActionSchema schema,
-  ) async =>
-      _decision;
+  ) async => _decision;
 }
 
 void main() {
@@ -201,16 +188,18 @@ void main() {
 
   group('DefaultLoopHost.mergedTools / activeExtensionNamespaces', () {
     test('mergedTools returns core ∪ active plugin descriptors', () async {
-      final vm = _fakeVm(plugins: <Map<String, dynamic>>[
-        <String, dynamic>{
-          'namespace': 'router',
-          'tools': <String>['router.go'],
-        },
-        <String, dynamic>{
-          'namespace': 'forms',
-          'tools': <String>['forms.fill'],
-        },
-      ]);
+      final vm = _fakeVm(
+        plugins: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'namespace': 'router',
+            'tools': <String>['router.go'],
+          },
+          <String, dynamic>{
+            'namespace': 'forms',
+            'tools': <String>['forms.fill'],
+          },
+        ],
+      );
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
         session: session,
@@ -228,7 +217,10 @@ void main() {
         names,
         equals(<String>['core.tap', 'core.wait', 'router.go', 'forms.fill']),
       );
-      expect(host.activeExtensionNamespaces(), equals(<String>{'router', 'forms'}));
+      expect(
+        host.activeExtensionNamespaces(),
+        equals(<String>{'router', 'forms'}),
+      );
       await session.end();
     });
 
@@ -236,10 +228,18 @@ void main() {
         'extensionTools map', () async {
       // Handshake reports `router` and `unknown` plugins; only `router`
       // has descriptors. The unknown namespace is silently ignored.
-      final vm = _fakeVm(plugins: <Map<String, dynamic>>[
-        <String, dynamic>{'namespace': 'router', 'tools': <String>['router.go']},
-        <String, dynamic>{'namespace': 'unknown', 'tools': <String>['unknown.x']},
-      ]);
+      final vm = _fakeVm(
+        plugins: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'namespace': 'router',
+            'tools': <String>['router.go'],
+          },
+          <String, dynamic>{
+            'namespace': 'unknown',
+            'tools': <String>['unknown.x'],
+          },
+        ],
+      );
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
         session: session,
@@ -260,10 +260,18 @@ void main() {
     });
 
     test('mergedTools excludes auto-disabled namespaces', () async {
-      final vm = _fakeVm(plugins: <Map<String, dynamic>>[
-        <String, dynamic>{'namespace': 'router', 'tools': <String>['router.go']},
-        <String, dynamic>{'namespace': 'forms', 'tools': <String>['forms.fill']},
-      ]);
+      final vm = _fakeVm(
+        plugins: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'namespace': 'router',
+            'tools': <String>['router.go'],
+          },
+          <String, dynamic>{
+            'namespace': 'forms',
+            'tools': <String>['forms.fill'],
+          },
+        ],
+      );
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
         session: session,
@@ -289,9 +297,14 @@ void main() {
   group('DefaultLoopHost.disableExtension idempotent', () {
     test('repeated disable on the same namespace emits ExtensionAutoDisabled '
         'exactly once', () async {
-      final vm = _fakeVm(plugins: <Map<String, dynamic>>[
-        <String, dynamic>{'namespace': 'router', 'tools': <String>['router.go']},
-      ]);
+      final vm = _fakeVm(
+        plugins: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'namespace': 'router',
+            'tools': <String>['router.go'],
+          },
+        ],
+      );
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
         session: session,
@@ -334,8 +347,7 @@ void main() {
   });
 
   group('DefaultLoopHost.observe', () {
-    test('observe returns a typed Observation (one node, one route)',
-        () async {
+    test('observe returns a typed Observation (one node, one route)', () async {
       final vm = _fakeVm();
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
@@ -383,10 +395,13 @@ void main() {
       expect(lastMethod, 'ext.exploration.core.tap');
       // `id` arrives JSON-encoded.
       expect(lastArgs?['id'], equals('42'));
-      expect(result, equals(<String, dynamic>{
-        'ok': true,
-        'echo': 'ext.exploration.core.tap',
-      }));
+      expect(
+        result,
+        equals(<String, dynamic>{
+          'ok': true,
+          'echo': 'ext.exploration.core.tap',
+        }),
+      );
 
       await session.end();
     });
@@ -414,49 +429,56 @@ void main() {
 
       await expectLater(
         host.executeAction('core.tap', const <String, dynamic>{}),
-        throwsA(isA<RPCError>()
-            .having((e) => e.code, 'code', 100)
-            .having((e) => e.message, 'message', 'application error')),
+        throwsA(
+          isA<RPCError>()
+              .having((e) => e.code, 'code', 100)
+              .having((e) => e.message, 'message', 'application error'),
+        ),
       );
       await session.end();
     });
   });
 
   group('DefaultLoopHost.notifyExtensions no-op', () {
-    test('notifyExtensions completes without contacting the VM service',
-        () async {
-      int extraCalls = 0;
-      final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.exploration.core.handshake') {
-          return _resp(<String, dynamic>{
-            'contractVersion': '1.0.0',
-            'extensions': <Map<String, dynamic>>[],
-          });
-        }
-        extraCalls++;
-        return _resp(<String, dynamic>{});
-      });
-      final session = await _newStartedSession(vm);
-      final host = DefaultLoopHost.fromSession(
-        session: session,
-        coreTools: <ToolDescriptor>[_tool('core.tap')],
-        extensionTools: const <String, List<ToolDescriptor>>{},
-        goal: 'g',
-        agentsMd: 'a',
-      );
+    test(
+      'notifyExtensions completes without contacting the VM service',
+      () async {
+        int extraCalls = 0;
+        final vm = _FakeVmService((method, args) async {
+          if (method == 'ext.exploration.core.handshake') {
+            return _resp(<String, dynamic>{
+              'contractVersion': '1.0.0',
+              'extensions': <Map<String, dynamic>>[],
+            });
+          }
+          extraCalls++;
+          return _resp(<String, dynamic>{});
+        });
+        final session = await _newStartedSession(vm);
+        final host = DefaultLoopHost.fromSession(
+          session: session,
+          coreTools: <ToolDescriptor>[_tool('core.tap')],
+          extensionTools: const <String, List<ToolDescriptor>>{},
+          goal: 'g',
+          agentsMd: 'a',
+        );
 
-      await host.notifyExtensions(
-        'core.tap',
-        const <String, dynamic>{'id': 1},
-        const <String, dynamic>{'ok': true},
-      );
-      expect(extraCalls, 0,
+        await host.notifyExtensions(
+          'core.tap',
+          const <String, dynamic>{'id': 1},
+          const <String, dynamic>{'ok': true},
+        );
+        expect(
+          extraCalls,
+          0,
           reason:
               'notifyExtensions must not issue any VM-service calls; the '
               'binding fires ExtensionRegistry.onActionExecutedAll in-process '
-              'during executeAction.');
-      await session.end();
-    });
+              'during executeAction.',
+        );
+        await session.end();
+      },
+    );
   });
 
   group('DefaultLoopHost — transport translation', () {
@@ -500,11 +522,7 @@ void main() {
             'extensions': <Map<String, dynamic>>[],
           });
         }
-        throw RPCError(
-          'callServiceExtension',
-          -32603,
-          'connection closed',
-        );
+        throw RPCError('callServiceExtension', -32603, 'connection closed');
       });
       final session = await _newStartedSession(vm);
       final host = DefaultLoopHost.fromSession(
@@ -601,15 +619,17 @@ void main() {
 
       final sink = _MemorySink();
       final writer = TrajectoryWriter(sink);
-      await writer.writeHeader(const SessionHeader(
-        goal: 'g',
-        agentsMdHash: 'h',
-        buildIdentifier: 'build',
-        modelIdentifier: 'fake',
-        harnessVersion: '0.1',
-        plugins: <ExtensionManifestRecord>[],
-        config: <String, dynamic>{},
-      ));
+      await writer.writeHeader(
+        const SessionHeader(
+          goal: 'g',
+          agentsMdHash: 'h',
+          buildIdentifier: 'build',
+          modelIdentifier: 'fake',
+          harnessVersion: '0.1',
+          plugins: <ExtensionManifestRecord>[],
+          config: <String, dynamic>{},
+        ),
+      );
 
       final provider = _FakeProvider(
         ModelDecision(
@@ -628,10 +648,13 @@ void main() {
           .map((l) => jsonDecode(l) as Map<String, dynamic>)
           .where((r) => r['type'] == 'extension_disabled')
           .toList();
-      expect(pluginDisabled, hasLength(1),
-          reason:
-              'Exactly one extension_disabled record per auto-disabled '
-              'namespace.');
+      expect(
+        pluginDisabled,
+        hasLength(1),
+        reason:
+            'Exactly one extension_disabled record per auto-disabled '
+            'namespace.',
+      );
       expect(pluginDisabled.single['namespace'], 'flaky');
 
       // Driver still ran (turns continue after auto-disable). The

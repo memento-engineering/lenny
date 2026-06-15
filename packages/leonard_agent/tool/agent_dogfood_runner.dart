@@ -26,8 +26,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:leonard_agent/leonard_agent.dart'
-    show TrajectorySink;
+import 'package:leonard_agent/leonard_agent.dart' show TrajectorySink;
 import 'package:leonard_agent/src/dogfood/agent_dogfood_harness.dart';
 import 'package:leonard_agent/src/dogfood/observation_fixture.dart';
 import 'package:leonard_agent/src/dogfood/types.dart';
@@ -80,9 +79,9 @@ class _StandInExtension extends LeonardExtension {
   String get namespace => _ns;
   @override
   List<LeonardTool> get tools => <LeonardTool>[
-        for (final String t in _all)
-          if (t.startsWith('$_ns.')) _NoopTool(t.substring(_ns.length + 1)),
-      ];
+    for (final String t in _all)
+      if (t.startsWith('$_ns.')) _NoopTool(t.substring(_ns.length + 1)),
+  ];
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
@@ -108,15 +107,20 @@ class _NoopTool extends LeonardTool {
       ToolResult(ok: true, value: args);
 }
 
-const String _kArgsJson =
-    String.fromEnvironment('DOGFOOD_ARGS_JSON', defaultValue: '');
-const String _kResultPath =
-    String.fromEnvironment('DOGFOOD_RESULT_PATH', defaultValue: '');
+const String _kArgsJson = String.fromEnvironment(
+  'DOGFOOD_ARGS_JSON',
+  defaultValue: '',
+);
+const String _kResultPath = String.fromEnvironment(
+  'DOGFOOD_RESULT_PATH',
+  defaultValue: '',
+);
 
 Future<int> _writeResult(int exitCode) async {
   if (_kResultPath.isNotEmpty) {
-    await File(_kResultPath)
-        .writeAsString(jsonEncode(<String, Object?>{'exit_code': exitCode}));
+    await File(
+      _kResultPath,
+    ).writeAsString(jsonEncode(<String, Object?>{'exit_code': exitCode}));
   }
   return exitCode;
 }
@@ -135,8 +139,8 @@ void main() {
     final Map<String, dynamic> args =
         jsonDecode(_kArgsJson) as Map<String, dynamic>;
     final String goal = args['goal'] as String;
-    final List<String> toolNames =
-        (args['tools'] as List<dynamic>).cast<String>();
+    final List<String> toolNames = (args['tools'] as List<dynamic>)
+        .cast<String>();
     final String endpoint = args['endpoint'] as String;
     final String token = args['token'] as String;
     final String model = args['model'] as String;
@@ -160,10 +164,11 @@ void main() {
         ? ObservationFixture.empty()
         : await ObservationFixture.loadFromFile(fixturePath);
 
-    final Set<String> namespaces =
-        toolNames.map((String t) => t.split('.').first).toSet();
+    final Set<String> namespaces = toolNames
+        .map((String t) => t.split('.').first)
+        .toSet();
     final LeonardBinding binding = LeonardBinding.ensureInitialized(
-      plugins: <LeonardExtension>[
+      extensions: <LeonardExtension>[
         for (final String ns in namespaces) _StandInExtension(ns, toolNames),
       ],
       installCoreExtension: false,
@@ -180,8 +185,10 @@ void main() {
     // Wire the loaded fixture into the binding fake so the agent's
     // `core.get_stable_observation` calls return the fixture body
     // instead of the real binding's empty-tree response (lenny-cx6.48).
-    final BindingVmServiceFake fake =
-        BindingVmServiceFake(binding, observationFixture: fixture);
+    final BindingVmServiceFake fake = BindingVmServiceFake(
+      binding,
+      observationFixture: fixture,
+    );
     final _FileSink sink = await _FileSink.open(tracePath);
 
     final AgentDogfoodHarness harness = AgentDogfoodHarness(
@@ -212,16 +219,18 @@ void main() {
     );
 
     final DogfoodRunResult result = await harness.run();
-    stdout.writeln('dogfood: outcome=${result.outcome.name} '
-        'tools=${result.toolCallCount} trace=$tracePath');
+    stdout.writeln(
+      'dogfood: outcome=${result.outcome.name} '
+      'tools=${result.toolCallCount} trace=$tracePath',
+    );
     final int exitCode = switch (result.outcome) {
       DogfoodOutcome.completedWithToolCall => 0,
       DogfoodOutcome.completedNoToolCall => 0,
       DogfoodOutcome.typedException => () {
-          final Object? exc = result.exception;
-          stderr.writeln('${exc.runtimeType}: $exc');
-          return 1;
-        }(),
+        final Object? exc = result.exception;
+        stderr.writeln('${exc.runtimeType}: $exc');
+        return 1;
+      }(),
       DogfoodOutcome.budgetExceeded => 2,
     };
     await _writeResult(exitCode);

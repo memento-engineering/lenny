@@ -28,9 +28,9 @@ enum HarnessError {
 /// footer's `harness_error` string.
 extension HarnessErrorWire on HarnessError {
   String get wireName => switch (this) {
-        HarnessError.agentStuck => 'agent_stuck',
-        HarnessError.connectionLost => 'connection_lost',
-      };
+    HarnessError.agentStuck => 'agent_stuck',
+    HarnessError.connectionLost => 'connection_lost',
+  };
 }
 
 /// Structured return value from [LoopDriver.runSession].

@@ -42,9 +42,11 @@ void main() {
   testWidgets('initState triggers refreshManifest', (tester) async {
     final hostKey = GlobalKey<LeonardPanelHostState>();
     final recorder = _ProbeRecorder();
-    final probe = recorder.wrap(() async => const [
-          ExtensionManifestEntry(namespace: 'router', tools: ['router.go']),
-        ]);
+    final probe = recorder.wrap(
+      () async => const [
+        ExtensionManifestEntry(namespace: 'router', tools: ['router.go']),
+      ],
+    );
 
     await tester.pumpWidget(_host(probe: probe, hostKey: hostKey));
     await tester.pumpAndSettle();
@@ -57,24 +59,26 @@ void main() {
   });
 
   testWidgets(
-      'BindingNotInitializedError publishes ManifestProbeBindingMissing',
-      (tester) async {
-    final hostKey = GlobalKey<LeonardPanelHostState>();
-    Future<List<ExtensionManifestEntry>> probe() async {
-      throw BindingNotInitializedError();
-    }
+    'BindingNotInitializedError publishes ManifestProbeBindingMissing',
+    (tester) async {
+      final hostKey = GlobalKey<LeonardPanelHostState>();
+      Future<List<ExtensionManifestEntry>> probe() async {
+        throw BindingNotInitializedError();
+      }
 
-    await tester.pumpWidget(_host(probe: probe, hostKey: hostKey));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_host(probe: probe, hostKey: hostKey));
+      await tester.pumpAndSettle();
 
-    expect(
-      hostKey.currentState!.manifest.value,
-      isA<ManifestProbeBindingMissing>(),
-    );
-  });
+      expect(
+        hostKey.currentState!.manifest.value,
+        isA<ManifestProbeBindingMissing>(),
+      );
+    },
+  );
 
-  testWidgets('arbitrary throw publishes ManifestProbeFailed with message',
-      (tester) async {
+  testWidgets('arbitrary throw publishes ManifestProbeFailed with message', (
+    tester,
+  ) async {
     final hostKey = GlobalKey<LeonardPanelHostState>();
     Future<List<ExtensionManifestEntry>> probe() async {
       throw StateError('boom');
@@ -88,8 +92,9 @@ void main() {
     expect((v as ManifestProbeFailed).message, contains('boom'));
   });
 
-  testWidgets('concurrent refreshManifest only publishes latest',
-      (tester) async {
+  testWidgets('concurrent refreshManifest only publishes latest', (
+    tester,
+  ) async {
     final hostKey = GlobalKey<LeonardPanelHostState>();
     final completerA = Completer<List<ExtensionManifestEntry>>();
     var useProbeA = true;

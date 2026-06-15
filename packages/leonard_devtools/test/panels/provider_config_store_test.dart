@@ -52,8 +52,7 @@ void main() {
 
       final loaded = await store.load('anthropic') as AnthropicUiConfig;
       expect(loaded.apiKey, 'k');
-      expect(loaded.baseUrlOverride.toString(),
-          'https://my-proxy.example.com');
+      expect(loaded.baseUrlOverride.toString(), 'https://my-proxy.example.com');
 
       expect(await store.load('swift-infer'), isNull);
     });
@@ -70,16 +69,18 @@ void main() {
       expect((await store.load('openai') as OpenAiUiConfig).apiKey, 'O');
     });
 
-    test('null-connection callbacks: read returns null, write is a no-op',
-        () async {
-      // Mirrors main.dart production callbacks when dtdManager.connection.value
-      // is null (standalone web / simulated env with no real DTD connection).
-      final store = DtdProviderConfigStore(
-        read: (_) async => null,
-        write: (_, __) async {},
-      );
-      await store.save(AnthropicUiConfig(apiKey: 'k'));
-      expect(await store.load('anthropic'), isNull);
-    });
+    test(
+      'null-connection callbacks: read returns null, write is a no-op',
+      () async {
+        // Mirrors main.dart production callbacks when dtdManager.connection.value
+        // is null (standalone web / simulated env with no real DTD connection).
+        final store = DtdProviderConfigStore(
+          read: (_) async => null,
+          write: (_, __) async {},
+        );
+        await store.save(AnthropicUiConfig(apiKey: 'k'));
+        expect(await store.load('anthropic'), isNull);
+      },
+    );
   });
 }

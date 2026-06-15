@@ -37,17 +37,16 @@ class ConversationEntry {
     bool? validationOk,
     String? toolResult,
     bool? complete,
-  }) =>
-      ConversationEntry(
-        turnIndex: turnIndex,
-        toolName: toolName ?? this.toolName,
-        toolArgs: toolArgs == _sentinel
-            ? this.toolArgs
-            : toolArgs as Map<String, dynamic>?,
-        validationOk: validationOk ?? this.validationOk,
-        toolResult: toolResult ?? this.toolResult,
-        complete: complete ?? this.complete,
-      );
+  }) => ConversationEntry(
+    turnIndex: turnIndex,
+    toolName: toolName ?? this.toolName,
+    toolArgs: toolArgs == _sentinel
+        ? this.toolArgs
+        : toolArgs as Map<String, dynamic>?,
+    validationOk: validationOk ?? this.validationOk,
+    toolResult: toolResult ?? this.toolResult,
+    complete: complete ?? this.complete,
+  );
 }
 
 // Sentinel for nullable copyWith; private to this file.
@@ -79,13 +78,12 @@ class ConversationState {
     int? currentTurn,
     int? maxTurns,
     DateTime? startedAt,
-  }) =>
-      ConversationState(
-        entries: entries ?? this.entries,
-        status: status ?? this.status,
-        usage: usage ?? this.usage,
-        currentTurn: currentTurn ?? this.currentTurn,
-        maxTurns: maxTurns ?? this.maxTurns,
-        startedAt: startedAt ?? this.startedAt,
-      );
+  }) => ConversationState(
+    entries: entries ?? this.entries,
+    status: status ?? this.status,
+    usage: usage ?? this.usage,
+    currentTurn: currentTurn ?? this.currentTurn,
+    maxTurns: maxTurns ?? this.maxTurns,
+    startedAt: startedAt ?? this.startedAt,
+  );
 }

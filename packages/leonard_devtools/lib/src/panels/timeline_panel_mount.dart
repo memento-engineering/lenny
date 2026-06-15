@@ -86,8 +86,7 @@ class _TimelinePanelMountState extends State<TimelinePanelMount> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text),
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
               child: const Text('Load'),
             ),
           ],

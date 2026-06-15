@@ -9,39 +9,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SessionHeader _hdr() => const SessionHeader(
-      goal: 'login',
-      agentsMdHash: 'sha256:abc',
-      buildIdentifier: 'debug-1.0.0',
-      modelIdentifier: 'qwen3.6-35b-a3b@8bit',
-      harnessVersion: '0.1.0',
-      plugins: [],
-      config: {},
-    );
+  goal: 'login',
+  agentsMdHash: 'sha256:abc',
+  buildIdentifier: 'debug-1.0.0',
+  modelIdentifier: 'qwen3.6-35b-a3b@8bit',
+  harnessVersion: '0.1.0',
+  plugins: [],
+  config: {},
+);
 
 TurnRecord _turn(int i) => TurnRecord(
-      index: i,
-      observation: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      stability: const {},
-      proposedAction: const {'tool': 'core.tap'},
-      validation: const {'result': 'ok', 'retries': 0},
-      executedAction: {'tool': 'core.tap', 'args': {'i': '$i'}},
-      diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
-      modelMetadata: const {},
-    );
+  index: i,
+  observation: const {
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
+  stability: const {},
+  proposedAction: const {'tool': 'core.tap'},
+  validation: const {'result': 'ok', 'retries': 0},
+  executedAction: {
+    'tool': 'core.tap',
+    'args': {'i': '$i'},
+  },
+  diff: const {'core': <String, dynamic>{}, 'extensions': <String, dynamic>{}},
+  modelMetadata: const {},
+);
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(body: SizedBox(width: 480, height: 600, child: child)),
-    );
+  home: Scaffold(body: SizedBox(width: 480, height: 600, child: child)),
+);
 
 void main() {
   group('TimelinePanel', () {
-    testWidgets('mounts and shows Browse JSONL and Live buttons', (tester) async {
+    testWidgets('mounts and shows Browse JSONL and Live buttons', (
+      tester,
+    ) async {
       final source = LiveTimelineSource(const Stream.empty());
       addTearDown(source.close);
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: source,
-        onPickJsonl: () async => null,
-      )));
+      await tester.pumpWidget(
+        _wrap(TimelinePanel(source: source, onPickJsonl: () async => null)),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Browse JSONL'), findsOneWidget);
       expect(find.text('Live'), findsOneWidget);
@@ -50,25 +57,24 @@ void main() {
     testWidgets('renders empty state in live mode', (tester) async {
       final source = LiveTimelineSource(const Stream.empty());
       addTearDown(source.close);
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: source,
-        onPickJsonl: () async => null,
-      )));
+      await tester.pumpWidget(
+        _wrap(TimelinePanel(source: source, onPickJsonl: () async => null)),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Waiting for trajectory records...'), findsOneWidget);
     });
 
-    testWidgets('appends without rebuilding existing rows (1000 turns)',
-        (tester) async {
+    testWidgets('appends without rebuilding existing rows (1000 turns)', (
+      tester,
+    ) async {
       final controller = StreamController<TrajectoryRecord>();
       addTearDown(controller.close);
       final source = LiveTimelineSource(controller.stream);
       addTearDown(source.close);
 
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: source,
-        onPickJsonl: () async => null,
-      )));
+      await tester.pumpWidget(
+        _wrap(TimelinePanel(source: source, onPickJsonl: () async => null)),
+      );
       await tester.pumpAndSettle();
 
       // Push a header + first 5 turns and capture row Element identity.
@@ -93,42 +99,50 @@ void main() {
       // The early row's Element identity must be unchanged: ListView.builder
       // recycles slots but stable ValueKeys preserve the State/Element.
       final earlyElementAfter = tester.element(find.byKey(earlyKey));
-      expect(identical(earlyElementBefore, earlyElementAfter), isTrue,
-          reason: 'Existing rows must not be rebuilt when new records append.');
+      expect(
+        identical(earlyElementBefore, earlyElementAfter),
+        isTrue,
+        reason: 'Existing rows must not be rebuilt when new records append.',
+      );
 
       // Sanity: TurnRow widgets exist and are virtualized (not 1000 in tree).
       final turnRows = find.byType(TurnRow);
-      expect(turnRows.evaluate().length, lessThan(50),
-          reason: 'ListView.builder should virtualize off-screen rows.');
+      expect(
+        turnRows.evaluate().length,
+        lessThan(50),
+        reason: 'ListView.builder should virtualize off-screen rows.',
+      );
     });
 
-    testWidgets('plugin-disabled and unknown records render distinct row variants',
-        (tester) async {
-      final source = BrowseTimelineSource.fromRecords([
-        _hdr(),
-        _turn(0),
-        const ExtensionDisabledEvent(
-          namespace: 'dio',
-          reason: 'auto_disabled',
-          turn: 1,
-        ),
-        const UnknownTrajectoryRecord(rawType: 'flux', raw: {'a': 1}),
-      ]);
-      addTearDown(source.close);
+    testWidgets(
+      'plugin-disabled and unknown records render distinct row variants',
+      (tester) async {
+        final source = BrowseTimelineSource.fromRecords([
+          _hdr(),
+          _turn(0),
+          const ExtensionDisabledEvent(
+            namespace: 'dio',
+            reason: 'auto_disabled',
+            turn: 1,
+          ),
+          const UnknownTrajectoryRecord(rawType: 'flux', raw: {'a': 1}),
+        ]);
+        addTearDown(source.close);
 
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: source,
-        onPickJsonl: () async => null,
-      )));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(TimelinePanel(source: source, onPickJsonl: () async => null)),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ExtensionDisabledRow), findsOneWidget);
-      expect(find.byType(UnknownRecordRow), findsOneWidget);
-      expect(find.byType(TurnRow), findsOneWidget);
-    });
+        expect(find.byType(ExtensionDisabledRow), findsOneWidget);
+        expect(find.byType(UnknownRecordRow), findsOneWidget);
+        expect(find.byType(TurnRow), findsOneWidget);
+      },
+    );
 
-    testWidgets('browse mode loads JSONL via picker and renders rows',
-        (tester) async {
+    testWidgets('browse mode loads JSONL via picker and renders rows', (
+      tester,
+    ) async {
       final liveSource = LiveTimelineSource(const Stream.empty());
       addTearDown(liveSource.close);
 
@@ -144,10 +158,9 @@ void main() {
         return jsonl;
       }
 
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: liveSource,
-        onPickJsonl: picker,
-      )));
+      await tester.pumpWidget(
+        _wrap(TimelinePanel(source: liveSource, onPickJsonl: picker)),
+      );
       await tester.pumpAndSettle();
 
       // Initially live + empty.
@@ -162,8 +175,9 @@ void main() {
       expect(find.text('Waiting for trajectory records...'), findsNothing);
     });
 
-    testWidgets('Live button returns to live source after browsing',
-        (tester) async {
+    testWidgets('Live button returns to live source after browsing', (
+      tester,
+    ) async {
       final controller = StreamController<TrajectoryRecord>();
       addTearDown(controller.close);
       final liveSource = LiveTimelineSource(controller.stream);
@@ -174,10 +188,11 @@ void main() {
         jsonEncode(_turn(0).toJson()),
       ].join('\n');
 
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: liveSource,
-        onPickJsonl: () async => jsonl,
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          TimelinePanel(source: liveSource, onPickJsonl: () async => jsonl),
+        ),
+      );
       controller.add(_hdr());
       controller.add(_turn(99));
       await tester.pump();
@@ -202,10 +217,9 @@ void main() {
       final source = BrowseTimelineSource.fromRecords([_hdr(), _turn(0)]);
       addTearDown(source.close);
 
-      await tester.pumpWidget(_wrap(TimelinePanel(
-        source: source,
-        onPickJsonl: () async => null,
-      )));
+      await tester.pumpWidget(
+        _wrap(TimelinePanel(source: source, onPickJsonl: () async => null)),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(TurnRow));

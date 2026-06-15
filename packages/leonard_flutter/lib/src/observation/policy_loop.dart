@@ -32,8 +32,7 @@ class PolicyTick {
 /// `busyState()` calls (returning `BusyState.idle` and incrementing the
 /// strike counter) is the caller's responsibility — typically wrapping
 /// `ExtensionRegistry.busyStateAll`.
-typedef BusyStatesPoller
-    = Future<List<MapEntry<String, BusyState>>> Function();
+typedef BusyStatesPoller = Future<List<MapEntry<String, BusyState>>> Function();
 
 /// Drives the stable-observation polling loop.
 ///
@@ -51,13 +50,13 @@ class PolicyLoop {
     Stopwatch Function()? stopwatchFactory,
     Future<void> Function()? waitForFrame,
     int Function()? nowMs,
-  })  : _snapshot = snapshot,
-        _pollBusyStates = pollBusyStates,
-        _semanticsHash = semanticsHash,
-        _routeHash = routeHash,
-        _stopwatchFactory = stopwatchFactory ?? (() => Stopwatch()..start()),
-        _waitForFrame = waitForFrame ?? _defaultWaitForFrame,
-        _nowMs = nowMs;
+  }) : _snapshot = snapshot,
+       _pollBusyStates = pollBusyStates,
+       _semanticsHash = semanticsHash,
+       _routeHash = routeHash,
+       _stopwatchFactory = stopwatchFactory ?? (() => Stopwatch()..start()),
+       _waitForFrame = waitForFrame ?? _defaultWaitForFrame,
+       _nowMs = nowMs;
 
   final FrameworkBusySnapshot Function() _snapshot;
   final BusyStatesPoller _pollBusyStates;
@@ -97,8 +96,9 @@ class PolicyLoop {
       final FrameworkBusySnapshot fw = _snapshot();
       final List<MapEntry<String, BusyState>> busy = await _pollBusyStates();
       final bool fwIdle = !fw.isAnyBusy;
-      final bool extensionsIdle =
-          busy.every((MapEntry<String, BusyState> e) => !e.value.isBusy);
+      final bool extensionsIdle = busy.every(
+        (MapEntry<String, BusyState> e) => !e.value.isBusy,
+      );
       final List<ExtensionBusy> pBusy = <ExtensionBusy>[
         for (final MapEntry<String, BusyState> e in busy)
           if (e.value.isBusy)

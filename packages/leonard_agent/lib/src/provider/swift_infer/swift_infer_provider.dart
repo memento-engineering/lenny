@@ -27,10 +27,8 @@ import 'swift_infer_config.dart';
 /// Retry contract: throws [SchemaRejection] on a malformed response;
 /// the loop driver (.18) owns retry policy per .14's contract.
 class SwiftInferModelProvider implements ModelProvider {
-  SwiftInferModelProvider({
-    required this.config,
-    http.Client? client,
-  }) : _client = client ?? http.Client();
+  SwiftInferModelProvider({required this.config, http.Client? client})
+    : _client = client ?? http.Client();
 
   /// Configuration (base URL, model, sampling, vision gate).
   final SwiftInferConfig config;
@@ -41,11 +39,11 @@ class SwiftInferModelProvider implements ModelProvider {
 
   @override
   ModelCapabilities get capabilities => ModelCapabilities(
-        vision: config.enableVision,
-        preserveThinking: config.preserveThinking,
-        maxContext: 128000,
-        supportsToolUse: true,
-      );
+    vision: config.enableVision,
+    preserveThinking: config.preserveThinking,
+    maxContext: 128000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
@@ -115,7 +113,10 @@ class SwiftInferModelProvider implements ModelProvider {
           'input': turn.action.args,
         });
         pendingToolUseId = toolUseId;
-        messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
+        messages.add(<String, dynamic>{
+          'role': 'assistant',
+          'content': content,
+        });
       }
     }
     return messages;
@@ -138,11 +139,13 @@ class SwiftInferModelProvider implements ModelProvider {
       'stream': true,
       'system': snapshot.systemMessage,
       'tools': snapshot.tools
-          .map((ToolDescriptor t) => <String, dynamic>{
-                'name': encodeToolName(t.name),
-                'description': t.description,
-                'input_schema': t.inputSchema,
-              })
+          .map(
+            (ToolDescriptor t) => <String, dynamic>{
+              'name': encodeToolName(t.name),
+              'description': t.description,
+              'input_schema': t.inputSchema,
+            },
+          )
           .toList(),
       // Force a tool call every turn — parity with the Anthropic provider
       // (anthropic_provider.dart sends the same). Without it the gateway
@@ -167,9 +170,10 @@ class SwiftInferModelProvider implements ModelProvider {
     final StringBuffer thinkingText = StringBuffer();
 
     try {
-      await for (final line in streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
+      await for (final line
+          in streamed.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
         if (!line.startsWith('data: ')) continue;
         final payload = line.substring(6).trim();
         if (payload.isEmpty || payload == '[DONE]') continue;
@@ -177,8 +181,8 @@ class SwiftInferModelProvider implements ModelProvider {
         thinkingDecoder.onEvent(evt);
         final type = evt['type'] as String?;
         if (type == 'message_start') {
-          final Map<String, dynamic>? msg =
-              (evt['message'] as Map?)?.cast<String, dynamic>();
+          final Map<String, dynamic>? msg = (evt['message'] as Map?)
+              ?.cast<String, dynamic>();
           final Object? id = msg?['id'];
           if (id is String && id.isNotEmpty) {
             providerRequestId = id;
@@ -196,8 +200,11 @@ class SwiftInferModelProvider implements ModelProvider {
             final text = delta['text'] as String;
             raw.write(text);
             inThink = _emitThinking(text, inThink: inThink);
-            inThink = _accumulateThinking(text,
-                inThink: inThink, sink: thinkingText);
+            inThink = _accumulateThinking(
+              text,
+              inThink: inThink,
+              sink: thinkingText,
+            );
           } else if (dtype == 'input_json_delta' && inputJsonBuf != null) {
             inputJsonBuf.write(delta['partial_json'] as String? ?? '');
           }
@@ -324,17 +331,13 @@ class SwiftInferModelProvider implements ModelProvider {
       } else {
         final close = text.indexOf('</think>', i);
         if (close < 0) {
-          _thinking.add(ThinkingDelta(
-            text: text.substring(i),
-            isFinal: false,
-          ));
+          _thinking.add(ThinkingDelta(text: text.substring(i), isFinal: false));
           i = text.length;
         } else {
           if (close > i) {
-            _thinking.add(ThinkingDelta(
-              text: text.substring(i, close),
-              isFinal: false,
-            ));
+            _thinking.add(
+              ThinkingDelta(text: text.substring(i, close), isFinal: false),
+            );
           }
           _thinking.add(const ThinkingDelta(text: '', isFinal: true));
           i = close + '</think>'.length;

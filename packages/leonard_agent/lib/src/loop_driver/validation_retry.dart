@@ -112,13 +112,13 @@ Future<ValidationLoopResult> decideAndValidate({
         throw SchemaExhausted(first);
       }
       schemaRetries = 1;
-      snapshot = snapshot.withAppended(UserTurn(
-        observation: Observation.empty(),
-        diff: ObservationDiff.empty(),
-        toolResult: <String, dynamic>{
-          'schema_error': first.validationError,
-        },
-      ));
+      snapshot = snapshot.withAppended(
+        UserTurn(
+          observation: Observation.empty(),
+          diff: ObservationDiff.empty(),
+          toolResult: <String, dynamic>{'schema_error': first.validationError},
+        ),
+      );
       try {
         return await attempt();
       } on SchemaRejection catch (second) {
@@ -147,13 +147,15 @@ Future<ValidationLoopResult> decideAndValidate({
     if (rejections.length >= maxValidationRetries + 1) {
       throw InvalidActionExhausted(List<String>.unmodifiable(rejections));
     }
-    snapshot = snapshot.withAppended(UserTurn(
-      observation: Observation.empty(),
-      diff: ObservationDiff.empty(),
-      toolResult: <String, dynamic>{
-        'validation_error': reject.toModelMessage(),
-      },
-    ));
+    snapshot = snapshot.withAppended(
+      UserTurn(
+        observation: Observation.empty(),
+        diff: ObservationDiff.empty(),
+        toolResult: <String, dynamic>{
+          'validation_error': reject.toModelMessage(),
+        },
+      ),
+    );
   }
   throw StateError('decideAndValidate fell through retry loop');
 }

@@ -12,10 +12,10 @@ class SettingsScreen extends ConsumerWidget {
 
   static const List<({String code, String label})> _languages =
       <({String code, String label})>[
-    (code: 'en', label: 'English'),
-    (code: 'es', label: 'Español'),
-    (code: 'fr', label: 'Français'),
-  ];
+        (code: 'en', label: 'English'),
+        (code: 'es', label: 'Español'),
+        (code: 'fr', label: 'Français'),
+      ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +25,9 @@ class SettingsScreen extends ConsumerWidget {
     Future<void> push() async {
       // Fire-and-forget update to demonstrate dio traffic when toggling.
       try {
-        await ref.read(apiProvider).updateSettings(
+        await ref
+            .read(apiProvider)
+            .updateSettings(
               theme: settings.theme.name,
               notifications: settings.notifications,
               language: settings.language,
@@ -67,10 +69,7 @@ class SettingsScreen extends ConsumerWidget {
               value: settings.language,
               items: <DropdownMenuItem<String>>[
                 for (final l in _languages)
-                  DropdownMenuItem<String>(
-                    value: l.code,
-                    child: Text(l.label),
-                  ),
+                  DropdownMenuItem<String>(value: l.code, child: Text(l.label)),
               ],
               onChanged: (String? code) {
                 if (code == null) return;
@@ -84,4 +83,3 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
-

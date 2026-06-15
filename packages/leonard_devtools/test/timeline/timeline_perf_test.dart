@@ -32,12 +32,20 @@ TurnRecord _syntheticTurn(int i) {
       },
     },
     stability: const {'policy': 'action_relative'},
-    proposedAction: {'tool': 'core.tap', 'args': {'id': 'item_$i'}},
+    proposedAction: {
+      'tool': 'core.tap',
+      'args': {'id': 'item_$i'},
+    },
     validation: const {'result': 'ok', 'retries': 0},
-    executedAction: {'tool': 'core.tap', 'args': {'id': 'item_$i'}},
+    executedAction: {
+      'tool': 'core.tap',
+      'args': {'id': 'item_$i'},
+    },
     diff: const {
       'core': {
-        'nodes_added': [{'id': 'x'}],
+        'nodes_added': [
+          {'id': 'x'},
+        ],
       },
       'extensions': <String, dynamic>{},
     },
@@ -59,18 +67,20 @@ void main() {
 
       // Mount with a constrained viewport so ListView.builder must
       // virtualize.
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 480,
-            height: 640,
-            child: TimelinePanel(
-              source: source,
-              onPickJsonl: () async => null,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 480,
+              height: 640,
+              child: TimelinePanel(
+                source: source,
+                onPickJsonl: () async => null,
+              ),
             ),
           ),
         ),
-      ));
+      );
 
       // Initial frame: <500ms budget.
       final initialSw = Stopwatch()..start();
@@ -103,7 +113,8 @@ void main() {
       expect(
         worstUs,
         lessThan(16000),
-        reason: 'Worst-frame budget exceeded: ${worstUs}us > 16000us. '
+        reason:
+            'Worst-frame budget exceeded: ${worstUs}us > 16000us. '
             'Timings: $frameTimings',
       );
     },

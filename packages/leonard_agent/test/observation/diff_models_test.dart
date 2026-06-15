@@ -17,7 +17,9 @@ void main() {
       final CoreDiff d = CoreDiff(
         routeChanges: <RouteChange>[
           const RouteChange(
-              previous: <String>['/a'], current: <String>['/a', '/b']),
+            previous: <String>['/a'],
+            current: <String>['/a', '/b'],
+          ),
         ],
         nodesAdded: <SemanticsNode>[n],
         nodesRemoved: <int>[7, 9],
@@ -25,16 +27,21 @@ void main() {
         errorsAdded: <RuntimeError>[],
       );
       final Map<String, dynamic> j = d.toJson();
-      expect(j.keys, equals(<String>[
-        'routeChanges',
-        'nodesAdded',
-        'nodesRemoved',
-        'nodesChanged',
-        'errorsAdded',
-      ]));
+      expect(
+        j.keys,
+        equals(<String>[
+          'routeChanges',
+          'nodesAdded',
+          'nodesRemoved',
+          'nodesChanged',
+          'errorsAdded',
+        ]),
+      );
       expect(j['nodesRemoved'], equals(<int>[7, 9]));
-      expect((j['routeChanges'] as List).first['current'],
-          equals(<String>['/a', '/b']));
+      expect(
+        (j['routeChanges'] as List).first['current'],
+        equals(<String>['/a', '/b']),
+      );
     });
   });
 
@@ -53,8 +60,10 @@ void main() {
       expect((j['added'] as Map).keys.toList(), equals(<String>['a', 'b']));
       expect((j['removed'] as Map).keys.toList(), equals(<String>['y', 'z']));
       expect((j['changed'] as Map).keys.toList(), equals(<String>['p', 'q']));
-      expect(((j['changed'] as Map)['q'] as Map),
-          equals(<String, dynamic>{'prev': 1, 'curr': 2}));
+      expect(
+        ((j['changed'] as Map)['q'] as Map),
+        equals(<String, dynamic>{'prev': 1, 'curr': 2}),
+      );
     });
 
     test('ExtensionDiffOpaque emits previous+current', () {
@@ -62,65 +71,85 @@ void main() {
         previous: <String, dynamic>{'a': 1},
         current: <String, dynamic>{'a': 2},
       );
-      expect(d.toJson(), equals(<String, dynamic>{
-        'kind': 'opaque',
-        'previous': <String, dynamic>{'a': 1},
-        'current': <String, dynamic>{'a': 2},
-      }));
+      expect(
+        d.toJson(),
+        equals(<String, dynamic>{
+          'kind': 'opaque',
+          'previous': <String, dynamic>{'a': 1},
+          'current': <String, dynamic>{'a': 2},
+        }),
+      );
     });
 
     test('ExtensionDiffAdded carries kind=added + current', () {
-      const ExtensionDiffAdded d =
-          ExtensionDiffAdded(current: <String, dynamic>{'x': 1});
-      expect(d.toJson(),
-          equals(<String, dynamic>{'kind': 'added', 'current': <String, dynamic>{'x': 1}}));
+      const ExtensionDiffAdded d = ExtensionDiffAdded(
+        current: <String, dynamic>{'x': 1},
+      );
+      expect(
+        d.toJson(),
+        equals(<String, dynamic>{
+          'kind': 'added',
+          'current': <String, dynamic>{'x': 1},
+        }),
+      );
     });
 
     test('ExtensionDiffRemoved carries kind=removed + previous', () {
-      const ExtensionDiffRemoved d =
-          ExtensionDiffRemoved(previous: <String, dynamic>{'x': 1});
+      const ExtensionDiffRemoved d = ExtensionDiffRemoved(
+        previous: <String, dynamic>{'x': 1},
+      );
       expect(
-          d.toJson(),
-          equals(<String, dynamic>{
-            'kind': 'removed',
-            'previous': <String, dynamic>{'x': 1},
-          }));
+        d.toJson(),
+        equals(<String, dynamic>{
+          'kind': 'removed',
+          'previous': <String, dynamic>{'x': 1},
+        }),
+      );
     });
   });
 
   group('ObservationDiff.toJson', () {
-    test('plugin keys are alphabetized in output regardless of insertion order',
-        () {
-      final ObservationDiff d = ObservationDiff(
-        core: const CoreDiff(
-          routeChanges: <RouteChange>[],
-          nodesAdded: <SemanticsNode>[],
-          nodesRemoved: <int>[],
-          nodesChanged: <NodeChange>[],
-          errorsAdded: <RuntimeError>[],
-        ),
-        plugins: <String, ExtensionDiff>{
-          'zeta': const ExtensionDiffAdded(current: <String, dynamic>{}),
-          'alpha': const ExtensionDiffAdded(current: <String, dynamic>{}),
-          'mu': const ExtensionDiffAdded(current: <String, dynamic>{}),
-        },
-      );
-      final Map<String, dynamic> j = d.toJson();
-      expect((j['extensions'] as Map).keys.toList(),
-          equals(<String>['alpha', 'mu', 'zeta']));
-      // Determinism: jsonEncode is byte-stable for repeated calls.
-      expect(jsonEncode(d.toJson()), equals(jsonEncode(d.toJson())));
-    });
+    test(
+      'plugin keys are alphabetized in output regardless of insertion order',
+      () {
+        final ObservationDiff d = ObservationDiff(
+          core: const CoreDiff(
+            routeChanges: <RouteChange>[],
+            nodesAdded: <SemanticsNode>[],
+            nodesRemoved: <int>[],
+            nodesChanged: <NodeChange>[],
+            errorsAdded: <RuntimeError>[],
+          ),
+          plugins: <String, ExtensionDiff>{
+            'zeta': const ExtensionDiffAdded(current: <String, dynamic>{}),
+            'alpha': const ExtensionDiffAdded(current: <String, dynamic>{}),
+            'mu': const ExtensionDiffAdded(current: <String, dynamic>{}),
+          },
+        );
+        final Map<String, dynamic> j = d.toJson();
+        expect(
+          (j['extensions'] as Map).keys.toList(),
+          equals(<String>['alpha', 'mu', 'zeta']),
+        );
+        // Determinism: jsonEncode is byte-stable for repeated calls.
+        expect(jsonEncode(d.toJson()), equals(jsonEncode(d.toJson())));
+      },
+    );
   });
 
   group('RouteChange/NodeChange/ChangedValue', () {
     test('toJson shapes are stable', () {
-      const RouteChange r =
-          RouteChange(previous: <String>['/a'], current: <String>['/b']);
-      expect(r.toJson(), equals(<String, dynamic>{
-        'previous': <String>['/a'],
-        'current': <String>['/b'],
-      }));
+      const RouteChange r = RouteChange(
+        previous: <String>['/a'],
+        current: <String>['/b'],
+      );
+      expect(
+        r.toJson(),
+        equals(<String, dynamic>{
+          'previous': <String>['/a'],
+          'current': <String>['/b'],
+        }),
+      );
 
       const SemanticsNode a = SemanticsNode(
         id: 1,

@@ -27,8 +27,7 @@ class BroadcastTrajectorySink implements TrajectorySink {
     if (_closed) {
       throw StateError('BroadcastTrajectorySink is closed');
     }
-    final Map<String, dynamic> json =
-        jsonDecode(line) as Map<String, dynamic>;
+    final Map<String, dynamic> json = jsonDecode(line) as Map<String, dynamic>;
     _ctrl.add(TrajectoryRecord.fromJson(json));
   }
 

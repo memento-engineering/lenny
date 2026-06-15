@@ -17,8 +17,10 @@ void main() {
   final re = RegExp(r"""import\s+['"]dart:io['"]""");
   final dir = Directory('packages/leonard_agent/lib');
   if (!dir.existsSync()) {
-    stderr.writeln('check_no_dart_io: ${dir.path} does not exist '
-        '(run from repo root)');
+    stderr.writeln(
+      'check_no_dart_io: ${dir.path} does not exist '
+      '(run from repo root)',
+    );
     exit(2);
   }
   for (final f in dir.listSync(recursive: true).whereType<File>()) {
@@ -33,6 +35,8 @@ void main() {
     stderr.writeln('dart:io imports forbidden in leonard_agent: $hits');
     exit(1);
   }
-  stdout.writeln('OK: no dart:io in leonard_agent/lib '
-      '(dogfood subtree whitelisted)');
+  stdout.writeln(
+    'OK: no dart:io in leonard_agent/lib '
+    '(dogfood subtree whitelisted)',
+  );
 }

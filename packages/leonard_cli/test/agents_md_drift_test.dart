@@ -41,7 +41,5 @@ String _findPackageRoot() {
     if (parent.path == dir.path) break;
     dir = parent;
   }
-  return p.normalize(
-    p.join(Directory.current.path, 'packages', 'leonard_cli'),
-  );
+  return p.normalize(p.join(Directory.current.path, 'packages', 'leonard_cli'));
 }

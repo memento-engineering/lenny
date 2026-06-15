@@ -63,10 +63,7 @@ const Map<String, dynamic> _kFixtureBody = <String, dynamic>{
   ],
   'routes': <String>['login'],
   'errors': <Map<String, dynamic>>[],
-  'stability': <String, dynamic>{
-    'policy': 'action_relative',
-    'reason': 'idle',
-  },
+  'stability': <String, dynamic>{'policy': 'action_relative', 'reason': 'idle'},
   'extensions': <String, dynamic>{},
 };
 
@@ -75,53 +72,60 @@ const Map<String, dynamic> _kFixtureBody = <String, dynamic>{
 // ---------------------------------------------------------------------------
 
 void main() {
-  test(
-    'observation pulled through session reflects fixture: '
-    'non-empty route stack and semantics nodes',
-    () async {
-      final LeonardVmServiceFake fake = LeonardVmServiceFake(
-        handshakeResponse: _kHandshake,
-        observationBundle: _kFixtureBody,
+  test('observation pulled through session reflects fixture: '
+      'non-empty route stack and semantics nodes', () async {
+    final LeonardVmServiceFake fake = LeonardVmServiceFake(
+      handshakeResponse: _kHandshake,
+      observationBundle: _kFixtureBody,
+    );
+    final LeonardSession session = LeonardSession.fromVmService(
+      fake,
+      'isolate-0',
+    );
+    await session.start('sign in', const LeonardConfig());
+    try {
+      final Observation curr = await session.pullObservation(
+        policy: StabilityPolicy.actionRelative,
       );
-      final LeonardSession session =
-          LeonardSession.fromVmService(fake, 'isolate-0');
-      await session.start('sign in', const LeonardConfig());
-      try {
-        final Observation curr = await session.pullObservation(
-          policy: StabilityPolicy.actionRelative,
-        );
 
-        // Typed observation: the fixture's `routes` and `semantics`
-        // round-tripped into the agent's CoreFragment.
-        expect(
-          curr.core.routeStack,
-          <String>['login'],
-          reason: 'fixture `routes` must surface as core.routeStack',
-        );
-        expect(curr.core.nodes.length, 3,
-            reason: 'fixture `semantics` entries must map into '
-                'core.nodes keyed by id');
-        expect(curr.core.nodes.keys.toSet(), <int>{1, 2, 3});
-        expect(curr.core.nodes[3]!.label, 'Sign in');
+      // Typed observation: the fixture's `routes` and `semantics`
+      // round-tripped into the agent's CoreFragment.
+      expect(
+        curr.core.routeStack,
+        <String>['login'],
+        reason: 'fixture `routes` must surface as core.routeStack',
+      );
+      expect(
+        curr.core.nodes.length,
+        3,
+        reason:
+            'fixture `semantics` entries must map into '
+            'core.nodes keyed by id',
+      );
+      expect(curr.core.nodes.keys.toSet(), <int>{1, 2, 3});
+      expect(curr.core.nodes[3]!.label, 'Sign in');
 
-        // `Observation.toJson()` is exactly what `TurnRecord.observation`
-        // carries on a successful turn and what
-        // `_observationSummary(t)` reads from. Assert the shape the
-        // dogfood trace's `observation_summary` projects.
-        final Map<String, dynamic> obs = curr.toJson();
-        final Map<String, dynamic> core =
-            (obs['core'] as Map).cast<String, dynamic>();
-        expect(core['routeStack'], <String>['login']);
-        // `CoreFragment.toJson` serialises nodes as a Map keyed by
-        // node-id strings; `_observationSummary` counts Map entries.
-        final Map<String, dynamic> nodes =
-            (core['nodes'] as Map).cast<String, dynamic>();
-        expect(nodes.length, 3,
-            reason: 'observation_summary.node_count would be 3 — '
-                'matching the fixture');
-      } finally {
-        await session.end();
-      }
-    },
-  );
+      // `Observation.toJson()` is exactly what `TurnRecord.observation`
+      // carries on a successful turn and what
+      // `_observationSummary(t)` reads from. Assert the shape the
+      // dogfood trace's `observation_summary` projects.
+      final Map<String, dynamic> obs = curr.toJson();
+      final Map<String, dynamic> core = (obs['core'] as Map)
+          .cast<String, dynamic>();
+      expect(core['routeStack'], <String>['login']);
+      // `CoreFragment.toJson` serialises nodes as a Map keyed by
+      // node-id strings; `_observationSummary` counts Map entries.
+      final Map<String, dynamic> nodes = (core['nodes'] as Map)
+          .cast<String, dynamic>();
+      expect(
+        nodes.length,
+        3,
+        reason:
+            'observation_summary.node_count would be 3 — '
+            'matching the fixture',
+      );
+    } finally {
+      await session.end();
+    }
+  });
 }

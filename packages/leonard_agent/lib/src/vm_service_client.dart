@@ -130,7 +130,9 @@ class VmServiceClient {
             if (tool is String) toolList.add(tool);
           }
         }
-        plugins.add(ExtensionManifestEntry(namespace: namespace, tools: toolList));
+        plugins.add(
+          ExtensionManifestEntry(namespace: namespace, tools: toolList),
+        );
       }
     }
     return HandshakeResult(contractVersion: rawVersion, plugins: plugins);

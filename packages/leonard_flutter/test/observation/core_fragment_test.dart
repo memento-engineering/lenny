@@ -5,12 +5,12 @@ import 'package:leonard_flutter/src/observation/stability_metadata.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 StabilityMetadata _stub() => const StabilityMetadata(
-      policy: StabilityPolicy.actionRelative,
-      terminatedBy: TerminatedBy.idle,
-      durationMs: 16,
-      frameworkBusy: <String, Object?>{},
-      extensionsBusy: <ExtensionBusy>[],
-    );
+  policy: StabilityPolicy.actionRelative,
+  terminatedBy: TerminatedBy.idle,
+  durationMs: 16,
+  frameworkBusy: <String, Object?>{},
+  extensionsBusy: <ExtensionBusy>[],
+);
 
 /// Compute the core fragment values and project them to the legacy map.
 Future<Map<String, Object?>> _coreMap({
@@ -48,17 +48,15 @@ void main() {
         errorCursor: null,
         routeStackProvider: () => <String>['/'],
       );
-      expect(core.keys, containsAll(<String>[
-        'semantics',
-        'routes',
-        'errors',
-        'stability',
-      ]));
-      expect(core['routes'], <String>['/']);
       expect(
-        (core['semantics']! as List<dynamic>).single,
-        <String, Object>{'id': 1, 'role': 'button'},
+        core.keys,
+        containsAll(<String>['semantics', 'routes', 'errors', 'stability']),
       );
+      expect(core['routes'], <String>['/']);
+      expect((core['semantics']! as List<dynamic>).single, <String, Object>{
+        'id': 1,
+        'role': 'button',
+      });
       expect(core.containsKey('screenshot_png_b64'), isFalse);
     });
 
@@ -80,22 +78,23 @@ void main() {
       expect(called, isFalse);
     });
 
-    test('includes screenshot_png_b64 when flag true and capture returns',
-        () async {
-      final Map<String, Object?> core = await _coreMap(
-        captureSemantics: () async => const <Map<String, Object>>[],
-        errorsSince: (int? c) => const <ErrorEntry>[],
-        stability: _stub(),
-        includeScreenshot: true,
-        captureScreenshot: () async => 'b64data',
-        errorCursor: null,
-        routeStackProvider: () => const <String>[],
-      );
-      expect(core['screenshot_png_b64'], 'b64data');
-    });
+    test(
+      'includes screenshot_png_b64 when flag true and capture returns',
+      () async {
+        final Map<String, Object?> core = await _coreMap(
+          captureSemantics: () async => const <Map<String, Object>>[],
+          errorsSince: (int? c) => const <ErrorEntry>[],
+          stability: _stub(),
+          includeScreenshot: true,
+          captureScreenshot: () async => 'b64data',
+          errorCursor: null,
+          routeStackProvider: () => const <String>[],
+        );
+        expect(core['screenshot_png_b64'], 'b64data');
+      },
+    );
 
-    test('routes empty list when no Navigator (provider returns [])',
-        () async {
+    test('routes empty list when no Navigator (provider returns [])', () async {
       final Map<String, Object?> core = await _coreMap(
         captureSemantics: () async => const <Map<String, Object>>[],
         errorsSince: (int? c) => const <ErrorEntry>[],
@@ -108,31 +107,33 @@ void main() {
       expect(core['routes'], <String>[]);
     });
 
-    test('errorsSince forwards the cursor and projects entries to JSON',
-        () async {
-      int? capturedCursor;
-      final Stopwatch clock = Stopwatch()..start();
-      final ErrorRingBuffer ring = ErrorRingBuffer(
-        capacity: 4,
-        sessionClock: clock,
-      );
-      ring.add('boom', null);
-      final Map<String, Object?> core = await _coreMap(
-        captureSemantics: () async => const <Map<String, Object>>[],
-        errorsSince: (int? c) {
-          capturedCursor = c;
-          return ring.entriesSince(c ?? 0);
-        },
-        stability: _stub(),
-        includeScreenshot: false,
-        captureScreenshot: null,
-        errorCursor: 0,
-        routeStackProvider: () => const <String>[],
-      );
-      expect(capturedCursor, 0);
-      final List<dynamic> errs = core['errors']! as List<dynamic>;
-      expect(errs, hasLength(1));
-      expect((errs.first as Map<String, Object?>)['message'], 'boom');
-    });
+    test(
+      'errorsSince forwards the cursor and projects entries to JSON',
+      () async {
+        int? capturedCursor;
+        final Stopwatch clock = Stopwatch()..start();
+        final ErrorRingBuffer ring = ErrorRingBuffer(
+          capacity: 4,
+          sessionClock: clock,
+        );
+        ring.add('boom', null);
+        final Map<String, Object?> core = await _coreMap(
+          captureSemantics: () async => const <Map<String, Object>>[],
+          errorsSince: (int? c) {
+            capturedCursor = c;
+            return ring.entriesSince(c ?? 0);
+          },
+          stability: _stub(),
+          includeScreenshot: false,
+          captureScreenshot: null,
+          errorCursor: 0,
+          routeStackProvider: () => const <String>[],
+        );
+        expect(capturedCursor, 0);
+        final List<dynamic> errs = core['errors']! as List<dynamic>;
+        expect(errs, hasLength(1));
+        expect((errs.first as Map<String, Object?>)['message'], 'boom');
+      },
+    );
   });
 }

@@ -17,14 +17,17 @@ class TurnRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final actionLine = describeAction(record.executedAction, index: record.index);
+    final actionLine = describeAction(
+      record.executedAction,
+      index: record.index,
+    );
     final diffLine = describeDiff(record.diff);
     final thinking = record.thinking;
     final summary = (thinking == null || thinking.isEmpty)
         ? '(no thinking)'
         : thinking.length > 80
-            ? '${thinking.substring(0, 80)}…'
-            : thinking;
+        ? '${thinking.substring(0, 80)}…'
+        : thinking;
 
     return InkWell(
       onTap: onTap,
@@ -62,14 +65,14 @@ class TurnRow extends StatelessWidget {
   }
 
   /// Builds the `#<idx> tool(arg=value, ...)` string for line 1.
-  static String describeAction(Map<String, dynamic> action, {required int index}) {
+  static String describeAction(
+    Map<String, dynamic> action, {
+    required int index,
+  }) {
     final tool = action['tool'] as String? ?? '<unknown>';
     final args = action['args'];
     final argsLabel = args is Map
-        ? args.entries
-            .take(3)
-            .map((e) => '${e.key}=${e.value}')
-            .join(', ')
+        ? args.entries.take(3).map((e) => '${e.key}=${e.value}').join(', ')
         : '';
     return '#$index $tool($argsLabel)';
   }

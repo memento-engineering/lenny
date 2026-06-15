@@ -40,10 +40,7 @@ void main() {
     });
 
     test('ConversationEntry copyWith with sentinel for nullable toolArgs', () {
-      const entry = ConversationEntry(
-        turnIndex: 0,
-        toolArgs: {'a': 1},
-      );
+      const entry = ConversationEntry(turnIndex: 0, toolArgs: {'a': 1});
       // Omitting toolArgs keeps the original.
       final withNewName = entry.copyWith(toolName: 'core.tap');
       expect(withNewName.toolArgs, {'a': 1});

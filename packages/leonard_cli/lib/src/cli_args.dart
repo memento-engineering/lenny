@@ -72,10 +72,7 @@ class CliUsageError implements Exception {
 /// Build the canonical [ArgParser]. Exposed for `--help` rendering and
 /// reuse from tests.
 ArgParser buildParser() => ArgParser()
-  ..addOption(
-    'goal',
-    help: 'Goal to drive the app toward (or pipe via stdin).',
-  )
+  ..addOption('goal', help: 'Goal to drive the app toward (or pipe via stdin).')
   ..addOption(
     'vm-uri',
     mandatory: true,
@@ -104,7 +101,8 @@ ArgParser buildParser() => ArgParser()
   )
   ..addOption(
     'agents-md',
-    help: 'Path to an AGENTS.md operating guide pinned to the system '
+    help:
+        'Path to an AGENTS.md operating guide pinned to the system '
         'prompt. Defaults to the bundled template; missing => empty.',
   )
   ..addOption(
@@ -141,9 +139,7 @@ CliArgs parseCliArgs(List<String> argv) {
   }
   final Uri? vmUri = Uri.tryParse(rawVmUri as String);
   if (vmUri == null || (!vmUri.isScheme('ws') && !vmUri.isScheme('wss'))) {
-    throw CliUsageError(
-      'Invalid --vm-uri: must be a ws:// or wss:// URI',
-    );
+    throw CliUsageError('Invalid --vm-uri: must be a ws:// or wss:// URI');
   }
 
   final ModelTier tier = switch (res['model'] as String) {
@@ -164,10 +160,10 @@ CliArgs parseCliArgs(List<String> argv) {
   final List<String> extensions = extensionsRaw.isEmpty
       ? const <String>[]
       : extensionsRaw
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList(growable: false);
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList(growable: false);
 
   final String? rawTurnBudget = res['turn-budget'] as String?;
   Duration? turnBudget;

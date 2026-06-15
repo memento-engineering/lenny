@@ -31,18 +31,14 @@ class InspectWidgetTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-          'depth': <String, Object?>{
-            'type': 'integer',
-            'minimum': 1,
-            'maximum': 8,
-          },
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'depth': <String, Object?>{'type': 'integer', 'minimum': 1, 'maximum': 8},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -50,15 +46,15 @@ class InspectWidgetTool extends CoreTool {
     if (term != null) return term;
     final ToolResult? a = requireField(args, 'node_id', int);
     if (a != null) return a;
-    final ToolResult? b =
-        requireField(args, 'depth', int, optional: true);
+    final ToolResult? b = requireField(args, 'depth', int, optional: true);
     if (b != null) return b;
     final int id = args['node_id']! as int;
     final int depth = (args['depth'] as int?) ?? _defaultDepth;
     if (depth < 1 || depth > _maxDepth) {
       return ToolResult(
         ok: false,
-        error: '${CoreToolErrorCode.schemaViolation}: depth must be 1..'
+        error:
+            '${CoreToolErrorCode.schemaViolation}: depth must be 1..'
             '$_maxDepth',
       );
     }
@@ -79,18 +75,12 @@ class InspectWidgetTool extends CoreTool {
       }
       if (encoded.length > _maxBytes) {
         // Even depth=1 didn't fit; emit a stub.
-        tree = <String, Object?>{
-          'id': id,
-          'truncated_to_root': true,
-        };
+        tree = <String, Object?>{'id': id, 'truncated_to_root': true};
       }
     }
     return ToolResult(
       ok: true,
-      value: <String, Object?>{
-        'tree': tree,
-        'truncated': truncated,
-      },
+      value: <String, Object?>{'tree': tree, 'truncated': truncated},
     );
   }
 
@@ -141,7 +131,9 @@ class InspectWidgetTool extends CoreTool {
     try {
       // ignore: invalid_use_of_visible_for_testing_member
       if (f.toString().contains('focused')) out.add('focused');
-    } catch (_) {/* defensive */}
+    } catch (_) {
+      /* defensive */
+    }
     return out;
   }
 
@@ -163,4 +155,3 @@ class InspectWidgetTool extends CoreTool {
     return out;
   }
 }
-

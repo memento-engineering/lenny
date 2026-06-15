@@ -59,7 +59,8 @@ class FileTrajectorySink implements TrajectorySink {
   static String defaultOutputPath({DateTime? now}) {
     final DateTime t = (now ?? DateTime.now().toUtc()).toUtc();
     String two(int n) => n.toString().padLeft(2, '0');
-    final String stamp = '${t.year}${two(t.month)}${two(t.day)}T'
+    final String stamp =
+        '${t.year}${two(t.month)}${two(t.day)}T'
         '${two(t.hour)}${two(t.minute)}${two(t.second)}Z';
     return p.join('trajectories', '$stamp.jsonl');
   }

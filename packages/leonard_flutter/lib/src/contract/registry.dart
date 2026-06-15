@@ -46,7 +46,7 @@ class _Entry {
 /// - per-plugin error-handler chaining (`registerErrorHandler`).
 class ExtensionRegistry {
   ExtensionRegistry({required SchedulerBinding scheduler})
-      : _scheduler = scheduler;
+    : _scheduler = scheduler;
 
   final SchedulerBinding _scheduler;
   final List<_Entry> _entries = <_Entry>[];
@@ -59,8 +59,8 @@ class ExtensionRegistry {
   /// observation fragments back to their owning plugin and to enforce
   /// per-plugin budget overrides.
   List<String> get namespaces => List<String>.unmodifiable(<String>[
-        for (final _Entry e in _entries) e.plugin.namespace,
-      ]);
+    for (final _Entry e in _entries) e.plugin.namespace,
+  ]);
 
   /// Plugin manifest: ordered `(namespace, bare tool names)` records,
   /// one per registered plugin (post de-duplication). Read by the
@@ -81,10 +81,9 @@ class ExtensionRegistry {
 
   /// All registered plugins, in registration order. Read by the binding's
   /// single observation loop, which gates on `is PerceptionExtension`.
-  List<LeonardExtension> get plugins =>
-      List<LeonardExtension>.unmodifiable(<LeonardExtension>[
-        for (final _Entry e in _entries) e.plugin,
-      ]);
+  List<LeonardExtension> get plugins => List<LeonardExtension>.unmodifiable(
+    <LeonardExtension>[for (final _Entry e in _entries) e.plugin],
+  );
 
   /// Register [p]. Order is preserved across every dispatch.
   ///
@@ -108,7 +107,10 @@ class ExtensionRegistry {
       }
     }
     _entries.add(
-      _Entry(p, ExtensionContext(namespace: p.namespace, scheduler: _scheduler)),
+      _Entry(
+        p,
+        ExtensionContext(namespace: p.namespace, scheduler: _scheduler),
+      ),
     );
   }
 

@@ -42,21 +42,19 @@ class FrameworkBusySnapshot {
   /// `true` iff any of the framework-level signals indicate the framework
   /// is doing work this turn.
   bool get isAnyBusy =>
-      transientCallbacks > 0 ||
-      persistentCallbacks > 0 ||
-      pendingMicrotasks;
+      transientCallbacks > 0 || persistentCallbacks > 0 || pendingMicrotasks;
 
   /// JSON representation aligned with PRD §9.2 `framework_busy`. The
   /// `recent_frame_commits_us` field is intentionally omitted from this
   /// payload — the host's serializer (cx6.10) projects whichever ring
   /// fields it needs from `recentFrameCommits`.
   Map<String, Object?> toJson() => <String, Object?>{
-        'transient_callbacks': transientCallbacks,
-        'persistent_callbacks': persistentCallbacks,
-        'microtasks': pendingMicrotasks,
-        'last_frame_commit_us': lastFrameCommitTimestamp?.inMicroseconds,
-        'recent_skipped_frames': recentSkippedFrames,
-      };
+    'transient_callbacks': transientCallbacks,
+    'persistent_callbacks': persistentCallbacks,
+    'microtasks': pendingMicrotasks,
+    'last_frame_commit_us': lastFrameCommitTimestamp?.inMicroseconds,
+    'recent_skipped_frames': recentSkippedFrames,
+  };
 
   /// Canonical zero-valued snapshot. Returned by
   /// `LeonardBinding.frameworkBusySnapshot()` in release mode and

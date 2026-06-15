@@ -56,8 +56,7 @@ class _ThinkingPanelState extends State<ThinkingPanel> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _ThinkingPanelView(controller: _ctl);
+  Widget build(BuildContext context) => _ThinkingPanelView(controller: _ctl);
 }
 
 class _ThinkingPanelFromStreamState extends State<ThinkingPanelFromStream> {
@@ -76,8 +75,7 @@ class _ThinkingPanelFromStreamState extends State<ThinkingPanelFromStream> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _ThinkingPanelView(controller: _ctl);
+  Widget build(BuildContext context) => _ThinkingPanelView(controller: _ctl);
 }
 
 /// Internal view shared by the two entry points. Encapsulates the
@@ -120,8 +118,7 @@ class _ThinkingPanelViewState extends State<_ThinkingPanelView> {
 
   bool _onScrollNotification(ScrollUpdateNotification n) {
     if (!widget.controller.autoScroll.value) return false;
-    final bool atBottom =
-        n.metrics.pixels >= n.metrics.maxScrollExtent - 4;
+    final bool atBottom = n.metrics.pixels >= n.metrics.maxScrollExtent - 4;
     final double delta = n.scrollDelta ?? 0;
     if (delta < 0 && !atBottom) {
       widget.controller.pauseAutoScroll();
@@ -150,10 +147,7 @@ class _ThinkingPanelViewState extends State<_ThinkingPanelView> {
                 padding: const EdgeInsets.all(8),
                 child: SelectableText(
                   widget.controller.text.text,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
               ),
             ),

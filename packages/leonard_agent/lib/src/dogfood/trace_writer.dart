@@ -43,19 +43,18 @@ class DogfoodTraceWriter {
       throw StateError('DogfoodTraceWriter: header already written');
     }
     _headerWritten = true;
-    await _sink.writeLine(jsonEncode(<String, Object?>{
-      'type': 'dogfood_header',
-      'goal': goal,
-      'model': model,
-      'tools': <Map<String, Object?>>[
-        for (final ToolDescriptor t in tools)
-          <String, Object?>{
-            'name': t.name,
-            'description': t.description,
-          },
-      ],
-      'started_at': DateTime.now().toUtc().toIso8601String(),
-    }));
+    await _sink.writeLine(
+      jsonEncode(<String, Object?>{
+        'type': 'dogfood_header',
+        'goal': goal,
+        'model': model,
+        'tools': <Map<String, Object?>>[
+          for (final ToolDescriptor t in tools)
+            <String, Object?>{'name': t.name, 'description': t.description},
+        ],
+        'started_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
     await _sink.flush();
   }
 
@@ -75,15 +74,17 @@ class DogfoodTraceWriter {
     if (_footerWritten) {
       throw StateError('DogfoodTraceWriter: footer already written');
     }
-    await _sink.writeLine(jsonEncode(<String, Object?>{
-      'type': 'dogfood_turn',
-      'index': index,
-      'prompt': prompt,
-      'decision': decision,
-      'act_result': actResult,
-      'elapsed_ms': elapsedMs,
-      if (error != null) 'error': error,
-    }));
+    await _sink.writeLine(
+      jsonEncode(<String, Object?>{
+        'type': 'dogfood_turn',
+        'index': index,
+        'prompt': prompt,
+        'decision': decision,
+        'act_result': actResult,
+        'elapsed_ms': elapsedMs,
+        if (error != null) 'error': error,
+      }),
+    );
     await _sink.flush();
   }
 
@@ -120,24 +121,28 @@ class DogfoodTraceWriter {
       // runs. This keeps the JSONL invariant `header ; turn* ; footer`
       // intact for downstream readers.
       _headerWritten = true;
-      await _sink.writeLine(jsonEncode(<String, Object?>{
-        'type': 'dogfood_header',
-        'goal': '',
-        'model': '',
-        'tools': <Map<String, Object?>>[],
-        'started_at': DateTime.now().toUtc().toIso8601String(),
-        'synthetic': true,
-      }));
+      await _sink.writeLine(
+        jsonEncode(<String, Object?>{
+          'type': 'dogfood_header',
+          'goal': '',
+          'model': '',
+          'tools': <Map<String, Object?>>[],
+          'started_at': DateTime.now().toUtc().toIso8601String(),
+          'synthetic': true,
+        }),
+      );
       await _sink.flush();
     }
-    await _sink.writeLine(jsonEncode(<String, Object?>{
-      'type': 'dogfood_footer',
-      'outcome': outcome,
-      if (exception != null) 'exception': exception,
-      if (harnessError != null) 'harness_error': harnessError,
-      if (recoveryError != null) 'recovery_error': recoveryError,
-      'ended_at': DateTime.now().toUtc().toIso8601String(),
-    }));
+    await _sink.writeLine(
+      jsonEncode(<String, Object?>{
+        'type': 'dogfood_footer',
+        'outcome': outcome,
+        if (exception != null) 'exception': exception,
+        if (harnessError != null) 'harness_error': harnessError,
+        if (recoveryError != null) 'recovery_error': recoveryError,
+        'ended_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
     await _sink.flush();
     _footerWritten = true;
     await _sink.close();

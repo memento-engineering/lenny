@@ -26,8 +26,7 @@ RequestOptions _opts({
   String method = 'GET',
   String url = 'https://api.example.com/x',
   CancelToken? cancelToken,
-}) =>
-    RequestOptions(path: url, method: method, cancelToken: cancelToken);
+}) => RequestOptions(path: url, method: method, cancelToken: cancelToken);
 
 void main() {
   test('id is assigned on first request and reused on completion', () {
@@ -61,25 +60,27 @@ void main() {
     expect(i.inFlight.length, 0);
   });
 
-  test('error path also clears in-flight and records status if present',
-      () async {
-    final i = DioTrackingInterceptor();
-    final o = _opts();
-    i.onRequest(o, _FakeRequestHandler());
-    expect(i.inFlight.length, 1);
-    final err = DioException(
-      requestOptions: o,
-      response: Response<dynamic>(requestOptions: o, statusCode: 500),
-      type: DioExceptionType.badResponse,
-    );
-    // ErrorInterceptorHandler.next() rejects the internal completer; run in
-    // a guarded zone so the unhandled rejection doesn't fail the test.
-    await runZonedGuarded(() async {
-      i.onError(err, _FakeErrorHandler());
-    }, (_, __) {});
-    expect(i.inFlight.length, 0);
-    expect(i.recentCompleted.single.status, 500);
-  });
+  test(
+    'error path also clears in-flight and records status if present',
+    () async {
+      final i = DioTrackingInterceptor();
+      final o = _opts();
+      i.onRequest(o, _FakeRequestHandler());
+      expect(i.inFlight.length, 1);
+      final err = DioException(
+        requestOptions: o,
+        response: Response<dynamic>(requestOptions: o, statusCode: 500),
+        type: DioExceptionType.badResponse,
+      );
+      // ErrorInterceptorHandler.next() rejects the internal completer; run in
+      // a guarded zone so the unhandled rejection doesn't fail the test.
+      await runZonedGuarded(() async {
+        i.onError(err, _FakeErrorHandler());
+      }, (_, __) {});
+      expect(i.inFlight.length, 0);
+      expect(i.recentCompleted.single.status, 500);
+    },
+  );
 
   test('ring buffer caps recent completions at 8', () {
     final i = DioTrackingInterceptor();

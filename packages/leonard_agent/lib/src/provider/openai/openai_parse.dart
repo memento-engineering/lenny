@@ -39,10 +39,10 @@ ModelDecision parseOpenAiResponse(
     );
   }
 
-  final Map<String, dynamic> firstCall =
-      (toolCallsRaw.first as Map).cast<String, dynamic>();
-  final Map<String, dynamic> fn =
-      (firstCall['function'] as Map).cast<String, dynamic>();
+  final Map<String, dynamic> firstCall = (toolCallsRaw.first as Map)
+      .cast<String, dynamic>();
+  final Map<String, dynamic> fn = (firstCall['function'] as Map)
+      .cast<String, dynamic>();
   final String name = fn['name'] as String;
   final String rawArgs = fn['arguments'] as String;
 
@@ -89,8 +89,8 @@ ModelDecision parseOpenAiResponse(
     'action': <String, dynamic>{'tool': tool.name, 'args': args},
   });
   final Map<String, dynamic> validated = schema.validate(envelope);
-  final Map<String, dynamic> action =
-      (validated['action'] as Map).cast<String, dynamic>();
+  final Map<String, dynamic> action = (validated['action'] as Map)
+      .cast<String, dynamic>();
 
   // Optional sibling JSON content carrying decision metadata.
   String? rationale;

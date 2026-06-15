@@ -16,17 +16,17 @@ class WaitTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'seconds': <String, Object?>{
-            'type': 'number',
-            'exclusiveMinimum': 0,
-            'maximum': 5,
-          },
-        },
-        'required': <String>['seconds'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'seconds': <String, Object?>{
+        'type': 'number',
+        'exclusiveMinimum': 0,
+        'maximum': 5,
+      },
+    },
+    'required': <String>['seconds'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -38,13 +38,12 @@ class WaitTool extends CoreTool {
     if (!seconds.isFinite || seconds <= 0 || seconds > 5) {
       return ToolResult(
         ok: false,
-        error: '${CoreToolErrorCode.schemaViolation}: seconds must be in '
+        error:
+            '${CoreToolErrorCode.schemaViolation}: seconds must be in '
             '(0, 5]',
       );
     }
-    await Future<void>.delayed(
-      Duration(microseconds: (seconds * 1e6).round()),
-    );
+    await Future<void>.delayed(Duration(microseconds: (seconds * 1e6).round()));
     return const ToolResult(ok: true, value: <String, Object?>{});
   }
 }

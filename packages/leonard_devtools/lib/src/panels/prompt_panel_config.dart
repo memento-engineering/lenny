@@ -10,8 +10,7 @@ class ModelDescriptor {
   final String label;
 
   @override
-  bool operator ==(Object other) =>
-      other is ModelDescriptor && other.id == id;
+  bool operator ==(Object other) => other is ModelDescriptor && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
@@ -37,19 +36,17 @@ class PromptPanelConfig {
   final Set<String> enabledExtensionNamespaces;
 
   /// Project the turn / wall-clock budgets onto an [LeonardConfig].
-  LeonardConfig toLeonardConfig() => LeonardConfig(
-        maxTurns: maxTurns,
-        sessionBudget: wallClockBudget,
-      );
+  LeonardConfig toLeonardConfig() =>
+      LeonardConfig(maxTurns: maxTurns, sessionBudget: wallClockBudget);
 
   /// Serializes form-level fields. [modelId] is intentionally absent —
   /// model selection is owned by the provider-config layer (lenny-0wd).
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'goal': goal,
-        'maxTurns': maxTurns,
-        'wallClockBudgetMinutes': wallClockBudget.inMinutes,
-        'enabledExtensionNamespaces': enabledExtensionNamespaces.toList(),
-      };
+    'goal': goal,
+    'maxTurns': maxTurns,
+    'wallClockBudgetMinutes': wallClockBudget.inMinutes,
+    'enabledExtensionNamespaces': enabledExtensionNamespaces.toList(),
+  };
 
   factory PromptPanelConfig.fromJson(Map<String, dynamic> json) =>
       PromptPanelConfig(
@@ -78,10 +75,10 @@ class PromptPanelConfig {
 
   @override
   int get hashCode => Object.hash(
-        goal,
-        modelId,
-        maxTurns,
-        wallClockBudget,
-        Object.hashAllUnordered(enabledExtensionNamespaces),
-      );
+    goal,
+    modelId,
+    maxTurns,
+    wallClockBudget,
+    Object.hashAllUnordered(enabledExtensionNamespaces),
+  );
 }

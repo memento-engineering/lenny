@@ -7,8 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-const String _ext =
-    'ext.exploration.core.get_stable_observation';
+const String _ext = 'ext.exploration.core.get_stable_observation';
 
 class _ExtensionA extends LeonardExtension with PerceptionExtension {
   const _ExtensionA();
@@ -19,8 +18,7 @@ class _ExtensionA extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() =>
-      Node('a', children: <Seed>[Field('pluginA', true)]);
+  Seed buildPerception() => Node('a', children: <Seed>[Field('pluginA', true)]);
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -57,9 +55,10 @@ void main() {
   // subsequent calls return values past the action-relative budget.
   final List<int> clockTicks = <int>[0, 100, 100, 100];
   int clockIdx = 0;
-  int now() => clockTicks[clockIdx < clockTicks.length
-      ? clockIdx++
-      : clockTicks.length - 1];
+  int now() =>
+      clockTicks[clockIdx < clockTicks.length
+          ? clockIdx++
+          : clockTicks.length - 1];
 
   setUpAll(() {
     binding = LeonardBinding.ensureInitialized(
@@ -104,52 +103,55 @@ void main() {
   // loop with a tiny action-relative budget so it terminates on
   // `budget` rather than waiting for an idle frame that never comes.
   Map<String, String> params() => <String, String>{
-        'actionRelativeBudgetMs': '1',
-      };
+    'actionRelativeBudgetMs': '1',
+  };
 
   group('MergedShape', () {
     test('single VM call returns full merged bundle', () async {
       if (!kDebugMode) return;
-      final String body =
-          await binding.invokeServiceExtension(_ext, params());
+      final String body = await binding.invokeServiceExtension(_ext, params());
       final Map<String, Object?> outer =
           jsonDecode(body) as Map<String, Object?>;
       expect(outer['type'], 'Observation');
-      final Map<String, Object?> obs =
-          outer['value']! as Map<String, Object?>;
-      expect(obs.keys, containsAll(<String>[
-        'semantics',
-        'routes',
-        'errors',
-        'stability',
-        'extensions',
-      ]));
+      final Map<String, Object?> obs = outer['value']! as Map<String, Object?>;
+      expect(
+        obs.keys,
+        containsAll(<String>[
+          'semantics',
+          'routes',
+          'errors',
+          'stability',
+          'extensions',
+        ]),
+      );
       final Map<String, Object?> stability =
           obs['stability']! as Map<String, Object?>;
       expect(stability['policy'], 'action-relative');
       // Either idle or budget — either is a valid first-iteration termination.
-      expect(
-        <String>['idle', 'budget'],
-        contains(stability['terminated_by']),
-      );
+      expect(<String>['idle', 'budget'], contains(stability['terminated_by']));
       expect(stability['framework_busy'], isMap);
       expect(stability['extensions_busy'], isList);
     });
   });
 
   group('PluginOrder', () {
-    test('plugin fragments preserve registration order under "extensions"',
-        () async {
-      if (!kDebugMode) return;
-      final String body =
-          await binding.invokeServiceExtension(_ext, params());
-      final Map<String, Object?> obs = (jsonDecode(body)
-          as Map<String, Object?>)['value']! as Map<String, Object?>;
-      final Map<String, Object?> plugins =
-          obs['extensions']! as Map<String, Object?>;
-      expect(plugins.keys.toList(), <String>['a', 'b']);
-      expect((plugins['a']! as Map<String, Object?>)['pluginA'], isTrue);
-      expect((plugins['b']! as Map<String, Object?>)['pluginB'], 1);
-    });
+    test(
+      'plugin fragments preserve registration order under "extensions"',
+      () async {
+        if (!kDebugMode) return;
+        final String body = await binding.invokeServiceExtension(
+          _ext,
+          params(),
+        );
+        final Map<String, Object?> obs =
+            (jsonDecode(body) as Map<String, Object?>)['value']!
+                as Map<String, Object?>;
+        final Map<String, Object?> plugins =
+            obs['extensions']! as Map<String, Object?>;
+        expect(plugins.keys.toList(), <String>['a', 'b']);
+        expect((plugins['a']! as Map<String, Object?>)['pluginA'], isTrue);
+        expect((plugins['b']! as Map<String, Object?>)['pluginB'], 1);
+      },
+    );
   });
 }

@@ -16,11 +16,7 @@ import 'package:vm_service/vm_service.dart';
 /// Hand-rolled fake `VmService` — answers the handshake extension with
 /// one plugin and overrides nothing else.
 class _FakeVmService extends VmService {
-  _FakeVmService()
-      : super(
-          const Stream<dynamic>.empty(),
-          (_) {},
-        );
+  _FakeVmService() : super(const Stream<dynamic>.empty(), (_) {});
 
   @override
   Future<Response> callServiceExtension(
@@ -51,26 +47,28 @@ Future<LeonardSession> _noSession() async =>
 
 void main() {
   testWidgets(
-      'manifest probe built from probeManifest(fakeVmService, id) loads '
-      'the plugin manifest — no vm_service_io', (tester) async {
-    final fake = _FakeVmService();
-    Future<List<ExtensionManifestEntry>> probe() => probeManifest(fake, 'iso-1');
+    'manifest probe built from probeManifest(fakeVmService, id) loads '
+    'the plugin manifest — no vm_service_io',
+    (tester) async {
+      final fake = _FakeVmService();
+      Future<List<ExtensionManifestEntry>> probe() =>
+          probeManifest(fake, 'iso-1');
 
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: probe,
-        sessionFactory: _noSession,
-      ),
-    ));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LeonardShell(manifestProbe: probe, sessionFactory: _noSession),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('prompt.plugin.router')), findsOneWidget);
-    expect(find.byKey(const Key('prompt.bindingNotDetected')), findsNothing);
-  });
+      expect(find.byKey(const Key('prompt.plugin.router')), findsOneWidget);
+      expect(find.byKey(const Key('prompt.bindingNotDetected')), findsNothing);
+    },
+  );
 
-  testWidgets(
-      'null-service probe closure yields ManifestProbeBindingMissing',
-      (tester) async {
+  testWidgets('null-service probe closure yields ManifestProbeBindingMissing', (
+    tester,
+  ) async {
     Future<List<ExtensionManifestEntry>> probe() async {
       const VmService? vm = null;
       // ignore: dead_code
@@ -79,12 +77,11 @@ void main() {
       return probeManifest(vm, 'iso-1');
     }
 
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: probe,
-        sessionFactory: _noSession,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(manifestProbe: probe, sessionFactory: _noSession),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('prompt.bindingNotDetected')), findsOneWidget);

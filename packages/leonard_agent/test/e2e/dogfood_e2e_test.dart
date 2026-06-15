@@ -90,152 +90,190 @@ const ToolDescriptor _tapTool = ToolDescriptor(
 );
 
 SwiftInferConfig _config({String? conversationId}) => SwiftInferConfig(
-      baseUrl: Uri.parse(Platform.environment['SWIFT_INFER_ENDPOINT']!),
-      model: 'qwen3.6-27b',
-      bearerToken: Platform.environment['SWIFT_INFER_AGENT_TOKEN']!,
-      captureBodies: true,
-      conversationId: conversationId,
-    );
+  baseUrl: Uri.parse(Platform.environment['SWIFT_INFER_ENDPOINT']!),
+  model: 'qwen3.6-27b',
+  bearerToken: Platform.environment['SWIFT_INFER_AGENT_TOKEN']!,
+  captureBodies: true,
+  conversationId: conversationId,
+);
 
 void main() {
-  test('happyPathDarkMode', () async {
-    final fake = LeonardVmServiceFake(
-      handshakeResponse: <String, dynamic>{
-        'protocolVersion': '2',
-        'extensions': <dynamic>[],
-      },
-      observationBundle: ObservationFixture.empty().body,
-      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-        'ext.exploration.router.navigate': (args) async {
-          final String? raw = args?['route_name'] as String?;
-          return <String, dynamic>{'ok': true, 'value': raw};
+  test(
+    'happyPathDarkMode',
+    () async {
+      final fake = LeonardVmServiceFake(
+        handshakeResponse: <String, dynamic>{
+          'protocolVersion': '2',
+          'extensions': <dynamic>[],
         },
-        'ext.exploration.core.tap': (args) async {
-          final Object? nodeId = args?['node_id'];
-          return <String, dynamic>{'ok': true, 'node_id': nodeId};
-        },
-      },
-    );
-    final sink = _MemorySink();
-    final harness = AgentDogfoodHarness(
-      vm: fake,
-      isolateId: 'isolate-0',
-      swiftInferConfig: _config(conversationId: 'dogfood-e2e-happyPath'),
-      goal: 'turn on dark mode',
-      tools: const <ToolDescriptor>[_navigateTool, _tapTool],
-      fixture: ObservationFixture.empty(),
-      maxTurns: 2,
-      maxTurnBudgetMs: 30000,
-      traceSink: sink,
-      tracePath: '<memory>',
-    );
-    final DogfoodRunResult r = await harness.run();
-    expect(
-      r.outcome,
-      anyOf(<DogfoodOutcome>[
-        DogfoodOutcome.completedWithToolCall,
-        DogfoodOutcome.completedNoToolCall,
-        DogfoodOutcome.typedException,
-      ]),
-      reason: 'tracePath=${r.tracePath} traceLines=${sink.lines.length} '
-          'exception=${r.exception}',
-    );
-    expect(r.toolCallCount, greaterThanOrEqualTo(0));
+        observationBundle: ObservationFixture.empty().body,
+        handlers:
+            <
+              String,
+              Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+            >{
+              'ext.exploration.router.navigate': (args) async {
+                final String? raw = args?['route_name'] as String?;
+                return <String, dynamic>{'ok': true, 'value': raw};
+              },
+              'ext.exploration.core.tap': (args) async {
+                final Object? nodeId = args?['node_id'];
+                return <String, dynamic>{'ok': true, 'node_id': nodeId};
+              },
+            },
+      );
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: fake,
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config(conversationId: 'dogfood-e2e-happyPath'),
+        goal: 'turn on dark mode',
+        tools: const <ToolDescriptor>[_navigateTool, _tapTool],
+        fixture: ObservationFixture.empty(),
+        maxTurns: 2,
+        maxTurnBudgetMs: 30000,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+      final DogfoodRunResult r = await harness.run();
+      expect(
+        r.outcome,
+        anyOf(<DogfoodOutcome>[
+          DogfoodOutcome.completedWithToolCall,
+          DogfoodOutcome.completedNoToolCall,
+          DogfoodOutcome.typedException,
+        ]),
+        reason:
+            'tracePath=${r.tracePath} traceLines=${sink.lines.length} '
+            'exception=${r.exception}',
+      );
+      expect(r.toolCallCount, greaterThanOrEqualTo(0));
 
-    // lenny-cx6.47: per-turn dogfood_turn lines must be emitted
-    // whenever the LoopDriver actually entered a turn (i.e. the run
-    // did NOT exit via a pre-turn typed exception). The
-    // typedException outcome covers handshake-time failures where
-    // zero turns ran; otherwise we require at least one turn line.
-    final int turnLines = sink.lines
-        .where((String l) => l.contains('"dogfood_turn"'))
-        .length;
-    if (r.outcome == DogfoodOutcome.completedWithToolCall ||
-        r.outcome == DogfoodOutcome.completedNoToolCall) {
-      expect(turnLines, greaterThanOrEqualTo(1),
-          reason: 'expected ≥1 dogfood_turn line for outcome '
-              '${r.outcome.name}; got ${sink.lines}');
-    }
-  }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
+      // lenny-cx6.47: per-turn dogfood_turn lines must be emitted
+      // whenever the LoopDriver actually entered a turn (i.e. the run
+      // did NOT exit via a pre-turn typed exception). The
+      // typedException outcome covers handshake-time failures where
+      // zero turns ran; otherwise we require at least one turn line.
+      final int turnLines = sink.lines
+          .where((String l) => l.contains('"dogfood_turn"'))
+          .length;
+      if (r.outcome == DogfoodOutcome.completedWithToolCall ||
+          r.outcome == DogfoodOutcome.completedNoToolCall) {
+        expect(
+          turnLines,
+          greaterThanOrEqualTo(1),
+          reason:
+              'expected ≥1 dogfood_turn line for outcome '
+              '${r.outcome.name}; got ${sink.lines}',
+        );
+      }
+    },
+    skip: _skipReason(),
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 
-  test('unknownToolNameSurvives', () async {
-    final fake = LeonardVmServiceFake(
-      handshakeResponse: <String, dynamic>{
-        'protocolVersion': '2',
-        'extensions': <dynamic>[],
-      },
-      observationBundle: ObservationFixture.empty().body,
-      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-        'ext.exploration.router.navigate': (args) async {
-          final String? raw = args?['route_name'] as String?;
-          return <String, dynamic>{'ok': true, 'value': raw};
+  test(
+    'unknownToolNameSurvives',
+    () async {
+      final fake = LeonardVmServiceFake(
+        handshakeResponse: <String, dynamic>{
+          'protocolVersion': '2',
+          'extensions': <dynamic>[],
         },
-      },
-    );
-    final sink = _MemorySink();
-    final harness = AgentDogfoodHarness(
-      vm: fake,
-      isolateId: 'isolate-0',
-      swiftInferConfig: _config(conversationId: 'dogfood-e2e-unknownTool'),
-      // The goal text historically triggered qwen3.6-27b to drop the
-      // namespace prefix and return a bare `navigate` tool name.
-      goal: 'navigate to the home screen',
-      tools: const <ToolDescriptor>[_navigateTool],
-      fixture: ObservationFixture.empty(),
-      maxTurns: 2,
-      maxTurnBudgetMs: 30000,
-      traceSink: sink,
-      tracePath: '<memory>',
-    );
-    final DogfoodRunResult r = await harness.run();
-    expect(
-      r.outcome,
-      anyOf(<DogfoodOutcome>[
-        DogfoodOutcome.completedWithToolCall,
-        DogfoodOutcome.completedNoToolCall,
-        DogfoodOutcome.typedException,
-      ]),
-      reason: 'tracePath=${r.tracePath} exception=${r.exception}',
-    );
-    if (r.outcome == DogfoodOutcome.typedException) {
-      // Regression-lock for cx6.40: bare-tool-name from the model
-      // must surface as SchemaRejection, never crash.
-      expect(r.exception, isA<SchemaRejection>(),
-          reason: 'unknown-tool path must fail closed at SchemaRejection');
-    }
-  }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
+        observationBundle: ObservationFixture.empty().body,
+        handlers:
+            <
+              String,
+              Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+            >{
+              'ext.exploration.router.navigate': (args) async {
+                final String? raw = args?['route_name'] as String?;
+                return <String, dynamic>{'ok': true, 'value': raw};
+              },
+            },
+      );
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: fake,
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config(conversationId: 'dogfood-e2e-unknownTool'),
+        // The goal text historically triggered qwen3.6-27b to drop the
+        // namespace prefix and return a bare `navigate` tool name.
+        goal: 'navigate to the home screen',
+        tools: const <ToolDescriptor>[_navigateTool],
+        fixture: ObservationFixture.empty(),
+        maxTurns: 2,
+        maxTurnBudgetMs: 30000,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+      final DogfoodRunResult r = await harness.run();
+      expect(
+        r.outcome,
+        anyOf(<DogfoodOutcome>[
+          DogfoodOutcome.completedWithToolCall,
+          DogfoodOutcome.completedNoToolCall,
+          DogfoodOutcome.typedException,
+        ]),
+        reason: 'tracePath=${r.tracePath} exception=${r.exception}',
+      );
+      if (r.outcome == DogfoodOutcome.typedException) {
+        // Regression-lock for cx6.40: bare-tool-name from the model
+        // must surface as SchemaRejection, never crash.
+        expect(
+          r.exception,
+          isA<SchemaRejection>(),
+          reason: 'unknown-tool path must fail closed at SchemaRejection',
+        );
+      }
+    },
+    skip: _skipReason(),
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 
-  test('emptyObservationDoesNotCrash', () async {
-    final fake = LeonardVmServiceFake(
-      handshakeResponse: <String, dynamic>{
-        'protocolVersion': '2',
-        'extensions': <dynamic>[],
-      },
-      observationBundle: ObservationFixture.empty().body,
-      handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-        'ext.exploration.core.tap': (args) async {
-          final Object? nodeId = args?['node_id'];
-          return <String, dynamic>{'ok': true, 'node_id': nodeId};
+  test(
+    'emptyObservationDoesNotCrash',
+    () async {
+      final fake = LeonardVmServiceFake(
+        handshakeResponse: <String, dynamic>{
+          'protocolVersion': '2',
+          'extensions': <dynamic>[],
         },
-      },
-    );
-    final sink = _MemorySink();
-    final harness = AgentDogfoodHarness(
-      vm: fake,
-      isolateId: 'isolate-0',
-      swiftInferConfig: _config(conversationId: 'dogfood-e2e-empty'),
-      goal: 'do something',
-      tools: const <ToolDescriptor>[_tapTool],
-      fixture: ObservationFixture.empty(),
-      maxTurns: 1,
-      maxTurnBudgetMs: 30000,
-      traceSink: sink,
-      tracePath: '<memory>',
-    );
-    // Any outcome is acceptable — the assertion is "the future
-    // completes". A typed result implies no unhandled exception.
-    final DogfoodRunResult r = await harness.run();
-    expect(r, isA<DogfoodRunResult>(),
-        reason: 'tracePath=${r.tracePath} exception=${r.exception}');
-  }, skip: _skipReason(), timeout: const Timeout(Duration(minutes: 5)));
+        observationBundle: ObservationFixture.empty().body,
+        handlers:
+            <
+              String,
+              Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+            >{
+              'ext.exploration.core.tap': (args) async {
+                final Object? nodeId = args?['node_id'];
+                return <String, dynamic>{'ok': true, 'node_id': nodeId};
+              },
+            },
+      );
+      final sink = _MemorySink();
+      final harness = AgentDogfoodHarness(
+        vm: fake,
+        isolateId: 'isolate-0',
+        swiftInferConfig: _config(conversationId: 'dogfood-e2e-empty'),
+        goal: 'do something',
+        tools: const <ToolDescriptor>[_tapTool],
+        fixture: ObservationFixture.empty(),
+        maxTurns: 1,
+        maxTurnBudgetMs: 30000,
+        traceSink: sink,
+        tracePath: '<memory>',
+      );
+      // Any outcome is acceptable — the assertion is "the future
+      // completes". A typed result implies no unhandled exception.
+      final DogfoodRunResult r = await harness.run();
+      expect(
+        r,
+        isA<DogfoodRunResult>(),
+        reason: 'tracePath=${r.tracePath} exception=${r.exception}',
+      );
+    },
+    skip: _skipReason(),
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 }

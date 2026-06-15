@@ -97,13 +97,13 @@ class ValidationReject extends ValidationResult {
 
   @override
   int get hashCode => Object.hash(
-        tool,
-        reason,
-        expected == null ? null : Object.hashAll(expected!),
-        got,
-        pointer,
-        description,
-      );
+    tool,
+    reason,
+    expected == null ? null : Object.hashAll(expected!),
+    got,
+    pointer,
+    description,
+  );
 }
 
 bool _listEq(List<String>? a, List<String>? b) {

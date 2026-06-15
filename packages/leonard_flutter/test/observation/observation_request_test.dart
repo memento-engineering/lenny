@@ -4,8 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ObservationRequest defaults', () {
     test('empty JSON yields all PRD §9.1 defaults', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{});
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{},
+      );
       expect(r.policy, StabilityPolicy.actionRelative);
       expect(r.actionRelativeBudgetMs, 800);
       expect(r.quietFrameN, 2);
@@ -40,9 +41,7 @@ void main() {
 
     test('throws FormatException on unknown policy', () {
       expect(
-        () => ObservationRequest.fromJson(<String, dynamic>{
-          'policy': 'nope',
-        }),
+        () => ObservationRequest.fromJson(<String, dynamic>{'policy': 'nope'}),
         throwsFormatException,
       );
     });
@@ -50,50 +49,49 @@ void main() {
 
   group('budget clamping', () {
     test('actionRelativeBudgetMs > 30000 clamps to 30000', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'actionRelativeBudgetMs': 60000,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{'actionRelativeBudgetMs': 60000},
+      );
       expect(r.actionRelativeBudgetMs, 30000);
     });
 
     test('boundedStabilityBudgetMs > 30000 clamps to 30000', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'boundedStabilityBudgetMs': 99999,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{'boundedStabilityBudgetMs': 99999},
+      );
       expect(r.boundedStabilityBudgetMs, 30000);
     });
 
     test('budgets at or below 30000 are preserved', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'actionRelativeBudgetMs': 30000,
-        'boundedStabilityBudgetMs': 1500,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{
+          'actionRelativeBudgetMs': 30000,
+          'boundedStabilityBudgetMs': 1500,
+        },
+      );
       expect(r.actionRelativeBudgetMs, 30000);
       expect(r.boundedStabilityBudgetMs, 1500);
     });
 
     test('negative budgets clamp to zero (defence in depth)', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'actionRelativeBudgetMs': -100,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{'actionRelativeBudgetMs': -100},
+      );
       expect(r.actionRelativeBudgetMs, 0);
     });
   });
 
   group('overrides and extensionBudgets', () {
     test('explicit overrides parse and preserve', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'policy': 'quiet-frame',
-        'quietFrameN': 4,
-        'includeScreenshot': true,
-        'extensionBudgets': <String, dynamic>{'a': 256, 'b': 512},
-        'errorCursor': 7,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{
+          'policy': 'quiet-frame',
+          'quietFrameN': 4,
+          'includeScreenshot': true,
+          'extensionBudgets': <String, dynamic>{'a': 256, 'b': 512},
+          'errorCursor': 7,
+        },
+      );
       expect(r.policy, StabilityPolicy.quietFrame);
       expect(r.quietFrameN, 4);
       expect(r.includeScreenshot, isTrue);
@@ -103,22 +101,22 @@ void main() {
     });
 
     test('quietFrameN below 1 clamps up to 1', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'quietFrameN': 0,
-      });
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{'quietFrameN': 0},
+      );
       expect(r.quietFrameN, 1);
     });
 
     test('bad extensionBudgets entries are dropped, not propagated', () {
-      final ObservationRequest r =
-          ObservationRequest.fromJson(<String, dynamic>{
-        'extensionBudgets': <String, dynamic>{
-          'good': 100,
-          'bad': 'not-a-number',
-          'neg': -10,
+      final ObservationRequest r = ObservationRequest.fromJson(
+        <String, dynamic>{
+          'extensionBudgets': <String, dynamic>{
+            'good': 100,
+            'bad': 'not-a-number',
+            'neg': -10,
+          },
         },
-      });
+      );
       expect(r.extensionBudgets, hasLength(1));
       expect(r.extensionBudgets['good'], 100);
     });

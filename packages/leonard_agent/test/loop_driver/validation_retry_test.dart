@@ -10,18 +10,20 @@ class _ScriptedProvider extends ModelProvider {
 
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 8000,
-        supportsToolUse: true,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 8000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
 
   @override
   Future<ModelDecision> decide(
-      ConversationSnapshot snapshot, ActionSchema schema) async {
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async {
     if (_i >= _script.length) {
       throw StateError('no more scripted decisions');
     }
@@ -33,38 +35,37 @@ class _ScriptedProvider extends ModelProvider {
 }
 
 ModelDecision _decision(String tool, [Map<String, dynamic>? args]) =>
-    ModelDecision(action: (tool: tool, args: args ?? const <String, dynamic>{}));
+    ModelDecision(
+      action: (tool: tool, args: args ?? const <String, dynamic>{}),
+    );
 
 ConversationSnapshot _baseSnapshot(List<ToolDescriptor> tools) {
-  final builder = ConversationBuilder(
-    systemMessage: 'sys',
-    tools: tools,
-  );
+  final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
   builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
   return builder.snapshot();
 }
 
 ToolDescriptor _coreDone() => const ToolDescriptor(
-      name: 'core.done',
-      description: 'declare done',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'reason': <String, dynamic>{'type': 'string'},
-        },
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.done',
+  description: 'declare done',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'reason': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  },
+);
 
 ToolDescriptor _coreWait() => const ToolDescriptor(
-      name: 'core.wait',
-      description: 'wait',
-      inputSchema: <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{},
-        'additionalProperties': false,
-      },
-    );
+  name: 'core.wait',
+  description: 'wait',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{},
+    'additionalProperties': false,
+  },
+);
 
 void main() {
   group('decideAndValidate', () {
@@ -136,27 +137,29 @@ void main() {
       }
     });
 
-    test('one schema rejection then valid → succeeds with schemaRetries=1',
-        () async {
-      final provider = _ScriptedProvider(<Object>[
-        const SchemaRejection(
-          validationError: 'missing required field action',
-          rawOutput: '{}',
-        ),
-        _decision('core.done'),
-      ]);
-      final r = await decideAndValidate(
-        provider: provider,
-        baseSnapshot: _baseSnapshot(tools),
-        schema: schema,
-        validator: validator,
-        observation: observation,
-        mergedTools: tools,
-      );
-      expect(r.schemaRetries, 1);
-      expect(r.retries, 0);
-      expect(r.decision.action.tool, 'core.done');
-    });
+    test(
+      'one schema rejection then valid → succeeds with schemaRetries=1',
+      () async {
+        final provider = _ScriptedProvider(<Object>[
+          const SchemaRejection(
+            validationError: 'missing required field action',
+            rawOutput: '{}',
+          ),
+          _decision('core.done'),
+        ]);
+        final r = await decideAndValidate(
+          provider: provider,
+          baseSnapshot: _baseSnapshot(tools),
+          schema: schema,
+          validator: validator,
+          observation: observation,
+          mergedTools: tools,
+        );
+        expect(r.schemaRetries, 1);
+        expect(r.retries, 0);
+        expect(r.decision.action.tool, 'core.done');
+      },
+    );
 
     test('two schema rejections → throws SchemaExhausted', () async {
       final provider = _ScriptedProvider(<Object>[

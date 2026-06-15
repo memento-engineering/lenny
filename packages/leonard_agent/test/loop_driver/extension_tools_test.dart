@@ -19,8 +19,7 @@ void main() {
       expect(out, isEmpty);
     });
 
-    test('intersects requested with handshake; descriptors per tool name',
-        () {
+    test('intersects requested with handshake; descriptors per tool name', () {
       final out = buildExtensionTools(
         requested: const <String>['router', 'riverpod', 'dio'],
         handshake: const <ExtensionManifestEntry>[
@@ -38,8 +37,11 @@ void main() {
         ],
       );
       expect(out.keys, containsAll(<String>['router', 'riverpod']));
-      expect(out.containsKey('dio'), isFalse,
-          reason: 'unknown ns is dropped, not invented');
+      expect(
+        out.containsKey('dio'),
+        isFalse,
+        reason: 'unknown ns is dropped, not invented',
+      );
       expect(out['router'], hasLength(1));
       expect(out['router']!.single.name, 'router.navigate');
       expect(out['riverpod']!.single.name, 'riverpod.invalidate_provider');
@@ -57,23 +59,23 @@ void main() {
           ),
         ],
       );
-      expect(out, isNotEmpty,
-          reason: 'a non-empty requested must produce a non-empty map');
-      expect(out['router'], hasLength(2));
       expect(
-        out['router']!.map((t) => t.name).toList(),
-        <String>['router.go', 'router.back'],
+        out,
+        isNotEmpty,
+        reason: 'a non-empty requested must produce a non-empty map',
       );
+      expect(out['router'], hasLength(2));
+      expect(out['router']!.map((t) => t.name).toList(), <String>[
+        'router.go',
+        'router.back',
+      ]);
     });
 
     test('handshake namespace not in requested is excluded', () {
       final out = buildExtensionTools(
         requested: const <String>['router'],
         handshake: const <ExtensionManifestEntry>[
-          ExtensionManifestEntry(
-            namespace: 'router',
-            tools: <String>['go'],
-          ),
+          ExtensionManifestEntry(namespace: 'router', tools: <String>['go']),
           ExtensionManifestEntry(
             namespace: 'dio',
             tools: <String>['cancel_in_flight'],
@@ -87,10 +89,7 @@ void main() {
       final out = buildExtensionTools(
         requested: <String>{'router'},
         handshake: const <ExtensionManifestEntry>[
-          ExtensionManifestEntry(
-            namespace: 'router',
-            tools: <String>['go'],
-          ),
+          ExtensionManifestEntry(namespace: 'router', tools: <String>['go']),
         ],
       );
       expect(out.keys, <String>['router']);

@@ -22,13 +22,13 @@ class _InvalidateTool extends LeonardTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'additionalProperties': false,
-        'required': <String>['provider_id'],
-        'properties': <String, Object?>{
-          'provider_id': <String, Object?>{'type': 'string'},
-        },
-      });
+    'type': 'object',
+    'additionalProperties': false,
+    'required': <String>['provider_id'],
+    'properties': <String, Object?>{
+      'provider_id': <String, Object?>{'type': 'string'},
+    },
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -55,12 +55,13 @@ class _InvalidateTool extends LeonardTool {
 /// AND pass that same container to this constructor; otherwise the
 /// plugin will report no providers and `invalidate_provider` will be a
 /// no-op.
-class RiverpodLeonardExtension extends LeonardExtension with PerceptionExtension {
+class RiverpodLeonardExtension extends LeonardExtension
+    with PerceptionExtension {
   RiverpodLeonardExtension({
     required ProviderContainer container,
     LeonardProviderObserver? observer,
-  })  : _c = container,
-        _o = observer ?? LeonardProviderObserver();
+  }) : _c = container,
+       _o = observer ?? LeonardProviderObserver();
 
   final ProviderContainer _c;
   final LeonardProviderObserver _o;

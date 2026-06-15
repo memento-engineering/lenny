@@ -1,8 +1,7 @@
 /// Unit tests for [CountingLoopHost] (bead lenny-cx6.43, step 6).
 library;
 
-import 'package:leonard_agent/leonard_agent.dart'
-    show LoopHost, Observation;
+import 'package:leonard_agent/leonard_agent.dart' show LoopHost, Observation;
 import 'package:leonard_agent/src/dogfood/counting_host.dart';
 import 'package:leonard_agent/src/provider/types.dart' show ToolDescriptor;
 import 'package:test/test.dart';

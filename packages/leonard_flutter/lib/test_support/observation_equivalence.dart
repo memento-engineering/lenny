@@ -6,11 +6,17 @@ void assertObservationEquivalent(
   Map<String, Object?> legacy,
   Map<String, Object?> perception,
 ) {
-  for (final field in const <String>['semantics', 'routes', 'errors', 'stability']) {
+  for (final field in const <String>[
+    'semantics',
+    'routes',
+    'errors',
+    'stability',
+  ]) {
     expect(
       perception[field],
       equals(legacy[field]),
-      reason: 'observation field "$field" must match between '
+      reason:
+          'observation field "$field" must match between '
           'legacy and perception paths',
     );
   }
@@ -24,7 +30,8 @@ void assertObservationEquivalent(
     expect(
       perceptionExtensions[ns],
       equals(legacyExtensions[ns]),
-      reason: 'plugin "$ns" fragment must match between '
+      reason:
+          'plugin "$ns" fragment must match between '
           'legacy and perception paths',
     );
   }

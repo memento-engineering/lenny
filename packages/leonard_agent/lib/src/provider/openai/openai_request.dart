@@ -45,7 +45,7 @@ Map<String, dynamic> buildOpenAiRequest({
       'role': 'system',
       'content':
           'Previous response failed schema validation: $schemaErrorNote. '
-              'Reply with a tool_call matching the declared tools.',
+          'Reply with a tool_call matching the declared tools.',
     });
   }
 
@@ -112,14 +112,16 @@ Map<String, dynamic> buildOpenAiRequest({
   }
 
   final List<Map<String, dynamic>> tools = snapshot.tools
-      .map((ToolDescriptor t) => <String, dynamic>{
-            'type': 'function',
-            'function': <String, dynamic>{
-              'name': t.name,
-              'description': t.description,
-              'parameters': t.inputSchema,
-            },
-          })
+      .map(
+        (ToolDescriptor t) => <String, dynamic>{
+          'type': 'function',
+          'function': <String, dynamic>{
+            'name': t.name,
+            'description': t.description,
+            'parameters': t.inputSchema,
+          },
+        },
+      )
       .toList();
 
   final Map<String, dynamic> body = <String, dynamic>{

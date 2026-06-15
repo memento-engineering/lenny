@@ -6,17 +6,17 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 ToolDescriptor _t(String n) => ToolDescriptor(
-      name: n,
-      description: n,
-      inputSchema: const <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'node_id': <String, dynamic>{'type': 'integer'},
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      },
-    );
+  name: n,
+  description: n,
+  inputSchema: const <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer'},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
 
 ConversationSnapshot _prompt({Observation? observation}) {
   final builder = ConversationBuilder(
@@ -37,17 +37,16 @@ SwiftInferConfig _cfg({
   String? conversationId,
   String? sessionId,
   Map<String, String> extra = const <String, String>{},
-}) =>
-    SwiftInferConfig(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      model: 'qwen3.6-35b-a3b-8bit',
-      bearerToken: bearer,
-      captureBodies: capture,
-      conversationId: conversationId,
-      sessionId: sessionId,
-      extraHeaders: extra,
-      enableVision: vision,
-    );
+}) => SwiftInferConfig(
+  baseUrl: Uri.parse('http://localhost:8080'),
+  model: 'qwen3.6-35b-a3b-8bit',
+  bearerToken: bearer,
+  captureBodies: capture,
+  conversationId: conversationId,
+  sessionId: sessionId,
+  extraHeaders: extra,
+  enableVision: vision,
+);
 
 String _sse(List<Map<String, dynamic>> events) =>
     events.map((e) => 'data: ${jsonEncode(e)}\n\n').join();
@@ -55,46 +54,46 @@ String _sse(List<Map<String, dynamic>> events) =>
 MockClient _stream(
   String body, {
   void Function(http.BaseRequest req, List<int> bodyBytes)? capture,
-}) =>
-    MockClient.streaming((req, bodyStream) async {
-      final bytes = await bodyStream
-          .fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk));
-      capture?.call(req, bytes);
-      return http.StreamedResponse(
-        Stream<List<int>>.fromIterable(<List<int>>[utf8.encode(body)]),
-        200,
-        headers: <String, String>{'content-type': 'text/event-stream'},
-      );
-    });
+}) => MockClient.streaming((req, bodyStream) async {
+  final bytes = await bodyStream.fold<List<int>>(
+    <int>[],
+    (acc, chunk) => acc..addAll(chunk),
+  );
+  capture?.call(req, bytes);
+  return http.StreamedResponse(
+    Stream<List<int>>.fromIterable(<List<int>>[utf8.encode(body)]),
+    200,
+    headers: <String, String>{'content-type': 'text/event-stream'},
+  );
+});
 
 String _toolUseSse({
   String name = 'core_tap',
   Map<String, dynamic> input = const <String, dynamic>{'node_id': 7},
   String? text,
-}) =>
-    _sse(<Map<String, dynamic>>[
-      if (text != null)
-        <String, dynamic>{
-          'type': 'content_block_delta',
-          'delta': <String, dynamic>{'type': 'text_delta', 'text': text},
-        },
-      <String, dynamic>{
-        'type': 'content_block_start',
-        'content_block': <String, dynamic>{
-          'type': 'tool_use',
-          'id': 't1',
-          'name': name,
-        },
-      },
-      <String, dynamic>{
-        'type': 'content_block_delta',
-        'delta': <String, dynamic>{
-          'type': 'input_json_delta',
-          'partial_json': jsonEncode(input),
-        },
-      },
-      <String, dynamic>{'type': 'message_stop'},
-    ]);
+}) => _sse(<Map<String, dynamic>>[
+  if (text != null)
+    <String, dynamic>{
+      'type': 'content_block_delta',
+      'delta': <String, dynamic>{'type': 'text_delta', 'text': text},
+    },
+  <String, dynamic>{
+    'type': 'content_block_start',
+    'content_block': <String, dynamic>{
+      'type': 'tool_use',
+      'id': 't1',
+      'name': name,
+    },
+  },
+  <String, dynamic>{
+    'type': 'content_block_delta',
+    'delta': <String, dynamic>{
+      'type': 'input_json_delta',
+      'partial_json': jsonEncode(input),
+    },
+  },
+  <String, dynamic>{'type': 'message_stop'},
+]);
 
 Map<String, dynamic> _decodeBody(List<int> bytes) =>
     jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
@@ -161,8 +160,10 @@ void main() {
     final obs = Observation.fromJson(<String, dynamic>{
       'screenshot_png_b64': 'AQID',
     });
-    await SwiftInferModelProvider(config: _cfg(vision: false), client: m)
-        .decide(
+    await SwiftInferModelProvider(
+      config: _cfg(vision: false),
+      client: m,
+    ).decide(
       _prompt(observation: obs),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
@@ -179,24 +180,19 @@ void main() {
     final obs = Observation.fromJson(<String, dynamic>{
       'screenshot_png_b64': 'AQID',
     });
-    await SwiftInferModelProvider(config: _cfg(vision: true), client: m)
-        .decide(
+    await SwiftInferModelProvider(config: _cfg(vision: true), client: m).decide(
       _prompt(observation: obs),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
     final content = (body!['messages'] as List)[0]['content'] as List;
-    final block = content.firstWhere(
-      (b) => (b as Map)['type'] == 'image',
-    ) as Map;
+    final block =
+        content.firstWhere((b) => (b as Map)['type'] == 'image') as Map;
     expect((block['source'] as Map)['data'], isNotEmpty);
   });
 
   test('bearerToken omitted when null', () async {
     http.BaseRequest? captured;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (r, _) => captured = r,
-    );
+    final m = _stream(_toolUseSse(), capture: (r, _) => captured = r);
     await SwiftInferModelProvider(config: _cfg(), client: m).decide(
       _prompt(),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
@@ -207,12 +203,11 @@ void main() {
 
   test('bearerToken → Authorization: Bearer <v>', () async {
     http.BaseRequest? captured;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (r, _) => captured = r,
-    );
-    await SwiftInferModelProvider(config: _cfg(bearer: 'sk-abc'), client: m)
-        .decide(
+    final m = _stream(_toolUseSse(), capture: (r, _) => captured = r);
+    await SwiftInferModelProvider(
+      config: _cfg(bearer: 'sk-abc'),
+      client: m,
+    ).decide(
       _prompt(),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
     );
@@ -222,35 +217,31 @@ void main() {
     expect(captured!.headers['anthropic-version'], '2023-06-01');
   });
 
-  test('conversationId/sessionId/captureBodies headers set when configured',
-      () async {
-    http.BaseRequest? captured;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (r, _) => captured = r,
-    );
-    await SwiftInferModelProvider(
-      config: _cfg(
-        capture: true,
-        conversationId: 'conv-123',
-        sessionId: 'sess-xyz',
-      ),
-      client: m,
-    ).decide(
-      _prompt(),
-      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
-    );
-    expect(captured!.headers['x-conversation-id'], 'conv-123');
-    expect(captured!.headers['x-session-id'], 'sess-xyz');
-    expect(captured!.headers['x-swift-infer-capture-bodies'], 'true');
-  });
+  test(
+    'conversationId/sessionId/captureBodies headers set when configured',
+    () async {
+      http.BaseRequest? captured;
+      final m = _stream(_toolUseSse(), capture: (r, _) => captured = r);
+      await SwiftInferModelProvider(
+        config: _cfg(
+          capture: true,
+          conversationId: 'conv-123',
+          sessionId: 'sess-xyz',
+        ),
+        client: m,
+      ).decide(
+        _prompt(),
+        ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+      );
+      expect(captured!.headers['x-conversation-id'], 'conv-123');
+      expect(captured!.headers['x-session-id'], 'sess-xyz');
+      expect(captured!.headers['x-swift-infer-capture-bodies'], 'true');
+    },
+  );
 
   test('extraHeaders cannot overwrite well-known headers', () async {
     http.BaseRequest? captured;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (r, _) => captured = r,
-    );
+    final m = _stream(_toolUseSse(), capture: (r, _) => captured = r);
     await SwiftInferModelProvider(
       config: _cfg(
         bearer: 'sk-real',
@@ -318,39 +309,43 @@ void main() {
     );
   });
 
-  test('unknown tool wire name → SchemaRejection (unknown tool, available list)',
-      () async {
-    final p = SwiftInferModelProvider(
-      config: _cfg(),
-      client: _stream(_toolUseSse(
-        name: 'navigate',
-        input: <String, dynamic>{'route_name': 'settings'},
-      )),
-    );
-    final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
-    final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final prompt = builder.snapshot();
-    await expectLater(
-      p.decide(prompt, ActionSchema.fromToolList(tools)),
-      throwsA(
-        isA<SchemaRejection>()
-            .having(
-              (SchemaRejection e) => e.validationError,
-              'validationError',
-              'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
-            )
-            .having(
-              (SchemaRejection e) => jsonDecode(e.rawOutput),
-              'rawOutput',
-              <String, Object?>{
-                'name': 'navigate',
-                'input': <String, Object?>{'route_name': 'settings'},
-              },
-            ),
-      ),
-    );
-  });
+  test(
+    'unknown tool wire name → SchemaRejection (unknown tool, available list)',
+    () async {
+      final p = SwiftInferModelProvider(
+        config: _cfg(),
+        client: _stream(
+          _toolUseSse(
+            name: 'navigate',
+            input: <String, dynamic>{'route_name': 'settings'},
+          ),
+        ),
+      );
+      final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
+      final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final prompt = builder.snapshot();
+      await expectLater(
+        p.decide(prompt, ActionSchema.fromToolList(tools)),
+        throwsA(
+          isA<SchemaRejection>()
+              .having(
+                (SchemaRejection e) => e.validationError,
+                'validationError',
+                'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
+              )
+              .having(
+                (SchemaRejection e) => jsonDecode(e.rawOutput),
+                'rawOutput',
+                <String, Object?>{
+                  'name': 'navigate',
+                  'input': <String, Object?>{'route_name': 'settings'},
+                },
+              ),
+        ),
+      );
+    },
+  );
 
   test('thinking stream emits ThinkingDelta as SSE chunks arrive', () async {
     final body = _sse(<Map<String, dynamic>>[
@@ -363,10 +358,7 @@ void main() {
       },
       <String, dynamic>{
         'type': 'content_block_delta',
-        'delta': <String, dynamic>{
-          'type': 'text_delta',
-          'text': 'one</think>',
-        },
+        'delta': <String, dynamic>{'type': 'text_delta', 'text': 'one</think>'},
       },
       <String, dynamic>{
         'type': 'content_block_start',
@@ -417,10 +409,7 @@ void main() {
       <String, dynamic>{
         'type': 'content_block_delta',
         'index': 0,
-        'delta': <String, dynamic>{
-          'type': 'thinking_delta',
-          'thinking': "'s",
-        },
+        'delta': <String, dynamic>{'type': 'thinking_delta', 'thinking': "'s"},
       },
       <String, dynamic>{'type': 'content_block_stop', 'index': 0},
       <String, dynamic>{
@@ -456,8 +445,7 @@ void main() {
     expect(deltas.last.isFinal, isTrue);
   });
 
-  test('captures message.id from message_start as providerRequestId',
-      () async {
+  test('captures message.id from message_start as providerRequestId', () async {
     final body = _sse(<Map<String, dynamic>>[
       <String, dynamic>{
         'type': 'message_start',
@@ -484,10 +472,7 @@ void main() {
       },
       <String, dynamic>{'type': 'message_stop'},
     ]);
-    final p = SwiftInferModelProvider(
-      config: _cfg(),
-      client: _stream(body),
-    );
+    final p = SwiftInferModelProvider(config: _cfg(), client: _stream(body));
     final d = await p.decide(
       _prompt(),
       ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
@@ -509,46 +494,52 @@ void main() {
 
   test('capabilities reflect config', () {
     final m = _stream('');
-    final p1 =
-        SwiftInferModelProvider(config: _cfg(vision: false), client: m);
+    final p1 = SwiftInferModelProvider(config: _cfg(vision: false), client: m);
     expect(p1.capabilities.vision, isFalse);
     expect(p1.capabilities.preserveThinking, isTrue);
     expect(p1.capabilities.supportsToolUse, isTrue);
     expect(p1.capabilities.maxContext, 128000);
-    final p2 =
-        SwiftInferModelProvider(config: _cfg(vision: true), client: m);
+    final p2 = SwiftInferModelProvider(config: _cfg(vision: true), client: m);
     expect(p2.capabilities.vision, isTrue);
   });
 
-  test('2-turn snapshot: messages[2] contains tool_result with matching tool_use_id', () async {
-    Map<String, dynamic>? sent;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (_, bytes) {
-        sent = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      },
-    );
-    final builder = ConversationBuilder(
-      systemMessage: 'sys',
-      tools: <ToolDescriptor>[_t('core.tap')],
-    );
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    builder.appendAssistantTurn('', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    await SwiftInferModelProvider(config: _cfg(), client: m)
-        .decide(builder.snapshot(), s);
-    final msgs = sent!['messages'] as List;
-    expect(msgs.length, 3);
-    final assistantContent = (msgs[1] as Map)['content'] as List;
-    final toolUseBlock = assistantContent.firstWhere(
-      (b) => (b as Map)['type'] == 'tool_use',
-    ) as Map;
-    expect(toolUseBlock['id'], isNot('toolu_carry'));
-    final userContent2 = (msgs[2] as Map)['content'] as List;
-    final toolResultBlock = userContent2.firstWhere(
-      (b) => (b as Map)['type'] == 'tool_result',
-    ) as Map;
-    expect(toolResultBlock['tool_use_id'], toolUseBlock['id']);
-  });
+  test(
+    '2-turn snapshot: messages[2] contains tool_result with matching tool_use_id',
+    () async {
+      Map<String, dynamic>? sent;
+      final m = _stream(
+        _toolUseSse(),
+        capture: (_, bytes) {
+          sent = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+        },
+      );
+      final builder = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: <ToolDescriptor>[_t('core.tap')],
+      );
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      builder.appendAssistantTurn('', (
+        tool: 'core.tap',
+        args: <String, dynamic>{'node_id': 1},
+      ));
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+      await SwiftInferModelProvider(
+        config: _cfg(),
+        client: m,
+      ).decide(builder.snapshot(), s);
+      final msgs = sent!['messages'] as List;
+      expect(msgs.length, 3);
+      final assistantContent = (msgs[1] as Map)['content'] as List;
+      final toolUseBlock =
+          assistantContent.firstWhere((b) => (b as Map)['type'] == 'tool_use')
+              as Map;
+      expect(toolUseBlock['id'], isNot('toolu_carry'));
+      final userContent2 = (msgs[2] as Map)['content'] as List;
+      final toolResultBlock =
+          userContent2.firstWhere((b) => (b as Map)['type'] == 'tool_result')
+              as Map;
+      expect(toolResultBlock['tool_use_id'], toolUseBlock['id']);
+    },
+  );
 }

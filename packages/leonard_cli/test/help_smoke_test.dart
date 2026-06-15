@@ -56,9 +56,5 @@ String _findPackageRoot() {
     dir = parent;
   }
   // Fallback — assume the conventional checkout layout.
-  return p.normalize(p.join(
-    Directory.current.path,
-    'packages',
-    'leonard_cli',
-  ));
+  return p.normalize(p.join(Directory.current.path, 'packages', 'leonard_cli'));
 }

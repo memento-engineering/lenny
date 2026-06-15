@@ -30,9 +30,12 @@ class RiverpodPerception extends StatelessPerception {
         .recentChanges()
         .map((c) => c.toJson())
         .toList(growable: false);
-    return Node('riverpod', children: <Seed>[
-      Field('invalidatable_providers', ids),
-      Field('recent_state_changes', ch),
-    ]);
+    return Node(
+      'riverpod',
+      children: <Seed>[
+        Field('invalidatable_providers', ids),
+        Field('recent_state_changes', ch),
+      ],
+    );
   }
 }

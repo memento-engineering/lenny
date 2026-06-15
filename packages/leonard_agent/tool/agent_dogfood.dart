@@ -21,13 +21,11 @@ import 'dart:io';
 import 'package:args/args.dart';
 
 ArgParser _buildParser() => ArgParser()
-  ..addOption(
-    'goal',
-    help: 'goal text inserted into the system prompt',
-  )
+  ..addOption('goal', help: 'goal text inserted into the system prompt')
   ..addOption(
     'tools',
-    help: 'comma-separated qualified tool names, e.g. '
+    help:
+        'comma-separated qualified tool names, e.g. '
         'router.navigate,core.tap',
   )
   ..addOption(
@@ -58,12 +56,14 @@ ArgParser _buildParser() => ArgParser()
     'no-capture-bodies',
     defaultsTo: false,
     negatable: false,
-    help: 'disable swift-infer body capture (default: capture on so '
+    help:
+        'disable swift-infer body capture (default: capture on so '
         'GET /v1/trace/<id> returns request/response bodies)',
   )
   ..addOption(
     'trace-out',
-    help: 'where to write the JSONL trace; default '
+    help:
+        'where to write the JSONL trace; default '
         '/tmp/agent-dogfood-<unix-ts>.jsonl',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'print usage');
@@ -100,9 +100,11 @@ Future<int> _run(List<String> argv) async {
     stderr.writeln('missing required --tools');
     return 3;
   }
-  final String? endpoint = (r['endpoint'] as String?) ??
+  final String? endpoint =
+      (r['endpoint'] as String?) ??
       Platform.environment['SWIFT_INFER_ENDPOINT'];
-  final String? token = (r['token'] as String?) ??
+  final String? token =
+      (r['token'] as String?) ??
       Platform.environment['SWIFT_INFER_AGENT_TOKEN'];
   if (endpoint == null || endpoint.isEmpty) {
     stderr.writeln('missing --endpoint or SWIFT_INFER_ENDPOINT');
@@ -114,8 +116,10 @@ Future<int> _run(List<String> argv) async {
   }
   // Validate --tools entries contain a `.` separator before forking
   // into the runner — surface the error path 3 directly here.
-  final List<String> toolNames =
-      rawTools.split(',').map((String s) => s.trim()).toList();
+  final List<String> toolNames = rawTools
+      .split(',')
+      .map((String s) => s.trim())
+      .toList();
   for (final String t in toolNames) {
     if (!t.contains('.')) {
       stderr.writeln('invalid tool name (missing namespace): $t');
@@ -141,7 +145,8 @@ Future<int> _run(List<String> argv) async {
     stderr.writeln('--max-turns and --max-turn-budget-ms must be positive');
     return 3;
   }
-  final String tracePath = (r['trace-out'] as String?) ??
+  final String tracePath =
+      (r['trace-out'] as String?) ??
       '/tmp/agent-dogfood-${DateTime.now().millisecondsSinceEpoch ~/ 1000}.jsonl';
   final Map<String, Object?> argsJson = <String, Object?>{
     'goal': goal,
@@ -165,25 +170,23 @@ Future<int> _run(List<String> argv) async {
   final String resultPath = '${tmp.path}/result.json';
   final String runnerPath =
       'packages/leonard_agent/tool/agent_dogfood_runner.dart';
-  final ProcessResult result = await Process.run(
-    'flutter',
-    <String>[
-      'test',
-      '--reporter',
-      'expanded',
-      runnerPath,
-      '--dart-define=DOGFOOD_ARGS_JSON=${jsonEncode(argsJson)}',
-      '--dart-define=DOGFOOD_RESULT_PATH=$resultPath',
-    ],
-    runInShell: true,
-  );
+  final ProcessResult result = await Process.run('flutter', <String>[
+    'test',
+    '--reporter',
+    'expanded',
+    runnerPath,
+    '--dart-define=DOGFOOD_ARGS_JSON=${jsonEncode(argsJson)}',
+    '--dart-define=DOGFOOD_RESULT_PATH=$resultPath',
+  ], runInShell: true);
   stdout.write(result.stdout);
   stderr.write(result.stderr);
   // Recover the runner's reported outcome.
   final File resultFile = File(resultPath);
   if (!await resultFile.exists()) {
-    stderr.writeln('dogfood runner did not write result file at $resultPath; '
-        'flutter test exit=${result.exitCode}');
+    stderr.writeln(
+      'dogfood runner did not write result file at $resultPath; '
+      'flutter test exit=${result.exitCode}',
+    );
     return result.exitCode == 0 ? 1 : result.exitCode;
   }
   final Map<String, dynamic> resJson =

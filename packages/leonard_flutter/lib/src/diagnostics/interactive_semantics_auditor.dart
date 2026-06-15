@@ -21,16 +21,19 @@ class InteractiveSemanticsAuditor {
   final List<String> extraInteractiveTypes;
 
   List<InteractiveSemanticsWarning> audit(Element root) {
-    final List<InteractiveSemanticsWarning> out = <InteractiveSemanticsWarning>[];
+    final List<InteractiveSemanticsWarning> out =
+        <InteractiveSemanticsWarning>[];
     void visit(Element el) {
       final Widget w = el.widget;
       final String type = w.runtimeType.toString();
       if (_isInteractive(w, type) && !_hasAncestorSemantics(el)) {
-        out.add(InteractiveSemanticsWarning(
-          widgetType: type,
-          location: _locationOf(el),
-          suggestedFixPointer: kExtensionGuideFixPointer,
-        ));
+        out.add(
+          InteractiveSemanticsWarning(
+            widgetType: type,
+            location: _locationOf(el),
+            suggestedFixPointer: kExtensionGuideFixPointer,
+          ),
+        );
       }
       el.visitChildren(visit);
     }
@@ -41,15 +44,11 @@ class InteractiveSemanticsAuditor {
 
   bool _isInteractive(Widget w, String type) {
     if (w is GestureDetector) {
-      return w.onTap != null ||
-          w.onLongPress != null ||
-          w.onDoubleTap != null;
+      return w.onTap != null || w.onLongPress != null || w.onDoubleTap != null;
     }
     if (w is InkResponse) {
       // InkWell extends InkResponse, so this catches both.
-      return w.onTap != null ||
-          w.onLongPress != null ||
-          w.onDoubleTap != null;
+      return w.onTap != null || w.onLongPress != null || w.onDoubleTap != null;
     }
     return extraInteractiveTypes.contains(type);
   }

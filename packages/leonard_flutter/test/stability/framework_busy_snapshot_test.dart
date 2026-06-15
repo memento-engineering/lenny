@@ -14,47 +14,51 @@ void main() {
 
   test('isAnyBusy true when any signal nonzero/present', () {
     expect(
-        const FrameworkBusySnapshot(
-          transientCallbacks: 1,
-          persistentCallbacks: 0,
-          pendingMicrotasks: false,
-          lastFrameCommitTimestamp: null,
-          recentSkippedFrames: 0,
-          recentFrameCommits: <Duration>[],
-        ).isAnyBusy,
-        isTrue);
+      const FrameworkBusySnapshot(
+        transientCallbacks: 1,
+        persistentCallbacks: 0,
+        pendingMicrotasks: false,
+        lastFrameCommitTimestamp: null,
+        recentSkippedFrames: 0,
+        recentFrameCommits: <Duration>[],
+      ).isAnyBusy,
+      isTrue,
+    );
     expect(
-        const FrameworkBusySnapshot(
-          transientCallbacks: 0,
-          persistentCallbacks: 1,
-          pendingMicrotasks: false,
-          lastFrameCommitTimestamp: null,
-          recentSkippedFrames: 0,
-          recentFrameCommits: <Duration>[],
-        ).isAnyBusy,
-        isTrue);
+      const FrameworkBusySnapshot(
+        transientCallbacks: 0,
+        persistentCallbacks: 1,
+        pendingMicrotasks: false,
+        lastFrameCommitTimestamp: null,
+        recentSkippedFrames: 0,
+        recentFrameCommits: <Duration>[],
+      ).isAnyBusy,
+      isTrue,
+    );
     expect(
-        const FrameworkBusySnapshot(
-          transientCallbacks: 0,
-          persistentCallbacks: 0,
-          pendingMicrotasks: true,
-          lastFrameCommitTimestamp: null,
-          recentSkippedFrames: 0,
-          recentFrameCommits: <Duration>[],
-        ).isAnyBusy,
-        isTrue);
+      const FrameworkBusySnapshot(
+        transientCallbacks: 0,
+        persistentCallbacks: 0,
+        pendingMicrotasks: true,
+        lastFrameCommitTimestamp: null,
+        recentSkippedFrames: 0,
+        recentFrameCommits: <Duration>[],
+      ).isAnyBusy,
+      isTrue,
+    );
   });
 
   test('toJson keys match PRD §9.2', () {
     final j = FrameworkBusySnapshot.zero.toJson();
     expect(
-        j.keys,
-        containsAll(<String>[
-          'transient_callbacks',
-          'persistent_callbacks',
-          'microtasks',
-          'last_frame_commit_us',
-          'recent_skipped_frames',
-        ]));
+      j.keys,
+      containsAll(<String>[
+        'transient_callbacks',
+        'persistent_callbacks',
+        'microtasks',
+        'last_frame_commit_us',
+        'recent_skipped_frames',
+      ]),
+    );
   });
 }

@@ -15,7 +15,8 @@ const ToolDescriptor _coreDone = ToolDescriptor(
   },
 );
 
-Observation _obsWithRoute(String route) => Observation.fromJson(<String, dynamic>{
+Observation _obsWithRoute(String route) =>
+    Observation.fromJson(<String, dynamic>{
       'semantics': <Map<String, dynamic>>[],
       'routes': <String>[route],
       'errors': <Map<String, dynamic>>[],
@@ -28,7 +29,8 @@ Observation _obsWithRoute(String route) => Observation.fromJson(<String, dynamic
       },
     });
 
-Observation _obsWithScreenshot(String b64) => Observation.fromJson(<String, dynamic>{
+Observation _obsWithScreenshot(String b64) =>
+    Observation.fromJson(<String, dynamic>{
       'semantics': <Map<String, dynamic>>[],
       'routes': <String>['/'],
       'errors': <Map<String, dynamic>>[],
@@ -86,10 +88,10 @@ void main() {
         tools: const <ToolDescriptor>[_coreDone],
       );
       b.appendUserTurn(Observation.empty(), _emptyDiff());
-      b.appendAssistantTurn(
-        'reasoning text',
-        (tool: 'core.done', args: <String, dynamic>{'reason': 'finished'}),
-      );
+      b.appendAssistantTurn('reasoning text', (
+        tool: 'core.done',
+        args: <String, dynamic>{'reason': 'finished'},
+      ));
       expect(b.snapshot().turns.length, equals(2));
       expect(b.snapshot().turns.last, isA<AssistantTurn>());
       final AssistantTurn at = b.snapshot().turns.last as AssistantTurn;
@@ -125,7 +127,9 @@ void main() {
       b.appendUserTurn(_obsWithScreenshot('c' * 100), _emptyDiff());
       // Pre-trim: 3 non-trimmed UserTurns.
       expect(
-        b.snapshot().turns
+        b
+            .snapshot()
+            .turns
             .whereType<UserTurn>()
             .where((UserTurn u) => !u.trimmed)
             .length,
@@ -133,8 +137,11 @@ void main() {
       );
       // Aggressive threshold to force trim of the oldest first.
       b.trimIfOverBudget(2000);
-      final List<UserTurn> userTurns =
-          b.snapshot().turns.whereType<UserTurn>().toList();
+      final List<UserTurn> userTurns = b
+          .snapshot()
+          .turns
+          .whereType<UserTurn>()
+          .toList();
       // Oldest is trimmed; later ones are not (until budget is satisfied).
       expect(userTurns.first.trimmed, isTrue);
       expect(userTurns.first.observation.screenshot, isNull);
@@ -147,13 +154,14 @@ void main() {
       );
       // Pre-compute a diff that differs from ObservationDiff.empty()
       // (route changed) so we can detect preservation post-trim.
-      final ObservationDiff diff =
-          ObservationDiffer.diff(Observation.empty(), _obsWithRoute('/home'));
+      final ObservationDiff diff = ObservationDiffer.diff(
+        Observation.empty(),
+        _obsWithRoute('/home'),
+      );
       b.appendUserTurn(_obsWithScreenshot('x' * 100), diff);
       b.appendUserTurn(_obsWithScreenshot('y' * 100), _emptyDiff());
       b.trimIfOverBudget(1500);
-      final UserTurn trimmed =
-          b.snapshot().turns.whereType<UserTurn>().first;
+      final UserTurn trimmed = b.snapshot().turns.whereType<UserTurn>().first;
       expect(trimmed.trimmed, isTrue);
       // The route change in core.routeChanges survives trim.
       expect(trimmed.diff.core.routeChanges, isNotEmpty);
@@ -168,8 +176,11 @@ void main() {
       b.appendUserTurn(Observation.empty(), _emptyDiff());
       // Generous threshold — nothing needs trimming.
       b.trimIfOverBudget(100000);
-      final List<UserTurn> uts =
-          b.snapshot().turns.whereType<UserTurn>().toList();
+      final List<UserTurn> uts = b
+          .snapshot()
+          .turns
+          .whereType<UserTurn>()
+          .toList();
       expect(uts.every((UserTurn u) => !u.trimmed), isTrue);
     });
   });
@@ -181,21 +192,25 @@ void main() {
       final Object? decoded = jsonDecode(rendered);
       expect(decoded, isA<Map<String, dynamic>>());
       final Map<String, dynamic> m = decoded! as Map<String, dynamic>;
-      expect(m.keys.toSet(), containsAll(<String>{'core', 'extensions', 'stability'}));
+      expect(
+        m.keys.toSet(),
+        containsAll(<String>{'core', 'extensions', 'stability'}),
+      );
     });
 
     test('round-trips Observation by value through fromJson', () {
       const JsonObservationRenderer r = JsonObservationRenderer();
       final Observation original = _obsWithRoute('/home');
       final String rendered = r.render(original);
-      final Map<String, dynamic> decoded =
-          (jsonDecode(rendered) as Map).cast<String, dynamic>();
+      final Map<String, dynamic> decoded = (jsonDecode(rendered) as Map)
+          .cast<String, dynamic>();
       // The renderer emits core/plugins/stability — reconstructable but
       // not in the binding's flat wire format; build a fromJson-shaped
       // map from the renderer output's core fields.
       final Map<String, dynamic> flat = <String, dynamic>{
         'semantics': (decoded['core'] as Map)['nodes'] ?? <dynamic>[],
-        'routes': ((decoded['core'] as Map)['routeStack'] as List).cast<String>(),
+        'routes': ((decoded['core'] as Map)['routeStack'] as List)
+            .cast<String>(),
         'errors': (decoded['core'] as Map)['errors'] ?? <dynamic>[],
         'stability': decoded['stability'],
         'extensions': decoded['extensions'],

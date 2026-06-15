@@ -24,22 +24,22 @@ class ScrollTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-          'axis': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['vertical', 'horizontal'],
-          },
-          'delta_pixels': <String, Object?>{
-            'type': 'number',
-            'minimum': -10000,
-            'maximum': 10000,
-          },
-        },
-        'required': <String>['node_id', 'axis', 'delta_pixels'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'axis': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['vertical', 'horizontal'],
+      },
+      'delta_pixels': <String, Object?>{
+        'type': 'number',
+        'minimum': -10000,
+        'maximum': 10000,
+      },
+    },
+    'required': <String>['node_id', 'axis', 'delta_pixels'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -56,7 +56,8 @@ class ScrollTool extends CoreTool {
     if (!_kAxes.contains(axis)) {
       return ToolResult(
         ok: false,
-        error: '${CoreToolErrorCode.schemaViolation}: axis must be one of '
+        error:
+            '${CoreToolErrorCode.schemaViolation}: axis must be one of '
             '${_kAxes.toList()}',
       );
     }
@@ -79,9 +80,7 @@ class ScrollTool extends CoreTool {
     if (axis == 'vertical') {
       return delta > 0 ? SemanticsAction.scrollUp : SemanticsAction.scrollDown;
     }
-    return delta > 0
-        ? SemanticsAction.scrollLeft
-        : SemanticsAction.scrollRight;
+    return delta > 0 ? SemanticsAction.scrollLeft : SemanticsAction.scrollRight;
   }
 
   static Future<void> _dragFallback(
@@ -116,34 +115,28 @@ class ScrollUntilVisibleTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'scrollable_id': <String, Object?>{
-            'type': 'integer',
-            'minimum': 1,
-          },
-          'target_id': <String, Object?>{
-            'type': 'integer',
-            'minimum': 1,
-          },
-          'axis': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['vertical', 'horizontal'],
-          },
-          'max_iterations': <String, Object?>{
-            'type': 'integer',
-            'minimum': 1,
-            'maximum': 50,
-          },
-          'step_pixels': <String, Object?>{
-            'type': 'number',
-            'minimum': -10000,
-            'maximum': 10000,
-          },
-        },
-        'required': <String>['scrollable_id', 'target_id', 'axis'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'scrollable_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'target_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'axis': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['vertical', 'horizontal'],
+      },
+      'max_iterations': <String, Object?>{
+        'type': 'integer',
+        'minimum': 1,
+        'maximum': 50,
+      },
+      'step_pixels': <String, Object?>{
+        'type': 'number',
+        'minimum': -10000,
+        'maximum': 10000,
+      },
+    },
+    'required': <String>['scrollable_id', 'target_id', 'axis'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -155,11 +148,19 @@ class ScrollUntilVisibleTool extends CoreTool {
     if (b != null) return b;
     final ToolResult? c = requireField(args, 'axis', String);
     if (c != null) return c;
-    final ToolResult? d =
-        requireField(args, 'max_iterations', int, optional: true);
+    final ToolResult? d = requireField(
+      args,
+      'max_iterations',
+      int,
+      optional: true,
+    );
     if (d != null) return d;
-    final ToolResult? e =
-        requireField(args, 'step_pixels', num, optional: true);
+    final ToolResult? e = requireField(
+      args,
+      'step_pixels',
+      num,
+      optional: true,
+    );
     if (e != null) return e;
 
     final int scrollableId = args['scrollable_id']! as int;
@@ -168,7 +169,8 @@ class ScrollUntilVisibleTool extends CoreTool {
     if (!_kAxes.contains(axis)) {
       return ToolResult(
         ok: false,
-        error: '${CoreToolErrorCode.schemaViolation}: axis must be one of '
+        error:
+            '${CoreToolErrorCode.schemaViolation}: axis must be one of '
             '${_kAxes.toList()}',
       );
     }
@@ -185,15 +187,13 @@ class ScrollUntilVisibleTool extends CoreTool {
 
     for (int i = 0; i < maxIters; i++) {
       // Re-walk semantics; if target is present, we're done.
-      final List<Map<String, Object>> recs = await plugin.snapshotSemanticsAsync();
+      final List<Map<String, Object>> recs = await plugin
+          .snapshotSemanticsAsync();
       final bool present = recs.any(
         (Map<String, Object> r) => (r['id'] as int) == targetId,
       );
       if (present) {
-        return ToolResult(
-          ok: true,
-          value: <String, Object?>{'iterations': i},
-        );
+        return ToolResult(ok: true, value: <String, Object?>{'iterations': i});
       }
       final SemanticsNode? scrollable = plugin.lookupNode(scrollableId);
       if (scrollable == null) return targetNotFound(scrollableId);
@@ -210,7 +210,8 @@ class ScrollUntilVisibleTool extends CoreTool {
     }
     return ToolResult(
       ok: false,
-      error: '${CoreToolErrorCode.targetUnreachable}: node $targetId not '
+      error:
+          '${CoreToolErrorCode.targetUnreachable}: node $targetId not '
           'visible after $maxIters scroll iterations',
     );
   }

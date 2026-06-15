@@ -37,10 +37,10 @@ class Observation {
 
   /// Empty prior used as the "previous observation" on the first turn.
   factory Observation.empty() => Observation(
-        core: CoreFragment.empty,
-        plugins: const <String, ExtensionFragment>{},
-        stability: StabilityMetadata.empty,
-      );
+    core: CoreFragment.empty,
+    plugins: const <String, ExtensionFragment>{},
+    stability: StabilityMetadata.empty,
+  );
 
   /// Decode a wire-format observation map. Tolerant of missing keys: any
   /// absent top-level field is treated as empty.
@@ -55,8 +55,9 @@ class Observation {
     if (rawSemantics is List) {
       for (final Object? entry in rawSemantics) {
         if (entry is! Map) continue;
-        final SemanticsNode? node =
-            SemanticsNode.tryFromJson(entry.cast<String, dynamic>());
+        final SemanticsNode? node = SemanticsNode.tryFromJson(
+          entry.cast<String, dynamic>(),
+        );
         if (node != null) nodes[node.id] = node;
       }
     }
@@ -82,7 +83,8 @@ class Observation {
       errors: List<RuntimeError>.unmodifiable(errors),
     );
 
-    final Map<String, ExtensionFragment> plugins = <String, ExtensionFragment>{};
+    final Map<String, ExtensionFragment> plugins =
+        <String, ExtensionFragment>{};
     if (rawExtensions is Map) {
       rawExtensions.forEach((Object? k, Object? v) {
         if (k is! String) return;
@@ -140,12 +142,15 @@ class Observation {
 
   @override
   int get hashCode => Object.hash(
-        core,
-        Object.hashAllUnordered(plugins.entries.map((MapEntry<String, ExtensionFragment> e) =>
-            Object.hash(e.key, e.value))),
-        stability,
-        screenshot,
-      );
+    core,
+    Object.hashAllUnordered(
+      plugins.entries.map(
+        (MapEntry<String, ExtensionFragment> e) => Object.hash(e.key, e.value),
+      ),
+    ),
+    stability,
+    screenshot,
+  );
 }
 
 /// Core fragment: route stack + semantics nodes (id-keyed) + recent errors.
@@ -193,12 +198,14 @@ class CoreFragment {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(routeStack),
-        Object.hashAllUnordered(
-            nodes.entries.map((MapEntry<int, SemanticsNode> e) =>
-                Object.hash(e.key, e.value))),
-        Object.hashAll(errors),
-      );
+    Object.hashAll(routeStack),
+    Object.hashAllUnordered(
+      nodes.entries.map(
+        (MapEntry<int, SemanticsNode> e) => Object.hash(e.key, e.value),
+      ),
+    ),
+    Object.hashAll(errors),
+  );
 }
 
 /// One semantics node from the captured tree.
@@ -257,13 +264,13 @@ class SemanticsNode {
   final List<int> rect;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'role': role,
-        if (label.isNotEmpty) 'label': label,
-        if (state.isNotEmpty) 'state': List<String>.from(state),
-        if (actions.isNotEmpty) 'actions': List<String>.from(actions),
-        'rect': List<int>.from(rect),
-      };
+    'id': id,
+    'role': role,
+    if (label.isNotEmpty) 'label': label,
+    if (state.isNotEmpty) 'state': List<String>.from(state),
+    if (actions.isNotEmpty) 'actions': List<String>.from(actions),
+    'rect': List<int>.from(rect),
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -277,13 +284,13 @@ class SemanticsNode {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        role,
-        label,
-        Object.hashAll(state),
-        Object.hashAll(actions),
-        Object.hashAll(rect),
-      );
+    id,
+    role,
+    label,
+    Object.hashAll(state),
+    Object.hashAll(actions),
+    Object.hashAll(rect),
+  );
 }
 
 /// One runtime error captured in the binding's error ring buffer.
@@ -317,11 +324,11 @@ class RuntimeError {
   final int wallClockOffsetMs;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'seq': seq,
-        'message': message,
-        'frames': List<String>.from(frames),
-        'wallClockOffsetMs': wallClockOffsetMs,
-      };
+    'seq': seq,
+    'message': message,
+    'frames': List<String>.from(frames),
+    'wallClockOffsetMs': wallClockOffsetMs,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -391,9 +398,7 @@ class ExtensionFragment {
     final List<String> sortedKeys = data.keys.toList()..sort();
     return <String, dynamic>{
       'namespace': namespace,
-      'data': <String, dynamic>{
-        for (final String k in sortedKeys) k: data[k],
-      },
+      'data': <String, dynamic>{for (final String k in sortedKeys) k: data[k]},
       'delta_friendly': deltaFriendly,
     };
   }
@@ -415,10 +420,10 @@ class ExtensionBusy {
   const ExtensionBusy({required this.namespace, this.reason, this.estMs});
 
   factory ExtensionBusy.fromJson(Map<String, dynamic> j) => ExtensionBusy(
-        namespace: (j['namespace'] is String) ? j['namespace'] as String : '',
-        reason: (j['reason'] is String) ? j['reason'] as String : null,
-        estMs: (j['est_ms'] is int) ? j['est_ms'] as int : null,
-      );
+    namespace: (j['namespace'] is String) ? j['namespace'] as String : '',
+    reason: (j['reason'] is String) ? j['reason'] as String : null,
+    estMs: (j['est_ms'] is int) ? j['est_ms'] as int : null,
+  );
 
   final String namespace;
   final String? reason;
@@ -466,17 +471,20 @@ class StabilityMetadata {
     final Object? raw = j['extensions_busy'];
     if (raw is List) {
       for (final Object? e in raw) {
-        if (e is Map) busy.add(ExtensionBusy.fromJson(e.cast<String, dynamic>()));
+        if (e is Map)
+          busy.add(ExtensionBusy.fromJson(e.cast<String, dynamic>()));
       }
     }
     return StabilityMetadata(
       policy: (j['policy'] is String) ? j['policy'] as String : '',
-      terminatedBy:
-          (j['terminated_by'] is String) ? j['terminated_by'] as String : '',
+      terminatedBy: (j['terminated_by'] is String)
+          ? j['terminated_by'] as String
+          : '',
       durationMs: (j['duration_ms'] is int) ? j['duration_ms'] as int : 0,
       frameworkBusy: (j['framework_busy'] is Map)
           ? Map<String, dynamic>.unmodifiable(
-              (j['framework_busy'] as Map).cast<String, dynamic>())
+              (j['framework_busy'] as Map).cast<String, dynamic>(),
+            )
           : const <String, dynamic>{},
       extensionsBusy: List<ExtensionBusy>.unmodifiable(busy),
     );
@@ -489,13 +497,14 @@ class StabilityMetadata {
   final List<ExtensionBusy> extensionsBusy;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'policy': policy,
-        'terminated_by': terminatedBy,
-        'duration_ms': durationMs,
-        'framework_busy': Map<String, dynamic>.from(frameworkBusy),
-        'extensions_busy':
-            extensionsBusy.map((ExtensionBusy p) => p.toJson()).toList(),
-      };
+    'policy': policy,
+    'terminated_by': terminatedBy,
+    'duration_ms': durationMs,
+    'framework_busy': Map<String, dynamic>.from(frameworkBusy),
+    'extensions_busy': extensionsBusy
+        .map((ExtensionBusy p) => p.toJson())
+        .toList(),
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -508,12 +517,12 @@ class StabilityMetadata {
 
   @override
   int get hashCode => Object.hash(
-        policy,
-        terminatedBy,
-        durationMs,
-        _deepHash(frameworkBusy),
-        Object.hashAll(extensionsBusy),
-      );
+    policy,
+    terminatedBy,
+    durationMs,
+    _deepHash(frameworkBusy),
+    Object.hashAll(extensionsBusy),
+  );
 }
 
 // ---- helpers ----
@@ -564,8 +573,8 @@ int _deepHash(Object? v) {
     // List values.
     final SplayTreeMap<dynamic, dynamic> sorted =
         SplayTreeMap<dynamic, dynamic>(
-      (dynamic a, dynamic b) => a.toString().compareTo(b.toString()),
-    )..addAll(v);
+          (dynamic a, dynamic b) => a.toString().compareTo(b.toString()),
+        )..addAll(v);
     return Object.hashAll(<int>[
       for (final MapEntry<dynamic, dynamic> e in sorted.entries)
         Object.hash(e.key, _deepHash(e.value)),

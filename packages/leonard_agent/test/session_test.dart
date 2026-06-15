@@ -5,17 +5,14 @@ import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 
 class _FakeVmService extends VmService {
-  _FakeVmService(this._handler)
-      : super(
-          const Stream<dynamic>.empty(),
-          (_) {},
-        );
+  _FakeVmService(this._handler) : super(const Stream<dynamic>.empty(), (_) {});
 
   final Future<Response> Function(
     String method,
     String? isolateId,
     Map<String, dynamic>? args,
-  ) _handler;
+  )
+  _handler;
 
   bool disposed = false;
 
@@ -24,8 +21,7 @@ class _FakeVmService extends VmService {
     String method, {
     String? isolateId,
     Map<String, dynamic>? args,
-  }) =>
-      _handler(method, isolateId, args);
+  }) => _handler(method, isolateId, args);
 
   @override
   Future<void> dispose() async {
@@ -44,7 +40,8 @@ VmServiceClient _clientWith(
     String method,
     String? isolateId,
     Map<String, dynamic>? args,
-  ) handler,
+  )
+  handler,
 ) {
   return VmServiceClient.forTest(_FakeVmService(handler), 'iso-test');
 }
@@ -108,10 +105,7 @@ void main() {
   group('LeonardSession.observe / act', () {
     test('observe before start throws StateError', () async {
       final session = LeonardSession.forTest(_handshakeOnlyClient());
-      await expectLater(
-        session.observe(),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(session.observe(), throwsA(isA<StateError>()));
     });
 
     test('act before start throws StateError', () async {
@@ -156,10 +150,7 @@ void main() {
       await session.start('goal', const LeonardConfig());
 
       final Observation obs = await session.observe();
-      expect(
-        lastMethod,
-        equals('ext.exploration.core.get_stable_observation'),
-      );
+      expect(lastMethod, equals('ext.exploration.core.get_stable_observation'));
       expect(lastArgs, containsPair('policy', 'action-relative'));
       expect(obs.core.routeStack, isEmpty);
       expect(obs.stability.terminatedBy, equals('idle'));
@@ -186,10 +177,7 @@ void main() {
         'name': 'router.go',
         'args': <String, dynamic>{'route': '/home'},
       });
-      expect(
-        lastMethod,
-        equals('ext.exploration.router.go'),
-      );
+      expect(lastMethod, equals('ext.exploration.router.go'));
       // Args go on the wire JSON-encoded per value so the binding's
       // `_tryDecode` round-trips them.
       expect(lastArgs?['route'], equals('"/home"'));
@@ -235,9 +223,7 @@ void main() {
       final sub = session.turnEvents.listen(got.add);
 
       session.emitTurnEvent(
-        const TurnActionDecided(1, 'core.tap', <String, dynamic>{
-          'node_id': 7,
-        }),
+        const TurnActionDecided(1, 'core.tap', <String, dynamic>{'node_id': 7}),
       );
       session.emitTurnEvent(const TurnValidation(1, true, null));
 

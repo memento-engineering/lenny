@@ -21,19 +21,17 @@ class VisionImage {
 
   /// Anthropic-shaped image content block.
   Map<String, dynamic> toAnthropicBlock() => <String, dynamic>{
-        'type': 'image',
-        'source': <String, dynamic>{
-          'type': 'base64',
-          'media_type': 'image/png',
-          'data': base64Png,
-        },
-      };
+    'type': 'image',
+    'source': <String, dynamic>{
+      'type': 'base64',
+      'media_type': 'image/png',
+      'data': base64Png,
+    },
+  };
 
   /// OpenAI-shaped `image_url` content part.
   Map<String, dynamic> toOpenAiPart() => <String, dynamic>{
-        'type': 'image_url',
-        'image_url': <String, dynamic>{
-          'url': 'data:image/png;base64,$base64Png',
-        },
-      };
+    'type': 'image_url',
+    'image_url': <String, dynamic>{'url': 'data:image/png;base64,$base64Png'},
+  };
 }

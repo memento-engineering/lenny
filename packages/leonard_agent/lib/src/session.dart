@@ -171,8 +171,7 @@ class LeonardSession {
   }) async {
     _ensureStarted('observeWithDiff');
     final Observation curr = await _puller.pull(policy: policy);
-    final ObservationDiff diff =
-        ObservationDiffer.diff(_prevObservation, curr);
+    final ObservationDiff diff = ObservationDiffer.diff(_prevObservation, curr);
     _prevObservation = curr;
     return (observation: curr, diff: diff);
   }
@@ -252,11 +251,13 @@ class LeonardSession {
   }) async {
     _ensureStarted('run');
     final Duration effectiveTurnBudget =
-        turnBudget ?? const Duration(seconds: 120); // matches _kDefaultTurnBudget
+        turnBudget ??
+        const Duration(seconds: 120); // matches _kDefaultTurnBudget
     final driver = LoopDriver(
       host: host,
       provider: provider,
-      conversation: conversation ??
+      conversation:
+          conversation ??
           ConversationBuilder(
             systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
             tools: host.mergedTools(),

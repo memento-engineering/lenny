@@ -6,17 +6,17 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 ToolDescriptor _t(String n) => ToolDescriptor(
-      name: n,
-      description: n,
-      inputSchema: const <String, dynamic>{
-        'type': 'object',
-        'properties': <String, dynamic>{
-          'node_id': <String, dynamic>{'type': 'integer'},
-        },
-        'required': <String>['node_id'],
-        'additionalProperties': false,
-      },
-    );
+  name: n,
+  description: n,
+  inputSchema: const <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer'},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
 
 ConversationSnapshot _prompt({Observation? observation}) {
   final builder = ConversationBuilder(
@@ -39,43 +39,43 @@ String _sse(List<Map<String, dynamic>> events) =>
 MockClient _stream(
   String body, {
   void Function(http.BaseRequest req, List<int> bodyBytes)? capture,
-}) =>
-    MockClient.streaming((req, bodyStream) async {
-      final bytes = await bodyStream
-          .fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk));
-      capture?.call(req, bytes);
-      return http.StreamedResponse(
-        Stream<List<int>>.fromIterable(<List<int>>[utf8.encode(body)]),
-        200,
-        headers: <String, String>{'content-type': 'text/event-stream'},
-      );
-    });
+}) => MockClient.streaming((req, bodyStream) async {
+  final bytes = await bodyStream.fold<List<int>>(
+    <int>[],
+    (acc, chunk) => acc..addAll(chunk),
+  );
+  capture?.call(req, bytes);
+  return http.StreamedResponse(
+    Stream<List<int>>.fromIterable(<List<int>>[utf8.encode(body)]),
+    200,
+    headers: <String, String>{'content-type': 'text/event-stream'},
+  );
+});
 
 String _toolUseSse({
   String name = 'core_tap',
   Map<String, dynamic> input = const <String, dynamic>{'node_id': 7},
-}) =>
-    _sse(<Map<String, dynamic>>[
-      <String, dynamic>{
-        'type': 'content_block_start',
-        'index': 0,
-        'content_block': <String, dynamic>{
-          'type': 'tool_use',
-          'id': 't1',
-          'name': name,
-        },
-      },
-      <String, dynamic>{
-        'type': 'content_block_delta',
-        'index': 0,
-        'delta': <String, dynamic>{
-          'type': 'input_json_delta',
-          'partial_json': jsonEncode(input),
-        },
-      },
-      <String, dynamic>{'type': 'content_block_stop', 'index': 0},
-      <String, dynamic>{'type': 'message_stop'},
-    ]);
+}) => _sse(<Map<String, dynamic>>[
+  <String, dynamic>{
+    'type': 'content_block_start',
+    'index': 0,
+    'content_block': <String, dynamic>{
+      'type': 'tool_use',
+      'id': 't1',
+      'name': name,
+    },
+  },
+  <String, dynamic>{
+    'type': 'content_block_delta',
+    'index': 0,
+    'delta': <String, dynamic>{
+      'type': 'input_json_delta',
+      'partial_json': jsonEncode(input),
+    },
+  },
+  <String, dynamic>{'type': 'content_block_stop', 'index': 0},
+  <String, dynamic>{'type': 'message_stop'},
+]);
 
 Map<String, dynamic> _decodeBody(List<int> bytes) =>
     jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
@@ -101,60 +101,65 @@ void main() {
     expect(
       sent!['tool_choice'],
       <String, dynamic>{'type': 'any'},
-      reason: 'the agent must emit a tool_use block every turn; '
+      reason:
+          'the agent must emit a tool_use block every turn; '
           'tool_choice:auto lets the model answer in prose, which '
           'decide() rejects as "no tool_use block in response"',
     );
   });
 
-  test('onCallDiagnostics fires with timing + status on a successful call',
-      () async {
-    Map<String, Object?>? diag;
-    final m = _stream(_toolUseSse());
-    final p = AnthropicModelProvider(
-      model: 'claude-sonnet-4-6',
-      apiKey: 'k',
-      client: m,
-      onCallDiagnostics: (d) => diag = d,
-    );
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    await p.decide(_prompt(), s);
-    expect(diag, isNotNull);
-    expect(diag!['provider'], 'anthropic');
-    expect(diag!['ok'], isTrue);
-    expect(diag!['http_status'], 200);
-    expect(diag!['tool_use'], isTrue);
-    expect(diag!['duration_ms'], isA<int>());
-    expect(diag!.containsKey('error'), isFalse);
-  });
+  test(
+    'onCallDiagnostics fires with timing + status on a successful call',
+    () async {
+      Map<String, Object?>? diag;
+      final m = _stream(_toolUseSse());
+      final p = AnthropicModelProvider(
+        model: 'claude-sonnet-4-6',
+        apiKey: 'k',
+        client: m,
+        onCallDiagnostics: (d) => diag = d,
+      );
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+      await p.decide(_prompt(), s);
+      expect(diag, isNotNull);
+      expect(diag!['provider'], 'anthropic');
+      expect(diag!['ok'], isTrue);
+      expect(diag!['http_status'], 200);
+      expect(diag!['tool_use'], isTrue);
+      expect(diag!['duration_ms'], isA<int>());
+      expect(diag!.containsKey('error'), isFalse);
+    },
+  );
 
-  test('onCallDiagnostics fires with ok:false + error on a failed call',
-      () async {
-    Map<String, Object?>? diag;
-    final body = _sse(<Map<String, dynamic>>[
-      <String, dynamic>{
-        'type': 'content_block_start',
-        'index': 0,
-        'content_block': <String, dynamic>{'type': 'text'},
-      },
-      <String, dynamic>{'type': 'message_stop'},
-    ]);
-    final p = AnthropicModelProvider(
-      model: 'claude-sonnet-4-6',
-      apiKey: 'k',
-      client: _stream(body),
-      onCallDiagnostics: (d) => diag = d,
-    );
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    await expectLater(
-      () => p.decide(_prompt(), s),
-      throwsA(isA<SchemaRejection>()),
-    );
-    expect(diag, isNotNull);
-    expect(diag!['ok'], isFalse);
-    expect(diag!['tool_use'], isFalse);
-    expect(diag!['error'], contains('no tool_use block'));
-  });
+  test(
+    'onCallDiagnostics fires with ok:false + error on a failed call',
+    () async {
+      Map<String, Object?>? diag;
+      final body = _sse(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'content_block_start',
+          'index': 0,
+          'content_block': <String, dynamic>{'type': 'text'},
+        },
+        <String, dynamic>{'type': 'message_stop'},
+      ]);
+      final p = AnthropicModelProvider(
+        model: 'claude-sonnet-4-6',
+        apiKey: 'k',
+        client: _stream(body),
+        onCallDiagnostics: (d) => diag = d,
+      );
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+      await expectLater(
+        () => p.decide(_prompt(), s),
+        throwsA(isA<SchemaRejection>()),
+      );
+      expect(diag, isNotNull);
+      expect(diag!['ok'], isFalse);
+      expect(diag!['tool_use'], isFalse);
+      expect(diag!['error'], contains('no tool_use block'));
+    },
+  );
 
   test('missing tool_use → SchemaRejection', () async {
     final body = _sse(<Map<String, dynamic>>[
@@ -175,11 +180,13 @@ void main() {
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
     expect(
       () => _p(m).decide(_prompt(), s),
-      throwsA(isA<SchemaRejection>().having(
-        (e) => e.validationError,
-        'err',
-        contains('no tool_use block'),
-      )),
+      throwsA(
+        isA<SchemaRejection>().having(
+          (e) => e.validationError,
+          'err',
+          contains('no tool_use block'),
+        ),
+      ),
     );
   });
 
@@ -199,122 +206,124 @@ void main() {
     await _p(m).decide(_prompt(observation: obs), s);
     final messages = captured!['messages'] as List;
     final content = (messages[0] as Map)['content'] as List;
-    final block = content.firstWhere(
-      (b) => (b as Map)['type'] == 'image',
-    ) as Map;
+    final block =
+        content.firstWhere((b) => (b as Map)['type'] == 'image') as Map;
     final source = block['source'] as Map;
     expect(source['media_type'], 'image/png');
     expect(source['data'], isNotEmpty);
   });
 
   test('ActionSchema rejection escapes unchanged', () async {
-    final m = _stream(_toolUseSse(
-      name: 'nope',
-      input: const <String, dynamic>{'node_id': 1},
-    ));
+    final m = _stream(
+      _toolUseSse(name: 'nope', input: const <String, dynamic>{'node_id': 1}),
+    );
     final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
     expect(() => _p(m).decide(_prompt(), s), throwsA(isA<SchemaRejection>()));
   });
 
-  test('unknown tool wire name → SchemaRejection (unknown tool, available list)',
-      () async {
-    final m = _stream(_toolUseSse(
-      name: 'navigate',
-      input: const <String, dynamic>{'route_name': 'settings'},
-    ));
-    final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
-    final s = ActionSchema.fromToolList(tools);
-    final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final prompt = builder.snapshot();
-    await expectLater(
-      _p(m).decide(prompt, s),
-      throwsA(
-        isA<SchemaRejection>()
-            .having(
-              (SchemaRejection e) => e.validationError,
-              'validationError',
-              'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
-            )
-            .having(
-              (SchemaRejection e) => jsonDecode(e.rawOutput),
-              'rawOutput',
-              <String, Object?>{
-                'name': 'navigate',
-                'input': <String, Object?>{'route_name': 'settings'},
-              },
-            ),
-      ),
-    );
-  });
+  test(
+    'unknown tool wire name → SchemaRejection (unknown tool, available list)',
+    () async {
+      final m = _stream(
+        _toolUseSse(
+          name: 'navigate',
+          input: const <String, dynamic>{'route_name': 'settings'},
+        ),
+      );
+      final tools = <ToolDescriptor>[_t('core.tap'), _t('router.navigate')];
+      final s = ActionSchema.fromToolList(tools);
+      final builder = ConversationBuilder(systemMessage: 'sys', tools: tools);
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final prompt = builder.snapshot();
+      await expectLater(
+        _p(m).decide(prompt, s),
+        throwsA(
+          isA<SchemaRejection>()
+              .having(
+                (SchemaRejection e) => e.validationError,
+                'validationError',
+                'model emitted unknown tool: navigate; available: [core_tap, router_navigate]',
+              )
+              .having(
+                (SchemaRejection e) => jsonDecode(e.rawOutput),
+                'rawOutput',
+                <String, Object?>{
+                  'name': 'navigate',
+                  'input': <String, Object?>{'route_name': 'settings'},
+                },
+              ),
+        ),
+      );
+    },
+  );
 
-  test('thinking stream emits ThinkingDelta from thinking_delta events',
-      () async {
-    final body = _sse(<Map<String, dynamic>>[
-      <String, dynamic>{
-        'type': 'content_block_start',
-        'index': 0,
-        'content_block': <String, dynamic>{'type': 'thinking'},
-      },
-      <String, dynamic>{
-        'type': 'content_block_delta',
-        'index': 0,
-        'delta': <String, dynamic>{
-          'type': 'thinking_delta',
-          'thinking': 'reason',
+  test(
+    'thinking stream emits ThinkingDelta from thinking_delta events',
+    () async {
+      final body = _sse(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'content_block_start',
+          'index': 0,
+          'content_block': <String, dynamic>{'type': 'thinking'},
         },
-      },
-      <String, dynamic>{
-        'type': 'content_block_delta',
-        'index': 0,
-        'delta': <String, dynamic>{
-          'type': 'thinking_delta',
-          'thinking': 'ing',
+        <String, dynamic>{
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': <String, dynamic>{
+            'type': 'thinking_delta',
+            'thinking': 'reason',
+          },
         },
-      },
-      <String, dynamic>{'type': 'content_block_stop', 'index': 0},
-      <String, dynamic>{
-        'type': 'content_block_start',
-        'index': 1,
-        'content_block': <String, dynamic>{
-          'type': 'tool_use',
-          'id': 't1',
-          'name': 'core_tap',
+        <String, dynamic>{
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': <String, dynamic>{
+            'type': 'thinking_delta',
+            'thinking': 'ing',
+          },
         },
-      },
-      <String, dynamic>{
-        'type': 'content_block_delta',
-        'index': 1,
-        'delta': <String, dynamic>{
-          'type': 'input_json_delta',
-          'partial_json': '{"node_id":7}',
+        <String, dynamic>{'type': 'content_block_stop', 'index': 0},
+        <String, dynamic>{
+          'type': 'content_block_start',
+          'index': 1,
+          'content_block': <String, dynamic>{
+            'type': 'tool_use',
+            'id': 't1',
+            'name': 'core_tap',
+          },
         },
-      },
-      <String, dynamic>{'type': 'content_block_stop', 'index': 1},
-      <String, dynamic>{'type': 'message_stop'},
-    ]);
-    final p = AnthropicModelProvider(
-      model: 'claude-sonnet-4-6',
-      apiKey: 'k',
-      client: _stream(body),
-    );
-    final deltas = <ThinkingDelta>[];
-    final sub = p.thinking().listen(deltas.add);
-    final d = await p.decide(
-      _prompt(),
-      ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
-    );
-    await Future<void>.delayed(Duration.zero);
-    await sub.cancel();
-    expect(d.action.tool, 'core.tap');
-    expect(d.action.args['node_id'], 7);
-    expect(deltas.map((e) => e.text).toList(),
-        <String>['reason', 'ing', '']);
-    expect(deltas.last.isFinal, isTrue);
-  });
+        <String, dynamic>{
+          'type': 'content_block_delta',
+          'index': 1,
+          'delta': <String, dynamic>{
+            'type': 'input_json_delta',
+            'partial_json': '{"node_id":7}',
+          },
+        },
+        <String, dynamic>{'type': 'content_block_stop', 'index': 1},
+        <String, dynamic>{'type': 'message_stop'},
+      ]);
+      final p = AnthropicModelProvider(
+        model: 'claude-sonnet-4-6',
+        apiKey: 'k',
+        client: _stream(body),
+      );
+      final deltas = <ThinkingDelta>[];
+      final sub = p.thinking().listen(deltas.add);
+      final d = await p.decide(
+        _prompt(),
+        ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+      expect(d.action.tool, 'core.tap');
+      expect(d.action.args['node_id'], 7);
+      expect(deltas.map((e) => e.text).toList(), <String>['reason', 'ing', '']);
+      expect(deltas.last.isFinal, isTrue);
+    },
+  );
 
-  test('captures message.id from message_start as providerRequestId',
-      () async {
+  test('captures message.id from message_start as providerRequestId', () async {
     final body = _sse(<Map<String, dynamic>>[
       <String, dynamic>{
         'type': 'message_start',
@@ -387,56 +396,71 @@ void main() {
     expect(FrontierDefaults.maxRetries, 1);
   });
 
-  test('2-turn snapshot: messages[2] contains tool_result with matching tool_use_id', () async {
-    Map<String, dynamic>? sent;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (_, bytes) => sent = _decodeBody(bytes),
-    );
-    final builder = ConversationBuilder(
-      systemMessage: 'sys',
-      tools: <ToolDescriptor>[_t('core.tap')],
-    );
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    builder.appendAssistantTurn('', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    await _p(m).decide(builder.snapshot(), s);
-    final msgs = sent!['messages'] as List;
-    expect(msgs.length, 3);
-    final assistantContent = (msgs[1] as Map)['content'] as List;
-    final toolUseBlock = assistantContent.firstWhere(
-      (b) => (b as Map)['type'] == 'tool_use',
-    ) as Map;
-    expect(toolUseBlock['id'], isNot('toolu_carry'));
-    final userContent2 = (msgs[2] as Map)['content'] as List;
-    final toolResultBlock = userContent2.firstWhere(
-      (b) => (b as Map)['type'] == 'tool_result',
-    ) as Map;
-    expect(toolResultBlock['tool_use_id'], toolUseBlock['id']);
-  });
+  test(
+    '2-turn snapshot: messages[2] contains tool_result with matching tool_use_id',
+    () async {
+      Map<String, dynamic>? sent;
+      final m = _stream(
+        _toolUseSse(),
+        capture: (_, bytes) => sent = _decodeBody(bytes),
+      );
+      final builder = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: <ToolDescriptor>[_t('core.tap')],
+      );
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      builder.appendAssistantTurn('', (
+        tool: 'core.tap',
+        args: <String, dynamic>{'node_id': 1},
+      ));
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+      await _p(m).decide(builder.snapshot(), s);
+      final msgs = sent!['messages'] as List;
+      expect(msgs.length, 3);
+      final assistantContent = (msgs[1] as Map)['content'] as List;
+      final toolUseBlock =
+          assistantContent.firstWhere((b) => (b as Map)['type'] == 'tool_use')
+              as Map;
+      expect(toolUseBlock['id'], isNot('toolu_carry'));
+      final userContent2 = (msgs[2] as Map)['content'] as List;
+      final toolResultBlock =
+          userContent2.firstWhere((b) => (b as Map)['type'] == 'tool_result')
+              as Map;
+      expect(toolResultBlock['tool_use_id'], toolUseBlock['id']);
+    },
+  );
 
-  test('2-turn snapshot: historical thinking block is NOT emitted to Anthropic', () async {
-    Map<String, dynamic>? sent;
-    final m = _stream(
-      _toolUseSse(),
-      capture: (_, bytes) => sent = _decodeBody(bytes),
-    );
-    final builder = ConversationBuilder(
-      systemMessage: 'sys',
-      tools: <ToolDescriptor>[_t('core.tap')],
-    );
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    builder.appendAssistantTurn('some thinking', (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}));
-    builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
-    final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
-    await _p(m).decide(builder.snapshot(), s);
-    final msgs = sent!['messages'] as List;
-    final assistantContent = (msgs[1] as Map)['content'] as List;
-    final thinkingBlocks = assistantContent
-        .where((b) => (b as Map)['type'] == 'thinking')
-        .toList();
-    expect(thinkingBlocks, isEmpty,
-        reason: 'unsigned thinking blocks cause HTTP 400 from Anthropic');
-  });
+  test(
+    '2-turn snapshot: historical thinking block is NOT emitted to Anthropic',
+    () async {
+      Map<String, dynamic>? sent;
+      final m = _stream(
+        _toolUseSse(),
+        capture: (_, bytes) => sent = _decodeBody(bytes),
+      );
+      final builder = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: <ToolDescriptor>[_t('core.tap')],
+      );
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      builder.appendAssistantTurn('some thinking', (
+        tool: 'core.tap',
+        args: <String, dynamic>{'node_id': 1},
+      ));
+      builder.appendUserTurn(Observation.empty(), ObservationDiff.empty());
+      final s = ActionSchema.fromToolList(<ToolDescriptor>[_t('core.tap')]);
+      await _p(m).decide(builder.snapshot(), s);
+      final msgs = sent!['messages'] as List;
+      final assistantContent = (msgs[1] as Map)['content'] as List;
+      final thinkingBlocks = assistantContent
+          .where((b) => (b as Map)['type'] == 'thinking')
+          .toList();
+      expect(
+        thinkingBlocks,
+        isEmpty,
+        reason: 'unsigned thinking blocks cause HTTP 400 from Anthropic',
+      );
+    },
+  );
 }

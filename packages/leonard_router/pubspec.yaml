@@ -1,6 +1,6 @@
 name: leonard_router
 description: "Reference extension: Router/Navigator observation and navigate tool."
-version: 1.0.0
+version: 0.1.0
 publish_to: none
 resolution: workspace
 

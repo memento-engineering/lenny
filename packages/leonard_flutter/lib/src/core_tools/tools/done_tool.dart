@@ -17,16 +17,13 @@ class DoneTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'reason': <String, Object?>{
-            'type': 'string',
-            'maxLength': 512,
-          },
-        },
-        'required': <String>['reason'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'reason': <String, Object?>{'type': 'string', 'maxLength': 512},
+    },
+    'required': <String>['reason'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -39,17 +36,13 @@ class DoneTool extends CoreTool {
     if (reason.length > 512) {
       return ToolResult(
         ok: false,
-        error:
-            '${CoreToolErrorCode.schemaViolation}: reason exceeds 512 chars',
+        error: '${CoreToolErrorCode.schemaViolation}: reason exceeds 512 chars',
       );
     }
     plugin.markTerminated();
     return ToolResult(
       ok: true,
-      value: <String, Object?>{
-        'type': 'done',
-        'reason': reason,
-      },
+      value: <String, Object?>{'type': 'done', 'reason': reason},
     );
   }
 }

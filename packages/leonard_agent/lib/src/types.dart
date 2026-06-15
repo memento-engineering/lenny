@@ -3,10 +3,7 @@ library;
 
 /// Result of the `ext.exploration.core.handshake` exchange.
 class HandshakeResult {
-  const HandshakeResult({
-    required this.contractVersion,
-    required this.plugins,
-  });
+  const HandshakeResult({required this.contractVersion, required this.plugins});
 
   /// Contract version reported by the binding.
   final String contractVersion;
@@ -17,10 +14,7 @@ class HandshakeResult {
 
 /// One entry in the handshake plugin manifest.
 class ExtensionManifestEntry {
-  const ExtensionManifestEntry({
-    required this.namespace,
-    required this.tools,
-  });
+  const ExtensionManifestEntry({required this.namespace, required this.tools});
 
   /// Plugin namespace (e.g. `router`).
   final String namespace;

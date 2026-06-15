@@ -69,7 +69,8 @@ void main() {
         extraHeaders: const {'x-a': 'b'},
         defaultModelId: 'qwen3.6-35b-a3b-8bit',
       );
-      final decoded = ProviderConfig.fromJson(cfg.toJson()) as SwiftInferUiConfig;
+      final decoded =
+          ProviderConfig.fromJson(cfg.toJson()) as SwiftInferUiConfig;
       expect(decoded.bearerToken, 'tok');
       expect(decoded.endpoint, cfg.endpoint);
       expect(decoded.captureBodies, isFalse);

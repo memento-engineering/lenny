@@ -22,9 +22,9 @@ class DtdTrajectorySink implements TrajectorySink {
     required Uri uri,
     required DtdReadString read,
     required DtdWriteString write,
-  })  : _uri = uri,
-        _read = read,
-        _write = write;
+  }) : _uri = uri,
+       _read = read,
+       _write = write;
 
   /// Wraps a live [DartToolingDaemon] connection. Translates a missing-file
   /// `RpcException` into a `null` read so the first append starts a fresh

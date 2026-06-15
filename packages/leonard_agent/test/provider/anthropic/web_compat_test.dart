@@ -11,8 +11,11 @@ void main() {
     final libUri = await Isolate.resolvePackageUri(
       Uri.parse('package:leonard_agent/leonard_agent.dart'),
     );
-    expect(libUri, isNotNull,
-        reason: 'could not resolve leonard_agent package URI');
+    expect(
+      libUri,
+      isNotNull,
+      reason: 'could not resolve leonard_agent package URI',
+    );
     final libFile = File.fromUri(libUri!);
     final packageRoot = libFile.parent.parent;
 
@@ -23,8 +26,7 @@ void main() {
     final offenders = <String>[];
     for (final rootPath in roots) {
       final dir = Directory(rootPath);
-      expect(dir.existsSync(), isTrue,
-          reason: 'expected dir at $rootPath');
+      expect(dir.existsSync(), isTrue, reason: 'expected dir at $rootPath');
       await for (final f in dir.list(recursive: true)) {
         if (f is! File || !f.path.endsWith('.dart')) continue;
         final src = await f.readAsString();
@@ -33,7 +35,10 @@ void main() {
         }
       }
     }
-    expect(offenders, isEmpty,
-        reason: 'frontier/anthropic provider sources must stay web-compatible');
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'frontier/anthropic provider sources must stay web-compatible',
+    );
   });
 }

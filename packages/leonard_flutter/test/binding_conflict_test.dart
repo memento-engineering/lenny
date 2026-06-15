@@ -5,12 +5,20 @@ import 'package:leonard_flutter/leonard_flutter.dart';
 void main() {
   test('throws StateError when another binding is active', () {
     TestWidgetsFlutterBinding.ensureInitialized();
-    expect(WidgetsBinding.instance is LeonardBinding, isFalse,
-        reason: 'precondition: foreign binding active');
+    expect(
+      WidgetsBinding.instance is LeonardBinding,
+      isFalse,
+      reason: 'precondition: foreign binding active',
+    );
     expect(
       () => LeonardBinding.ensureInitialized(extensions: const []),
-      throwsA(isA<StateError>().having(
-          (e) => e.message, 'message', contains('another WidgetsBinding'))),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('another WidgetsBinding'),
+        ),
+      ),
     );
   });
 }

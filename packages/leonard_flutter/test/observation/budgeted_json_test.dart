@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('encodeWithBudget passthrough', () {
     test('fragment under budget round-trips verbatim', () {
-      final BudgetedJson out =
-          encodeWithBudget(<String, Object?>{'a': 1, 'b': 'hi'}, 1024);
+      final BudgetedJson out = encodeWithBudget(<String, Object?>{
+        'a': 1,
+        'b': 'hi',
+      }, 1024);
       expect(out.truncated, isFalse);
       expect(jsonDecode(out.json), <String, Object?>{'a': 1, 'b': 'hi'});
       expect(out.bytes, utf8.encode(out.json).length);
@@ -16,8 +18,9 @@ void main() {
     test('fragment exactly at budget is kept', () {
       final String raw = jsonEncode(<String, Object?>{'k': 'v'});
       final int budget = utf8.encode(raw).length;
-      final BudgetedJson out =
-          encodeWithBudget(<String, Object?>{'k': 'v'}, budget);
+      final BudgetedJson out = encodeWithBudget(<String, Object?>{
+        'k': 'v',
+      }, budget);
       expect(out.truncated, isFalse);
       expect(out.json, raw);
     });
@@ -71,8 +74,10 @@ void main() {
       expect(eff['a'], 682);
       expect(eff['b'], 682);
       expect(eff['c'], 682);
-      expect(eff.values.fold<int>(0, (int x, int y) => x + y),
-          lessThanOrEqualTo(2048));
+      expect(
+        eff.values.fold<int>(0, (int x, int y) => x + y),
+        lessThanOrEqualTo(2048),
+      );
     });
 
     test('mix of requested + default still respects cap', () {
@@ -81,8 +86,10 @@ void main() {
         const <String, int>{'a': 2000},
         <String>['a', 'b'],
       );
-      expect(eff.values.fold<int>(0, (int x, int y) => x + y),
-          lessThanOrEqualTo(2048));
+      expect(
+        eff.values.fold<int>(0, (int x, int y) => x + y),
+        lessThanOrEqualTo(2048),
+      );
     });
   });
 }

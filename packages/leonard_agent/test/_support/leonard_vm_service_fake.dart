@@ -36,19 +36,14 @@ import 'package:vm_service/vm_service.dart';
 
 /// A single recorded [callServiceExtension] invocation.
 class FakeRpcCall {
-  FakeRpcCall({
-    required this.method,
-    this.isolateId,
-    this.args,
-  });
+  FakeRpcCall({required this.method, this.isolateId, this.args});
 
   final String method;
   final String? isolateId;
   final Map<String, dynamic>? args;
 
   @override
-  String toString() =>
-      'FakeRpcCall($method, isolateId=$isolateId, args=$args)';
+  String toString() => 'FakeRpcCall($method, isolateId=$isolateId, args=$args)';
 }
 
 /// Pure-Dart [VmService] subclass that returns scripted responses for
@@ -73,12 +68,14 @@ class LeonardVmServiceFake extends VmService {
     required this.handshakeResponse,
     this.observationBundle,
     Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>?
-        handlers,
-  })  : handlers = handlers ??
-            <String,
-                Future<Map<String, dynamic>> Function(
-                    Map<String, dynamic>?)>{},
-        super(const Stream<dynamic>.empty(), (_) {});
+    handlers,
+  }) : handlers =
+           handlers ??
+           <
+             String,
+             Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+           >{},
+       super(const Stream<dynamic>.empty(), (_) {});
 
   /// Scripted response for `ext.exploration.core.handshake`.
   /// Must include at least `protocolVersion` (String) and `plugins`
@@ -93,14 +90,16 @@ class LeonardVmServiceFake extends VmService {
   /// Per-method dispatch table for calls not matched by the handshake or
   /// observation short-circuits. Keys are fully-qualified wire names
   /// (`ext.exploration.<ns>.<tool>`).
-  final Map<String,
-      Future<Map<String, dynamic>> Function(Map<String, dynamic>?)> handlers;
+  final Map<
+    String,
+    Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
+  >
+  handlers;
 
   /// Every [callServiceExtension] invocation, in order.
   final List<FakeRpcCall> calls = <FakeRpcCall>[];
 
-  static const String _kHandshake =
-      'ext.exploration.core.handshake';
+  static const String _kHandshake = 'ext.exploration.core.handshake';
   static const String _kObservation =
       'ext.exploration.core.get_stable_observation';
 
@@ -124,10 +123,7 @@ class LeonardVmServiceFake extends VmService {
         throw RPCError(method, -32601, 'no observation bundle configured');
       }
       final Response r = Response();
-      r.json = <String, dynamic>{
-        'type': 'Observation',
-        'value': bundle,
-      };
+      r.json = <String, dynamic>{'type': 'Observation', 'value': bundle};
       return r;
     }
 

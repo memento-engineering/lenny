@@ -6,7 +6,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:leonard_agent/leonard_agent.dart' show ModelCapabilities, capabilitiesFor;
+import 'package:leonard_agent/leonard_agent.dart'
+    show ModelCapabilities, capabilitiesFor;
 import 'package:http/http.dart' as http;
 
 import 'provider_config.dart';
@@ -121,7 +122,8 @@ class ModelCatalog {
   ModelCatalog({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  final Map<String, List<ResolvedModel>> _cache = <String, List<ResolvedModel>>{};
+  final Map<String, List<ResolvedModel>> _cache =
+      <String, List<ResolvedModel>>{};
 
   /// Cache key — provider id + base URL so anthropic-prod vs
   /// anthropic-localhost-mock don't collide.
@@ -152,10 +154,10 @@ class ModelCatalog {
   }
 
   Uri _modelsUri(ProviderConfig cfg) => cfg.baseUrl.replace(
-        path: cfg.baseUrl.path.endsWith('/')
-            ? '${cfg.baseUrl.path}v1/models'
-            : '${cfg.baseUrl.path}/v1/models',
-      );
+    path: cfg.baseUrl.path.endsWith('/')
+        ? '${cfg.baseUrl.path}v1/models'
+        : '${cfg.baseUrl.path}/v1/models',
+  );
 
   Future<List<ResolvedModel>> _fetchAnthropic(
     AnthropicUiConfig cfg,
@@ -195,14 +197,15 @@ class ModelCatalog {
         .whereType<Map<dynamic, dynamic>>()
         .map((m) => m.cast<String, dynamic>())
         .map((m) {
-      final id = m['id'] as String;
-      final label = (m['display_name'] as String?) ?? id;
-      return ResolvedModel(
-        id: id,
-        label: label,
-        capabilities: capabilitiesFor('anthropic', id),
-      );
-    }).toList();
+          final id = m['id'] as String;
+          final label = (m['display_name'] as String?) ?? id;
+          return ResolvedModel(
+            id: id,
+            label: label,
+            capabilities: capabilitiesFor('anthropic', id),
+          );
+        })
+        .toList();
   }
 
   Future<List<ResolvedModel>> _fetchOpenAi(
@@ -243,13 +246,14 @@ class ModelCatalog {
         .whereType<Map<dynamic, dynamic>>()
         .map((m) => m.cast<String, dynamic>())
         .map((m) {
-      final id = m['id'] as String;
-      return ResolvedModel(
-        id: id,
-        label: id,
-        capabilities: capabilitiesFor('openai', id),
-      );
-    }).toList();
+          final id = m['id'] as String;
+          return ResolvedModel(
+            id: id,
+            label: id,
+            capabilities: capabilitiesFor('openai', id),
+          );
+        })
+        .toList();
   }
 
   Future<List<ResolvedModel>> _fetchSwiftInfer(
@@ -259,10 +263,7 @@ class ModelCatalog {
     final uri = _modelsUri(cfg);
     final http.Response res;
     try {
-      res = await _client.get(
-        uri,
-        headers: cfg.headersFor(conversationId),
-      );
+      res = await _client.get(uri, headers: cfg.headersFor(conversationId));
     } on http.ClientException catch (e) {
       // CORS preflight rejection / DNS / connection-refused. We
       // deliberately stop swallowing this into the fallback (the
@@ -306,13 +307,14 @@ class ModelCatalog {
         .whereType<Map<dynamic, dynamic>>()
         .map((m) => m.cast<String, dynamic>())
         .map((m) {
-      final id = m['id'] as String;
-      return ResolvedModel(
-        id: id,
-        label: (m['display_name'] as String?) ?? id,
-        capabilities: capabilitiesFor('swift-infer', id),
-      );
-    }).toList();
+          final id = m['id'] as String;
+          return ResolvedModel(
+            id: id,
+            label: (m['display_name'] as String?) ?? id,
+            capabilities: capabilitiesFor('swift-infer', id),
+          );
+        })
+        .toList();
   }
 
   List<ResolvedModel> _swiftInferFallback(SwiftInferUiConfig cfg) =>
@@ -360,11 +362,10 @@ class ModelCatalogState {
     bool? loading,
     Object? error,
     bool clearError = false,
-  }) =>
-      ModelCatalogState(
-        config: config ?? this.config,
-        models: models ?? this.models,
-        loading: loading ?? this.loading,
-        error: clearError ? null : (error ?? this.error),
-      );
+  }) => ModelCatalogState(
+    config: config ?? this.config,
+    models: models ?? this.models,
+    loading: loading ?? this.loading,
+    error: clearError ? null : (error ?? this.error),
+  );
 }

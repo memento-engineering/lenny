@@ -31,12 +31,8 @@ void main() {
     });
 
     test('omits keys whose values are null', () {
-      const r = ValidationReject(
-        tool: 'foo.bar',
-        reason: 'unknown_tool',
-      );
-      final decoded =
-          jsonDecode(r.toModelMessage()) as Map<String, dynamic>;
+      const r = ValidationReject(tool: 'foo.bar', reason: 'unknown_tool');
+      final decoded = jsonDecode(r.toModelMessage()) as Map<String, dynamic>;
       expect(decoded.keys, unorderedEquals(<String>['tool', 'reason']));
       expect(decoded.containsKey('expected'), isFalse);
       expect(decoded.containsKey('got'), isFalse);
@@ -51,10 +47,11 @@ void main() {
         expected: <String>['core.tap', 'core.long_press'],
         got: 'unknown',
       );
-      final decoded =
-          jsonDecode(r.toModelMessage()) as Map<String, dynamic>;
-      expect(decoded['expected'],
-          equals(<String>['core.tap', 'core.long_press']));
+      final decoded = jsonDecode(r.toModelMessage()) as Map<String, dynamic>;
+      expect(
+        decoded['expected'],
+        equals(<String>['core.tap', 'core.long_press']),
+      );
       expect(decoded['got'], 'unknown');
     });
 
@@ -89,10 +86,7 @@ void main() {
     test('switch covers both variants', () {
       expect(describe(const ValidationOk()), 'ok');
       expect(
-        describe(const ValidationReject(
-          tool: 't',
-          reason: 'unknown_tool',
-        )),
+        describe(const ValidationReject(tool: 't', reason: 'unknown_tool')),
         'reject:unknown_tool',
       );
     });

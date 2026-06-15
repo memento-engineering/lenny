@@ -41,8 +41,9 @@ class _FakeVm extends VmService {
 
 void main() {
   test('bringUpSession returns header built from handshake manifest', () async {
-    final LeonardSession session =
-        LeonardSession.forTest(VmServiceClient.forTest(_FakeVm(), 'fake-isolate'));
+    final LeonardSession session = LeonardSession.forTest(
+      VmServiceClient.forTest(_FakeVm(), 'fake-isolate'),
+    );
 
     // Caller is responsible for starting the session before bringUpSession.
     await session.start('navigate to /home', const LeonardConfig());

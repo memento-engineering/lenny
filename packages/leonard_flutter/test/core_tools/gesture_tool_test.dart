@@ -7,8 +7,9 @@ void main() {
   test('schema_violation on unknown kind', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool g =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'gesture');
+    final LeonardTool g = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'gesture',
+    );
     final ToolResult r = await g.call(<String, Object?>{
       'node_id': 1,
       'kind': 'somersault',
@@ -21,8 +22,9 @@ void main() {
   test('schema_violation when distance_px out of range', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool g =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'gesture');
+    final LeonardTool g = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'gesture',
+    );
     final ToolResult r = await g.call(<String, Object?>{
       'node_id': 1,
       'kind': 'swipe',
@@ -37,8 +39,9 @@ void main() {
   test('target_not_found before kind dispatch on unknown id', () async {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool g =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'gesture');
+    final LeonardTool g = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'gesture',
+    );
     final ToolResult r = await g.call(<String, Object?>{
       'node_id': 9999,
       'kind': 'swipe',
@@ -50,31 +53,36 @@ void main() {
     cap.dispose();
   });
 
-  testWidgets('core.gesture pinch_out runs against a real node',
-      (WidgetTester tester) async {
+  testWidgets('core.gesture pinch_out runs against a real node', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 200,
-            height: 200,
-            child: Semantics(
-              container: true,
-              label: 'pad',
-              child: const ColoredBox(color: Color(0xFFEEEEEE)),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: Semantics(
+                container: true,
+                label: 'pad',
+                child: const ColoredBox(color: Color(0xFFEEEEEE)),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     final SemanticsCapture cap = SemanticsCapture();
     final List<Map<String, Object>> recs = cap.capture();
-    final int id = recs
-        .firstWhere((Map<String, Object> r) => r['label'] == 'pad')['id']! as int;
+    final int id =
+        recs.firstWhere((Map<String, Object> r) => r['label'] == 'pad')['id']!
+            as int;
     final CoreExtension plugin = CoreExtension(semantics: cap);
-    final LeonardTool g =
-        plugin.tools.firstWhere((LeonardTool t) => t.name == 'gesture');
+    final LeonardTool g = plugin.tools.firstWhere(
+      (LeonardTool t) => t.name == 'gesture',
+    );
     final ToolResult r = await g.call(<String, Object?>{
       'node_id': id,
       'kind': 'pinch_out',

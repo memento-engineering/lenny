@@ -12,18 +12,13 @@ void main() {
       final bus = TurnEventBus();
       await t.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: ThinkingPanelFromStream(events: bus.stream),
-          ),
+          home: Scaffold(body: ThinkingPanelFromStream(events: bus.stream)),
         ),
       );
 
       for (int i = 0; i < 50; i++) {
         bus.push(
-          TurnThinking(
-            1,
-            ThinkingDelta(text: 'token$i ', isFinal: false),
-          ),
+          TurnThinking(1, ThinkingDelta(text: 'token$i ', isFinal: false)),
         );
       }
       await t.pumpAndSettle();
@@ -55,10 +50,7 @@ void main() {
       // with `\n` so the content grows vertically.
       for (int i = 0; i < 400; i++) {
         bus.push(
-          TurnThinking(
-            1,
-            ThinkingDelta(text: 'line$i\n', isFinal: false),
-          ),
+          TurnThinking(1, ThinkingDelta(text: 'line$i\n', isFinal: false)),
         );
       }
       await t.pumpAndSettle();
@@ -71,11 +63,7 @@ void main() {
       // `dragFrom` with an explicit point inside the panel's bounds to
       // avoid hit-test misses on the empty area below short text.
       final scrollable = find.byType(Scrollable).first;
-      await t.drag(
-        scrollable,
-        const Offset(0, 800),
-        warnIfMissed: false,
-      );
+      await t.drag(scrollable, const Offset(0, 800), warnIfMissed: false);
       await t.pumpAndSettle();
 
       expect(find.byKey(const Key('jump-to-live')), findsOneWidget);
@@ -89,8 +77,7 @@ void main() {
     },
   );
 
-  testWidgets('renders Action and Validation lines after a turn',
-      (t) async {
+  testWidgets('renders Action and Validation lines after a turn', (t) async {
     final bus = TurnEventBus();
     await t.pumpWidget(
       MaterialApp(
@@ -102,17 +89,12 @@ void main() {
       const TurnThinking(0, ThinkingDelta(text: 'reasoning', isFinal: true)),
     );
     bus.push(
-      const TurnActionDecided(0, 'core.tap', <String, dynamic>{
-        'node_id': 3,
-      }),
+      const TurnActionDecided(0, 'core.tap', <String, dynamic>{'node_id': 3}),
     );
     bus.push(const TurnValidation(0, true, null));
     await t.pumpAndSettle();
 
-    expect(
-      find.textContaining('Action: core.tap(node_id: 3)'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Action: core.tap(node_id: 3)'), findsOneWidget);
     expect(find.textContaining('Validation: ok'), findsOneWidget);
 
     await bus.close();

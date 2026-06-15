@@ -78,17 +78,17 @@ class LoopDriver {
     int tokenBudget = _kDefaultTokenBudget,
     Clock? clock,
     void Function(TurnEvent)? onTurnEvent,
-  })  : _host = host,
-        _provider = provider,
-        _conversation = conversation,
-        _validator = validator,
-        _writer = writer,
-        _turnBudget = turnBudget,
-        _sessionBudget = sessionBudget,
-        _maxTurns = maxTurns,
-        _tokenBudget = tokenBudget,
-        _clock = clock ?? DateTime.now,
-        _onTurnEvent = onTurnEvent;
+  }) : _host = host,
+       _provider = provider,
+       _conversation = conversation,
+       _validator = validator,
+       _writer = writer,
+       _turnBudget = turnBudget,
+       _sessionBudget = sessionBudget,
+       _maxTurns = maxTurns,
+       _tokenBudget = tokenBudget,
+       _clock = clock ?? DateTime.now,
+       _onTurnEvent = onTurnEvent;
 
   final LoopHost _host;
   final ModelProvider _provider;
@@ -142,10 +142,9 @@ class LoopDriver {
   Future<TurnRecord> runTurn() async {
     final int idx = _turnIndex;
     try {
-      final TurnRecord r = await _runTurnInner(idx).timeout(
-        _turnBudget,
-        onTimeout: () => throw TurnTimeoutError(idx),
-      );
+      final TurnRecord r = await _runTurnInner(
+        idx,
+      ).timeout(_turnBudget, onTimeout: () => throw TurnTimeoutError(idx));
       _consecutiveFailedTurns = 0;
       _consecutiveTurnTimeouts = 0;
       _turnIndex++;
@@ -153,7 +152,9 @@ class LoopDriver {
     } on TurnTimeoutError catch (_) {
       await _writeFailedTurn(idx, reason: 'turn_timeout');
       _emitTurnEvent(TurnValidation(idx, false, 'turn_timeout'));
-      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
+      _emitTurnEvent(
+        TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget),
+      );
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveTurnTimeouts++;
       _turnIndex++;
@@ -164,10 +165,10 @@ class LoopDriver {
         reason: 'invalid_action_exhausted',
         rejections: e.rejections,
       );
+      _emitTurnEvent(TurnValidation(idx, false, 'invalid_action_exhausted'));
       _emitTurnEvent(
-        TurnValidation(idx, false, 'invalid_action_exhausted'),
+        TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget),
       );
-      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
@@ -179,7 +180,9 @@ class LoopDriver {
         schemaError: e.cause.validationError,
       );
       _emitTurnEvent(TurnValidation(idx, false, 'schema_exhausted'));
-      _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
+      _emitTurnEvent(
+        TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget),
+      );
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
       _turnIndex++;
@@ -233,11 +236,9 @@ class LoopDriver {
     }
 
     // After validate: emit the chosen action + validation outcome.
-    _emitTurnEvent(TurnActionDecided(
-      idx,
-      v.decision.action.tool,
-      v.decision.action.args,
-    ));
+    _emitTurnEvent(
+      TurnActionDecided(idx, v.decision.action.tool, v.decision.action.args),
+    );
     _emitTurnEvent(TurnValidation(idx, true, null));
 
     // step 8: act.
@@ -283,7 +284,8 @@ class LoopDriver {
       thinking: v.decision.thinking,
       modelMetadata: <String, dynamic>{
         if (v.decision.rationale != null) 'rationale': v.decision.rationale,
-        if (v.decision.waitStrategy != null) 'wait_strategy': v.decision.waitStrategy,
+        if (v.decision.waitStrategy != null)
+          'wait_strategy': v.decision.waitStrategy,
       },
       providerRequestId: v.decision.providerRequestId,
     );
@@ -304,7 +306,9 @@ class LoopDriver {
     _prev = curr;
 
     // step 10 (cont.): usage snapshot + turn boundary marker.
-    _emitTurnEvent(TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget));
+    _emitTurnEvent(
+      TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget),
+    );
     _emitTurnEvent(TurnComplete(idx));
     return rec;
   }
@@ -363,11 +367,13 @@ class LoopDriver {
         const String reason =
             'auto_disable: 3 consecutive observation failures';
         _host.disableExtension(ns, reason);
-        await _writer.writeExtensionDisabled(ExtensionDisabledEvent(
-          namespace: ns,
-          reason: reason,
-          turn: _turnIndex,
-        ));
+        await _writer.writeExtensionDisabled(
+          ExtensionDisabledEvent(
+            namespace: ns,
+            reason: reason,
+            turn: _turnIndex,
+          ),
+        );
       }
     }
   }
@@ -434,15 +440,17 @@ class LoopDriver {
       // already set).
       final SessionTermination t =
           termination ?? const SessionTermination(SessionOutcome.harnessError);
-      await _writer.close(SessionFooter(
-        outcome: t.outcome,
-        totalTurns: _turnIndex,
-        totalDurationMs: _sessionStart == null
-            ? 0
-            : _clock().difference(_sessionStart!).inMilliseconds,
-        harnessError: t.harnessError?.wireName,
-        terminationDetail: t.terminationDetail,
-      ));
+      await _writer.close(
+        SessionFooter(
+          outcome: t.outcome,
+          totalTurns: _turnIndex,
+          totalDurationMs: _sessionStart == null
+              ? 0
+              : _clock().difference(_sessionStart!).inMilliseconds,
+          harnessError: t.harnessError?.wireName,
+          terminationDetail: t.terminationDetail,
+        ),
+      );
     }
   }
 

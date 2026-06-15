@@ -18,15 +18,15 @@ class ObservationDiff {
   /// Used by validation-retry to append synthetic UserTurns carrying only
   /// a `toolResult` (no real observation change).
   factory ObservationDiff.empty() => const ObservationDiff(
-        core: CoreDiff(
-          routeChanges: <RouteChange>[],
-          nodesAdded: <SemanticsNode>[],
-          nodesRemoved: <int>[],
-          nodesChanged: <NodeChange>[],
-          errorsAdded: <RuntimeError>[],
-        ),
-        plugins: <String, ExtensionDiff>{},
-      );
+    core: CoreDiff(
+      routeChanges: <RouteChange>[],
+      nodesAdded: <SemanticsNode>[],
+      nodesRemoved: <int>[],
+      nodesChanged: <NodeChange>[],
+      errorsAdded: <RuntimeError>[],
+    ),
+    plugins: <String, ExtensionDiff>{},
+  );
 
   /// Diff over the core fragment.
   final CoreDiff core;
@@ -72,16 +72,12 @@ class CoreDiff {
   final List<RuntimeError> errorsAdded;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'routeChanges':
-            routeChanges.map((RouteChange r) => r.toJson()).toList(),
-        'nodesAdded':
-            nodesAdded.map((SemanticsNode n) => n.toJson()).toList(),
-        'nodesRemoved': List<int>.from(nodesRemoved),
-        'nodesChanged':
-            nodesChanged.map((NodeChange c) => c.toJson()).toList(),
-        'errorsAdded':
-            errorsAdded.map((RuntimeError e) => e.toJson()).toList(),
-      };
+    'routeChanges': routeChanges.map((RouteChange r) => r.toJson()).toList(),
+    'nodesAdded': nodesAdded.map((SemanticsNode n) => n.toJson()).toList(),
+    'nodesRemoved': List<int>.from(nodesRemoved),
+    'nodesChanged': nodesChanged.map((NodeChange c) => c.toJson()).toList(),
+    'errorsAdded': errorsAdded.map((RuntimeError e) => e.toJson()).toList(),
+  };
 }
 
 /// Sealed plugin diff; one of [ExtensionDiffStructured], [ExtensionDiffOpaque],
@@ -133,10 +129,10 @@ class ExtensionDiffOpaque extends ExtensionDiff {
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'kind': 'opaque',
-        'previous': previous,
-        'current': current,
-      };
+    'kind': 'opaque',
+    'previous': previous,
+    'current': current,
+  };
 }
 
 /// Plugin namespace appears in `curr` but not in `prev`.
@@ -147,9 +143,9 @@ class ExtensionDiffAdded extends ExtensionDiff {
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'kind': 'added',
-        'current': current,
-      };
+    'kind': 'added',
+    'current': current,
+  };
 }
 
 /// Plugin namespace appears in `prev` but not in `curr` (e.g. plugin
@@ -161,9 +157,9 @@ class ExtensionDiffRemoved extends ExtensionDiff {
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'kind': 'removed',
-        'previous': previous,
-      };
+    'kind': 'removed',
+    'previous': previous,
+  };
 }
 
 /// One route-stack change: previous full stack -> current full stack.
@@ -175,9 +171,9 @@ class RouteChange {
   final List<String> current;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'previous': List<String>.from(previous),
-        'current': List<String>.from(current),
-      };
+    'previous': List<String>.from(previous),
+    'current': List<String>.from(current),
+  };
 }
 
 /// One semantics node whose content differs between `prev` and `curr`.
@@ -189,9 +185,9 @@ class NodeChange {
   final SemanticsNode curr;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'prev': prev.toJson(),
-        'curr': curr.toJson(),
-      };
+    'prev': prev.toJson(),
+    'curr': curr.toJson(),
+  };
 }
 
 /// One key-level change inside a structured plugin diff.
@@ -203,7 +199,7 @@ class ChangedValue {
   final Object? curr;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'prev': prev,
-        'curr': curr,
-      };
+    'prev': prev,
+    'curr': curr,
+  };
 }

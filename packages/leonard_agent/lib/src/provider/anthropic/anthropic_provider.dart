@@ -17,10 +17,7 @@ import '../types.dart';
 /// Public so a host (e.g. the DevTools panel) can advertise vision
 /// support for a model id without instantiating a provider — see
 /// `provider/capabilities_lookup.dart`.
-const kAnthropicVisionModels = <String>{
-  'claude-sonnet-4-6',
-  'claude-opus-4-6',
-};
+const kAnthropicVisionModels = <String>{'claude-sonnet-4-6', 'claude-opus-4-6'};
 
 /// `ModelProvider` for Claude 4.6+ class models via Anthropic's HTTP
 /// tool-use API. Web-compatible: pure HTTP via `package:http`, no
@@ -44,10 +41,10 @@ class AnthropicModelProvider implements ModelProvider {
     Uri? endpoint,
     http.Client? client,
     void Function(Map<String, Object?> diagnostics)? onCallDiagnostics,
-  })  : endpoint =
-            endpoint ?? Uri.parse('https://api.anthropic.com/v1/messages'),
-        _client = client ?? http.Client(),
-        _onCallDiagnostics = onCallDiagnostics;
+  }) : endpoint =
+           endpoint ?? Uri.parse('https://api.anthropic.com/v1/messages'),
+       _client = client ?? http.Client(),
+       _onCallDiagnostics = onCallDiagnostics;
 
   /// Anthropic model id (e.g. `claude-sonnet-4-6`).
   final String model;
@@ -72,11 +69,11 @@ class AnthropicModelProvider implements ModelProvider {
 
   @override
   ModelCapabilities get capabilities => ModelCapabilities(
-        vision: kAnthropicVisionModels.contains(model),
-        preserveThinking: false,
-        maxContext: 200000,
-        supportsToolUse: true,
-      );
+    vision: kAnthropicVisionModels.contains(model),
+    preserveThinking: false,
+    maxContext: 200000,
+    supportsToolUse: true,
+  );
 
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
@@ -150,7 +147,10 @@ class AnthropicModelProvider implements ModelProvider {
           'input': turn.action.args,
         });
         pendingToolUseId = toolUseId;
-        messages.add(<String, dynamic>{'role': 'assistant', 'content': content});
+        messages.add(<String, dynamic>{
+          'role': 'assistant',
+          'content': content,
+        });
       }
     }
 
@@ -161,11 +161,13 @@ class AnthropicModelProvider implements ModelProvider {
       'stream': true,
       'system': snapshot.systemMessage,
       'tools': snapshot.tools
-          .map((ToolDescriptor t) => <String, dynamic>{
-                'name': encodeToolName(t.name),
-                'description': t.description,
-                'input_schema': t.inputSchema,
-              })
+          .map(
+            (ToolDescriptor t) => <String, dynamic>{
+              'name': encodeToolName(t.name),
+              'description': t.description,
+              'input_schema': t.inputSchema,
+            },
+          )
           .toList(),
       'tool_choice': const <String, dynamic>{'type': 'any'},
       'messages': messages,
@@ -202,9 +204,10 @@ class AnthropicModelProvider implements ModelProvider {
       StringBuffer? inputJsonBuf;
       final thinkingDecoder = ThinkingSseDecoder(_thinking);
       try {
-        await for (final line in streamed.stream
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())) {
+        await for (final line
+            in streamed.stream
+                .transform(utf8.decoder)
+                .transform(const LineSplitter())) {
           if (!line.startsWith('data: ')) continue;
           final payload = line.substring(6).trim();
           if (payload.isEmpty || payload == '[DONE]') continue;
@@ -212,15 +215,14 @@ class AnthropicModelProvider implements ModelProvider {
           thinkingDecoder.onEvent(evt);
           final type = evt['type'] as String?;
           if (type == 'message_start') {
-            final Map<String, dynamic>? msg =
-                (evt['message'] as Map?)?.cast<String, dynamic>();
+            final Map<String, dynamic>? msg = (evt['message'] as Map?)
+                ?.cast<String, dynamic>();
             final Object? id = msg?['id'];
             if (id is String && id.isNotEmpty) {
               providerRequestId = id;
             }
           } else if (type == 'content_block_start') {
-            final block =
-                (evt['content_block'] as Map).cast<String, dynamic>();
+            final block = (evt['content_block'] as Map).cast<String, dynamic>();
             if (block['type'] == 'tool_use') {
               toolUse = block;
               inputJsonBuf = StringBuffer();

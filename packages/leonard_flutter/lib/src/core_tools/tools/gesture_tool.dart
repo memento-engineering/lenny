@@ -5,12 +5,7 @@ import '../../contract/types.dart';
 import '../core_extension.dart';
 import '../dispatch.dart';
 
-const Set<String> _kKinds = <String>{
-  'pan',
-  'swipe',
-  'pinch_in',
-  'pinch_out',
-};
+const Set<String> _kKinds = <String>{'pan', 'swipe', 'pinch_in', 'pinch_out'};
 const Set<String> _kDirs = <String>{'up', 'down', 'left', 'right'};
 
 /// `core.gesture` — discrete-kind gesture dispatch. Schema rejects any
@@ -28,31 +23,31 @@ class GestureTool extends CoreTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
-          'kind': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['pan', 'swipe', 'pinch_in', 'pinch_out'],
-          },
-          'direction': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['up', 'down', 'left', 'right'],
-          },
-          'distance_px': <String, Object?>{
-            'type': 'number',
-            'minimum': 10,
-            'maximum': 1000,
-          },
-          'scale': <String, Object?>{
-            'type': 'number',
-            'minimum': 0.1,
-            'maximum': 5.0,
-          },
-        },
-        'required': <String>['node_id', 'kind'],
-        'additionalProperties': false,
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      'kind': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['pan', 'swipe', 'pinch_in', 'pinch_out'],
+      },
+      'direction': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['up', 'down', 'left', 'right'],
+      },
+      'distance_px': <String, Object?>{
+        'type': 'number',
+        'minimum': 10,
+        'maximum': 1000,
+      },
+      'scale': <String, Object?>{
+        'type': 'number',
+        'minimum': 0.1,
+        'maximum': 5.0,
+      },
+    },
+    'required': <String>['node_id', 'kind'],
+    'additionalProperties': false,
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
@@ -67,7 +62,8 @@ class GestureTool extends CoreTool {
     if (!_kKinds.contains(kind)) {
       return ToolResult(
         ok: false,
-        error: '${CoreToolErrorCode.schemaViolation}: kind must be one of '
+        error:
+            '${CoreToolErrorCode.schemaViolation}: kind must be one of '
             '${_kKinds.toList()}',
       );
     }
@@ -82,14 +78,14 @@ class GestureTool extends CoreTool {
       case 'swipe':
         final ToolResult? cd = requireField(args, 'direction', String);
         if (cd != null) return cd;
-        final ToolResult? cdist =
-            requireField(args, 'distance_px', num);
+        final ToolResult? cdist = requireField(args, 'distance_px', num);
         if (cdist != null) return cdist;
         dir = args['direction']! as String;
         if (!_kDirs.contains(dir)) {
           return ToolResult(
             ok: false,
-            error: '${CoreToolErrorCode.schemaViolation}: direction must '
+            error:
+                '${CoreToolErrorCode.schemaViolation}: direction must '
                 'be one of ${_kDirs.toList()}',
           );
         }
@@ -97,7 +93,8 @@ class GestureTool extends CoreTool {
         if (dist < 10 || dist > 1000) {
           return ToolResult(
             ok: false,
-            error: '${CoreToolErrorCode.schemaViolation}: distance_px '
+            error:
+                '${CoreToolErrorCode.schemaViolation}: distance_px '
                 'must be 10..1000',
           );
         }
@@ -138,8 +135,9 @@ class GestureTool extends CoreTool {
 
       case 'pinch_in':
       case 'pinch_out':
-        final double startSpan =
-            (rect.shortestSide / 4).clamp(20.0, 200.0).toDouble();
+        final double startSpan = (rect.shortestSide / 4)
+            .clamp(20.0, 200.0)
+            .toDouble();
         final double endSpan = startSpan * scale;
         await hitTestPinch(
           rect.center,

@@ -19,14 +19,17 @@ Future<LeonardSession> _noSession() async =>
     throw StateError('no session in this test');
 
 void main() {
-  testWidgets('binding missing renders prompt.bindingNotDetected',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _throwingProbe(BindingNotInitializedError()),
-        sessionFactory: _noSession,
+  testWidgets('binding missing renders prompt.bindingNotDetected', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _throwingProbe(BindingNotInitializedError()),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('prompt.bindingNotDetected')), findsOneWidget);
@@ -37,12 +40,11 @@ void main() {
     final completer = Completer<List<ExtensionManifestEntry>>();
     Future<List<ExtensionManifestEntry>> probe() => completer.future;
 
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: probe,
-        sessionFactory: _noSession,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(manifestProbe: probe, sessionFactory: _noSession),
       ),
-    ));
+    );
     // Pump once — the probe future is pending.
     await tester.pump();
 
@@ -61,13 +63,15 @@ void main() {
     }
 
     final notifier = ValueNotifier<int>(0);
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: probe,
-        sessionFactory: _noSession,
-        probeRetrigger: notifier,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: probe,
+          sessionFactory: _noSession,
+          probeRetrigger: notifier,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(calls, 1);
 
@@ -76,58 +80,71 @@ void main() {
     expect(calls, 2);
   });
 
-  testWidgets('idle screen shows idle hint before session starts',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
+  testWidgets('idle screen shows idle hint before session starts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _staticProbe(const []),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('transcript.idle')), findsOneWidget);
   });
 
-  testWidgets('shows runStatus.idle chip before session starts', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
+  testWidgets('shows runStatus.idle chip before session starts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _staticProbe(const []),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('runStatus.idle')), findsOneWidget);
   });
 
   testWidgets('no tab bar in single-screen layout', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _staticProbe(const []),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsNothing);
   });
 
   testWidgets('goal field is visible in the composer', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _staticProbe(const []),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('prompt.goal')), findsOneWidget);
   });
 
   testWidgets('no context meter before session starts', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: LeonardShell(
-        manifestProbe: _staticProbe(const []),
-        sessionFactory: _noSession,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LeonardShell(
+          manifestProbe: _staticProbe(const []),
+          sessionFactory: _noSession,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('contextMeter.text')), findsNothing);
   });

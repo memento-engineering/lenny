@@ -13,11 +13,16 @@ void main() {
 
     test('valid parse', () {
       final args = parseCliArgs(<String>[
-        '--vm-uri', 'ws://127.0.0.1/ws',
-        '--goal', 'login',
-        '--model', 'claude',
-        '--policy', 'idle',
-        '--extensions', 'router,riverpod,dio',
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'login',
+        '--model',
+        'claude',
+        '--policy',
+        'idle',
+        '--extensions',
+        'router,riverpod,dio',
       ]);
       expect(args.vmUri, Uri.parse('ws://127.0.0.1/ws'));
       expect(args.goal, 'login');
@@ -29,8 +34,10 @@ void main() {
     test('invalid --model rejected', () {
       expect(
         () => parseCliArgs(<String>[
-          '--vm-uri', 'ws://127.0.0.1/ws',
-          '--model', 'gemini',
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--model',
+          'gemini',
         ]),
         throwsA(isA<CliUsageError>()),
       );
@@ -39,8 +46,10 @@ void main() {
     test('invalid --policy rejected', () {
       expect(
         () => parseCliArgs(<String>[
-          '--vm-uri', 'ws://127.0.0.1/ws',
-          '--policy', 'wat',
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--policy',
+          'wat',
         ]),
         throwsA(isA<CliUsageError>()),
       );
@@ -50,24 +59,26 @@ void main() {
       final empty = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);
       expect(empty.extensions, isEmpty);
       final spaced = parseCliArgs(<String>[
-        '--vm-uri', 'ws://h/ws',
-        '--extensions', ' router , dio ',
+        '--vm-uri',
+        'ws://h/ws',
+        '--extensions',
+        ' router , dio ',
       ]);
       expect(spaced.extensions, <String>['router', 'dio']);
     });
 
     test('default tier is claude and policy is action-relative', () {
-      final args = parseCliArgs(<String>[
-        '--vm-uri', 'ws://127.0.0.1/ws',
-      ]);
+      final args = parseCliArgs(<String>['--vm-uri', 'ws://127.0.0.1/ws']);
       expect(args.tier, ModelTier.claude);
       expect(args.policy, StabilityPolicy.actionRelative);
     });
 
     test('--turn-budget 60 sets turnBudget to Duration(seconds: 60)', () {
       final args = parseCliArgs(<String>[
-        '--vm-uri', 'ws://h/ws',
-        '--turn-budget', '60',
+        '--vm-uri',
+        'ws://h/ws',
+        '--turn-budget',
+        '60',
       ]);
       expect(args.turnBudget, const Duration(seconds: 60));
     });
@@ -75,8 +86,10 @@ void main() {
     test('--turn-budget 0 throws CliUsageError', () {
       expect(
         () => parseCliArgs(<String>[
-          '--vm-uri', 'ws://h/ws',
-          '--turn-budget', '0',
+          '--vm-uri',
+          'ws://h/ws',
+          '--turn-budget',
+          '0',
         ]),
         throwsA(isA<CliUsageError>()),
       );

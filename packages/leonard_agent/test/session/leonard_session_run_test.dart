@@ -43,16 +43,18 @@ class _MemorySink extends TrajectorySink {
 class _StubProvider extends ModelProvider {
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
-        vision: false,
-        preserveThinking: false,
-        maxContext: 8000,
-        supportsToolUse: true,
-      );
+    vision: false,
+    preserveThinking: false,
+    maxContext: 8000,
+    supportsToolUse: true,
+  );
   @override
   Stream<ThinkingDelta> thinking() => const Stream.empty();
   @override
   Future<ModelDecision> decide(
-      ConversationSnapshot snapshot, ActionSchema schema) async {
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async {
     return ModelDecision(
       action: (
         tool: 'core.done',
@@ -73,8 +75,7 @@ class _StubHost implements LoopHost {
   Future<Map<String, dynamic>> executeAction(
     String tool,
     Map<String, dynamic> args,
-  ) async =>
-      <String, dynamic>{'ok': true};
+  ) async => <String, dynamic>{'ok': true};
   @override
   Future<void> notifyExtensions(
     String tool,
@@ -85,67 +86,72 @@ class _StubHost implements LoopHost {
   void disableExtension(String namespace, String reason) {}
   @override
   List<ToolDescriptor> mergedTools() => const <ToolDescriptor>[
-        ToolDescriptor(
-          name: 'core.done',
-          description: 'done',
-          inputSchema: <String, dynamic>{
-            'type': 'object',
-            'properties': <String, dynamic>{
-              'reason': <String, dynamic>{'type': 'string'},
-            },
-            'additionalProperties': false,
-          },
-        ),
-      ];
+    ToolDescriptor(
+      name: 'core.done',
+      description: 'done',
+      inputSchema: <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{
+          'reason': <String, dynamic>{'type': 'string'},
+        },
+        'additionalProperties': false,
+      },
+    ),
+  ];
   @override
   Set<String> activeExtensionNamespaces() => const <String>{};
 }
 
 void main() {
   test(
-      'LeonardSession.run() drives a session and returns the termination',
-      () async {
-    final client = VmServiceClient.forTest(_FakeVm(), 'iso');
-    final session = LeonardSession.forTest(client);
-    await session.start('goal', const LeonardConfig());
+    'LeonardSession.run() drives a session and returns the termination',
+    () async {
+      final client = VmServiceClient.forTest(_FakeVm(), 'iso');
+      final session = LeonardSession.forTest(client);
+      await session.start('goal', const LeonardConfig());
 
-    final sink = _MemorySink();
-    final writer = TrajectoryWriter(sink);
-    await writer.writeHeader(const SessionHeader(
-      goal: 'goal',
-      agentsMdHash: 'h',
-      buildIdentifier: 'b',
-      modelIdentifier: 'fake',
-      harnessVersion: '0.1',
-      plugins: <ExtensionManifestRecord>[],
-      config: <String, dynamic>{},
-    ));
+      final sink = _MemorySink();
+      final writer = TrajectoryWriter(sink);
+      await writer.writeHeader(
+        const SessionHeader(
+          goal: 'goal',
+          agentsMdHash: 'h',
+          buildIdentifier: 'b',
+          modelIdentifier: 'fake',
+          harnessVersion: '0.1',
+          plugins: <ExtensionManifestRecord>[],
+          config: <String, dynamic>{},
+        ),
+      );
 
-    final t = await session.run(
-      host: _StubHost(),
-      provider: _StubProvider(),
-      writer: writer,
-    );
+      final t = await session.run(
+        host: _StubHost(),
+        provider: _StubProvider(),
+        writer: writer,
+      );
 
-    expect(t.outcome, SessionOutcome.done);
-    expect(t.finalSummary, 'finished');
-    await session.end();
-  });
+      expect(t.outcome, SessionOutcome.done);
+      expect(t.finalSummary, 'finished');
+      await session.end();
+    },
+  );
 
   test('LeonardSession.run() before start() throws StateError', () async {
     final client = VmServiceClient.forTest(_FakeVm(), 'iso');
     final session = LeonardSession.forTest(client);
     final sink = _MemorySink();
     final writer = TrajectoryWriter(sink);
-    await writer.writeHeader(const SessionHeader(
-      goal: 'goal',
-      agentsMdHash: 'h',
-      buildIdentifier: 'b',
-      modelIdentifier: 'fake',
-      harnessVersion: '0.1',
-      plugins: <ExtensionManifestRecord>[],
-      config: <String, dynamic>{},
-    ));
+    await writer.writeHeader(
+      const SessionHeader(
+        goal: 'goal',
+        agentsMdHash: 'h',
+        buildIdentifier: 'b',
+        modelIdentifier: 'fake',
+        harnessVersion: '0.1',
+        plugins: <ExtensionManifestRecord>[],
+        config: <String, dynamic>{},
+      ),
+    );
     expect(
       () => session.run(
         host: _StubHost(),

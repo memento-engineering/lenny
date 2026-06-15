@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0
+## 0.1.0
 
 - Host `WidgetsBinding` (`LeonardBinding`) with a single-path perception
   observation pipeline (`PerceptionOwner`-backed serialization).
