@@ -3,16 +3,21 @@ import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 const pubspec = `dependencies:
-  leonard_flutter: ^0.1.0
-  leonard_router: ^0.1.0      # optional reference extensions
-  leonard_riverpod: ^0.1.0
-  leonard_dio: ^0.1.0`;
+  leonard_flutter:
+    git: { url: https://github.com/memento-engineering/lenny.git, path: packages/leonard_flutter }
+  # optional reference extensions
+  leonard_router:
+    git: { url: https://github.com/memento-engineering/lenny.git, path: packages/leonard_router }
+  leonard_riverpod:
+    git: { url: https://github.com/memento-engineering/lenny.git, path: packages/leonard_riverpod }
+  leonard_dio:
+    git: { url: https://github.com/memento-engineering/lenny.git, path: packages/leonard_dio }`;
 const mainDart = `import 'package:leonard_flutter/leonard_flutter.dart';
 
 class MyLeonardApp extends LeonardApp {
   @override
   LeonardAppConfig build() => LeonardAppConfig(
-    plugins: [RouterExtension(), RiverpodLeonardExtension(), LeonardDioExtension()],
+    extensions: [RouterExtension(), RiverpodLeonardExtension(), LeonardDioExtension()],
     app: MaterialApp(home: HomeScreen()),
   );
 }
@@ -55,8 +60,8 @@ const cliCmd = `dart run leonard_cli --goal "open settings and toggle dark mode"
   </Section>
   <Section id="next" title="What next">
     <ul>
-      <li><a href="https://github.com/nicholasspencer/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> for your own router / state / networking layer.</li>
-      <li>Read the <a href="https://github.com/nicholasspencer/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a>.</li>
+      <li><a href="https://github.com/memento-engineering/lenny/blob/main/docs/extension_authoring_guide.md">Write an extension</a> for your own router / state / networking layer.</li>
+      <li>Read the <a href="https://github.com/memento-engineering/lenny/blob/main/docs/leonard_prd_v0.5.md">PRD</a>.</li>
     </ul>
   </Section>
 </Layout>

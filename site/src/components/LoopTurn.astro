@@ -1,18 +1,18 @@
 ---
 // The perception-action loop as a zero-JS ordered step list. PRD §10.
 const steps = [
-  { n: 1, actor: 'Host', title: 'Stabilize', detail: "Poll the framework's scheduler signals + every plugin's busyState() until the stability policy says the frame has settled." },
+  { n: 1, actor: 'Host', title: 'Stabilize', detail: "Poll the framework's scheduler signals + every extension's busyState() until the stability policy says the frame has settled." },
   { n: 2, actor: 'Host', title: 'Capture core fragment', detail: 'Semantics tree, route stack, errors, stability metadata.' },
-  { n: 3, actor: 'Host', title: 'Capture plugin fragments', detail: 'Host calls observe() on each plugin and merges the fragments into one observation.' },
-  { n: 4, actor: 'Harness', title: 'Diff', detail: 'Structural diff against the previous observation — plugin fragments included.' },
+  { n: 3, actor: 'Host', title: 'Capture extension fragments', detail: 'Host calls observe() on each extension and merges the fragments into one observation.' },
+  { n: 4, actor: 'Harness', title: 'Diff', detail: 'Structural diff against the previous observation — extension fragments included.' },
   { n: 5, actor: 'Harness', title: 'Build the prompt', detail: 'Assemble AGENTS.md + goal + running summary + last N actions + observation + diff.', highlight: true },
   { n: 6, actor: 'Model', title: 'Decide', detail: 'Call the model with constrained output → a thinking trace + the chosen action.' },
   { n: 7, actor: 'Harness', title: 'Validate', detail: 'Is the action in the merged tool list? Do the args match the schema? Does the target node exist?' },
-  { n: 8, actor: 'Host', title: 'Act', detail: 'Execute via the right VM-service extension — host or plugin.' },
-  { n: 9, actor: 'Plugins', title: 'Notify', detail: 'Call onActionExecuted() on every plugin.' },
+  { n: 8, actor: 'Host', title: 'Act', detail: 'Execute via the right VM-service extension — host or extension.' },
+  { n: 9, actor: 'Extensions', title: 'Notify', detail: 'Call onActionExecuted() on every extension.' },
   { n: 10, actor: 'Harness', title: 'Persist', detail: 'Append the turn to the trajectory log.' },
 ];
-const cls = { Harness: 'harness', Host: 'host', Plugins: 'plugins', Model: 'model' };
+const cls = { Harness: 'harness', Host: 'host', Extensions: 'extensions', Model: 'model' };
 ---
 <ol class="loop">
   {steps.map((s) => (
@@ -72,7 +72,7 @@ const cls = { Harness: 'harness', Host: 'host', Plugins: 'plugins', Model: 'mode
   }
   .actor.harness { color: var(--tier-amber); }
   .actor.host { color: var(--accent-blue); }
-  .actor.plugins { color: var(--accent-green); }
+  .actor.extensions { color: var(--accent-green); }
   .actor.model { color: var(--muted); }
   .body { display: flex; flex-direction: column; gap: 2px; }
   .title { font-weight: 600; color: var(--ink); }
