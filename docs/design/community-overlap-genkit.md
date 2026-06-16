@@ -1,6 +1,6 @@
 # Community overlap: Google's Genkit (Dart) vs. lenny's provider layer
 
-**Date:** 2026-06-15 · **Status:** findings + recommendation (register A3, pending Nico)
+**Date:** 2026-06-15 · **Status:** findings + recommendation — direction confirmed with Nico (2026-06-15). This is **not** an autonomous register entry: the call was made together, so it does not belong in `docs/adrs/0000` (the AI-decision register). The ratified **ADR 0003** gets written once the dartantic spike (lenny-7ey2) settles the structural end-state; until then this doc + the two beads carry it.
 
 Assessment of whether lenny (and, secondarily, genesis) duplicated functionality
 already shipping in Google's `genkit.dev` Dart packages, and whether we should
