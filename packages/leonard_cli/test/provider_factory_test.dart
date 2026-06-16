@@ -27,7 +27,7 @@ void main() {
         ModelTier.qwenMlx,
         sessionId: 'sess-1',
       );
-      expect(p, isA<SwiftInferModelProvider>());
+      expect(p, isA<DartanticModelProvider>());
       expect(
         p.capabilities.vision,
         isTrue,
@@ -42,18 +42,22 @@ void main() {
     });
 
     test('qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>', () {
-      final SwiftInferModelProvider p =
+      final p =
           buildProvider(
                 ModelTier.qwenMlx,
                 sessionId: 'sess-xyz',
                 now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
               )
-              as SwiftInferModelProvider;
-      expect(p.config.conversationId, 'leonard-sess-xyz-1700000000000');
-      expect(p.config.sessionId, 'sess-xyz');
+              as DartanticModelProvider;
+      final backend = p.backend as SwiftInferBackend;
       expect(
-        p.config.captureBodies,
-        isTrue,
+        backend.headers['X-Conversation-Id'],
+        'leonard-sess-xyz-1700000000000',
+      );
+      expect(backend.headers['X-Session-Id'], 'sess-xyz');
+      expect(
+        backend.headers['X-Swift-Infer-Capture-Bodies'],
+        'true',
         reason:
             'CLI defaults captureBodies=true so /v1/conversations/<id> '
             'returns the captured turn for inspection',
@@ -63,9 +67,9 @@ void main() {
       // way (null/empty → null; non-empty → that exact value).
       final String? envToken = Platform.environment['SWIFT_INFER_AGENT_TOKEN'];
       if (envToken == null || envToken.isEmpty) {
-        expect(p.config.bearerToken, isNull);
+        expect(backend.bearerToken, isNull);
       } else {
-        expect(p.config.bearerToken, envToken);
+        expect(backend.bearerToken, envToken);
       }
     });
   });

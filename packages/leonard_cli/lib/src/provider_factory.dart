@@ -2,16 +2,16 @@
 /// per-tier defaults. The CLI is the only callsite — DevTools (.21)
 /// builds providers via its own settings UI.
 ///
-/// For the `qwen-mlx` tier, the factory mirrors `fs agent`'s wire
-/// contract (`factoryskills/internal/agent/agent.go`):
+/// Post-dartantic-cutover (ADR 0003 / lenny-4dhv.4): every tier resolves to a
+/// [DartanticModelProvider] over the corresponding [ModelBackendSpec].
+///
+/// For the `qwen-mlx` tier, the factory mirrors `fs agent`'s wire contract:
 ///   * `SWIFT_INFER_AGENT_TOKEN` env var → `Authorization: Bearer …`.
 ///   * `SWIFT_INFER_ENDPOINT` env var → base URL (defaults to
 ///     `http://localhost:8080`).
-///   * `conversationId` constructed as `leonard-<sessionId>-<unixMs>`
-///     so every turn of one run groups under one
-///     conversation in the gateway dashboard.
-///   * `captureBodies: true` so `GET /v1/conversations/<id>` returns the
-///     captured request/response pairs.
+///   * `X-Conversation-Id` = `leonard-<sessionId>-<unixMs>` so every turn of
+///     one run groups under one conversation in the gateway dashboard.
+///   * `X-Swift-Infer-Capture-Bodies: true` for `GET /v1/conversations/<id>`.
 library;
 
 import 'dart:io' show Platform;
@@ -24,9 +24,7 @@ import 'cli_args.dart';
 const String _kSwiftInferBaseUrl = 'http://localhost:8080';
 
 /// Default MLX model id served by swift-infer (PRD §16.3 — qwen3.6
-/// coder MoE, 8-bit quant). Must match an id the gateway advertises at
-/// `GET /v1/models`; a stale id makes the gateway close the stream
-/// mid-response.
+/// coder MoE, 8-bit quant).
 const String _kSwiftInferModel = 'qwen3.6-35b-a3b-8bit';
 
 /// Default Anthropic model id (Claude Sonnet 4.6).
@@ -35,6 +33,15 @@ const String _kAnthropicSonnet = 'claude-sonnet-4-6';
 /// Default OpenAI model id (GPT-5).
 const String _kOpenAiGpt5 = 'gpt-5';
 
+/// Conservative capabilities when [capabilitiesFor] doesn't know the
+/// (provider, model) pair — vision off, tool use on, generous context.
+const ModelCapabilities _defaultCaps = ModelCapabilities(
+  vision: false,
+  preserveThinking: false,
+  maxContext: 128000,
+  supportsToolUse: true,
+);
+
 /// Construct a [ModelProvider] for the chosen [tier] with PRD §16.4
 /// defaults applied. Frontier tiers require an API key in the
 /// environment; missing keys throw [StateError].
@@ -42,9 +49,10 @@ const String _kOpenAiGpt5 = 'gpt-5';
 /// [sessionId] is required so the qwen-mlx tier can mint a stable
 /// per-run `X-Conversation-Id` of the form `leonard-<sessionId>-<unixMs>`.
 /// Pass [now] in tests to make the conversationId deterministic.
-/// [onModelDiagnostics], when supplied, is forwarded to the Anthropic
-/// provider's per-call diagnostics sink (latency, HTTP status,
-/// stop_reason) so the CLI can surface API health on every model call.
+///
+/// [onModelDiagnostics] is retained for call-site compatibility but is a NO-OP
+/// after the dartantic cutover — the seam has no per-call diagnostics sink.
+/// Re-plumbing CLI API-health logging is a 4dhv follow-up.
 ModelProvider buildProvider(
   ModelTier tier, {
   required String sessionId,
@@ -56,22 +64,22 @@ ModelProvider buildProvider(
       sessionId: sessionId,
       now: now ?? DateTime.now,
     ),
-    ModelTier.claude => AnthropicModelProvider(
+    ModelTier.claude => DartanticModelProvider(
+      backend: AnthropicBackend(apiKey: _requireEnv('ANTHROPIC_API_KEY')),
       model: _kAnthropicSonnet,
-      apiKey: _requireEnv('ANTHROPIC_API_KEY'),
-      onCallDiagnostics: onModelDiagnostics,
+      capabilities:
+          capabilitiesFor('anthropic', _kAnthropicSonnet) ?? _defaultCaps,
     ),
-    ModelTier.openai => OpenAiModelProvider(
-      modelId: _kOpenAiGpt5,
-      apiKey: _requireEnv('OPENAI_API_KEY'),
+    ModelTier.openai => DartanticModelProvider(
+      backend: OpenAIBackend(apiKey: _requireEnv('OPENAI_API_KEY')),
+      model: _kOpenAiGpt5,
+      capabilities: capabilitiesFor('openai', _kOpenAiGpt5) ?? _defaultCaps,
     ),
   };
 }
 
-/// Build the qwen-mlx provider with the fs-agent-symmetric env
-/// contract. Extracted so the switch arm stays compact and the env
-/// reads are easy to test.
-SwiftInferModelProvider _buildSwiftInferProvider({
+/// Build the qwen-mlx provider with the fs-agent-symmetric env contract.
+DartanticModelProvider _buildSwiftInferProvider({
   required String sessionId,
   required DateTime Function() now,
 }) {
@@ -81,23 +89,22 @@ SwiftInferModelProvider _buildSwiftInferProvider({
       ? Uri.parse(envEndpoint)
       : Uri.parse(_kSwiftInferBaseUrl);
   final int unixMs = now().millisecondsSinceEpoch;
-  return SwiftInferModelProvider(
-    config: SwiftInferConfig(
+  return DartanticModelProvider(
+    backend: SwiftInferBackend(
       baseUrl: baseUrl,
-      model: _kSwiftInferModel,
-      // PRD §16.3: Qwen3.6-35B-A3B is image-text-to-text and the CLI
-      // defaults screenshots ON for the Leonard agent. The
-      // SwiftInferConfig default is `enableVision: false` (gated until
-      // the gateway's VLM endpoint is verified), so the CLI overrides
-      // it explicitly here.
-      enableVision: true,
       bearerToken: (envToken != null && envToken.isNotEmpty) ? envToken : null,
-      // captureBodies on by default for dev/PoC: gives us
-      // `GET /v1/conversations/<id>` introspection for free.
-      captureBodies: true,
-      conversationId: 'leonard-$sessionId-$unixMs',
-      sessionId: sessionId,
+      // PRD §16.3: Qwen3.6 is image-text-to-text and the CLI defaults
+      // screenshots ON (vision comes from capabilitiesFor('swift-infer', …)).
+      // captureBodies on by default for dev/PoC introspection.
+      headers: <String, String>{
+        'X-Conversation-Id': 'leonard-$sessionId-$unixMs',
+        'X-Session-Id': sessionId,
+        'X-Swift-Infer-Capture-Bodies': 'true',
+      },
     ),
+    model: _kSwiftInferModel,
+    capabilities:
+        capabilitiesFor('swift-infer', _kSwiftInferModel) ?? _defaultCaps,
   );
 }
 
