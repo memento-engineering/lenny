@@ -222,6 +222,7 @@ class SemanticsNode {
     required this.state,
     required this.actions,
     required this.rect,
+    this.scroll,
   });
 
   /// Decode a record. Returns `null` if `id` or `rect` is malformed; this
@@ -240,6 +241,15 @@ class SemanticsNode {
     final Object? rawLabel = j['label'];
     final Object? rawState = j['state'];
     final Object? rawActions = j['actions'];
+    final Object? rawScroll = j['scroll'];
+    Map<String, int>? scroll;
+    if (rawScroll is Map) {
+      final Map<String, int> m = <String, int>{};
+      rawScroll.forEach((Object? k, Object? v) {
+        if (k is String && v is num) m[k] = v.toInt();
+      });
+      if (m.isNotEmpty) scroll = Map<String, int>.unmodifiable(m);
+    }
     return SemanticsNode(
       id: rawId,
       role: rawRole is String ? rawRole : '',
@@ -251,6 +261,7 @@ class SemanticsNode {
           ? List<String>.unmodifiable(rawActions.whereType<String>())
           : const <String>[],
       rect: List<int>.unmodifiable(rect),
+      scroll: scroll,
     );
   }
 
@@ -263,6 +274,11 @@ class SemanticsNode {
   /// Bounding rect as `[left, top, right, bottom]`.
   final List<int> rect;
 
+  /// Scroll extent for scrollable nodes: `{pos, min?, max?}` in logical
+  /// pixels. Null for non-scrollable nodes. Surfaced so the model can scroll
+  /// deliberately (it can move `max - pos` further; `pos == max` is the end).
+  final Map<String, int>? scroll;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'role': role,
@@ -270,6 +286,8 @@ class SemanticsNode {
     if (state.isNotEmpty) 'state': List<String>.from(state),
     if (actions.isNotEmpty) 'actions': List<String>.from(actions),
     'rect': List<int>.from(rect),
+    if (scroll != null && scroll!.isNotEmpty)
+      'scroll': Map<String, int>.from(scroll!),
   };
 
   @override
@@ -280,7 +298,8 @@ class SemanticsNode {
       label == other.label &&
       _listEq(state, other.state) &&
       _listEq(actions, other.actions) &&
-      _listEq(rect, other.rect);
+      _listEq(rect, other.rect) &&
+      _scrollEq(scroll, other.scroll);
 
   @override
   int get hashCode => Object.hash(
@@ -290,7 +309,24 @@ class SemanticsNode {
     Object.hashAll(state),
     Object.hashAll(actions),
     Object.hashAll(rect),
+    scroll == null
+        ? null
+        : Object.hashAllUnordered(
+            scroll!.entries.map(
+              (MapEntry<String, int> e) => '${e.key}=${e.value}',
+            ),
+          ),
   );
+}
+
+/// Order-insensitive equality for the optional `scroll` map.
+bool _scrollEq(Map<String, int>? a, Map<String, int>? b) {
+  if (a == null || b == null) return a == b;
+  if (a.length != b.length) return false;
+  for (final MapEntry<String, int> e in a.entries) {
+    if (b[e.key] != e.value) return false;
+  }
+  return true;
 }
 
 /// One runtime error captured in the binding's error ring buffer.
