@@ -6,3 +6,4 @@ environment:
 dependencies:
   dartantic_ai: any
   http: any
+  json_schema_builder: any

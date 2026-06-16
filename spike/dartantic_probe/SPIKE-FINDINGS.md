@@ -1,9 +1,14 @@
 # Spike go/no-go — dartantic_ai behind lenny's `ModelProvider` (lenny-7ey2)
 
-**Verdict: GO on the API surface.** `dartantic_ai` 3.4.1 / `dartantic_interface`
-4.0.0 satisfies all three non-negotiables on the swift-infer / Anthropic-wire
-path. One **live smoke test remains** (creds-gated), and two caveats need a
-decision in **lenny-4dhv**.
+**Verdict: GO on the API surface — QUALIFIED by the live test.** `dartantic_ai`
+3.4.1 / `dartantic_interface` 4.0.0 has the full surface for all three
+non-negotiables. The **live run against swift-infer (2026-06-16, see LIVE RESULTS
+below)** confirms endpoint/auth/headers/**tool-calls**/structured-output/retry
+all work — but **live thinking from swift-infer does NOT work through stock
+dartantic on either wire**, blocked by one narrow, fixable wire mismatch. Net:
+**adopt dartantic; keep swift-infer as a custom `ChatModel` on dartantic's
+interface** (or land a one-line swift-infer fix). Details + decision in
+**lenny-4dhv**.
 
 ## Method
 
@@ -81,6 +86,59 @@ Confirm against a real endpoint with `SWIFT_INFER_ENDPOINT` +
 **GO → lenny-4dhv:** adopt dartantic behind the (collapsed) Anthropic-wire
 provider, keep the loop's contracts, bind swift-infer at the ChatModel level, and
 resolve caveat B with a live qwen A/B. Write the ratified **ADR 0003** there.
+
+## LIVE RESULTS (2026-06-16, swift-infer qwen3.6-35b-a3b-8bit @ localhost:8080)
+
+Ran `bin/live_probe.dart` (Anthropic wire) and `bin/openai_probe.dart` (OpenAI
+wire) against the real local swift-infer. What actually happened:
+
+| Check | Anthropic wire (`AnthropicChatModel`) | OpenAI wire (`OpenAIProvider`) |
+|---|---|---|
+| endpoint + auth (`Authorization: Bearer` via `headers:`) | ✅ (note: dartantic **concatenates** baseUrl+`/v1/messages`, so pass the **bare origin** `http://localhost:8080`, not `…/v1`) | ✅ (`baseUrl: …/v1`) |
+| **tool-call accumulation (#2)** | — (crashed before completion) | ✅ **PASS** — `report_status({ok: True, note: "Health check passed."})` in 3.3s; `ToolPart` w/ `toolName`+`arguments` |
+| structured output / `sendStream(outputSchema:)` | ✅ surface | ✅ surface |
+| driver-owned retry (#3) | ✅ supplied `client` used directly (no `RetryHttpClient`) | ⚠️ force-wrapped `RetryHttpClient(maxRetries:3)` (transport-only) |
+| **live thinking (#1)** | ❌ **swift-infer streams thinking, but dartantic crashes** | ❌ **not supported by design** |
+
+### The one real blocker — live thinking from swift-infer
+
+- **swift-infer DOES emit thinking.** Raw SSE shows
+  `{"type":"thinking","thinking":"…"}` content blocks. The model reasons; the
+  data is on the wire.
+- **Anthropic path crash:** `anthropic_sdk_dart` 1.5.0
+  `ThinkingBlock.fromJson` does `signature: json['signature'] as String`
+  (**required, non-null**). swift-infer/qwen does not emit Anthropic's
+  cryptographic thinking `signature`, so **every turn throws**
+  `Null is not a subtype of String` ~0.6s into the stream. qwen3.6 emits a
+  thinking block **unconditionally** (reasoning-native), so `enableThinking:
+  false` does **not** avoid it.
+- **OpenAI path:** dartantic explicitly refuses thinking for OpenAI Chat
+  Completions ("Only OpenAI Responses, Anthropic, and Google support thinking").
+  qwen's `reasoning_content` is **not surfaced** to `ChatResult.thinking`.
+- **Frontier note:** this is **swift-infer-specific**. Real api.anthropic.com
+  sends a `signature`, so the stock dartantic Anthropic path is expected to work
+  for real Claude.
+
+### Resolution paths (for lenny-4dhv / ADR 0003)
+
+1. **One-line swift-infer fix** — emit `"signature": ""` on thinking blocks →
+   unblocks the stock dartantic Anthropic path; thinking streams. Cheapest;
+   swift-infer is ours. Good for *immediate* end-to-end validation.
+2. **Custom swift-infer `ChatModel`** on dartantic's interface (genai_primitives
+   `ChatResult`/`ThinkingPart`/`ToolPart` + `ChatModel.sendStream` + `Agent`
+   orchestration), parsing swift-infer's actual wire. Sidesteps
+   `anthropic_sdk_dart` strictness **and** fixes the Qwen sampling gap (caveat B:
+   `presence_penalty`/`repetition_penalty`). **Recommended** — the robust shape:
+   adopt dartantic's interface/types/orchestration + frontier providers;
+   custom-implement only the swift-infer backend.
+
+### Ecosystem signal
+
+dartantic is built on **`genai_primitives`** (`ChatMessage`/`TextPart`/
+`ToolPart`/`ThinkingPart`) + **`json_schema_builder`** (`Schema`/`S`) — the exact
+labs.flutter.dev packages genesis A26 said to "adopt, don't invent." dartantic,
+genui, and genkit are converging on the same primitives. Adopting dartantic's
+interface also adopts those primitives — closing the A26 item-4 gap.
 
 ## Reproduce
 
