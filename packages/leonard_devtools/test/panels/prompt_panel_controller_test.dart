@@ -358,10 +358,14 @@ void main() {
         providerCfg: cfg,
       );
 
-      final provider = c.activeProvider as SwiftInferModelProvider;
-      expect(provider.config.bearerToken, 'tok');
-      expect(provider.config.captureBodies, isTrue);
-      expect(provider.config.conversationId, startsWith('leonard-panel-'));
+      final provider = c.activeProvider as DartanticModelProvider;
+      final backend = provider.backend as SwiftInferBackend;
+      expect(backend.bearerToken, 'tok');
+      expect(backend.headers['X-Swift-Infer-Capture-Bodies'], 'true');
+      expect(
+        backend.headers['X-Conversation-Id'],
+        startsWith('leonard-panel-'),
+      );
       expect(provider.capabilities.vision, isTrue);
       expect(provider.capabilities.preserveThinking, isTrue);
 

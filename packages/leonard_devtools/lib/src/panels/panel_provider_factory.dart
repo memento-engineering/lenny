@@ -5,26 +5,29 @@
 /// `ModelProvider Function(ProviderConfig, String, String)` test seam
 /// without dragging in the agent provider package at the controller's
 /// API boundary.
+///
+/// Post-dartantic-cutover (ADR 0003 / lenny-4dhv.4): every variant maps to a
+/// [DartanticModelProvider] over the matching [ModelBackendSpec]:
+///   - [SwiftInferUiConfig] → [SwiftInferBackend] (per-session X- headers +
+///     bearer; `X-Conversation-Id` = `'leonard-<sessionId>-<unixms>'`).
+///   - [AnthropicUiConfig]  → [AnthropicBackend] (baseUrl = bare origin).
+///   - [OpenAiUiConfig]     → [OpenAIBackend] (baseUrl = bare origin).
 library;
 
 import 'package:leonard_agent/leonard_agent.dart';
 
 import 'provider_config.dart';
 
+/// Conservative capabilities when [capabilitiesFor] doesn't know the
+/// (provider, model) pair — vision off, tool use on, generous context.
+const ModelCapabilities _defaultCaps = ModelCapabilities(
+  vision: false,
+  preserveThinking: false,
+  maxContext: 128000,
+  supportsToolUse: true,
+);
+
 /// Build a [ModelProvider] for [cfg] + [modelId], scoped to [sessionId].
-///
-/// Each variant maps to its concrete provider:
-///
-///   - [SwiftInferUiConfig] → [SwiftInferModelProvider] with a
-///     [SwiftInferConfig] carrying the bearer token, capture-bodies
-///     flag, extra headers, computed `conversationId`
-///     (`'leonard-<sessionId>-<unixms>'`), `sessionId`, and
-///     `enableVision` derived from [capabilitiesFor].
-///   - [AnthropicUiConfig] → [AnthropicModelProvider].
-///   - [OpenAiUiConfig]    → [OpenAiModelProvider].
-///
-/// Unknown-capability models default to `enableVision: false` and
-/// `preserveThinking: false`.
 ModelProvider buildPanelProvider(
   ProviderConfig cfg,
   String modelId,
@@ -33,33 +36,41 @@ ModelProvider buildPanelProvider(
 }) {
   switch (cfg) {
     case SwiftInferUiConfig():
-      final caps = capabilitiesFor('swift-infer', modelId);
       final conversationId =
           'leonard-$sessionId-${now().millisecondsSinceEpoch}';
-      return SwiftInferModelProvider(
-        config: SwiftInferConfig(
+      return DartanticModelProvider(
+        backend: SwiftInferBackend(
           baseUrl: cfg.endpoint,
-          model: modelId,
-          bearerToken: cfg.bearerToken,
-          captureBodies: cfg.captureBodies,
-          conversationId: conversationId,
-          sessionId: sessionId,
-          extraHeaders: cfg.extraHeaders,
-          enableVision: caps?.vision ?? false,
-          preserveThinking: caps?.preserveThinking ?? false,
+          bearerToken: cfg.bearerToken.isNotEmpty ? cfg.bearerToken : null,
+          headers: <String, String>{
+            ...cfg.extraHeaders,
+            'X-Conversation-Id': conversationId,
+            'X-Session-Id': sessionId,
+            if (cfg.captureBodies) 'X-Swift-Infer-Capture-Bodies': 'true',
+          },
         ),
+        model: modelId,
+        capabilities: capabilitiesFor('swift-infer', modelId) ?? _defaultCaps,
       );
     case AnthropicUiConfig():
-      return AnthropicModelProvider(
+      // baseUrl is a BARE origin — the dartantic Anthropic model appends
+      // /v1/messages itself (do NOT pass the /v1/messages suffix).
+      return DartanticModelProvider(
+        backend: AnthropicBackend(
+          apiKey: cfg.apiKey,
+          baseUrl: cfg.baseUrlOverride,
+        ),
         model: modelId,
-        apiKey: cfg.apiKey,
-        endpoint: cfg.baseUrlOverride?.resolve('/v1/messages'),
+        capabilities: capabilitiesFor('anthropic', modelId) ?? _defaultCaps,
       );
     case OpenAiUiConfig():
-      return OpenAiModelProvider(
-        modelId: modelId,
-        apiKey: cfg.apiKey,
-        endpoint: cfg.baseUrlOverride?.resolve('/v1/chat/completions'),
+      return DartanticModelProvider(
+        backend: OpenAIBackend(
+          apiKey: cfg.apiKey,
+          baseUrl: cfg.baseUrlOverride,
+        ),
+        model: modelId,
+        capabilities: capabilitiesFor('openai', modelId) ?? _defaultCaps,
       );
   }
 }
