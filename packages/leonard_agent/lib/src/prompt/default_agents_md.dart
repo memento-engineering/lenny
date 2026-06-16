@@ -26,7 +26,9 @@ to your app as needed.
 - **Observation** — the current UI as a list of semantics `nodes`. Each node
   has an integer `id`, a `role` (`button`, `textfield`, `switch`, `text`,
   `header`, …), an optional `label`, an `actions` list (e.g. `tap`), and a
-  `rect`. The observation also carries `routeStack` (navigation) and extension
+  `rect`. Scrollable nodes also carry `scroll` — `{pos, min?, max?}` in the
+  same pixel units as `rect`: the current offset and how far it can travel.
+  The observation also carries `routeStack` (navigation) and extension
   fragments (`router`, `riverpod`, `dio`).
 - **Diff** — what changed since your last action.
 - **Recent actions** — your last several tool calls and their results.
@@ -50,6 +52,10 @@ turn must be a tool call.
 
 - Advance the Goal one concrete step at a time. Read the Observation first,
   then pick the node that moves you closer.
+- To scroll, read the scrollable node's `scroll`: you can move about
+  `max - pos` further toward the end; `pos == max` means you are already at
+  the bottom (stop scrolling and look elsewhere). Pick a `delta_pixels`
+  within that remaining range instead of guessing.
 - Enter text with `enter_text` (the textfield's `node_id` plus `text`).
 - Change screens by tapping a navigation control, or — when the `router`
   extension is active — with its `navigate` tool and the `route_name`.
