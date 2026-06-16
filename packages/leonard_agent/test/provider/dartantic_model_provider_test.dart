@@ -209,5 +209,63 @@ void main() {
       );
       p.dispose();
     });
+
+    test(
+      'rejects a namespace-dropped tool name (router.navigate -> navigate)',
+      () async {
+        // Regression for swift-infer trace msg_333DE0C006B: qwen3.6 emits the
+        // bare `navigate` instead of the wire-encoded `router_navigate`. The
+        // seam decodes via lookupTool, finds no match, and rejects with the
+        // exact message the loop driver/observers key on. (Re-instated offline
+        // after provider_loop_integration_test was deleted in the cutover.)
+        final navTool = ToolDescriptor(
+          name: 'router.navigate',
+          description: 'navigate to a route',
+          inputSchema: const {
+            'type': 'object',
+            'properties': <String, dynamic>{},
+            'additionalProperties': false,
+          },
+        );
+        final p = _provider([
+          {
+            'type': 'content_block_start',
+            'index': 1,
+            'content_block': {
+              'type': 'tool_use',
+              'id': 'tu1',
+              'name': 'navigate', // namespace prefix dropped by the model
+              'input': <String, dynamic>{},
+            },
+          },
+          {'type': 'content_block_stop', 'index': 1},
+          {
+            'type': 'message_delta',
+            'delta': {'stop_reason': 'tool_use'},
+          },
+        ]);
+        final snapshot = ConversationSnapshot(
+          systemMessage: 'sys',
+          turns: [
+            UserTurn(
+              observation: Observation.empty(),
+              diff: ObservationDiff.empty(),
+            ),
+          ],
+          tools: [navTool],
+        );
+        await expectLater(
+          p.decide(snapshot, ActionSchema.fromToolList([navTool])),
+          throwsA(
+            isA<SchemaRejection>().having(
+              (e) => e.validationError,
+              'validationError',
+              startsWith('model emitted unknown tool: navigate'),
+            ),
+          ),
+        );
+        p.dispose();
+      },
+    );
   });
 }

@@ -54,20 +54,26 @@ ModelProvider buildPanelProvider(
       );
     case AnthropicUiConfig():
       // baseUrl is a BARE origin — the dartantic Anthropic model appends
-      // /v1/messages itself (do NOT pass the /v1/messages suffix).
+      // /v1/messages itself (do NOT pass the /v1/messages suffix). DevTools is
+      // a web build, so the chat POST needs the browser-access header for CORS
+      // (the old provider attached it; dartantic does not by default).
       return DartanticModelProvider(
         backend: AnthropicBackend(
           apiKey: cfg.apiKey,
           baseUrl: cfg.baseUrlOverride,
+          headers: const {'anthropic-dangerous-direct-browser-access': 'true'},
         ),
         model: modelId,
         capabilities: capabilitiesFor('anthropic', modelId) ?? _defaultCaps,
       );
     case OpenAiUiConfig():
+      // dartantic's OpenAI client appends only `/chat/completions` to the base,
+      // so the base must already include `/v1`. Resolve the override to its
+      // `/v1` root (a bare-origin override otherwise loses the /v1 segment).
       return DartanticModelProvider(
         backend: OpenAIBackend(
           apiKey: cfg.apiKey,
-          baseUrl: cfg.baseUrlOverride,
+          baseUrl: cfg.baseUrlOverride?.resolve('/v1'),
         ),
         model: modelId,
         capabilities: capabilitiesFor('openai', modelId) ?? _defaultCaps,

@@ -142,9 +142,25 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         tools: tools,
         client: client,
         enableThinking: a.enableThinking,
-        defaultOptions: a.options,
+        // Default to lenny's per-turn contract: FORCE a tool call every turn
+        // (tool_choice:any) and the tuned frontier temperature (0.2). The
+        // old hand-rolled provider did both; without forcing, Claude may emit
+        // a prose turn and trip a spurious SchemaRejection. An explicit
+        // [a.options] overrides these defaults.
+        defaultOptions:
+            a.options ??
+            const AnthropicChatOptions(
+              toolChoice: AnthropicToolChoice.any(),
+              temperature: 0.2,
+            ),
       );
     case OpenAIBackend o:
+      // NOTE: dartantic 3.4.1's OpenAI mapper hard-codes tool_choice:null, so
+      // the OpenAI tier CANNOT force a tool call the way the old provider did
+      // (tool_choice:'required'). The model usually calls a tool given tools +
+      // a directive prompt; the driver's SchemaRejection retry covers a miss.
+      // Tracked as a dartantic-upstream follow-up. Temperature defaults to the
+      // tuned frontier 0.2 (was silently 1.0 after the cutover).
       return OpenAIProvider(
         apiKey: o.apiKey,
         baseUrl: o.baseUrl,
@@ -153,7 +169,7 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         name: model,
         tools: tools,
         enableThinking: o.enableThinking,
-        temperature: o.temperature,
+        temperature: o.temperature ?? 0.2,
         options: o.options,
       );
   }
