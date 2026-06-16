@@ -22,7 +22,6 @@ import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
 import 'leonard_app.dart';
-import 'perception_serializer.dart';
 
 /// Reserved prefix. Format:
 /// `ext.exploration.<core_or_extension_namespace>.<suffix>`.

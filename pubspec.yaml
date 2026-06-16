@@ -12,6 +12,22 @@ workspace:
   - packages/leonard_router
   - packages/leonard_riverpod
   - packages/leonard_dio
+  - packages/leonard_tmux
+
+# TEMPORARY: genesis_perception 0.1.2 and genesis_tmux 0.1.0 are not yet on
+# pub.dev. Resolve them from the public genesis repo until they publish, then
+# delete this block and use the hosted constraints.
+dependency_overrides:
+  genesis_perception:
+    git:
+      url: https://github.com/memento-engineering/genesis.git
+      path: packages/perception
+      ref: main
+  genesis_tmux:
+    git:
+      url: https://github.com/memento-engineering/genesis.git
+      path: packages/tmux
+      ref: main
 
 dev_dependencies:
   melos: ^7.7.0

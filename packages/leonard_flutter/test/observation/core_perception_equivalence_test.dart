@@ -9,7 +9,6 @@ import 'package:leonard_flutter/src/observation/stability_metadata.dart';
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:leonard_flutter/src/errors/error_ring_buffer.dart';
 import 'package:leonard_flutter/test_support/observation_equivalence.dart';
-import 'package:leonard_flutter/test_support/perception_serializer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
