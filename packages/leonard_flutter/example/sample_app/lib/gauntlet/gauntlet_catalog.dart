@@ -55,7 +55,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A confirmation code appears only after a network call. Look '
         'early and the screen is empty.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'settle/optimistic-revert',
@@ -64,7 +64,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A like fills instantly, then the server reverts it. Report the '
         'settled state, not the flash.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'settle/debounced-search',
@@ -73,14 +73,14 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'Type → debounce → fetch → results. Three pending stages to wait '
         'through.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'settle/staggered-list',
     lane: laneSettle,
     title: 'Staggered list entrance',
     trap: 'Twenty items animate in over a second. Count after they land.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'settle/transient-toast',
@@ -89,7 +89,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A message shows briefly then auto-dismisses. Catch it in its '
         'window.',
-    built: false,
+    built: true,
   ),
 
   // ── Lane B ──────────────────────────────────────────────────────────

@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'gauntlet/gauntlet_index_screen.dart';
+import 'gauntlet/scenarios/async_reveal_screen.dart';
+import 'gauntlet/scenarios/debounced_search_screen.dart';
 import 'gauntlet/scenarios/decorative_motion_screen.dart';
+import 'gauntlet/scenarios/optimistic_revert_screen.dart';
+import 'gauntlet/scenarios/staggered_list_screen.dart';
+import 'gauntlet/scenarios/transient_toast_screen.dart';
 import 'screens/change_profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/items_list_screen.dart';
@@ -76,6 +81,31 @@ GoRouter buildRouter(ProviderContainer container) {
         path: '/g/settle/decorative-motion',
         name: 'g-decorative-motion',
         builder: (_, __) => const DecorativeMotionScreen(),
+      ),
+      GoRoute(
+        path: '/g/settle/async-reveal',
+        name: 'g-async-reveal',
+        builder: (_, __) => const AsyncRevealScreen(),
+      ),
+      GoRoute(
+        path: '/g/settle/optimistic-revert',
+        name: 'g-optimistic-revert',
+        builder: (_, __) => const OptimisticRevertScreen(),
+      ),
+      GoRoute(
+        path: '/g/settle/debounced-search',
+        name: 'g-debounced-search',
+        builder: (_, __) => const DebouncedSearchScreen(),
+      ),
+      GoRoute(
+        path: '/g/settle/staggered-list',
+        name: 'g-staggered-list',
+        builder: (_, __) => const StaggeredListScreen(),
+      ),
+      GoRoute(
+        path: '/g/settle/transient-toast',
+        name: 'g-transient-toast',
+        builder: (_, __) => const TransientToastScreen(),
       ),
     ],
   );
