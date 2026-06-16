@@ -2,8 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'gauntlet/gauntlet_index_screen.dart';
-import 'gauntlet/scenarios/decorative_motion_screen.dart';
 import 'screens/change_profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/items_list_screen.dart';
@@ -65,17 +63,6 @@ GoRouter buildRouter(ProviderContainer container) {
         path: '/terms',
         name: 'terms',
         builder: (_, __) => const TermsScreen(),
-      ),
-      // ── Gauntlet: real-world pitfall fixtures (lenny-7s4t) ───────────
-      GoRoute(
-        path: '/gauntlet',
-        name: 'gauntlet',
-        builder: (_, __) => const GauntletIndexScreen(),
-      ),
-      GoRoute(
-        path: '/g/settle/decorative-motion',
-        name: 'g-decorative-motion',
-        builder: (_, __) => const DecorativeMotionScreen(),
       ),
     ],
   );

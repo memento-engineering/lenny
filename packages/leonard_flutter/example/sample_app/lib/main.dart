@@ -5,7 +5,6 @@ import 'package:leonard_router/leonard_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'gauntlet/scenario_oracle.dart';
 import 'router.dart';
 import 'services/api.dart';
 import 'state/settings_provider.dart';
@@ -15,10 +14,6 @@ void main() => LeonardBinding.run(SampleApp());
 class SampleApp implements LeonardApp {
   @override
   LeonardAppConfig build(LeonardAppContext ctx) {
-    // Gauntlet oracle back-channel (ext.gauntlet.oracle). Debug-only and
-    // outside leonard's namespace, so the driving agent never sees it.
-    registerGauntletOracleExtension();
-
     // Riverpod observer must be installed on the SAME container the
     // RiverpodLeonardExtension sees and the SAME container the widget
     // tree consumes.
