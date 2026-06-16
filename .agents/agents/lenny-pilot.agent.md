@@ -74,7 +74,9 @@ actionable nodes:
   - `core.enter_text` `{node_id, text}` (textfields)
   - `core.scroll` `{node_id, axis:"vertical"|"horizontal", delta_pixels}`
     (positive scrolls toward the start / up-left; negative toward the
-    end / down-right)
+    end / down-right). Read the node's `scroll` `{pos, min?, max?}` (same px
+    units as `rect`): you can move ~`max - pos` further toward the end, and
+    `pos == max` means you're already at the bottom — don't keep scrolling.
   - `core.scroll_until_visible` `{scrollable_id, target_id, axis}`
   - `core.gesture` `{node_id, kind:"pan"|"swipe"|"pinch_in"|"pinch_out", direction?, distance_px?, scale?}`
   - `core.inspect_widget` `{node_id, depth?}` · `core.wait` `{seconds}` (0–5)

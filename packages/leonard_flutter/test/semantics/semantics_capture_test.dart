@@ -46,7 +46,15 @@ void main() {
     expect(
       btn.keys.toSet(),
       everyElement(
-        isIn(<String>{'id', 'role', 'label', 'state', 'actions', 'rect'}),
+        isIn(<String>{
+          'id',
+          'role',
+          'label',
+          'state',
+          'actions',
+          'rect',
+          'scroll',
+        }),
       ),
     );
     expect(btn.containsKey('id'), isTrue);
@@ -68,6 +76,70 @@ void main() {
     expect(env['count'], recs.length);
     expect(env['semantics'], isA<List<Object?>>());
     capture.dispose();
+    h.dispose();
+  });
+
+  testWidgets('scrollable node exposes scroll extent {pos,max}', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    final ScrollController controller = ScrollController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView.builder(
+            controller: controller,
+            itemCount: 50,
+            itemExtent: 100,
+            itemBuilder: (BuildContext _, int i) => Text('Item $i'),
+          ),
+        ),
+      ),
+    );
+    controller.jumpTo(300);
+    await tester.pumpAndSettle();
+
+    final SemanticsCapture cap = SemanticsCapture();
+    final List<Map<String, Object>> recs = cap.capture();
+    final Iterable<Map<String, Object>> scrollables = recs.where(
+      (Map<String, Object> r) => r.containsKey('scroll'),
+    );
+    expect(
+      scrollables,
+      isNotEmpty,
+      reason: 'a scrollable node should report scroll extent',
+    );
+    final Map<String, Object> s =
+        scrollables.first['scroll']! as Map<String, Object>;
+    final double dpr = tester.view.devicePixelRatio;
+    // pos is physical px (logical 300 * dpr), matching the rect's units.
+    expect(s['pos'], (300 * dpr).round());
+    expect(s['max'], isA<int>());
+    expect(
+      s['max'] as int,
+      greaterThan(s['pos'] as int),
+      reason: 'more content remains below the current offset',
+    );
+
+    cap.dispose();
+    h.dispose();
+  });
+
+  testWidgets('non-scrollable node omits scroll', (WidgetTester tester) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ElevatedButton(onPressed: () {}, child: const Text('Tap')),
+        ),
+      ),
+    );
+    final SemanticsCapture cap = SemanticsCapture();
+    final Map<String, Object> btn = cap.capture().firstWhere(
+      (Map<String, Object> r) => r['role'] == 'button',
+    );
+    expect(btn.containsKey('scroll'), isFalse);
+    cap.dispose();
     h.dispose();
   });
 

@@ -69,7 +69,7 @@ class SemanticsCapture {
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport);
+    _walk(root, recs, viewport, v.devicePixelRatio);
     _filterObscured(recs);
     return recs
         .where((_Rec r) => !r.dropped)
@@ -93,7 +93,7 @@ class SemanticsCapture {
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport);
+    _walk(root, recs, viewport, v.devicePixelRatio);
     _filterObscured(recs);
     return recs
         .where((_Rec r) => !r.dropped)
@@ -173,7 +173,15 @@ class SemanticsCapture {
 /// Internal record that pairs an emitted JSON map with a `dropped` flag so
 /// the obscured filter can suppress entries without rebuilding the list.
 class _Rec {
-  _Rec(this.id, this.role, this.label, this.state, this.actions, this.rect);
+  _Rec(
+    this.id,
+    this.role,
+    this.label,
+    this.state,
+    this.actions,
+    this.rect, [
+    this.scroll,
+  ]);
 
   final int id;
   final String role;
@@ -181,6 +189,12 @@ class _Rec {
   final List<String> state;
   final List<String> actions;
   final Rect rect;
+
+  /// Scroll extent for scrollable nodes: `{pos, min?, max?}` in logical
+  /// pixels (`min` omitted when 0, `max` omitted when unbounded/infinite).
+  /// Null for non-scrollable nodes. Lets the agent see how far a list can
+  /// scroll and whether it is already at the end, instead of guessing.
+  final Map<String, Object>? scroll;
   bool dropped = false;
 
   Map<String, Object> toJson() {
@@ -197,6 +211,7 @@ class _Rec {
     if (label.isNotEmpty) m['label'] = label;
     if (state.isNotEmpty) m['state'] = state;
     if (actions.isNotEmpty) m['actions'] = actions;
+    if (scroll != null) m['scroll'] = scroll!;
     return m;
   }
 }
@@ -205,7 +220,8 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
   void _walk(
     SemanticsNode n,
     List<_Rec> out,
-    Rect viewport, [
+    Rect viewport,
+    double dpr, [
     Matrix4? parentTransform,
   ]) {
     final SemanticsData d = n.getSemanticsData();
@@ -223,10 +239,18 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     final Rect r = MatrixUtils.transformRect(global, n.rect);
     if (!r.overlaps(viewport)) return;
     out.add(
-      _Rec(_stableIdFor(n), _role(d), d.label, _state(d), _actions(d), r),
+      _Rec(
+        _stableIdFor(n),
+        _role(d),
+        d.label,
+        _state(d),
+        _actions(d),
+        r,
+        _scroll(d, dpr),
+      ),
     );
     n.visitChildren((SemanticsNode c) {
-      _walk(c, out, viewport, global);
+      _walk(c, out, viewport, dpr, global);
       return true;
     });
   }
@@ -292,5 +316,26 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
       if ((d.actions & k.index) != 0) out.add(v);
     });
     return out;
+  }
+
+  /// Scroll extent for a scrollable node, or null when the node does not
+  /// scroll. Flutter populates `scrollPosition`/`scrollExtentMin/Max` only
+  /// on scrollable nodes, so a null `scrollPosition` is the gate.
+  ///
+  /// Shape: `{pos, min?, max?}` in **physical** pixels (scaled by [dpr] to
+  /// match the node `rect`, which is physical) — `min` omitted when 0 (the
+  /// common case), `max` omitted when infinite (lazy/unbounded lists, where
+  /// the end isn't known ahead of time). With this the agent can tell it can
+  /// scroll `max - pos` further, or that `pos == max` means it's at the
+  /// bottom — instead of blindly guessing `delta_pixels`.
+  Map<String, Object>? _scroll(SemanticsData d, double dpr) {
+    final double? pos = d.scrollPosition;
+    if (pos == null || !pos.isFinite) return null;
+    final Map<String, Object> s = <String, Object>{'pos': (pos * dpr).round()};
+    final double? min = d.scrollExtentMin;
+    if (min != null && min.isFinite && min != 0) s['min'] = (min * dpr).round();
+    final double? max = d.scrollExtentMax;
+    if (max != null && max.isFinite) s['max'] = (max * dpr).round();
+    return s;
   }
 }

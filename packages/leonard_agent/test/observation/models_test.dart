@@ -20,6 +20,54 @@ void main() {
     });
   });
 
+  group('SemanticsNode scroll extent', () {
+    test('tryFromJson parses scroll {pos,min,max} and toJson re-emits it', () {
+      final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 5,
+        'role': 'text',
+        'rect': <int>[0, 0, 1206, 2352],
+        'actions': <String>['scroll_up', 'scroll_down'],
+        'scroll': <String, dynamic>{'pos': 900, 'min': 0, 'max': 4400},
+      });
+      expect(n, isNotNull);
+      expect(n!.scroll, <String, int>{'pos': 900, 'min': 0, 'max': 4400});
+      // The renderer serializes via toJson — scroll must survive so the
+      // model actually sees it.
+      expect(n.toJson()['scroll'], <String, int>{
+        'pos': 900,
+        'min': 0,
+        'max': 4400,
+      });
+    });
+
+    test('non-scrollable node has null scroll and toJson omits the key', () {
+      final SemanticsNode n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 1,
+        'role': 'button',
+        'rect': <int>[0, 0, 100, 50],
+      })!;
+      expect(n.scroll, isNull);
+      expect(n.toJson().containsKey('scroll'), isFalse);
+    });
+
+    test('scroll participates in equality', () {
+      Map<String, dynamic> wire(int pos) => <String, dynamic>{
+        'id': 5,
+        'role': 'text',
+        'rect': <int>[0, 0, 10, 10],
+        'scroll': <String, dynamic>{'pos': pos, 'max': 4400},
+      };
+      expect(
+        SemanticsNode.tryFromJson(wire(900)),
+        equals(SemanticsNode.tryFromJson(wire(900))),
+      );
+      expect(
+        SemanticsNode.tryFromJson(wire(900)),
+        isNot(equals(SemanticsNode.tryFromJson(wire(1200)))),
+      );
+    });
+  });
+
   group('Observation.fromJson', () {
     test('rebundles flat wire format into core+extensions+stability', () {
       final Map<String, dynamic> wire = <String, dynamic>{
