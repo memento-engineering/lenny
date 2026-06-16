@@ -196,10 +196,27 @@ class _PromptTabMountState extends State<PromptTabMount> {
     // the completionSink with the terminal status before tearing down.
     unawaited(
       c.runFuture
-          ?.then((t) {
-            if (!mounted) return;
-            widget.completionSink?.value = _termToRunStatus(t);
-          })
+          ?.then(
+            (t) {
+              if (!mounted) return;
+              widget.completionSink?.value = _termToRunStatus(t);
+            },
+            // A run-level throw (e.g. the model/provider HTTP path — a
+            // dartantic backend can throw on the request) MUST be handled
+            // here. Without an onError the failed runFuture escapes the
+            // surrounding `unawaited` as an unhandled async error, which
+            // crashes the whole DevTools panel. Surface a terminal error
+            // status; the whenComplete below still tears the session down
+            // and re-enables the form. We deliberately do NOT log the
+            // exception: a provider/HTTP error can embed request headers
+            // (the api key), and this package is redaction-guarded against
+            // print/debugPrint — diagnose model-path failures from the
+            // browser Network tab instead.
+            onError: (Object _, StackTrace __) {
+              if (!mounted) return;
+              widget.completionSink?.value = RunStatus.error;
+            },
+          )
           .whenComplete(() {
             if (!mounted) return;
             unawaited(c.stop());

@@ -86,5 +86,67 @@ void main() {
         expect(client.captured!.headers['authorization'], 'Bearer tok');
       },
     );
+
+    test('anthropic default keeps thinking on WITHOUT a forcing tool_choice '
+        '(Anthropic rejects thinking + forced tool_choice)', () async {
+      final client = _FakeClient([
+        {
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': {'type': 'text_delta', 'text': 'hi'},
+        },
+      ]);
+      // Defaults: enableThinking == true. With a tool offered, dartantic
+      // emits tool_choice — and Anthropic 400s ("Thinking may not be enabled
+      // when tool_choice forces tool use") if that choice forces a tool.
+      final m = buildBackendChatModel(
+        const AnthropicBackend(apiKey: 'k'),
+        model: 'claude-sonnet-4-0',
+        tools: [
+          Tool(
+            name: 'core_tap',
+            description: 'tap a node',
+            inputSchema: Schema.fromMap(const <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{},
+            }),
+            onCall: (_) async => null,
+          ),
+        ],
+        client: client,
+      );
+      await for (final _ in m.sendStream([ChatMessage.user('go')])) {}
+      m.dispose();
+
+      final body =
+          jsonDecode((client.captured! as http.Request).body)
+              as Map<String, dynamic>;
+      // Thinking is on...
+      expect(
+        body['thinking'],
+        isNotNull,
+        reason: 'thinking should be enabled by default',
+      );
+      // ...so the tool_choice must not force a tool (auto, or omitted)...
+      final toolChoice = body['tool_choice'] as Map<String, dynamic>?;
+      final tcType = toolChoice?['type'];
+      expect(
+        tcType,
+        isNot(anyOf('any', 'tool')),
+        reason:
+            'forced tool_choice ($tcType) is incompatible with thinking — '
+            'Anthropic rejects the request',
+      );
+      // ...and temperature must be 1 (or omitted): Anthropic rejects any
+      // other temperature when thinking is enabled.
+      final temperature = body['temperature'];
+      expect(
+        temperature == null || temperature == 1,
+        isTrue,
+        reason:
+            'temperature ($temperature) must be 1 or unset when thinking is '
+            'enabled — Anthropic rejects the request otherwise',
+      );
+    });
   });
 }

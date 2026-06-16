@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.2
+
+- Adopt dartantic as the model-backend seam: a single `DartanticModelProvider`
+  drives any backend — swift-infer via lenny's custom `ChatModel`, Anthropic and
+  OpenAI via stock dartantic models. The hand-rolled per-provider classes are
+  removed; the loop keeps retry ownership and the `SchemaRejection` contract.
+- Anthropic backend defaults are now compatible with extended thinking: a
+  non-forcing `tool_choice` (`auto`) and no temperature override. Anthropic
+  rejects a forcing `tool_choice` or any non-`1` temperature while thinking is
+  enabled, so the previous defaults returned request-time `400`s when driving
+  Claude. Thinking stays on; the driver's retry covers a rare prose-only turn.
+- Fix (Anthropic): per-turn observation context is no longer dropped. The
+  dartantic Anthropic mapper serializes only the `tool_result` block of a
+  tool-bearing user message and discards sibling text parts, so from turn 1 on
+  the model never saw the observation — it was driven blind after the first
+  turn (the swift-infer path is unaffected; its mapper keeps the text). The
+  Anthropic backend now folds the observation + diff into the `tool_result`
+  body so the model sees the live screen every turn.
+- Observation: expose scroll extent on scrollable nodes.
+
 ## 0.1.1
 
 - Fix: bound runaway model output. The swift-infer provider now aborts a

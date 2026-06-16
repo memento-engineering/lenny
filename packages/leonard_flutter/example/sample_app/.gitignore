@@ -25,6 +25,10 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
+# Generated native runners for the example fixture — only macos/ is tracked
+# (the dev platform); ios/ is regenerated on demand and must not be committed
+# or swept into the published leonard_flutter archive.
+/ios/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies

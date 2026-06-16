@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+- Perception serialization de-duplicated: `serializePerceptionFragment` now
+  lives in `genesis_perception` and is re-exported here. Bumps the
+  `genesis_perception` floor to `^0.1.2` (the version that introduced it).
+- Observation: expose scroll extent (`pos` / `min` / `max`) on scrollable
+  nodes, so the agent can see scroll position and bounds instead of guessing.
+
 ## 0.1.2
 
 - Fix: a new agent handshake resets the session-terminated latch set by

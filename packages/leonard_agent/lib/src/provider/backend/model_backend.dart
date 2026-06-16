@@ -142,17 +142,21 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         tools: tools,
         client: client,
         enableThinking: a.enableThinking,
-        // Default to lenny's per-turn contract: FORCE a tool call every turn
-        // (tool_choice:any) and the tuned frontier temperature (0.2). The
-        // old hand-rolled provider did both; without forcing, Claude may emit
-        // a prose turn and trip a spurious SchemaRejection. An explicit
-        // [a.options] overrides these defaults.
+        // Extended thinking (kept on, per the panel default) imposes two
+        // Anthropic constraints, so the default options must respect both:
+        //   * tool_choice must NOT force a tool ("Thinking may not be enabled
+        //     when tool_choice forces tool use") — so tool_choice:auto, not
+        //     :any. Claude reliably calls a tool with thinking on, and the
+        //     driver's SchemaRejection retry covers a rare prose-only turn.
+        //   * temperature may only be 1 when thinking is enabled — so we omit
+        //     a temperature override here (the tuned frontier 0.2 is
+        //     incompatible with thinking) and let Anthropic use its default.
+        // An explicit [a.options] overrides these defaults; a caller that
+        // re-introduces forced tool_choice or a non-1 temperature alongside
+        // thinking owns that incompatible combination.
         defaultOptions:
             a.options ??
-            const AnthropicChatOptions(
-              toolChoice: AnthropicToolChoice.any(),
-              temperature: 0.2,
-            ),
+            const AnthropicChatOptions(toolChoice: AnthropicToolChoice.auto()),
       );
     case OpenAIBackend o:
       // NOTE: dartantic 3.4.1's OpenAI mapper hard-codes tool_choice:null, so

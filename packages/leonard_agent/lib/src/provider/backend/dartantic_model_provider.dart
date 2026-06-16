@@ -189,14 +189,34 @@ class DartanticModelProvider implements ModelProvider {
       switch (turn) {
         case UserTurn():
           final parts = <Part>[];
+          final obsText = turn.trimmed
+              ? '{"trimmed":true}'
+              : _renderer.render(turn.observation);
+          final diffText = jsonEncode(turn.diff.toJson());
+
+          // Anthropic's dartantic mapper serializes ONLY the tool_result block
+          // of a tool-bearing user message and DROPS sibling text parts — so an
+          // observation sent as its own TextPart never reaches Claude, leaving
+          // the agent blind after turn 0. A separate user message isn't an
+          // option: the tool_result must answer the prior tool_use and roles
+          // must alternate. So for Anthropic we fold the observation + diff INTO
+          // the tool_result body. swift-infer keeps sibling text parts, so it is
+          // left exactly as-is (no change to the working Qwen path).
+          final foldIntoResult =
+              backend is AnthropicBackend && pendingCallId != null;
+
           if (pendingCallId != null) {
+            final priorResult = turn.toolResult != null
+                ? jsonEncode(turn.toolResult)
+                : 'ok';
             parts.add(
               ToolPart.result(
                 callId: pendingCallId,
                 toolName: pendingToolName ?? '',
-                result: turn.toolResult != null
-                    ? jsonEncode(turn.toolResult)
-                    : 'ok',
+                result: foldIntoResult
+                    ? '$priorResult\n\nObservation:\n$obsText\n\n'
+                          'Diff since last turn:\n$diffText'
+                    : priorResult,
               ),
             );
             pendingCallId = null;
@@ -204,19 +224,15 @@ class DartanticModelProvider implements ModelProvider {
           } else if (turn.toolResult != null) {
             parts.add(TextPart(jsonEncode(turn.toolResult)));
           }
-          final obsText = turn.trimmed
-              ? '{"trimmed":true}'
-              : _renderer.render(turn.observation);
-          parts.add(TextPart('Observation:\n$obsText'));
-          parts.add(
-            TextPart(
-              'Diff since last turn:\n${jsonEncode(turn.diff.toJson())}',
-            ),
-          );
-          if (_capabilities.vision && !turn.trimmed) {
-            final shot = turn.observation.screenshot;
-            if (shot != null && shot.isNotEmpty) {
-              parts.add(DataPart(base64Decode(shot), mimeType: 'image/png'));
+
+          if (!foldIntoResult) {
+            parts.add(TextPart('Observation:\n$obsText'));
+            parts.add(TextPart('Diff since last turn:\n$diffText'));
+            if (_capabilities.vision && !turn.trimmed) {
+              final shot = turn.observation.screenshot;
+              if (shot != null && shot.isNotEmpty) {
+                parts.add(DataPart(base64Decode(shot), mimeType: 'image/png'));
+              }
             }
           }
           messages.add(ChatMessage(role: ChatMessageRole.user, parts: parts));
