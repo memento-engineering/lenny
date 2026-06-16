@@ -7,9 +7,14 @@
 /// capabilities" badge and pick conservative defaults.
 library;
 
-import 'anthropic/anthropic_provider.dart';
 import 'openai/openai_models.dart';
 import 'types.dart';
+
+/// Set of Claude model ids that accept image inputs (PRD §22). Public so a host
+/// can advertise vision support without instantiating a provider. (Relocated
+/// here from the deleted hand-rolled Anthropic provider — dartantic cutover,
+/// ADR 0003 / lenny-4dhv.4.)
+const kAnthropicVisionModels = <String>{'claude-sonnet-4-6', 'claude-opus-4-6'};
 
 const ModelCapabilities _anthropicVisionCaps = ModelCapabilities(
   vision: true,
@@ -21,7 +26,9 @@ const ModelCapabilities _anthropicVisionCaps = ModelCapabilities(
 const ModelCapabilities _swiftInferQwenCaps = ModelCapabilities(
   vision: true,
   preserveThinking: true,
-  maxContext: 32768,
+  // Matches the (now-deleted) hand-rolled SwiftInferModelProvider, which
+  // advertised 128000; the seam reads capabilities from this lookup.
+  maxContext: 128000,
   supportsToolUse: true,
 );
 

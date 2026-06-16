@@ -2,13 +2,13 @@
 library;
 
 export 'action_schema.dart';
-export 'anthropic/anthropic_provider.dart';
+export 'backend/dartantic_model_provider.dart';
+export 'backend/model_backend.dart';
 export 'capabilities_lookup.dart';
-export 'frontier/frontier_defaults.dart';
 export 'frontier/tool_helpers.dart';
-export 'frontier/vision_image.dart';
 export 'model_provider.dart';
-export 'openai/openai.dart';
+export 'openai/openai_models.dart';
+export 'swift_infer/swift_infer_chat_model.dart';
+export 'swift_infer/swift_infer_chat_options.dart';
 export 'swift_infer/swift_infer_config.dart';
-export 'swift_infer/swift_infer_provider.dart';
 export 'types.dart';

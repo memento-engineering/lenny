@@ -32,7 +32,10 @@ void main() {
       expect(c, isNotNull);
       expect(c!.vision, isTrue);
       expect(c.preserveThinking, isTrue);
-      expect(c.maxContext, 32768);
+      expect(
+        c.maxContext,
+        128000,
+      ); // aligned to the swift-infer provider (4dhv.4)
       expect(c.supportsToolUse, isTrue);
     });
 

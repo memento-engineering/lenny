@@ -29,8 +29,10 @@ import '../loop_driver/types.dart';
 import '../session_bringup.dart' show bringUpSession;
 import '../prompt/conversation_builder.dart';
 import '../loop_driver/default_loop_host.dart';
+import '../provider/backend/dartantic_model_provider.dart';
+import '../provider/backend/model_backend.dart';
+import '../provider/swift_infer/swift_infer_chat_options.dart';
 import '../provider/swift_infer/swift_infer_config.dart';
-import '../provider/swift_infer/swift_infer_provider.dart';
 import '../provider/types.dart';
 import '../session/turn_event.dart';
 import '../trajectory/records.dart'
@@ -166,8 +168,38 @@ class AgentDogfoodHarness {
       );
     }
 
-    final SwiftInferModelProvider provider = SwiftInferModelProvider(
-      config: swiftInferConfig,
+    final DartanticModelProvider provider = DartanticModelProvider(
+      backend: SwiftInferBackend(
+        baseUrl: swiftInferConfig.baseUrl,
+        bearerToken: swiftInferConfig.bearerToken,
+        headers: <String, String>{
+          ...swiftInferConfig.extraHeaders,
+          if (swiftInferConfig.conversationId != null &&
+              swiftInferConfig.conversationId!.isNotEmpty)
+            'X-Conversation-Id': swiftInferConfig.conversationId!,
+          if (swiftInferConfig.sessionId != null &&
+              swiftInferConfig.sessionId!.isNotEmpty)
+            'X-Session-Id': swiftInferConfig.sessionId!,
+          if (swiftInferConfig.captureBodies)
+            'X-Swift-Infer-Capture-Bodies': 'true',
+        },
+        options: SwiftInferChatOptions(
+          temperature: swiftInferConfig.temperature,
+          topP: swiftInferConfig.topP,
+          topK: swiftInferConfig.topK,
+          presencePenalty: swiftInferConfig.presencePenalty,
+          repetitionPenalty: swiftInferConfig.repetitionPenalty,
+          preserveThinking: swiftInferConfig.preserveThinking,
+          maxTokens: swiftInferConfig.maxTokens,
+        ),
+      ),
+      model: swiftInferConfig.model,
+      capabilities: ModelCapabilities(
+        vision: swiftInferConfig.enableVision,
+        preserveThinking: swiftInferConfig.preserveThinking,
+        maxContext: 128000,
+        supportsToolUse: true,
+      ),
     );
     final LeonardSession session = LeonardSession.fromVmService(vm, isolateId);
     int toolCallCount = 0;
