@@ -1,19 +1,22 @@
 ---
 name: leonard-driver
 description: >
-  Drive/verify a running Flutter app toward a goal using Leonard's own
+  Drive/verify a running Leonard-instrumented program (a Flutter app, or any
+  Dart-VM target with a Leonard extension) toward a goal using Leonard's own
   autonomous loop (`leonard_cli`), then report the outcome. Use for "drive
   my app to do X and tell me if it worked" when you want Leonard's LLM to
   pick each action. For turn-by-turn control where YOU decide each action,
-  use leonard-pilot. Requires a Leonard-instrumented app + its VM ws:// URI.
+  use leonard-pilot. Requires a Leonard-instrumented target + its VM ws:// URI.
 tools: Bash, Read
 ---
 
 # leonard-driver
 
 Run Leonard's autonomous agent against a **goal** on the user's running
-Flutter app, then summarize what happened. Leonard's model decides each
-action; you launch it, watch the stream, and read the trajectory.
+Leonard-instrumented target (a Flutter app via `leonard_flutter`, or any other
+Dart-VM target via its extension), then summarize what happened. Leonard's
+model decides each action; you launch it, watch the stream, and read the
+trajectory.
 
 See the `drive-flutter-app` skill for the full setup; the essentials:
 

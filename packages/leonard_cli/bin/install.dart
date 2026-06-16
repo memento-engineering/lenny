@@ -1,5 +1,5 @@
 /// `dart run leonard_cli:install` — install Leonard's consumer-facing
-/// coding-agent assets (the `drive-flutter-app` skill + `leonard-driver`/
+/// coding-agent assets (the `drive-with-leonard` skill + `leonard-driver`/
 /// `leonard-pilot` agents) into the current repo.
 ///
 /// The canonical copy always lands in `.agents/` (the cross-client agentskills
@@ -50,7 +50,7 @@ Future<void> main(List<String> argv) async {
         stdout.writeln(
           'Usage: dart run leonard_cli:install '
           '[--dir DIR] [--claude] [--copilot] [--all] [--force]\n'
-          'Installs the drive-flutter-app skill + leonard-driver/leonard-pilot '
+          'Installs the drive-with-leonard skill + leonard-driver/leonard-pilot '
           'agents into DIR/.agents/ (default cwd), with optional harness '
           'overlays (--claude, --copilot).',
         );
@@ -72,15 +72,16 @@ Future<void> main(List<String> argv) async {
   final String dotAgents = '$targetRoot/.agents';
   int added = 0, skipped = 0;
   final List<String> agentBaseNames = <String>[]; // e.g. leonard-pilot
-  final List<String> skillNames = <String>[]; // e.g. drive-flutter-app
+  final List<String> skillNames = <String>[]; // e.g. drive-with-leonard
   for (final String kind in const <String>['skills', 'agents']) {
     final Directory src = Directory('${assets.path}$kind');
     if (!src.existsSync()) continue;
     for (final FileSystemEntity entity in src.listSync()) {
       final String name = _basename(entity.path);
       if (kind == 'skills') skillNames.add(name);
-      if (kind == 'agents')
+      if (kind == 'agents') {
         agentBaseNames.add(name.replaceFirst('.agent.md', ''));
+      }
       final String dest = '$dotAgents/$kind/$name';
       if (_exists(dest) && !force) {
         _log('  skip   .agents/$kind/$name (exists; --force to overwrite)');
@@ -130,7 +131,7 @@ Future<void> main(List<String> argv) async {
     '\nInstalled $added item(s) into $dotAgents'
     '${skipped > 0 ? ' ($skipped skipped)' : ''}'
     '${claude || copilot ? ' + harness overlays' : ''}.\n'
-    'Your coding agent can now use the "drive-flutter-app" skill and the\n'
+    'Your coding agent can now use the "drive-with-leonard" skill and the\n'
     'leonard-driver / leonard-pilot agents. See the skill for setup.',
   );
 }

@@ -1,7 +1,8 @@
 ---
 name: leonard-pilot
 description: >
-  Drive a running Flutter app TURN-BY-TURN as the decider yourself — observe →
+  Drive a running Leonard-instrumented target (a Flutter app, or any Dart-VM
+  target with a Leonard extension) TURN-BY-TURN as the decider yourself — observe →
   decide → act — over Leonard's VM-service tool surface via
   `leonard_cli:leonard_drive`. Use when YOU should choose each tap/scroll, not
   Leonard's built-in LLM (for that, use leonard-driver). Requires a
@@ -11,7 +12,8 @@ tools: Bash, Read
 
 # leonard-pilot
 
-Drive the user's running Flutter app to accomplish a **goal** by choosing each
+Drive the user's running Leonard-instrumented target (a Flutter app, or any
+Dart-VM target with a Leonard extension) to accomplish a **goal** by choosing each
 action yourself. You see the app only through the structured observation the
 helper returns; you act only via its tools. See the `drive-flutter-app` skill
 for setup.

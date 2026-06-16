@@ -1,0 +1,35 @@
+# Packaged AI assets, surfaced to a consumer's coding agent by the Dart/Flutter
+# MCP server because their project depends on leonard_cli (the pure-Dart driver
+# every Leonard target uses — Flutter or otherwise). Follows the "Packaged AI
+# Assets" proposal (extension/mcp discovery format).
+#
+# Home rationale: this lives in leonard_cli, NOT leonard_flutter — Leonard is a
+# Dart-VM tool, not Flutter-specific (leonard_agent is the pure-Dart core;
+# leonard_tmux drives an external process with zero Flutter). Gating these
+# assets behind the Flutter binding would wrongly scope Leonard to Flutter.
+#
+# FORWARD-COMPATIBLE: inert until the Dart/Flutter MCP server reads
+# extension/mcp/config.yaml. The same capability ships TODAY via
+# `dart run leonard_cli:install` (.agents/ + optional --claude/--copilot).
+#
+# Schema (per the proposal): resources/prompts entries take name (optional,
+# defaults to file basename), title (required), description (required), path
+# (required, package-relative), visibility (optional: public [default] |
+# private). Surfaced as package-root://<package-name>/<path>.
+
+resources:
+  # Point at the installed skill itself — single source of truth, no drift.
+  - name: drive_with_leonard
+    title: "Driving a running program with Leonard"
+    description: >
+      How to drive/verify a running Dart-VM program (a Flutter app, or any
+      target with a Leonard extension) end-to-end with an LLM via Leonard.
+    path: lib/assets/skills/drive-with-leonard/SKILL.md
+
+prompts:
+  - name: drive_app
+    title: "Drive this app toward a goal"
+    description: >
+      Drive the running, Leonard-instrumented target to accomplish a
+      plain-English goal and report whether it succeeded.
+    path: extension/mcp/prompts/drive-app.md
