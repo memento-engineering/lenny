@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   args: ^2.6.0
+  dartantic_ai: ^3.4.1
   dartantic_interface: ^4.0.0
   http: ^1.2.0
   json_schema: ^5.1.7
