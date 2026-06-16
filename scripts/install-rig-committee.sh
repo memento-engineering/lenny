@@ -37,3 +37,9 @@ fi
 echo
 echo "Committee now grades with (rig-local, ADR 0013):"
 fs config committee
+
+# Link lenny's OWN shared agents/skills (canonical in .agents/, the cross-client
+# layout) into the local .claude/ harness. Separate from the factory committee
+# composition above; idempotent.
+echo
+"$(dirname "$0")/link-shared-agents.sh"

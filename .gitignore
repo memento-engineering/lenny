@@ -51,9 +51,16 @@ lenny-whn/
 # scripts/install-rig-committee.sh (the neutral factoryskills pack + the
 # .gascity-pack Dart overlay). Source of truth is .gascity-pack/ (tracked); the
 # composed copies are reproducible, so they are not committed. lenny's own
-# skills (beads, debug-inference, harden, predictable-flutter) stay tracked.
-.agents/agents/
-.claude/agents/
+# agents (lenny-pilot, lenny-driver) and skills (beads, debug-inference,
+# harden, predictable-flutter) stay tracked — canonical source in .agents/
+# (the cross-client convention), symlinked into .claude/ for Claude Code.
+# Ignore only the factory-composed agents, not lenny's own.
+.agents/agents/architect.md
+.agents/agents/bitsmith.md
+.agents/agents/critique.md
+.claude/agents/architect.md
+.claude/agents/bitsmith.md
+.claude/agents/critique.md
 .agents/skills/critique/
 .agents/skills/deliberate/
 .agents/skills/discover/
