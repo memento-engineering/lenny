@@ -1,0 +1,8 @@
+name: dartantic_probe
+description: throwaway spike for lenny-7ey2
+publish_to: none
+environment:
+  sdk: ^3.10.0
+dependencies:
+  dartantic_ai: any
+  http: any
