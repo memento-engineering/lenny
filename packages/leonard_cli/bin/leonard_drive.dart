@@ -20,6 +20,14 @@
 ///              to `--out path.png`; prints { out, width_px, height_px,
 ///              device_pixel_ratio }. Debug/profile builds only. Just pixels —
 ///              no settle, no golden compare (the caller owns those).
+///   up       — boot a target and HOLD it: `--runner flutter|dart`,
+///              `-t <entrypoint>` (`-d <device>` for flutter), discover the
+///              VM-service URI, print { event:"vm_service_ready", ws_uri, … }
+///              and optionally write `--uri-file`/`--pid-file`, then keep the
+///              app alive until a signal (or `down`). The external brain then
+///              attaches stateless `observe`/`invoke`/`screenshot` calls to
+///              `ws_uri`. No model, no goal, no loop — it just hands off.
+///   down     — stop a target started by `up`: signal the pid in `--pid-file`.
 ///
 /// Statelessness: every call opens a fresh VM-service session and runs
 /// the handshake (which resets the per-session terminal latch), so the
@@ -38,6 +46,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:leonard_agent/leonard_agent.dart';
+import 'package:leonard_cli/src/launcher.dart';
 
 Future<void> main(List<String> argv) async {
   exitCode = await _run(argv);
@@ -63,6 +72,33 @@ ArgParser _parser() => ArgParser()
   ..addOption('tool', help: 'Fully-qualified tool name, e.g. core.tap.')
   ..addOption('args', help: 'JSON object of tool arguments (default {}).')
   ..addOption('out', help: 'screenshot: file path to write the PNG to.')
+  ..addOption(
+    'runner',
+    defaultsTo: 'flutter',
+    allowed: <String>['flutter', 'dart'],
+    help: 'up: how to boot the target (flutter run | dart run).',
+  )
+  ..addOption(
+    'device',
+    abbr: 'd',
+    help: 'up: Flutter device id (flutter runner only).',
+  )
+  ..addOption('target', abbr: 't', help: 'up: entrypoint Dart file to run.')
+  ..addOption(
+    'uri-file',
+    help: 'up: also write the discovered ws:// URI to this path.',
+  )
+  ..addOption(
+    'pid-file',
+    help:
+        'up: write this process\'s pid here (down reads it to stop the '
+        'target). down: the pid-file to signal.',
+  )
+  ..addOption(
+    'timeout',
+    defaultsTo: '180',
+    help: 'up: seconds to wait for the VM service URI (default 180).',
+  )
   ..addFlag('help', abbr: 'h', negatable: false);
 
 Future<int> _run(List<String> argv) async {
@@ -76,6 +112,8 @@ Future<int> _run(List<String> argv) async {
     'observe',
     'invoke',
     'screenshot',
+    'up',
+    'down',
   }.contains(command)) {
     stderr.writeln('error: unknown command "$command"');
     _usage(stderr);
@@ -89,6 +127,11 @@ Future<int> _run(List<String> argv) async {
     stderr.writeln('error: ${e.message}');
     return 64;
   }
+
+  // up/down own the target's lifecycle and take no --vm-uri (up mints one;
+  // down signals an existing up). Dispatch before the vm-uri gate below.
+  if (command == 'up') return _up(res);
+  if (command == 'down') return _down(res);
 
   final String? rawUri = res['vm-uri'] as String?;
   final Uri? vmUri = rawUri == null ? null : Uri.tryParse(rawUri);
@@ -196,12 +239,159 @@ Future<int> _run(List<String> argv) async {
   }
 }
 
+/// `up` — boot a target, discover its VM-service ws:// URI, emit it
+/// machine-readably, then HOLD the process alive (teeing its log to stderr)
+/// until a signal or the target exits. No model, no goal, no loop: the
+/// caller is the brain (stateless observe/invoke calls attach fresh each
+/// time), so this just guarantees a live target + a known URI, then gets
+/// out of the way.
+Future<int> _up(ArgResults res) async {
+  final String? target = res['target'] as String?;
+  if (target == null || target.isEmpty) {
+    stderr.writeln('error: up requires --target <entrypoint.dart>');
+    return 64;
+  }
+  final TargetRunner runner = switch (res['runner'] as String) {
+    'flutter' => TargetRunner.flutter,
+    'dart' => TargetRunner.dart,
+    _ => TargetRunner.flutter,
+  };
+  final String? device = res['device'] as String?;
+  // "No dual mode": a meaningless combination is a hard error, not a
+  // silent mode switch.
+  if (runner == TargetRunner.dart && device != null && device.isNotEmpty) {
+    stderr.writeln(
+      'error: --device is meaningless with --runner dart; drop -d',
+    );
+    return 64;
+  }
+  final int? timeoutSecs = int.tryParse(res['timeout'] as String? ?? '180');
+  if (timeoutSecs == null || timeoutSecs <= 0) {
+    stderr.writeln('error: --timeout must be a positive integer (seconds)');
+    return 64;
+  }
+
+  final LaunchHandle handle;
+  try {
+    handle = await launchTarget(
+      runner: runner,
+      entrypoint: target,
+      device: device,
+      onLog: stderr.writeln,
+      timeout: Duration(seconds: timeoutSecs),
+    );
+  } on TimeoutException {
+    stderr.writeln(
+      'error: no VM service URI within ${timeoutSecs}s; gave up booting target',
+    );
+    return 1;
+  } on ArgumentError catch (e) {
+    stderr.writeln('error: ${e.message}');
+    return 64;
+  } on Object catch (e) {
+    stderr.writeln('error: launch failed: $e');
+    return 1;
+  }
+
+  // Machine-readable handoff: a single stable JSON line on stdout. The
+  // external brain captures `ws_uri` from here (or from --uri-file) — no
+  // log-grepping, no http->ws conversion.
+  _emit(<String, dynamic>{
+    'event': 'vm_service_ready',
+    'ws_uri': handle.wsUri.toString(),
+    'runner': runner.name,
+    'pid': handle.process.pid,
+  });
+
+  final String? uriFile = res['uri-file'] as String?;
+  if (uriFile != null && uriFile.isNotEmpty) {
+    final File f = File(uriFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('${handle.wsUri}\n', flush: true);
+  }
+  final String? pidFile = res['pid-file'] as String?;
+  if (pidFile != null && pidFile.isNotEmpty) {
+    // This process's own pid: `down` signals it, and its handler tears the
+    // target down cleanly (cleaner than killing the child out from under us).
+    final File f = File(pidFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('$pid\n', flush: true);
+  }
+
+  // Hold until a signal or the target exits.
+  final Completer<int> done = Completer<int>();
+  Future<void> tearDown(String why) async {
+    if (done.isCompleted) return;
+    stderr.writeln('info: $why; shutting down target…');
+    await handle.shutdown();
+    if (!done.isCompleted) done.complete(0);
+  }
+
+  final StreamSubscription<ProcessSignal> sigint = ProcessSignal.sigint
+      .watch()
+      .listen((_) => tearDown('received SIGINT'));
+  StreamSubscription<ProcessSignal>? sigterm;
+  try {
+    sigterm = ProcessSignal.sigterm.watch().listen(
+      (_) => tearDown('received SIGTERM'),
+    );
+  } on Object {
+    // SIGTERM is not watchable on every platform (e.g. Windows); SIGINT
+    // and target-exit still terminate the hold.
+  }
+  unawaited(
+    handle.exitCode.then((int code) {
+      if (!done.isCompleted) {
+        stderr.writeln('info: target exited (code $code)');
+        done.complete(0);
+      }
+    }),
+  );
+
+  final int code = await done.future;
+  await sigint.cancel();
+  await sigterm?.cancel();
+  if (pidFile != null && pidFile.isNotEmpty) {
+    try {
+      final File f = File(pidFile);
+      if (f.existsSync()) await f.delete();
+    } on Object {
+      // best-effort cleanup
+    }
+  }
+  _emit(<String, dynamic>{'event': 'shutdown'});
+  return code;
+}
+
+/// `down` — stop a target started by `up`, by signalling the `up` process
+/// recorded in its --pid-file (whose handler tears the target down cleanly).
+Future<int> _down(ArgResults res) async {
+  final String? pidFile = res['pid-file'] as String?;
+  if (pidFile == null || pidFile.isEmpty) {
+    stderr.writeln('error: down requires --pid-file <path> (written by up)');
+    return 64;
+  }
+  final File f = File(pidFile);
+  if (!f.existsSync()) {
+    stderr.writeln('error: pid-file not found: $pidFile');
+    return 1;
+  }
+  final int? targetPid = int.tryParse((await f.readAsString()).trim());
+  if (targetPid == null) {
+    stderr.writeln('error: pid-file holds no pid: $pidFile');
+    return 1;
+  }
+  final bool ok = Process.killPid(targetPid, ProcessSignal.sigterm);
+  _emit(<String, dynamic>{'event': 'down', 'pid': targetPid, 'signalled': ok});
+  return ok ? 0 : 1;
+}
+
 void _emit(Map<String, dynamic> obj) =>
     stdout.writeln(const JsonEncoder().convert(obj));
 
 void _usage(IOSink out) {
   out.writeln(
-    'Usage: leonard_drive <tools|observe|invoke|screenshot> --vm-uri <ws> [...]',
+    'Usage: leonard_drive <tools|observe|invoke|screenshot|up|down> [...]',
   );
   out.writeln();
   out.writeln('  tools       --vm-uri <ws>');
@@ -210,6 +400,12 @@ void _usage(IOSink out) {
     '  invoke      --vm-uri <ws> --tool core.tap --args \'{"node_id":5}\'',
   );
   out.writeln('  screenshot  --vm-uri <ws> --out path.png');
+  out.writeln(
+    '  up          --runner flutter -d <device> -t <entry> [--uri-file F] '
+    '[--pid-file P]',
+  );
+  out.writeln('  up          --runner dart -t <entry> [--uri-file F]');
+  out.writeln('  down        --pid-file P');
   out.writeln();
   out.writeln(_parser().usage);
 }

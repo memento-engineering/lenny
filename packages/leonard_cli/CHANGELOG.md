@@ -8,6 +8,16 @@
   `namespaces` by design. Stops the recurring "the manifest has no screenshot,
   so there is no screenshot capability" mistake. Requires `leonard_agent`
   `^0.1.3` (the handshake parse that decodes `capabilities`).
+- `leonard_drive` gains `up` / `down` lifecycle subcommands that erase the
+  manual boot-grep-convert dance. `up --runner flutter -d <device> -t <entry>`
+  (or `--runner dart -t <entry>` for a pure-Dart target) boots the app,
+  discovers the VM-service URI, prints it machine-readably
+  (`{event:"vm_service_ready", ws_uri, …}` plus optional `--uri-file` /
+  `--pid-file`), then HOLDS the process alive (teeing its log to stderr) until
+  a signal or `down`. No model, no goal, no loop — the external brain attaches
+  stateless `observe`/`invoke`/`screenshot` calls to `ws_uri`. `down
+  --pid-file <p>` stops a held target. New shared `launcher.dart` primitive
+  (spawn + scrape + hold + teardown) backs it.
 
 ## 0.1.2
 
