@@ -88,8 +88,51 @@ flutter test packages/leonard_devtools --tags=perf
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+Leonard lets an LLM perceive and drive a *running* Dart program over the VM
+service. Layering (low → high):
+
+- **`leonard_contract`** — pure-Dart extension contract: `LeonardExtension` /
+  `LeonardTool`, the `PerceptionExtension` mixin (`buildPerception() → Seed`),
+  `ExtensionRegistry`, and the tool-dispatch/param-decode helpers. No Flutter.
+- **Hosts** serve the `ext.exploration.*` VM-service surface (handshake,
+  `get_stable_observation`, per-tool dispatch) from a set of extensions:
+  - `leonard_flutter` (`LeonardBinding`) — the Flutter host (semantics, routes,
+    screenshot, plus extensions).
+  - `leonard_host` (`ExplorationHost`) — the pure-Dart host for any non-Flutter
+    Dart program (extensions only; no Flutter core fragment).
+- **`leonard_agent`** — the brain/harness and driver client (`LeonardSession`,
+  `VmServiceClient`, the loop); `leonard_cli` / `leonard_drive` are its CLIs. It
+  is target-agnostic — it speaks the same `ext.exploration.*` surface whether
+  the target is Flutter or pure Dart.
+- **Extensions** contribute tools + an observation fragment under their
+  namespace: `core` (Flutter actions), `router`/`riverpod`/`dio` (Flutter),
+  `leonard_tmux` (pure-Dart, drives an external tmux process).
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+### Perception is pull-free: build synchronously, watch out-of-band
+
+A perception never gathers or performs I/O at observation time.
+`buildPerception()` is a **synchronous** read of already-current in-memory
+state. Whatever is observed — Flutter widget state, a Riverpod container, an
+external process — is tracked by an **out-of-band watcher** (a listener, stream
+subscription, or poll loop) that keeps a live snapshot current. The watcher's
+async startup belongs in `initialize()` (which is `async`); the observe/build
+path stays synchronous.
+
+**Never make `buildPerception()` async.** If you're tempted to, you actually
+need a stateful watcher feeding a snapshot.
+
+Why: it keeps observation cheap, deterministic, and *uniform across hosts* — the
+same sync contract serves the Flutter binding and the pure-Dart `ExplorationHost`
+regardless of whether the source is in-memory or async I/O. Gather-on-demand
+leaks the source's latency into the observation hot path and forces every host
+and consumer to be async.
+
+Precedents:
+- `RiverpodLeonardExtension` — a `ProviderObserver` watches the container;
+  `buildPerception()` reads the live observer state (`prepareForObservation()`
+  just drains pending changes).
+- `TmuxExtension` (`leonard_tmux`) — `initialize()` subscribes to a
+  `genesis_tmux` `PollObservationSource`; `TmuxEvent`s refresh a cached
+  `TmuxObservation`; `buildPerception()` reads it sync.
