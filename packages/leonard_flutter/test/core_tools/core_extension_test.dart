@@ -1,6 +1,5 @@
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -39,9 +38,7 @@ void main() {
     () {
       final SemanticsCapture cap = SemanticsCapture();
       final CoreExtension host = CoreExtension(semantics: cap);
-      final ExtensionRegistry r = ExtensionRegistry(
-        scheduler: SchedulerBinding.instance,
-      );
+      final ExtensionRegistry r = ExtensionRegistry();
       r.register(host);
       expect(
         () => r.register(_FakeUserExtension('core')),

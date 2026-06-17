@@ -1,4 +1,3 @@
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leonard_flutter/contract.dart';
 
@@ -75,9 +74,8 @@ class _ThrowOnDispose extends _OrderExtension {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final scheduler = SchedulerBinding.instance;
 
-  ExtensionRegistry build() => ExtensionRegistry(scheduler: scheduler);
+  ExtensionRegistry build() => ExtensionRegistry();
 
   test('rejects bad namespace', () {
     final r = build();

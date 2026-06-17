@@ -1,0 +1,20 @@
+name: leonard_host
+description: >-
+  Pure-Dart VM-service host for Leonard — exposes a set of LeonardExtensions
+  over `ext.exploration.*` so a non-Flutter Dart program can be driven live
+  by leonard_cli / leonard_drive.
+version: 0.1.0
+repository: https://github.com/memento-engineering/lenny
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  genesis_perception: ^0.1.2
+  leonard_contract: ^0.1.0
+
+dev_dependencies:
+  leonard_agent: ^0.1.0
+  lints: ^5.1.0
+  test: ^1.25.0

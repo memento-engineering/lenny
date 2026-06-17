@@ -4,69 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 
-/// A extension whose error handler we can drive from tests.
-class _RecordingExtension extends LeonardExtension {
-  _RecordingExtension(this.namespace, {required this.handler});
-
-  @override
-  final String namespace;
-  final bool Function(FlutterErrorDetails) handler;
-
-  @override
-  List<LeonardTool> get tools => const <LeonardTool>[];
-
-  @override
-  Future<void> initialize(ExtensionContext ctx) async {
-    ctx.registerErrorHandler(handler);
-  }
-
-  @override
-  Future<BusyState> busyState() async => BusyState.idle;
-
-  @override
-  Future<void> onActionExecuted(ExecutedAction action) async {}
-
-  @override
-  Future<void> dispose() async {}
-}
-
 void main() {
-  // First extension: never claims, but records every call.
-  final List<String> firstCalls = <String>[];
-  final _RecordingExtension firstPlugin = _RecordingExtension(
-    'alpha',
-    handler: (FlutterErrorDetails d) {
-      firstCalls.add(d.exceptionAsString());
-      return false;
-    },
-  );
-
-  // Second extension: throws on every call.
-  final _RecordingExtension throwerPlugin = _RecordingExtension(
-    'beta',
-    handler: (FlutterErrorDetails _) {
-      throw StateError('handler boom');
-    },
-  );
-
-  // Third extension: claims errors whose message contains 'CLAIM'.
-  final List<String> thirdCalls = <String>[];
-  final _RecordingExtension claimerPlugin = _RecordingExtension(
-    'gamma',
-    handler: (FlutterErrorDetails d) {
-      thirdCalls.add(d.exceptionAsString());
-      return d.exceptionAsString().contains('CLAIM');
-    },
-  );
-
   late LeonardBinding binding;
 
   setUpAll(() async {
     binding = LeonardBinding.ensureInitialized(
-      extensions: <LeonardExtension>[firstPlugin, throwerPlugin, claimerPlugin],
+      extensions: const <LeonardExtension>[],
     )!;
-    // Extension initialization runs in a microtask; flush it so the error
-    // handlers are registered before the first test fires errors.
+    // Extension initialization runs in a microtask; flush it so the binding
+    // is fully wired before the first test fires errors.
     await Future<void>.delayed(Duration.zero);
   });
 
@@ -87,7 +33,7 @@ void main() {
   });
 
   test(
-    'every error is recorded into the ring regardless of handler return',
+    'every error is recorded into the ring',
     () {
       final int before = binding.debugHighestErrorSeq();
       binding.debugAppendError('first', StackTrace.current);
@@ -96,14 +42,10 @@ void main() {
     },
   );
 
-  test('FlutterError.onError wrapper records, dispatches, and forwards', () {
-    firstCalls.clear();
-    thirdCalls.clear();
+  test('FlutterError.onError wrapper records and forwards', () {
     final int beforeSeq = binding.debugHighestErrorSeq();
 
-    // Capture the prior handler's invocations by stashing the wrapper and
-    // checking the framework default still receives the report. The
-    // framework default would normally print to stderr; flutter_test
+    // The framework default would normally print to stderr; flutter_test
     // converts thrown errors via FlutterError.reportError into test
     // failures. We use FlutterError.onError directly with a synthesised
     // FlutterErrorDetails to avoid tripping the test runner's failure
@@ -120,34 +62,6 @@ void main() {
       beforeSeq + 1,
       reason: 'ring buffer must record',
     );
-    expect(firstCalls, hasLength(1), reason: 'first extension handler must run');
-    expect(
-      thirdCalls,
-      hasLength(1),
-      reason:
-          'thrower extension handler exception must not block subsequent '
-          'extension handlers',
-    );
-  });
-
-  test('first claimer short-circuits the chain, but ring still records', () {
-    firstCalls.clear();
-    thirdCalls.clear();
-    final int beforeSeq = binding.debugHighestErrorSeq();
-
-    final FlutterErrorDetails details = FlutterErrorDetails(
-      exception: StateError('CLAIM this one'),
-      stack: StackTrace.current,
-      library: 'test',
-    );
-    FlutterError.onError!(details);
-
-    expect(binding.debugHighestErrorSeq(), beforeSeq + 1);
-    // first extension (alpha) returns false → chain advances
-    expect(firstCalls, hasLength(1));
-    // beta throws → counts as not-claiming
-    // gamma sees 'CLAIM' → returns true → chain stops at gamma
-    expect(thirdCalls, hasLength(1));
   });
 
   test('PlatformDispatcher.onError wrapper records and forwards', () {
@@ -187,8 +101,7 @@ void main() {
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
     // The host-installed CoreExtension contributes the 10 `core.*` tools
-    // even when no user extensions are supplied. Recording extensions from
-    // this test fixture expose none of their own.
+    // even when no user extensions are supplied.
     final List<String> coreKeys = const <String>[
       'core.tap',
       'core.long_press',

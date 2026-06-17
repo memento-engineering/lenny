@@ -1,7 +1,6 @@
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/test_support/perception_serializer.dart';
 import 'package:leonard_riverpod/leonard_riverpod.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
@@ -32,9 +31,7 @@ Map<String, Object?> harvest(RiverpodLeonardExtension extension) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final scheduler = SchedulerBinding.instance;
-  ExtensionContext ctx() =>
-      ExtensionContext(namespace: 'riverpod', scheduler: scheduler);
+  ExtensionContext ctx() => ExtensionContext(namespace: 'riverpod');
 
   test('namespace + tool name', () {
     final w = wired();

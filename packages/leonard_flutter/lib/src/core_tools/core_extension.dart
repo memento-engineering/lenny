@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/semantics.dart';
 
@@ -8,6 +7,12 @@ import '../contract/extension_context.dart';
 import '../contract/types.dart';
 import '../semantics/semantics_capture.dart';
 import 'core_tools.dart';
+
+// dispatchToolToEnvelope + decodeServiceExtensionParams moved to
+// package:leonard_contract (lenny-9kni Stage 2); re-exported so existing
+// importers of this file keep resolving.
+export 'package:leonard_contract/leonard_contract.dart'
+    show decodeServiceExtensionParams, dispatchToolToEnvelope;
 
 /// Stable error codes returned by core tools as the prefix of
 /// [ToolResult.error]. The format is `'<code>: <human message>'`.
@@ -140,55 +145,6 @@ class CoreExtension extends LeonardExtension {
   Future<void> dispose() async {}
 }
 
-/// VM service extensions hand parameters as `Map<String, String>` (every
-/// value JSON-encoded). Decode each value back into its native form so
-/// tools can apply `JsonSchema` validation against the original types.
-///
-/// Promoted from the private `_decodeParams` so the binding's
-/// `@visibleForTesting invokeExtensionTool` helper can share the decode path
-/// with `CoreExtension.initialize`.
-Map<String, Object?> decodeServiceExtensionParams(Map<String, String> params) {
-  final Map<String, Object?> out = <String, Object?>{};
-  params.forEach((String k, String v) {
-    out[k] = _tryDecode(v);
-  });
-  return out;
-}
-
-Object? _tryDecode(String raw) {
-  // Strings round-trip through JSON as quoted strings — try JSON first;
-  // fall back to the raw string when the input isn't valid JSON.
-  try {
-    return jsonDecode(raw);
-  } catch (_) {
-    return raw;
-  }
-}
-
-/// Run [tool] with [args] and wrap the result in the canonical
-/// `{ok, value, error[, trace]}` envelope.
-///
-/// Single source of truth for that envelope shape — used by both
-/// `CoreExtension.initialize`'s per-tool extension handler and the binding's
-/// `@visibleForTesting invokeExtensionTool` helper. Never throws: any
-/// unexpected error becomes a `dispatch_failed` envelope.
-Future<String> dispatchToolToEnvelope(
-  LeonardTool tool,
-  Map<String, Object?> args,
-) async {
-  try {
-    final ToolResult r = await tool.call(args);
-    return jsonEncode(<String, Object?>{
-      'ok': r.ok,
-      'value': r.value,
-      'error': r.error,
-    });
-  } catch (e, st) {
-    return jsonEncode(<String, Object?>{
-      'ok': false,
-      'value': null,
-      'error': '${CoreToolErrorCode.dispatchFailed}: $e',
-      'trace': st.toString(),
-    });
-  }
-}
+// decodeServiceExtensionParams, _tryDecode, and dispatchToolToEnvelope
+// relocated to package:leonard_contract (src/dispatch.dart) — see the
+// re-export at the top of this file.

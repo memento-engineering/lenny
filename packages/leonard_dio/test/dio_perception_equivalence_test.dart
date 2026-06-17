@@ -7,7 +7,6 @@ import 'package:dio/dio.dart';
 import 'package:leonard_dio/leonard_dio.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/test_support/perception_serializer.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
@@ -64,10 +63,7 @@ void main() {
       final Dio testDio = Dio()..httpClientAdapter = adapter;
       final LeonardDioExtension extension = LeonardDioExtension(testDio);
       await extension.initialize(
-        ExtensionContext(
-          namespace: 'dio',
-          scheduler: SchedulerBinding.instance,
-        ),
+        ExtensionContext(namespace: 'dio'),
       );
 
       final Future<Response<dynamic>> req = testDio
@@ -110,10 +106,7 @@ void main() {
       final Dio testDio = Dio()..httpClientAdapter = adapter;
       final LeonardDioExtension extension = LeonardDioExtension(testDio);
       await extension.initialize(
-        ExtensionContext(
-          namespace: 'dio',
-          scheduler: SchedulerBinding.instance,
-        ),
+        ExtensionContext(namespace: 'dio'),
       );
 
       // No requests sent — extension is completely idle. The binding's

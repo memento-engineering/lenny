@@ -3,6 +3,8 @@ publish_to: none
 environment:
   sdk: ^3.11.0
 workspace:
+  - packages/leonard_contract
+  - packages/leonard_host
   - packages/leonard_flutter
   - packages/leonard_flutter/example/diagnostic_fixture
   - packages/leonard_flutter/example/sample_app

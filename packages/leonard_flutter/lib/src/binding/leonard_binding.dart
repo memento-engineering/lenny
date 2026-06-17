@@ -187,7 +187,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       capacity: _errorBufferCapacity,
       sessionClock: _sessionClock,
     );
-    _extensionRegistry = ExtensionRegistry(scheduler: this);
+    _extensionRegistry = ExtensionRegistry(logger: debugPrint);
     // Host-install CoreExtension FIRST so namespace `core` is reserved
     // before user extensions are registered. The registry's existing
     // duplicate-namespace check then rejects any user extension claiming
@@ -337,21 +337,14 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     _errorHooksInstalled = true;
     _priorFlutterOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
+      // The ring buffer always records; forward to the prior handler so
+      // framework default behaviour (e.g. dumping to console) survives.
       _errors.add(details.exceptionAsString(), details.stack);
-      // Extension handler chain — return value intentionally ignored: the ring
-      // buffer always records, and we always forward to the prior handler
-      // so framework default behaviour (e.g. dumping to console) survives.
-      _extensionRegistry.dispatchError(details);
       _priorFlutterOnError?.call(details);
     };
     _priorPlatformOnError = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
       _errors.add(error.toString(), stack);
-      final FlutterErrorDetails details = FlutterErrorDetails(
-        exception: error,
-        stack: stack,
-      );
-      _extensionRegistry.dispatchError(details);
       // If a prior handler exists we forward to it; otherwise we report
       // "handled" (matches the framework's null-onError default of true).
       return _priorPlatformOnError?.call(error, stack) ?? true;
