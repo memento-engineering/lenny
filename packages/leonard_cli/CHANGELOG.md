@@ -18,6 +18,12 @@
   stateless `observe`/`invoke`/`screenshot` calls to `ws_uri`. `down
   --pid-file <p>` stops a held target. New shared `launcher.dart` primitive
   (spawn + scrape + hold + teardown) backs it.
+- `leonard_cli` gains `--launch` for the autonomous loop: instead of a
+  caller-supplied `--vm-uri`, boot the target (`--runner flutter -d <device>
+  -t <entry>`, or `--runner dart -t <entry>`) via the shared launcher, drive
+  the discovered URI with lenny's own LLM toward `--goal`, then tear the
+  target down. `--launch` and `--vm-uri` are mutually exclusive (and the
+  boot-only flags error without `--launch`) — no dual-mode interface.
 
 ## 0.1.2
 

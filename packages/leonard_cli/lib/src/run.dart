@@ -14,6 +14,7 @@ import 'package:leonard_agent/leonard_agent.dart';
 import 'cli_args.dart';
 import 'file_trajectory_sink.dart';
 import 'extension_tools.dart';
+import 'launcher.dart';
 import 'provider_factory.dart';
 
 /// Path the CLI advertises in `--help` for the bundled AGENTS.md.
@@ -111,12 +112,51 @@ Future<int> runCli(
     return 1;
   }
 
+  // ----- resolve the VM URI (boot the target first when --launch) ----
+  // With --launch we own the target's lifecycle: boot it, drive the
+  // discovered URI, and tear it down in the finally. Without --launch we
+  // attach to a caller-provided --vm-uri and never touch its process.
+  final Uri vmUri;
+  LaunchHandle? launched;
+  if (args.launch) {
+    final TargetRunner runner = switch (args.runner) {
+      LaunchRunner.flutter => TargetRunner.flutter,
+      LaunchRunner.dart => TargetRunner.dart,
+    };
+    try {
+      launched = await launchTarget(
+        runner: runner,
+        entrypoint: args.target!,
+        device: args.device,
+        onLog: stderr.writeln,
+      );
+    } on Object catch (e) {
+      stderr.writeln('error: failed to launch target: $e');
+      await writer.close(
+        SessionFooter(
+          outcome: SessionOutcome.harnessError,
+          totalTurns: 0,
+          totalDurationMs: 0,
+          harnessError: 'connection_lost',
+        ),
+      );
+      return 1;
+    }
+    vmUri = launched.wsUri;
+    stderr.writeln(
+      'info: launched ${args.runner.name} target; VM service at $vmUri',
+    );
+  } else {
+    vmUri = args.vmUri!;
+  }
+
   // ----- connect session --------------------------------------------
   final LeonardSession session;
   try {
-    session = await LeonardSession.connect(args.vmUri);
+    session = await LeonardSession.connect(vmUri);
   } on Object catch (e) {
-    stderr.writeln('error: failed to connect to ${args.vmUri}: $e');
+    stderr.writeln('error: failed to connect to $vmUri: $e');
+    await launched?.shutdown();
     await writer.close(
       SessionFooter(
         outcome: SessionOutcome.harnessError,
@@ -202,6 +242,8 @@ Future<int> runCli(
   } finally {
     await sub.cancel();
     await session.end();
+    // Tear down a target we booted (no-op when attaching to --vm-uri).
+    await launched?.shutdown();
   }
 }
 

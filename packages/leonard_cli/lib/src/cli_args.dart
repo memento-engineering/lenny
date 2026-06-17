@@ -11,6 +11,11 @@ import 'package:leonard_agent/leonard_agent.dart' show StabilityPolicy;
 /// configuration applied by `provider_factory.dart` (PRD §16.4).
 enum ModelTier { qwenMlx, claude, openai }
 
+/// How `--launch` boots the target. Pure mirror of `launcher.dart`'s
+/// `TargetRunner` (kept here so `cli_args` stays `dart:io`-free); mapped to
+/// it at the io boundary in `run.dart`.
+enum LaunchRunner { flutter, dart }
+
 /// Parsed CLI arguments. The `goal` may still be `null` here when
 /// `--goal` was omitted; the caller (`runCli`) reads stdin as a
 /// fallback when stdin is not a TTY.
@@ -22,6 +27,10 @@ class CliArgs {
     required this.outputPath,
     required this.policy,
     required this.extensions,
+    this.launch = false,
+    this.runner = LaunchRunner.flutter,
+    this.device,
+    this.target,
     this.agentsMdPath,
     this.turnBudget,
   });
@@ -30,8 +39,24 @@ class CliArgs {
   /// "read from stdin if stdin is not a TTY".
   final String? goal;
 
-  /// Flutter VM service ws:// URI (required).
-  final Uri vmUri;
+  /// Flutter VM service ws:// URI. `null` when `--launch` is set (the URI is
+  /// discovered at runtime by booting the target); non-null otherwise.
+  /// Exactly one of [vmUri] / [launch] is provided.
+  final Uri? vmUri;
+
+  /// When true, boot the target ([runner] / [device] / [target]) and drive
+  /// the discovered URI. Mutually exclusive with [vmUri].
+  final bool launch;
+
+  /// `--launch`: how to boot the target.
+  final LaunchRunner runner;
+
+  /// `--launch`: Flutter device id (`-d`); only meaningful with
+  /// [LaunchRunner.flutter]. `null` lets the runner pick.
+  final String? device;
+
+  /// `--launch`: entrypoint Dart file (`-t`) to run. Required when [launch].
+  final String? target;
 
   /// Selected model tier (`--model`).
   final ModelTier tier;
@@ -75,8 +100,30 @@ ArgParser buildParser() => ArgParser()
   ..addOption('goal', help: 'Goal to drive the app toward (or pipe via stdin).')
   ..addOption(
     'vm-uri',
-    mandatory: true,
-    help: 'Flutter VM service ws:// URI (required).',
+    help: 'Flutter VM service ws:// URI (required unless --launch).',
+  )
+  ..addFlag(
+    'launch',
+    negatable: false,
+    help:
+        'Boot the target first (see --runner/-d/-t), discover its VM '
+        'service URI, then drive it. Mutually exclusive with --vm-uri.',
+  )
+  ..addOption(
+    'runner',
+    defaultsTo: 'flutter',
+    allowed: <String>['flutter', 'dart'],
+    help: '--launch: how to boot the target (flutter run | dart run).',
+  )
+  ..addOption(
+    'device',
+    abbr: 'd',
+    help: '--launch: Flutter device id (flutter runner only).',
+  )
+  ..addOption(
+    'target',
+    abbr: 't',
+    help: '--launch: entrypoint Dart file to run.',
   )
   ..addOption(
     'model',
@@ -125,21 +172,51 @@ CliArgs parseCliArgs(List<String> argv) {
     throw CliUsageError(e.message);
   }
 
-  // `mandatory: true` causes res['vm-uri'] to throw ArgumentError when
-  // the flag was not supplied; intercept that and surface as a usage
-  // error.
-  final Object? rawVmUri;
-  try {
-    rawVmUri = res['vm-uri'];
-  } on ArgumentError {
-    throw CliUsageError('Missing required flag: --vm-uri');
+  // Exactly one source of the VM URI: an explicit --vm-uri, or --launch
+  // (which boots a target and discovers it). "No dual mode" — supplying
+  // both, or neither, is a hard usage error rather than a silent pick.
+  final bool launch = res['launch'] as bool;
+  final Object? rawVmUri = res['vm-uri'];
+  if (launch && rawVmUri != null) {
+    throw CliUsageError('--launch and --vm-uri are mutually exclusive');
   }
-  if (rawVmUri == null) {
-    throw CliUsageError('Missing required flag: --vm-uri');
+  Uri? vmUri;
+  if (!launch) {
+    if (rawVmUri == null) {
+      throw CliUsageError(
+        'Missing required flag: --vm-uri (or use --launch to boot a target)',
+      );
+    }
+    vmUri = Uri.tryParse(rawVmUri as String);
+    if (vmUri == null || (!vmUri.isScheme('ws') && !vmUri.isScheme('wss'))) {
+      throw CliUsageError('Invalid --vm-uri: must be a ws:// or wss:// URI');
+    }
   }
-  final Uri? vmUri = Uri.tryParse(rawVmUri as String);
-  if (vmUri == null || (!vmUri.isScheme('ws') && !vmUri.isScheme('wss'))) {
-    throw CliUsageError('Invalid --vm-uri: must be a ws:// or wss:// URI');
+
+  final LaunchRunner runner = switch (res['runner'] as String) {
+    'flutter' => LaunchRunner.flutter,
+    'dart' => LaunchRunner.dart,
+    _ => throw CliUsageError('Invalid --runner'),
+  };
+  final String? device = res['device'] as String?;
+  final String? target = res['target'] as String?;
+  if (launch) {
+    if (target == null || target.isEmpty) {
+      throw CliUsageError('--launch requires --target <entrypoint.dart>');
+    }
+    if (runner == LaunchRunner.dart && device != null && device.isNotEmpty) {
+      throw CliUsageError(
+        '--device is meaningless with --runner dart; drop -d',
+      );
+    }
+  } else {
+    // Boot-only flags without --launch are a mistake, not a no-op.
+    if (device != null && device.isNotEmpty) {
+      throw CliUsageError('--device only applies with --launch');
+    }
+    if (target != null && target.isNotEmpty) {
+      throw CliUsageError('--target only applies with --launch');
+    }
   }
 
   final ModelTier tier = switch (res['model'] as String) {
@@ -184,6 +261,10 @@ CliArgs parseCliArgs(List<String> argv) {
     outputPath: res['output'] as String?,
     policy: policy,
     extensions: extensions,
+    launch: launch,
+    runner: runner,
+    device: device,
+    target: target,
     agentsMdPath: res['agents-md'] as String?,
     turnBudget: turnBudget,
   );
