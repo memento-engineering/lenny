@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- `leonard_drive` gains a `screenshot` subcommand: capture a still and write the
+  PNG to `--out path.png` (decodes `core.screenshot`; prints
+  width/height/device-pixel-ratio). Just pixels — no settle, no golden compare.
+
 ## 0.1.1
 
 - Provider construction moves to the `DartanticModelProvider` seam (the agent's

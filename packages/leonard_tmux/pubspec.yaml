@@ -3,7 +3,7 @@ description: >-
   A pure-Dart, process-backed Leonard contract extension: a stateful,
   self-watching tmux extension that projects sessions/panes/output into a
   genesis_perception tree and exposes send_keys / new_session tools.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4
+
+- Extension contract extracted to the new `leonard_contract` package
+  (Flutter-free): `LeonardExtension`, `LeonardTool`, `PerceptionExtension`,
+  `ExtensionRegistry`, and the dispatch helpers now live there and are
+  re-exported via `contract.dart`, so consumers are unaffected. Adds a
+  `leonard_contract` dependency. The unused frame-callback and error-handler
+  hooks were dropped, removing the `SchedulerBinding` / `FlutterErrorDetails`
+  coupling from the contract; the binding's error-ring-buffer capture is
+  unchanged.
+
 ## 0.1.3
 
 - Perception serialization de-duplicated: `serializePerceptionFragment` now
