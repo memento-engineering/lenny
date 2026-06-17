@@ -1,4 +1,4 @@
-/// Live proof of the `tmux` Leonard extension against a real tmux server.
+/// Live proof of the stateful `tmux` Leonard *contract* extension, in-process.
 ///
 /// Self-skips when tmux is absent. Runs on an isolated `-L` socket and kills
 /// its own server on exit, so it never touches your default tmux.
@@ -9,8 +9,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:genesis_perception/genesis_perception.dart';
 import 'package:genesis_tmux/genesis_tmux.dart';
-import 'package:leonard_agent/leonard_agent.dart' show ExtensionFragment;
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:leonard_tmux/leonard_tmux.dart';
 
 Future<void> main() async {
@@ -24,33 +25,37 @@ Future<void> main() async {
     executor: const ProcessTmuxExecutor(),
     socket: socket,
   );
-  final tmux = TmuxExtension(client);
+  final ext = TmuxExtension(client);
 
   try {
-    final created = await tmux.executeAction('tmux.new_session', {
-      'name': 'demo',
-    });
-    final paneId = created['pane'] as String;
+    // initialize() starts the watcher and seeds the first live snapshot.
+    await ext.initialize(ExtensionContext(namespace: 'tmux'));
+
+    final newSession = ext.tools.firstWhere((t) => t.name == 'new_session');
+    final created = await newSession.call(<String, Object?>{'name': 'demo'});
+    final paneId = (created.value! as Map)['pane'] as String;
     stdout.writeln('created session "demo" -> pane $paneId\n');
 
     stdout.writeln('=== observation 1 (fresh session) ===');
-    _printFragment(await tmux.observe());
+    _printFragment(ext);
 
-    stdout.writeln('\n>> tmux.send_keys: echo leonard-was-here');
-    final sent = await tmux.executeAction('tmux.send_keys', {
+    final sendKeys = ext.tools.firstWhere((t) => t.name == 'send_keys');
+    stdout.writeln('\n>> send_keys: echo leonard-was-here');
+    await sendKeys.call(<String, Object?>{
       'pane': paneId,
       'text': 'echo leonard-was-here',
     });
-    stdout.writeln('   $sent');
-    await _waitForOutput(client, paneId, 'leonard-was-here');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await ext.refreshNow();
 
     stdout.writeln('\n=== observation 2 (after send_keys) ===');
-    _printFragment(await tmux.observe());
+    _printFragment(ext);
 
     stdout.writeln(
-      '\ntools contributed: ${tmux.tools.map((t) => t.name).toList()}',
+      '\ntools contributed: ${ext.tools.map((t) => t.name).toList()}',
     );
   } finally {
+    await ext.dispose();
     await client.killServer();
     stdout.writeln(
       '\nkilled the demo server; socket ${socket.label} is clean.',
@@ -66,20 +71,10 @@ bool _tmuxPresent() {
   }
 }
 
-void _printFragment(ExtensionFragment fragment) {
-  stdout.writeln(const JsonEncoder.withIndent('  ').convert(fragment.toJson()));
-}
-
-/// Polls the pane until [marker] appears (output is async), bounded.
-Future<void> _waitForOutput(
-  TmuxClient client,
-  String paneId,
-  String marker, {
-  Duration timeout = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(timeout);
-  while (DateTime.now().isBefore(deadline)) {
-    if ((await client.capturePane(paneId, lines: 50)).contains(marker)) return;
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-  }
+void _printFragment(TmuxExtension ext) {
+  final owner = PerceptionOwner();
+  final root = owner.mountRoot(ext.buildPerception());
+  final data = serializePerceptionFragment(root);
+  owner.unmountRoot();
+  stdout.writeln(const JsonEncoder.withIndent('  ').convert(data));
 }

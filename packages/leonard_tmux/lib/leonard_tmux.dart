@@ -1,11 +1,13 @@
-/// A pure-Dart, process-backed Leonard extension for tmux.
+/// A pure-Dart, process-backed Leonard *contract* extension for tmux.
 ///
-/// [TmuxExtension] projects a genesis_tmux client's sessions, panes, and recent
-/// output into a genesis_perception tree, serializes it into a Leonard
-/// `ExtensionFragment` under the `tmux` namespace, and exposes `tmux.send_keys`
-/// / `tmux.new_session` tools dispatched to the underlying tmux verbs. Unlike
-/// the Flutter reference extensions, it observes an external process rather than
-/// the host app — so it is pure Dart and uses no Flutter.
+/// [TmuxExtension] is a stateful, self-watching `LeonardExtension` (the same
+/// shape as the Flutter reference extensions): it subscribes to a genesis_tmux
+/// observation source and keeps a live snapshot current, projecting it into a
+/// genesis_perception tree that the host serializes into the `tmux`
+/// observation fragment, and exposes `send_keys` / `new_session` tools. Unlike
+/// the Flutter extensions it observes an external process rather than the host
+/// app — so it is pure Dart and uses no Flutter. Host it over the VM service
+/// with `leonard_host`'s `ExplorationHost` to drive a tmux server live.
 library;
 
 export 'src/tmux_extension.dart' show TmuxExtension;

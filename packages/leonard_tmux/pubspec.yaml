@@ -1,8 +1,8 @@
 name: leonard_tmux
 description: >-
-  A pure-Dart, process-backed Leonard extension: projects a genesis_tmux
-  client's sessions/panes/output into a genesis_perception tree and exposes a
-  send-keys tool.
+  A pure-Dart, process-backed Leonard contract extension: a stateful,
+  self-watching tmux extension that projects sessions/panes/output into a
+  genesis_perception tree and exposes send_keys / new_session tools.
 version: 0.1.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
@@ -13,9 +13,11 @@ environment:
 dependencies:
   genesis_perception: ^0.1.2
   genesis_tmux: ^0.1.0
-  leonard_agent: ^0.1.0
+  leonard_contract: ^0.1.0
   meta: ^1.16.0
 
 dev_dependencies:
+  leonard_agent: ^0.1.0
+  leonard_host: ^0.1.0
   lints: ^5.1.0
   test: ^1.25.0
