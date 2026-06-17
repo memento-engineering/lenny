@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- `HandshakeResult` gains a `capabilities` field: host-level features that are
+  reachable but are NOT namespaced tools (so they never appear under
+  `extensions`) — notably `screenshot`. The handshake parse reads the new
+  `capabilities` array and is tolerant of its absence (older bindings parse to
+  an empty list). Lets a driver list `screenshot` where agents look instead of
+  concluding "no such capability" from the tool manifest alone.
+
 ## 0.1.2
 
 - Adopt dartantic as the model-backend seam: a single `DartanticModelProvider`

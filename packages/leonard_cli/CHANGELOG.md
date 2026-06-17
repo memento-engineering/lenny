@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- `leonard_drive tools` now prints a `capabilities` array next to `namespaces`.
+  It surfaces reachable host features that are not namespaced tools — notably
+  `screenshot` (use the `screenshot` subcommand), which is absent from
+  `namespaces` by design. Stops the recurring "the manifest has no screenshot,
+  so there is no screenshot capability" mistake. Requires `leonard_agent`
+  `^0.1.3` (the handshake parse that decodes `capabilities`).
+
 ## 0.1.2
 
 - `leonard_drive` gains a `screenshot` subcommand: capture a still and write the

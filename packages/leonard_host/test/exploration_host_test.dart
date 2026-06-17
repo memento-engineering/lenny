@@ -18,6 +18,10 @@ void main() {
       expect(exts, hasLength(1));
       expect(exts.single['namespace'], 'demo');
       expect(exts.single['tools'], <String>['bump']);
+      // A pure-Dart target has no screenshot, but the field is part of the
+      // handshake contract (parity with the Flutter binding), so it must be
+      // present and empty rather than absent.
+      expect(hs['capabilities'], isEmpty);
     });
 
     test('observation is a valid Observation bundle carrying the fragment',

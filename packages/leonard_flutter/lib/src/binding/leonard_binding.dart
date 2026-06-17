@@ -383,6 +383,15 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
                 in _extensionRegistry.manifest)
               <String, Object?>{'namespace': m.namespace, 'tools': m.tools},
           ],
+          // Host-level capabilities that are reachable but are NOT namespaced
+          // tools, so they never appear under `extensions`. `screenshot` is
+          // the raw `core.screenshot` VM extension registered below — gated
+          // on the same debug/profile condition so this list stays honest in
+          // release. Surfacing it here keeps a driver from concluding "no
+          // screenshot capability" just because it is absent from the tools.
+          'capabilities': <String>[
+            if (kDebugMode || kProfileMode) 'screenshot',
+          ],
         }),
       );
     });

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5
+
+- `core.handshake` now advertises a `capabilities` list alongside the extension
+  manifest. `screenshot` (the raw `core.screenshot` VM extension) is reachable
+  but is not a namespaced tool, so it never appeared in the manifest — a driver
+  listing tools would wrongly conclude "no screenshot". It is now reported as a
+  capability, gated on the same debug/profile condition as the extension itself
+  (absent in release).
+
 ## 0.1.4
 
 - Extension contract extracted to the new `leonard_contract` package

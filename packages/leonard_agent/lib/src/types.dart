@@ -6,6 +6,7 @@ class HandshakeResult {
   const HandshakeResult({
     required this.contractVersion,
     required this.extensions,
+    this.capabilities = const <String>[],
   });
 
   /// Contract version reported by the binding.
@@ -13,6 +14,15 @@ class HandshakeResult {
 
   /// Active extensions reported by the binding, with pre-namespaced tools.
   final List<ExtensionManifestEntry> extensions;
+
+  /// Host-level capabilities that are reachable but are NOT namespaced
+  /// [LeonardTool]s — so they never appear in [extensions]. The canonical
+  /// one is `screenshot` (a raw `ext.exploration.core.screenshot` VM
+  /// extension on the Flutter binding, debug/profile only). Surfaced here
+  /// so a driver lists them where agents look: their absence from the tool
+  /// manifest otherwise reads as "no such capability". Empty on hosts that
+  /// expose none (e.g. the pure-Dart `ExplorationHost`).
+  final List<String> capabilities;
 }
 
 /// One entry in the handshake extension manifest.

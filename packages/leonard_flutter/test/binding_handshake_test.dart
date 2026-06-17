@@ -79,4 +79,22 @@ void main() {
     // bare tokens — no namespacing
     expect(byNs['router']!.every((String t) => !t.contains('.')), isTrue);
   });
+
+  test('core.handshake advertises screenshot as a capability (debug)', () async {
+    final String raw = await binding.invokeServiceExtension(
+      'ext.exploration.core.handshake',
+      const <String, String>{},
+    );
+    final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
+    // screenshot is reachable but is NOT a namespaced tool, so it must be
+    // surfaced under `capabilities` (a driver listing tools would otherwise
+    // conclude "no screenshot"). flutter_test runs in debug → present.
+    expect(json['capabilities'], contains('screenshot'));
+    final List<dynamic> extensions = json['extensions'] as List<dynamic>;
+    final bool screenshotIsATool = extensions.any(
+      (dynamic p) =>
+          ((p as Map)['tools'] as List).cast<String>().contains('screenshot'),
+    );
+    expect(screenshotIsATool, isFalse);
+  });
 }

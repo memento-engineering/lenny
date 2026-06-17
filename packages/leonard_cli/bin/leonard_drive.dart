@@ -7,7 +7,11 @@
 /// Subcommands (all require `--vm-uri ws://…/ws`):
 ///
 ///   tools    — handshake; print the available tool manifest
-///              { contract_version, namespaces: [ {namespace, tools:[…]} ] }
+///              { contract_version, namespaces: [ {namespace, tools:[…]} ],
+///                capabilities: [ … ] }. `capabilities` lists reachable
+///                host features that are NOT namespaced tools — notably
+///                `screenshot` (use the `screenshot` subcommand), which is
+///                absent from `namespaces` by design.
 ///   observe  — print the current stable observation as JSON; `--policy`
 ///              selects the stability policy (default action-relative).
 ///   invoke   — call one tool: `--tool core.tap --args '{"node_id":5}'`;
@@ -114,6 +118,10 @@ Future<int> _run(List<String> argv) async {
             for (final ExtensionManifestEntry e in session.handshake.extensions)
               <String, dynamic>{'namespace': e.namespace, 'tools': e.tools},
           ],
+          // Reachable host capabilities that are NOT namespaced tools (so they
+          // are absent from `namespaces`). `screenshot` here means the
+          // `screenshot --out <path.png>` subcommand works against this target.
+          'capabilities': session.handshake.capabilities,
         });
         return 0;
 

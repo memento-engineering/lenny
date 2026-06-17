@@ -88,6 +88,10 @@ class ExplorationHost {
             in _registry.manifest)
           <String, Object?>{'namespace': m.namespace, 'tools': m.tools},
       ],
+      // A pure-Dart target has no widget tree, so no screenshot — but the
+      // field is part of the handshake contract, so report it (empty) for
+      // uniformity with the Flutter binding.
+      'capabilities': const <String>[],
     });
   }
 

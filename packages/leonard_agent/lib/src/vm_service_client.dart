@@ -112,6 +112,7 @@ class VmServiceClient {
     final Object? rawVersion =
         json['protocolVersion'] ?? json['contractVersion'];
     final Object? rawExtensions = json['extensions'];
+    final Object? rawCapabilities = json['capabilities'];
     if (rawVersion is! String) {
       throw StateError(
         'Handshake response missing or malformed protocolVersion: $rawVersion',
@@ -135,7 +136,19 @@ class VmServiceClient {
         );
       }
     }
-    return HandshakeResult(contractVersion: rawVersion, extensions: extensions);
+    // Capabilities are tolerant: older bindings (pre-0.1.5) omit the field
+    // entirely, in which case the manifest simply carries no capabilities.
+    final List<String> capabilities = <String>[];
+    if (rawCapabilities is List) {
+      for (final Object? cap in rawCapabilities) {
+        if (cap is String) capabilities.add(cap);
+      }
+    }
+    return HandshakeResult(
+      contractVersion: rawVersion,
+      extensions: extensions,
+      capabilities: capabilities,
+    );
   }
 
   /// Invoke the per-tool VM service extension that the binding registers

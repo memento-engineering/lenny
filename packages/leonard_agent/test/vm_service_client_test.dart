@@ -56,6 +56,7 @@ void main() {
               'tools': <String>['go'],
             },
           ],
+          'capabilities': <String>['screenshot'],
         }),
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');
@@ -68,6 +69,37 @@ void main() {
       expect(result.extensions, hasLength(1));
       expect(result.extensions.first.namespace, equals('router'));
       expect(result.extensions.first.tools, equals(<String>['go']));
+      expect(result.capabilities, equals(<String>['screenshot']));
+    });
+
+    test('capabilities default to empty when a pre-0.1.5 binding omits '
+        'the field', () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{
+          'protocolVersion': '2',
+          'extensions': <Map<String, dynamic>>[],
+        }),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      final result = await client.handshake();
+
+      expect(result.capabilities, isEmpty);
+    });
+
+    test('non-string capability entries are dropped', () async {
+      final fake = _FakeVmService(
+        (method, iso, args) async => _resp(<String, dynamic>{
+          'protocolVersion': '2',
+          'extensions': <Map<String, dynamic>>[],
+          'capabilities': <dynamic>['screenshot', 42, null],
+        }),
+      );
+      final client = VmServiceClient.forTest(fake, 'iso-1');
+
+      final result = await client.handshake();
+
+      expect(result.capabilities, equals(<String>['screenshot']));
     });
 
     test(
