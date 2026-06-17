@@ -136,3 +136,7 @@ Precedents:
 - `TmuxExtension` (`leonard_tmux`) — `initialize()` subscribes to a
   `genesis_tmux` `PollObservationSource`; `TmuxEvent`s refresh a cached
   `TmuxObservation`; `buildPerception()` reads it sync.
+
+Canonically this is a `genesis_tree` substrate invariant — it governs every
+`Seed`/`Branch` (not just perceptions), the same way Flutter's synchronous
+`build()` binds every widget. See genesis **ADR-0006 — Pull-free build**.
