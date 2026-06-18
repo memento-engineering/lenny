@@ -6,12 +6,18 @@ import 'gauntlet/gauntlet_index_screen.dart';
 import 'gauntlet/scenarios/async_reveal_screen.dart';
 import 'gauntlet/scenarios/chart_read_screen.dart';
 import 'gauntlet/scenarios/count_spatial_screen.dart';
+import 'gauntlet/scenarios/custom_paint_control_screen.dart';
 import 'gauntlet/scenarios/debounced_search_screen.dart';
 import 'gauntlet/scenarios/decorative_motion_screen.dart';
+import 'gauntlet/scenarios/expand_to_reach_screen.dart';
+import 'gauntlet/scenarios/label_lie_screen.dart';
+import 'gauntlet/scenarios/lazy_offscreen_screen.dart';
+import 'gauntlet/scenarios/modal_trap_screen.dart';
 import 'gauntlet/scenarios/object_id_screen.dart';
 import 'gauntlet/scenarios/ocr_price_screen.dart';
 import 'gauntlet/scenarios/optimistic_revert_screen.dart';
 import 'gauntlet/scenarios/semantics_lie_screen.dart';
+import 'gauntlet/scenarios/slider_semantic_value_screen.dart';
 import 'gauntlet/scenarios/staggered_list_screen.dart';
 import 'gauntlet/scenarios/transient_toast_screen.dart';
 import 'screens/change_profile_screen.dart';
@@ -136,6 +142,36 @@ GoRouter buildRouter(ProviderContainer container) {
         path: '/g/vision/semantics-lie',
         name: 'g-semantics-lie',
         builder: (_, __) => const SemanticsLieScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/label-lie',
+        name: 'g-label-lie',
+        builder: (_, __) => const LabelLieScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/slider-semantic-value',
+        name: 'g-slider-semantic-value',
+        builder: (_, __) => const SliderSemanticValueScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/expand-to-reach',
+        name: 'g-expand-to-reach',
+        builder: (_, __) => const ExpandToReachScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/modal-trap',
+        name: 'g-modal-trap',
+        builder: (_, __) => const ModalTrapScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/lazy-offscreen',
+        name: 'g-lazy-offscreen',
+        builder: (_, __) => const LazyOffscreenScreen(),
+      ),
+      GoRoute(
+        path: '/g/control/custom-paint-control',
+        name: 'g-custom-paint-control',
+        builder: (_, __) => const CustomPaintControlScreen(),
       ),
     ],
   );

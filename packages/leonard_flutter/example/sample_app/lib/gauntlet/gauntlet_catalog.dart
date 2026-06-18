@@ -98,7 +98,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     lane: laneControls,
     title: 'Label vs. pixels disagree',
     trap: 'A button reads "Continue" but its semantic label is "Submit".',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'control/slider-semantic-value',
@@ -107,7 +107,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A slider whose current value lives only in its semantic value, '
         'never as visible text.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'control/expand-to-reach',
@@ -116,7 +116,7 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'The target control is not in the tree until a section is '
         'expanded.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'control/modal-trap',
@@ -125,21 +125,21 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A dialog swallows outside taps. Dismiss it before anything else '
         'works.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'control/lazy-offscreen',
     lane: laneControls,
     title: 'Lazy off-screen target',
     trap: 'The target list item only materialises after scrolling.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'control/custom-paint-control',
     lane: laneControls,
     title: 'Custom-painted control',
     trap: 'A CustomPaint segmented control with hand-authored semantics.',
-    built: false,
+    built: true,
   ),
 
   // ── Lane C ──────────────────────────────────────────────────────────
