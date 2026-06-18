@@ -4,9 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import 'gauntlet/gauntlet_index_screen.dart';
 import 'gauntlet/scenarios/async_reveal_screen.dart';
+import 'gauntlet/scenarios/chart_read_screen.dart';
+import 'gauntlet/scenarios/count_spatial_screen.dart';
 import 'gauntlet/scenarios/debounced_search_screen.dart';
 import 'gauntlet/scenarios/decorative_motion_screen.dart';
+import 'gauntlet/scenarios/object_id_screen.dart';
+import 'gauntlet/scenarios/ocr_price_screen.dart';
 import 'gauntlet/scenarios/optimistic_revert_screen.dart';
+import 'gauntlet/scenarios/semantics_lie_screen.dart';
 import 'gauntlet/scenarios/staggered_list_screen.dart';
 import 'gauntlet/scenarios/transient_toast_screen.dart';
 import 'screens/change_profile_screen.dart';
@@ -106,6 +111,31 @@ GoRouter buildRouter(ProviderContainer container) {
         path: '/g/settle/transient-toast',
         name: 'g-transient-toast',
         builder: (_, __) => const TransientToastScreen(),
+      ),
+      GoRoute(
+        path: '/g/vision/object-id',
+        name: 'g-object-id',
+        builder: (_, __) => const ObjectIdScreen(),
+      ),
+      GoRoute(
+        path: '/g/vision/chart-read',
+        name: 'g-chart-read',
+        builder: (_, __) => const ChartReadScreen(),
+      ),
+      GoRoute(
+        path: '/g/vision/ocr-price',
+        name: 'g-ocr-price',
+        builder: (_, __) => const OcrPriceScreen(),
+      ),
+      GoRoute(
+        path: '/g/vision/count-spatial',
+        name: 'g-count-spatial',
+        builder: (_, __) => const CountSpatialScreen(),
+      ),
+      GoRoute(
+        path: '/g/vision/semantics-lie',
+        name: 'g-semantics-lie',
+        builder: (_, __) => const SemanticsLieScreen(),
       ),
     ],
   );

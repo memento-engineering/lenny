@@ -150,28 +150,28 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'Tap a thing inside a photo. The semantics tree knows nothing '
         'about pixels.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'vision/chart-read',
     lane: laneVision,
     title: 'Read an infographic',
     trap: 'Answer a question whose data lives only in a rendered chart.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'vision/ocr-price',
     lane: laneVision,
     title: 'OCR text baked into an image',
     trap: 'A price rendered into a JPEG, not selectable text.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'vision/count-spatial',
     lane: laneVision,
     title: 'Count / spatial reasoning',
     trap: 'How many of a thing are in the photo? Hide-n-seek.',
-    built: false,
+    built: true,
   ),
   GauntletScenario(
     id: 'vision/semantics-lie',
@@ -180,6 +180,6 @@ const List<GauntletScenario> gauntletScenarios = <GauntletScenario>[
     trap:
         'A tile painted as an error but semantically neutral. Only pixels '
         'catch it.',
-    built: false,
+    built: true,
   ),
 ];
