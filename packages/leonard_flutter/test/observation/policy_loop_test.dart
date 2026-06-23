@@ -132,6 +132,48 @@ void main() {
       expect(tick.extensionsBusy, isEmpty);
     });
 
+    test(
+      'idle: persistent-callback baseline alone does not block (lenny-ndnp)',
+      () async {
+        // The real steady state of any running app: a persistent-callback
+        // baseline with no transient work and no microtasks. This must read as
+        // idle, so action-relative terminates `idle` instead of riding the full
+        // budget. Before the fix, persistentCallbacks made isAnyBusy permanently
+        // true and this same snapshot forced a budget timeout on every turn.
+        const FrameworkBusySnapshot baselineFw = FrameworkBusySnapshot(
+          transientCallbacks: 0,
+          persistentCallbacks: 2,
+          pendingMicrotasks: false,
+          lastFrameCommitTimestamp: null,
+          recentSkippedFrames: 0,
+          recentFrameCommits: <Duration>[],
+        );
+        final _Script s = _Script(
+          frameworks: <FrameworkBusySnapshot>[baselineFw],
+          busy: <List<MapEntry<String, BusyState>>>[
+            _busyExtensions(
+              <({String ns, bool busy, String? reason, int? estMs})>[
+                (ns: 'p1', busy: false, reason: null, estMs: null),
+              ],
+            ),
+          ],
+          elapsedMs: <int>[10],
+          semanticsHashes: <int>[1, 1],
+          routeHashes: <int>[1, 1],
+        );
+        final PolicyLoop loop = PolicyLoop(
+          snapshot: s.snapshot,
+          pollBusyStates: s.pollBusy,
+          semanticsHash: s.semHash,
+          routeHash: s.routeHash,
+          waitForFrame: s.waitForFrame,
+          nowMs: s.now,
+        );
+        final PolicyTick tick = await loop.run(const ObservationRequest());
+        expect(tick.reason, TerminatedBy.idle);
+      },
+    );
+
     test('routeChange: route hash flips before idle', () async {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw()],

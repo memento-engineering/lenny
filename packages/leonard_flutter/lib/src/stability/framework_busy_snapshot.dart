@@ -40,10 +40,17 @@ class FrameworkBusySnapshot {
   /// length is capped (current cap = 16).
   final List<Duration> recentFrameCommits;
 
-  /// `true` iff any of the framework-level signals indicate the framework
-  /// is doing work this turn.
-  bool get isAnyBusy =>
-      transientCallbacks > 0 || persistentCallbacks > 0 || pendingMicrotasks;
+  /// `true` iff the framework has *pending work this turn*.
+  ///
+  /// Deliberately EXCLUDES [persistentCallbacks]. Persistent frame callbacks
+  /// are registered once at startup (the render pipeline installs one and
+  /// never removes it) and fire every frame as steady-state work — their
+  /// presence is not a signal that this turn is unsettled. Counting them made
+  /// `isAnyBusy` permanently true on every screen, so the stable-observation
+  /// loop could never reach idle/quiet-frame and every observation rode its
+  /// full budget (lenny-ndnp). [persistentCallbacks] is retained in the
+  /// snapshot for diagnostics; it just no longer gates settling.
+  bool get isAnyBusy => transientCallbacks > 0 || pendingMicrotasks;
 
   /// JSON representation aligned with PRD §9.2 `framework_busy`. The
   /// `recent_frame_commits_us` field is intentionally omitted from this
