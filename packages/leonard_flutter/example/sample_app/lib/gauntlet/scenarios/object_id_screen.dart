@@ -154,8 +154,7 @@ class _ScenePainter extends CustomPainter {
     final double cx = u.centerX * size.width;
     final double cy = Umbrella.canopyCy * size.height;
     final double r = Umbrella.radius * size.width;
-    final double poleEnd =
-        (Umbrella.canopyCy + Umbrella.poleLen) * size.height;
+    final double poleEnd = (Umbrella.canopyCy + Umbrella.poleLen) * size.height;
 
     // Canopy: a filled semicircle.
     canvas.drawArc(
