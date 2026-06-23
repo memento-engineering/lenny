@@ -1,0 +1,25 @@
+name: leonard_native
+description: >-
+  A pure-Dart Leonard contract extension that perceives and drives a native
+  mobile app over the OS accessibility tree (via Appium/XCUITest): a stateful,
+  self-watching extension projecting the a11y tree into a genesis_perception
+  tree and exposing tap / enter_text / press / swipe tools.
+version: 0.1.0
+repository: https://github.com/memento-engineering/lenny
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  genesis_perception: ^0.1.2
+  http: ^1.2.0
+  leonard_contract: ^0.1.0
+  meta: ^1.16.0
+  xml: ^6.5.0
+
+dev_dependencies:
+  leonard_agent: ^0.1.0
+  leonard_host: ^0.1.0
+  lints: ^5.1.0
+  test: ^1.25.0

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Checked-in XCUITest /source fixture for the AppiumBackend._parseSource unit
+  test. Derived from ~/lenny-spike/spike_source.xml (the GREEN Auth0 login
+  capture, 2026-06-20). Trimmed to the Auth0 login subtree plus the host
+  "Log in" button, preserving the REAL x/y/width/height of the three
+  worked-example nodes (m2-spec §5.3):
+
+    - Log in button        x=156 y=450 w=90  h=48  -> rect [156,450,246,498]
+    - Email TextField      x=40  y=376 w=322 h=52  -> rect [40,376,362,428]
+    - Password SecureField  x=41  y=441 w=276 h=52 -> rect [41,441,317,493]
+
+  Anonymous form Images (no name/label/value) exercise the deterministic
+  POSITIONAL xpath synthesis `(//XCUIElementTypeImage)[n]`. Pure structural
+  XCUIElementTypeOther scaffolding is retained at the top to prove the parser's
+  container filter collapses it.
+-->
+<AppiumAUT>
+  <XCUIElementTypeApplication type="XCUIElementTypeApplication" enabled="true" visible="true" x="0" y="0" width="402" height="874" index="0" traits="">
+    <XCUIElementTypeWindow type="XCUIElementTypeWindow" enabled="true" visible="true" x="0" y="0" width="402" height="874" index="0" traits="">
+      <XCUIElementTypeOther type="XCUIElementTypeOther" enabled="true" visible="false" x="0" y="0" width="402" height="874" index="0" traits="">
+        <XCUIElementTypeOther type="XCUIElementTypeOther" enabled="true" visible="false" x="0" y="0" width="402" height="874" index="0" traits="">
+          <XCUIElementTypeButton type="XCUIElementTypeButton" name="Log in" label="Log in" enabled="true" visible="false" x="156" y="450" width="90" height="48" index="2" traits="Button"/>
+          <XCUIElementTypeStaticText type="XCUIElementTypeStaticText" value="opening Auth0…" name="opening Auth0…" label="opening Auth0…" enabled="true" visible="false" x="145" y="522" width="112" height="20" index="3" traits="StaticText"/>
+        </XCUIElementTypeOther>
+        <XCUIElementTypeOther type="XCUIElementTypeOther" name="form" label="form" enabled="true" visible="true" x="40" y="376" width="322" height="231" index="1" traits="">
+          <XCUIElementTypeImage type="XCUIElementTypeImage" enabled="true" visible="false" x="-150" y="-78" width="702" height="1102" index="0" traits="Image"/>
+          <XCUIElementTypeTextField type="XCUIElementTypeTextField" name="Email address" label="Email address" enabled="true" visible="true" x="40" y="376" width="322" height="52" index="2" placeholderValue="" traits=""/>
+          <XCUIElementTypeSecureTextField type="XCUIElementTypeSecureTextField" name="Password" label="Password" enabled="true" visible="true" x="41" y="441" width="276" height="52" index="4" placeholderValue="" traits=""/>
+          <XCUIElementTypeSwitch type="XCUIElementTypeSwitch" value="0" name="Show password" label="Show password" enabled="true" visible="true" x="317" y="441" width="44" height="52" index="5" traits="ToggleButton, Button"/>
+          <XCUIElementTypeImage type="XCUIElementTypeImage" enabled="true" visible="true" x="179" y="182" width="44" height="52" index="6" traits="Image"/>
+          <XCUIElementTypeLink type="XCUIElementTypeLink" name="Reset password" label="Reset password" enabled="true" visible="true" x="44" y="511" width="110" height="18" index="7" traits="Link"/>
+          <XCUIElementTypeButton type="XCUIElementTypeButton" name="Continue" label="Continue" enabled="true" visible="true" x="40" y="555" width="322" height="52" index="8" traits="Button"/>
+        </XCUIElementTypeOther>
+      </XCUIElementTypeOther>
+    </XCUIElementTypeWindow>
+  </XCUIElementTypeApplication>
+</AppiumAUT>

@@ -15,6 +15,7 @@ workspace:
   - packages/leonard_riverpod
   - packages/leonard_dio
   - packages/leonard_tmux
+  - packages/leonard_native
 
 dev_dependencies:
   melos: ^7.7.0

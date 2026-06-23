@@ -9,8 +9,8 @@ import 'package:flutter/widgets.dart';
 /// describing visible, interactive nodes.
 ///
 /// Each capture returns a list of records with the schema
-/// `id, role, label?, state?, actions?, rect` where `rect` is a four-element
-/// integer list `[left, top, right, bottom]`.
+/// `id, role, label?, value?, state?, actions?, rect` where `rect` is a
+/// four-element integer list `[left, top, right, bottom]`.
 ///
 /// Stable ids: the same framework [SemanticsNode] (identified by
 /// [SemanticsNode.id]) maps to the same emitted `id` across repeated
@@ -177,6 +177,7 @@ class _Rec {
     this.id,
     this.role,
     this.label,
+    this.value,
     this.state,
     this.actions,
     this.rect, [
@@ -186,6 +187,7 @@ class _Rec {
   final int id;
   final String role;
   final String label;
+  final String value;
   final List<String> state;
   final List<String> actions;
   final Rect rect;
@@ -209,6 +211,7 @@ class _Rec {
       ],
     };
     if (label.isNotEmpty) m['label'] = label;
+    if (value.isNotEmpty) m['value'] = value;
     if (state.isNotEmpty) m['state'] = state;
     if (actions.isNotEmpty) m['actions'] = actions;
     if (scroll != null) m['scroll'] = scroll!;
@@ -243,6 +246,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
         _stableIdFor(n),
         _role(d),
         d.label,
+        d.value,
         _state(d),
         _actions(d),
         r,
