@@ -12,7 +12,15 @@
 ///     `LEONARD_NATIVE_APPIUM_SERVER`);
 ///   * an already-booted iOS simulator udid in `LEONARD_NATIVE_SIM_UDID`;
 ///   * a built `Runner.app` path in `LEONARD_NATIVE_APP`;
-///   * a Flutter entrypoint in `LEONARD_NATIVE_FLUTTER_TARGET`.
+///   * the Flutter project root (the cwd `flutter run` needs) in
+///     `LEONARD_NATIVE_FLUTTER_PROJECT`;
+///   * a Flutter entrypoint (relative to that project, or absolute) in
+///     `LEONARD_NATIVE_FLUTTER_TARGET`.
+///
+/// `up` is launched with the Flutter project as its working directory (so the
+/// spawned `flutter run` resolves the project); the absolute `--native-host`
+/// and the absolute `leonard_drive.dart` entrypoint resolve their own package
+/// configs from their file locations, independent of that cwd.
 ///
 /// The operator provisions Appium + the booted sim; `up` boots neither (attach
 /// default). The drive STOPS before SIGN IN (m5 owns the Auth0 round-trip):
@@ -33,6 +41,7 @@ import 'package:test/test.dart';
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
 const String _udidEnv = 'LEONARD_NATIVE_SIM_UDID';
 const String _appEnv = 'LEONARD_NATIVE_APP';
+const String _flutterProjectEnv = 'LEONARD_NATIVE_FLUTTER_PROJECT';
 const String _flutterTargetEnv = 'LEONARD_NATIVE_FLUTTER_TARGET';
 
 const String _defaultServer = 'http://127.0.0.1:4723';
@@ -75,19 +84,26 @@ Future<bool> _appiumReachable(String server) async {
 String? _envSkipReason() {
   final String? udid = Platform.environment[_udidEnv];
   final String? app = Platform.environment[_appEnv];
+  final String? flutterProject = Platform.environment[_flutterProjectEnv];
   final String? flutterTarget = Platform.environment[_flutterTargetEnv];
   if (udid == null ||
       udid.isEmpty ||
       app == null ||
       app.isEmpty ||
+      flutterProject == null ||
+      flutterProject.isEmpty ||
       flutterTarget == null ||
       flutterTarget.isEmpty) {
-    return '$_udidEnv + $_appEnv + $_flutterTargetEnv must point at a booted '
-        'iOS sim + a built .app + a Flutter entrypoint — live dual launch '
-        'e2e skipped';
+    return '$_udidEnv + $_appEnv + $_flutterProjectEnv + $_flutterTargetEnv '
+        'must point at a booted iOS sim + a built .app + a Flutter project '
+        'root + an entrypoint — live dual launch e2e skipped';
   }
   if (!File(app).existsSync() && !Directory(app).existsSync()) {
     return '$_appEnv ($app) does not exist — live dual launch e2e skipped';
+  }
+  if (!File(p.join(flutterProject, 'pubspec.yaml')).existsSync()) {
+    return '$_flutterProjectEnv ($flutterProject) is not a Flutter project '
+        '(no pubspec.yaml) — live dual launch e2e skipped';
   }
   return null;
 }
@@ -134,6 +150,7 @@ void main() {
     }
     final String udid = Platform.environment[_udidEnv]!;
     final String app = Platform.environment[_appEnv]!;
+    final String flutterProject = Platform.environment[_flutterProjectEnv]!;
     final String flutterTarget = Platform.environment[_flutterTargetEnv]!;
     final String nativeHost = _hostScript(packageRoot);
 
@@ -147,28 +164,34 @@ void main() {
     final Completer<void> shutdownSeen = Completer<void>();
     final List<String> out = <String>[];
 
-    final Process up =
-        await Process.start(Platform.resolvedExecutable, <String>[
-          'run',
-          driveBin,
-          'up',
-          '--runner',
-          'flutter',
-          '-t',
-          flutterTarget,
-          '--udid',
-          udid,
-          '--app',
-          app,
-          '--native-host',
-          nativeHost,
-          '--appium-server',
-          server,
-          '--pid-file',
-          pidFile,
-          '--uri-file',
-          uriFile,
-        ], workingDirectory: packageRoot);
+    final Process up = await Process.start(
+      Platform.resolvedExecutable,
+      <String>[
+        'run',
+        driveBin,
+        'up',
+        '--runner',
+        'flutter',
+        '-t',
+        flutterTarget,
+        '--udid',
+        udid,
+        '--app',
+        app,
+        '--native-host',
+        nativeHost,
+        '--appium-server',
+        server,
+        '--pid-file',
+        pidFile,
+        '--uri-file',
+        uriFile,
+        // `up` runs from the Flutter project so the spawned `flutter run`
+        // resolves it; the absolute driveBin + --native-host resolve their
+        // own package configs from their file locations, not this cwd.
+      ],
+      workingDirectory: flutterProject,
+    );
     up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
       String line,
     ) {
