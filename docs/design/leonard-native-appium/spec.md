@@ -28,13 +28,14 @@ tenant.** A ~50-line Flutter app with one "Log in" button calling
 
 ### Rationale
 
-- **the in-house app is unbuildable here.** the in-house app/reference is SSO-gated and cannot
-  be built on this machine; using it as the TARGET is a non-starter.
+- **The in-house app is unbuildable here.** The proprietary in-house app is
+  SSO-gated and cannot be built on this machine; using it as the TARGET is a
+  non-starter.
 - **It exercises the real hard surface.** The login leg runs inside
   `ASWebAuthenticationSession` (iOS) / Chrome Custom Tab (Android) — a hosted web
   page, not a Flutter widget. That is *exactly* the surface
-  `native.enter_text` must conquer, and the one the reference recipe selectors
-  were written against.
+  `native.enter_text` must conquer, and the one the reference login-recipe
+  selectors were written against.
 - **Custom scheme sidesteps signing.** `webAuthentication(scheme: customScheme)`
   makes the callback a custom URL scheme, avoiding the Universal-Link /
   associated-domain signing problem that would otherwise force a real device.
@@ -46,12 +47,12 @@ tenant.** A ~50-line Flutter app with one "Log in" button calling
 
 ### Selectors / recipe provenance
 
-Selectors, sleeps, and guards in the harness are copied **verbatim** from the
-reference `LOGIN RECIPE` `stepSequence` (`the reference recipe:259-260` for the
-context switch; `the reference recipe` for the consent + keyboard branches). They are
-**unproven against a live `ASWebAuthenticationSession` DOM on a simulator** — the
-recipe ran on a a cloud device farm real-device farm (Appium 1.22.3). De-referenceing the
-app/host-specific strings is a pre-run open item (below).
+Selectors, sleeps, and guards in the harness are copied **verbatim** from a
+reference login recipe's `stepSequence` (its context-switch step; its consent +
+keyboard branches). They are **unproven against a live
+`ASWebAuthenticationSession` DOM on a simulator** — the reference recipe ran on a
+cloud real-device farm (Appium 1.22.3). De-branding the app/host-specific strings
+is a pre-run open item (below).
 
 ## Acceptance criteria
 
@@ -75,7 +76,7 @@ PASS requires **ALL** of:
 - The process exits `0` **only** when `emailOk && passwordMasked && passwordLanded`.
 - `spike_source.xml` + `spike_screen.png` are written at assert time as
   human-auditable proof. The screenshot must visually show the Auth0 Universal
-  Login page (<tenant-host> / Auth0 branding) with the typed email in the box —
+  Login page (the tenant's Auth0 branding) with the typed email in the box —
   **NOT** the app's Flutter launch screen.
 
 ### False-positive guards (baked into acceptance)
@@ -222,12 +223,12 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   *Mitigation:* Install Appium (3, latest) + drivers; `appium driver doctor
   xcuitest` green before the live run.
 
-- **B8 [MED/BLOCKER] — proprietary bundleId/appPackage placeholders ship in caps.**
+- **B8 [MED/BLOCKER] — placeholder bundleId/appPackage ship in caps.**
   The skeleton carries `com.example.inhouse` / `com.example.app` /
   `...MainActivity` as comment-only placeholders. An un-swapped run targets an
   uninstalled app and fails at session create (or attaches to nothing).
   *Mitigation:* Make bundleId/appPackage/appActivity **required CLI args with no
-  proprietary defaults**, so an un-swapped run hard-fails loudly. Derive appActivity
+  hardcoded defaults**, so an un-swapped run hard-fails loudly. Derive appActivity
   from `flutter run` / the sample manifest; do not hardcode.
 
 ### FALSE-NEGATIVES (real success misreported as failure)
@@ -242,8 +243,8 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   Keyboard is OFF. Keep `tap(field)` before `type`. Add a retry-once on empty
   readback before declaring failure.
 
-- **FN2 [MED] — Consent selector is reference-specific.** The iOS consent title
-  `//*[@value='"<App Name>" Wants to Use "<tenant-host>" to Sign In']` will read
+- **FN2 [MED] — Consent selector is app-specific.** The iOS consent title
+  `//*[@value='“<App Name>” Wants to Use “<tenant-host>” to Sign In']` will read
   e.g. `'"Spike" Wants to Use "<tenant>.us.auth0.com" to Sign In'` for the
   sample. The branch is guarded/non-fatal so it won't throw — but if Continue is
   never tapped, the Auth0 page never loads, field finds time out, and the spike
@@ -325,8 +326,8 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   *Mitigation:* Keep custom scheme for the callback. If iOS is kept, evaluate
   auth0_flutter's option to use an in-app web view / SFSafariViewController vs
   ASWebAuthenticationSession and pick whichever is inspectable — and document
-  that this DIVERGES from the in-house app's real ephemeral-session flow (weaker proof than
-  claimed).
+  that this DIVERGES from the in-house app's real ephemeral-session flow (weaker
+  proof than claimed).
 
 ### Low-risk / sound-as-written (noted, no action gating the run)
 
@@ -359,7 +360,7 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   sheet matching the in-house app) — affects FN2.
 
 - **O3 — Author the throwaway `auth0_flutter` sample (~50 lines) and choose its
-  bundleId/appPackage.** The skeleton ships reference placeholder
+  bundleId/appPackage.** The skeleton ships placeholder
   `bundleId`/`appPackage` (`com.example.inhouse` / `com.example.app`) that
   MUST be swapped (make them required args — B8). Derive `appActivity` from the
   built manifest.
@@ -386,7 +387,7 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   and disconnect the hardware keyboard, to avoid "Keyboard is not present"
   swallowing keystrokes (FN1).
 
-- **O9 — De-reference the consent handler.** Match Continue by
+- **O9 — De-brand the consent handler.** Match Continue by
   `//*[@name='Continue']` only (or parameterize title with the sample's app name
   + actual tenant host), not the verbatim '<App Name>' / '<tenant-host>' string
   (FN2).
@@ -400,8 +401,8 @@ grouped by kind, each with its mitigation. **Severity** in brackets.
   adds Auth0-tenant flakiness and is not needed for the native.enter_text proof.
 
 - **O12 — Note the Appium version divergence in NOTES.md.** The local spike uses
-  Appium 3 (latest) + xcuitest/uiautomator2; the repo's a cloud device farm path pins
-  1.22.3 — keyboard/secure-field behavior may differ.
+  Appium 3 (latest) + xcuitest/uiautomator2; the reference recipe's cloud-farm
+  path pins 1.22.3 — keyboard/secure-field behavior may differ.
 
 ### Hardening required before run (folded into the skeleton, summary)
 

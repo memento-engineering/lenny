@@ -10,7 +10,7 @@
 //   - FP1/FP2: add a right-page /source machine gate as a hard exit-1 condition.
 //   - B6: fix + guard the Android back/keyboard-dismiss route (may 404 on UIA2).
 //   - FP3: type a per-run unique nonce email; prefer fresh sim / fullReset.
-//   - B8: make bundleId/appPackage/appActivity REQUIRED args (no proprietary defaults).
+//   - B8: make bundleId/appPackage/appActivity REQUIRED args (no hardcoded defaults).
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -141,7 +141,7 @@ Future<int> main(List<String> args) async {
   final b = AppiumBackend(
       Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'), o['platform']!);
   final email = o['email']!, pw = o['password']!, osv = o['os'] ?? '';
-  // NOTE: bundleId/appPackage below are reference placeholders -- swap to the
+  // NOTE: bundleId/appPackage below are placeholders -- swap to the
   // throwaway auth0_flutter sample's ids before running.
   final caps = o['platform'] == 'ios'
       ? <String, Object?>{

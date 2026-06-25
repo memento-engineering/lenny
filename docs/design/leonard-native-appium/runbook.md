@@ -46,8 +46,8 @@ DECISION GATE:
 
 ## Step 1 — Install Appium + drivers
 
-The repo pins Appium 1.22.3 for the a cloud device farm farm; **ignore that for the local
-spike.** This machine is Xcode 26.5 / iOS 26, which needs the latest Appium +
+A reference recipe pins Appium 1.22.3 for a cloud device farm; **ignore that for
+the local spike.** This machine is Xcode 26.5 / iOS 26, which needs the latest Appium +
 drivers (Appium 2's bundled xcuitest may predate Xcode-26 support — see spec B3).
 
 ```bash
@@ -102,8 +102,8 @@ adb wait-for-device && adb devices                # confirm the emulator is seen
 
 ## Step 3 — Build + install the TARGET (throwaway auth0_flutter sample)
 
-TARGET = the throwaway `auth0_flutter` sample, NOT the in-house app (the in-house app is
-SSO-gated and unbuildable here).
+TARGET = the throwaway `auth0_flutter` sample, NOT the proprietary in-house app
+(it is SSO-gated and unbuildable here).
 
 1. Provision a FREE Auth0 dev tenant: one **Native** application + one test user +
    Universal Login enabled. Confirm Attack Protection (Bot Detection /
@@ -121,7 +121,7 @@ flutter pub get
 flutter run                                       # installs to the booted sim/emulator
 # iOS: note CFBundleIdentifier (the appium:bundleId)
 # Android: note applicationId (appium:appPackage) and the launch activity
-#   (appium:appActivity) from the built AndroidManifest — do NOT hardcode proprietary's.
+#   (appium:appActivity) from the built AndroidManifest — do NOT hardcode the proprietary app's.
 ```
 
 ---
@@ -169,7 +169,7 @@ dependencies:
 ## Step 6 — Run iOS first
 
 IMPORTANT: edit the caps `bundleId`/`appPackage` in `main()` to the sample's ids
-before running (the skeleton ships reference placeholders). Use an INSTALLED
+before running (the skeleton ships placeholder ids). Use an INSTALLED
 device + OS (see Step 2 — `iPhone 15 Pro` / iOS 17 are NOT available here).
 
 ```bash
