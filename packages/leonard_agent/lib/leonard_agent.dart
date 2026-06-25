@@ -5,6 +5,7 @@ export 'src/errors.dart' show BindingNotInitializedError;
 export 'src/loop_driver/default_loop_host.dart' show DefaultLoopHost;
 export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;
+export 'src/loop_driver/session_surface.dart' show SessionSurface;
 export 'src/loop_driver/extension_failure_tracker.dart'
     show ExtensionFailureTracker;
 export 'src/loop_driver/extension_tools.dart'
@@ -36,6 +37,11 @@ export 'src/observation/diff_models.dart'
         ExtensionDiffStructured,
         RouteChange;
 export 'src/observation/observation_differ.dart' show ObservationDiffer;
+export 'src/multi_host/multi_host_session.dart'
+    show HostAttachment, MultiHostSession;
+export 'src/multi_host/multi_host_errors.dart'
+    show MultiHostNamespaceCollision, MultiHostUnknownNamespace;
+export 'src/multi_host/observation_merge.dart' show mergeObservations;
 export 'src/observation/models.dart'
     show
         CoreFragment,

@@ -29,6 +29,16 @@
 ///              `ws_uri`. No model, no goal, no loop — it just hands off.
 ///   down     — stop a target started by `up`: signal the pid in `--pid-file`.
 ///
+///   drive-dual `<tools|observe|invoke>` — attach a `MultiHostSession` to BOTH
+///              a Flutter VM-service endpoint (`--flutter-uri`) and the native
+///              host endpoint (`--native-uri`), or both lines of `--uri-file`
+///              (flutter first). `tools` prints the MERGED manifest (union of
+///              namespaces + capabilities — proves `native` is advertised);
+///              `observe` prints the MERGED observation (Flutter `core` +
+///              `extensions.native` side by side); `invoke --tool native.tap`
+///              routes to the native channel (`core.tap` → Flutter). No model,
+///              no Auth0 — attach + one op + print + disconnect.
+///
 /// Statelessness: every call opens a fresh VM-service session and runs
 /// the handshake (which resets the per-session terminal latch), so the
 /// external brain owns all turn state. Each `observe` returns the FULL
@@ -63,6 +73,11 @@ StabilityPolicy _policy(String name) => switch (name) {
 
 ArgParser _parser() => ArgParser()
   ..addOption('vm-uri', help: 'Flutter VM service ws:// URI (required).')
+  ..addOption(
+    'flutter-uri',
+    help: 'drive-dual: Flutter VM service ws:// URI (the primary host).',
+  )
+  ..addOption('native-uri', help: 'drive-dual: native host ws:// endpoint.')
   ..addOption(
     'policy',
     defaultsTo: 'action-relative',
@@ -151,6 +166,7 @@ Future<int> _run(List<String> argv) async {
     'observe',
     'invoke',
     'screenshot',
+    'drive-dual',
     'up',
     'down',
   }.contains(command)) {
@@ -171,6 +187,11 @@ Future<int> _run(List<String> argv) async {
   // down signals an existing up). Dispatch before the vm-uri gate below.
   if (command == 'up') return _up(res);
   if (command == 'down') return _down(res);
+
+  // drive-dual attaches a MultiHostSession to TWO endpoints
+  // (--flutter-uri + --native-uri, or both lines of --uri-file flutter-first),
+  // so it takes no single --vm-uri. Dispatch before the vm-uri gate below.
+  if (command == 'drive-dual') return _driveDual(res);
 
   final String? rawUri = res['vm-uri'] as String?;
   final Uri? vmUri = rawUri == null ? null : Uri.tryParse(rawUri);
@@ -271,6 +292,142 @@ Future<int> _run(List<String> argv) async {
     }
     return 0;
   } on Object catch (e) {
+    stderr.writeln('error: $e');
+    return 1;
+  } finally {
+    await session?.end();
+  }
+}
+
+/// `drive-dual <tools|observe|invoke>` — attach a [MultiHostSession] to BOTH
+/// endpoints (the symmetric inverse of m4's `up` handoff), run one operation
+/// over the merged session, print JSON, and disconnect. Proves m3's three
+/// jobs against a live dual session: the handshake union ([tools]), the
+/// observation merge ([observe]), and namespace routing ([invoke]). It makes
+/// NO Auth0 calls and runs NO LLM loop — that is m5.
+///
+/// Endpoints come from `--flutter-uri` + `--native-uri`, or both lines of
+/// `--uri-file` (FLUTTER FIRST — the same order m4's dual `up` writes). The
+/// Flutter channel is the primary (merge/`core` source, contract version).
+Future<int> _driveDual(ArgResults res) async {
+  // Sub-operation is the first positional after `drive-dual`.
+  final List<String> rest = res.rest;
+  final String op = rest.isEmpty ? '' : rest.first;
+  if (!const <String>{'tools', 'observe', 'invoke'}.contains(op)) {
+    stderr.writeln(
+      'error: drive-dual requires a sub-command: tools|observe|invoke',
+    );
+    return 64;
+  }
+
+  // Resolve the two endpoints: explicit flags win; else --uri-file (two
+  // lines, flutter-first).
+  Uri? flutterUri;
+  Uri? nativeUri;
+  final String? rawFlutter = res['flutter-uri'] as String?;
+  final String? rawNative = res['native-uri'] as String?;
+  if (rawFlutter != null && rawFlutter.isNotEmpty) {
+    flutterUri = Uri.tryParse(rawFlutter);
+  }
+  if (rawNative != null && rawNative.isNotEmpty) {
+    nativeUri = Uri.tryParse(rawNative);
+  }
+  if (flutterUri == null || nativeUri == null) {
+    final String? uriFile = res['uri-file'] as String?;
+    if (uriFile != null && uriFile.isNotEmpty) {
+      final File f = File(uriFile);
+      if (!f.existsSync()) {
+        stderr.writeln('error: --uri-file not found: $uriFile');
+        return 64;
+      }
+      final List<String> lines = (await f.readAsString())
+          .split('\n')
+          .map((String l) => l.trim())
+          .where((String l) => l.isNotEmpty)
+          .toList();
+      if (lines.length < 2) {
+        stderr.writeln(
+          'error: --uri-file must hold two ws:// lines (flutter first, native '
+          'second)',
+        );
+        return 64;
+      }
+      flutterUri ??= Uri.tryParse(lines[0]);
+      nativeUri ??= Uri.tryParse(lines[1]);
+    }
+  }
+  bool isWs(Uri? u) => u != null && (u.isScheme('ws') || u.isScheme('wss'));
+  if (!isWs(flutterUri) || !isWs(nativeUri)) {
+    stderr.writeln(
+      'error: drive-dual needs --flutter-uri + --native-uri (or a two-line '
+      '--uri-file, flutter first); both must be ws:// or wss://',
+    );
+    return 64;
+  }
+
+  // invoke needs a tool up front (before we attach), like single-host invoke.
+  String? tool;
+  Map<String, dynamic> invokeArgs = const <String, dynamic>{};
+  if (op == 'invoke') {
+    tool = res['tool'] as String?;
+    if (tool == null || tool.isEmpty) {
+      stderr.writeln(
+        'error: drive-dual invoke requires --tool <namespace.tool>',
+      );
+      return 64;
+    }
+    try {
+      final String raw = (res['args'] as String?) ?? '{}';
+      final Object? decoded = jsonDecode(raw.isEmpty ? '{}' : raw);
+      if (decoded is! Map) {
+        stderr.writeln('error: --args must be a JSON object');
+        return 64;
+      }
+      invokeArgs = decoded.cast<String, dynamic>();
+    } on FormatException catch (e) {
+      stderr.writeln('error: --args is not valid JSON: ${e.message}');
+      return 64;
+    }
+  }
+
+  MultiHostSession? session;
+  try {
+    session = await MultiHostSession.connectAll(<HostAttachment>[
+      HostAttachment(label: 'flutter', uri: flutterUri!),
+      HostAttachment(label: 'native', uri: nativeUri!),
+    ]);
+    await session.start(_placeholderGoal, const LeonardConfig());
+
+    switch (op) {
+      case 'tools':
+        _emit(<String, dynamic>{
+          'contract_version': session.handshake.contractVersion,
+          'namespaces': <Map<String, dynamic>>[
+            for (final ExtensionManifestEntry e in session.handshake.extensions)
+              <String, dynamic>{'namespace': e.namespace, 'tools': e.tools},
+          ],
+          'capabilities': session.handshake.capabilities,
+        });
+        return 0;
+
+      case 'observe':
+        final StabilityPolicy policy = _policy(res['policy'] as String);
+        final Observation curr = await session.observe(policy: policy);
+        _emit(<String, dynamic>{'observation': curr.toJson()});
+        return 0;
+
+      case 'invoke':
+        final Map<String, dynamic> result = await session.act(<String, dynamic>{
+          'name': tool,
+          'args': invokeArgs,
+        });
+        _emit(<String, dynamic>{'tool': tool, 'result': result});
+        return 0;
+    }
+    return 0;
+  } on Object catch (e) {
+    // An unknown namespace (MultiHostUnknownNamespace), a malformed name,
+    // or a transport failure all surface here → exit 1.
     stderr.writeln('error: $e');
     return 1;
   } finally {
@@ -653,7 +810,8 @@ void _emit(Map<String, dynamic> obj) =>
 
 void _usage(IOSink out) {
   out.writeln(
-    'Usage: leonard_drive <tools|observe|invoke|screenshot|up|down> [...]',
+    'Usage: leonard_drive '
+    '<tools|observe|invoke|screenshot|drive-dual|up|down> [...]',
   );
   out.writeln();
   out.writeln('  tools       --vm-uri <ws>');
@@ -662,6 +820,10 @@ void _usage(IOSink out) {
     '  invoke      --vm-uri <ws> --tool core.tap --args \'{"node_id":5}\'',
   );
   out.writeln('  screenshot  --vm-uri <ws> --out path.png');
+  out.writeln(
+    '  drive-dual  <tools|observe|invoke> --flutter-uri <ws> --native-uri <ws> '
+    '(or --uri-file F, flutter first)',
+  );
   out.writeln(
     '  up          --runner flutter -d <device> -t <entry> [--uri-file F] '
     '[--pid-file P]',

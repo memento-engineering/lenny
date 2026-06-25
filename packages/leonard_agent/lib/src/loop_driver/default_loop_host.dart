@@ -1,6 +1,6 @@
 /// Production [LoopHost] implementation that wires the loop driver to
-/// an [LeonardSession] (and its underlying `VmServiceClient`) plus
-/// caller-supplied tool descriptors.
+/// a [SessionSurface] (a single-host `LeonardSession` or a multi-host
+/// `MultiHostSession`) plus caller-supplied tool descriptors.
 ///
 /// The handshake's `ExtensionManifestEntry` list only carries
 /// pre-namespaced tool *names*; full [ToolDescriptor]s (including
@@ -26,9 +26,9 @@ import 'package:vm_service/vm_service.dart' show RPCError;
 
 import '../observation/models.dart';
 import '../provider/types.dart';
-import '../session.dart';
 import '../session/observation_puller.dart';
 import 'loop_host.dart';
+import 'session_surface.dart';
 import 'types.dart';
 
 /// VM-service [RPCError.code] values that indicate the underlying
@@ -43,7 +43,8 @@ const Set<int> _kTransportRpcCodes = <int>{-32000, -32603};
 const String _kCoreNamespace = 'core';
 
 class DefaultLoopHost implements LoopHost {
-  /// Build a host on top of an already-`start()`ed [LeonardSession].
+  /// Build a host on top of an already-`start()`ed [SessionSurface]
+  /// (a single-host `LeonardSession` or a multi-host `MultiHostSession`).
   ///
   /// * [coreTools] — base tool list always included in `mergedTools()`.
   /// * [extensionTools] — extension tool descriptors keyed by namespace.
@@ -54,7 +55,7 @@ class DefaultLoopHost implements LoopHost {
   ///   inside the host).
   /// * [policy] — stability policy applied to every `observe()` call.
   DefaultLoopHost.fromSession({
-    required LeonardSession session,
+    required SessionSurface session,
     required List<ToolDescriptor> coreTools,
     required Map<String, List<ToolDescriptor>> extensionTools,
     required String goal,
@@ -71,7 +72,7 @@ class DefaultLoopHost implements LoopHost {
        _agentsMd = agentsMd,
        _policy = policy;
 
-  final LeonardSession _session;
+  final SessionSurface _session;
   final List<ToolDescriptor> _coreTools;
   final Map<String, List<ToolDescriptor>> _extensionTools;
   final String _goal;
@@ -128,7 +129,7 @@ class DefaultLoopHost implements LoopHost {
     String tool,
     Map<String, dynamic> args,
   ) => _callTransport<Map<String, dynamic>>(
-    () => _session.client.executeAction(tool, args),
+    () => _session.executeAction(tool, args),
   );
 
   @override

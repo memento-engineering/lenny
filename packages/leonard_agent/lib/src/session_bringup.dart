@@ -10,15 +10,15 @@
 /// [bringUpSession] reads `session.handshake` and assumes it is populated.
 ///
 /// The caller retains responsibility for:
-///   - constructing, connecting, and starting the [LeonardSession],
+///   - constructing, connecting, and starting the session,
 ///   - choosing provider, VmService origin, and trace writer,
 ///   - writing the returned [header] to its own writer, and
 ///   - handing the returned [host] to `session.run` / `LoopDriver`.
 library;
 
 import 'loop_driver/default_loop_host.dart';
+import 'loop_driver/session_surface.dart';
 import 'provider/types.dart';
-import 'session.dart';
 import 'session/observation_puller.dart';
 import 'trajectory/records.dart';
 import 'types.dart';
@@ -52,7 +52,7 @@ typedef BringUpResult = ({SessionHeader header, DefaultLoopHost host});
 /// * [extraConfig] — additional key/value pairs merged into
 ///   `header.config` (may be null).
 Future<BringUpResult> bringUpSession({
-  required LeonardSession session,
+  required SessionSurface session,
   required String goal,
   required StabilityPolicy policy,
   required String modelIdentifier,
