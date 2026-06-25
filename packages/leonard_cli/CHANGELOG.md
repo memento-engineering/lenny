@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+- `leonard_drive up` gains a native dual path: boot a Flutter target AND the
+  `leonard_native` host against ONE shared device, expose both VM-service
+  endpoints (`DualLaunchHandle{flutterWsUri, nativeEndpoint, deviceId}`), and
+  tear both down via a single `--pid-file`. The single-target path is
+  unchanged.
+- New `drive-dual` subcommand (`tools` / `observe` / `invoke`) drives a
+  multi-host `MultiHostSession` over both endpoints — merged manifest, merged
+  observation, namespace-routed tool calls — so an external brain can perceive
+  and drive a Flutter app and the native channel together.
+
 ## 0.1.3
 
 - `leonard_drive tools` now prints a `capabilities` array next to `namespaces`.

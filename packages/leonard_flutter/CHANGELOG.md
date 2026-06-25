@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+- The core semantics fragment now emits a `value` field (from
+  `SemanticsData.value`) alongside `label`, so the harness sees a node's current
+  value (e.g. a text field's contents) uniformly with the native channel's
+  record shape.
+- Stability: the settle loop no longer wedges when a framework callback stays
+  registered across frames — the persistent-callback baseline is dropped from
+  `isAnyBusy`, so a quiet frame is correctly reported as idle.
+
 ## 0.1.5
 
 - `core.handshake` now advertises a `capabilities` list alongside the extension

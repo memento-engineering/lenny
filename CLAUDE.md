@@ -103,10 +103,17 @@ service. Layering (low → high):
 - **`leonard_agent`** — the brain/harness and driver client (`LeonardSession`,
   `VmServiceClient`, the loop); `leonard_cli` / `leonard_drive` are its CLIs. It
   is target-agnostic — it speaks the same `ext.exploration.*` surface whether
-  the target is Flutter or pure Dart.
+  the target is Flutter or pure Dart — and can attach to **multiple hosts at
+  once** (`MultiHostSession`): it merges each host's perception fragment into one
+  observation and routes each tool call to the owning host by namespace, so the
+  brain can drive a Flutter app and the `native` channel together, switching by
+  perception rather than a mode flag.
 - **Extensions** contribute tools + an observation fragment under their
   namespace: `core` (Flutter actions), `router`/`riverpod`/`dio` (Flutter),
-  `leonard_tmux` (pure-Dart, drives an external tmux process).
+  `leonard_tmux` (pure-Dart, drives an external tmux process), `leonard_native`
+  (pure-Dart, drives the OS accessibility tree via Appium/XCUITest — the
+  `native` channel that perceives and drives UI *outside* the Flutter engine,
+  e.g. the real Auth0 hosted web-login).
 
 ## Conventions & Patterns
 

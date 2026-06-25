@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4
+
+- Multi-host attach: `MultiHostSession` attaches to N VM-service hosts at once,
+  merges each host's perception fragment into one observation (side-by-side,
+  keyed by namespace), and routes each tool call to the owning host by namespace
+  (`core.*` → the Flutter host, `native.*` → the native channel). A new
+  `SessionSurface` interface is implemented by BOTH the unchanged single-host
+  `LeonardSession` and `MultiHostSession`, so the loop drives either
+  transparently. The agent context-switches by perception, not by hardcoded
+  mode flags.
+
 ## 0.1.3
 
 - `HandshakeResult` gains a `capabilities` field: host-level features that are

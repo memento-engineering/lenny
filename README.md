@@ -110,6 +110,7 @@ extensions are where Flutter specifics live.
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | [`leonard_agent`](packages/leonard_agent)       | The harness loop — web-compatible, frontend-agnostic. Stability policy, action validation, trajectory log, and the model providers.      |
 | [`leonard_flutter`](packages/leonard_flutter)   | The host: a custom `WidgetsBinding` that claims the lifecycle slot in `main()` and exposes the VM-service extensions the harness drives. |
+| [`leonard_native`](packages/leonard_native)     | The native channel — perceives and drives UI **outside** the Flutter engine via the OS accessibility tree (iOS XCUITest over Appium), so the harness can drive the real Auth0 hosted web-login and resume on Flutter. Pairs with multi-host attach. |
 | [`leonard_cli`](packages/leonard_cli)           | Headless frontend — connects to a running app's VM service and streams a trajectory to disk.                                             |
 | [`leonard_devtools`](packages/leonard_devtools) | In-IDE DevTools extension — the same loop in a panel, with live **Prompt**, **Thinking**, and **Timeline** views.                        |
 | [`leonard_router`](packages/leonard_router)     | Reference extension — route-stack observation and a `router.navigate` tool.                                                              |
