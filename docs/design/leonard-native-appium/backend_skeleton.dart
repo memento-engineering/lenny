@@ -83,7 +83,7 @@ class AppiumBackend {
         final v = j['value'] as Map<String, Object?>;
         return v.values.first as String; // element-6066-11e4-a52e-4f735466cecf
       } on AppiumError {
-        await Future.delayed(const Duration(milliseconds: 400));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
       }
     }
     if (required) throw AppiumError('not found: $xpath');
