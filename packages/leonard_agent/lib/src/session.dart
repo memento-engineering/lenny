@@ -12,6 +12,7 @@ import 'package:vm_service/vm_service.dart' show VmService;
 
 import 'loop_driver/loop_driver.dart';
 import 'loop_driver/loop_host.dart';
+import 'loop_driver/session_surface.dart';
 import 'loop_driver/types.dart';
 import 'observation/diff_models.dart';
 import 'observation/models.dart';
@@ -35,7 +36,7 @@ import 'vm_service_client.dart';
 ///
 /// `disableExtension(...)` is callable any time after construction (used by
 /// the auto-disable policy in .18) and emits [ExtensionAutoDisabled].
-class LeonardSession {
+class LeonardSession implements SessionSurface {
   LeonardSession._(this._client) : _puller = ObservationPuller(_client);
 
   /// Test-only constructor that takes an already-built [VmServiceClient]
@@ -101,6 +102,7 @@ class LeonardSession {
 
   /// The handshake result captured by [start]. Throws [StateError] if
   /// [start] has not yet completed.
+  @override
   HandshakeResult get handshake {
     final h = _handshake;
     if (h == null) {
@@ -145,12 +147,23 @@ class LeonardSession {
   @internal
   VmServiceClient get client => _client;
 
+  /// Execute a `<namespace>.<tool>` action via the session's client.
+  /// [SessionSurface] forwarder used by `DefaultLoopHost` (the loop host
+  /// can no longer reach the `@internal` [client]); a thin pass-through to
+  /// [VmServiceClient.executeAction], no behavior change.
+  @override
+  Future<Map<String, dynamic>> executeAction(
+    String tool,
+    Map<String, dynamic> args,
+  ) => _client.executeAction(tool, args);
+
   /// Internal observation pull that runs through the session's
   /// [ObservationPuller] without mutating the per-session
   /// `_prevObservation` (the loop driver owns its own diff baseline).
   ///
   /// Used by `DefaultLoopHost.observe()` to back [LoopHost.observe].
   @internal
+  @override
   Future<Observation> pullObservation({
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) {
@@ -208,6 +221,7 @@ class LeonardSession {
   /// Record an auto-disable for [namespace] with a human-readable
   /// [reason]. Emits [ExtensionAutoDisabled]. Idempotent — disabling the
   /// same extension twice still emits, so listeners can surface repeats.
+  @override
   void disableExtension(String namespace, String reason) {
     _disabled.add(namespace);
     _emit(ExtensionAutoDisabled(namespace, reason));

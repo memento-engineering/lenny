@@ -50,6 +50,7 @@ void main() {
           'id',
           'role',
           'label',
+          'value',
           'state',
           'actions',
           'rect',
@@ -76,6 +77,29 @@ void main() {
     expect(env['count'], recs.length);
     expect(env['semantics'], isA<List<Object?>>());
     capture.dispose();
+    h.dispose();
+  });
+
+  testWidgets('value-bearing node emits the value field', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    final TextEditingController controller = TextEditingController(
+      text: 'nonce@example.com',
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TextField(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final SemanticsCapture cap = SemanticsCapture();
+    final Map<String, Object> field = cap.capture().firstWhere(
+      (Map<String, Object> r) => r['role'] == 'textfield',
+    );
+    expect(field['value'], 'nonce@example.com');
+    cap.dispose();
     h.dispose();
   });
 

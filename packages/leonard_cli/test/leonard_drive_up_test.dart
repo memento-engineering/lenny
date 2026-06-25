@@ -75,6 +75,149 @@ void main() {
       expect(r.stderr, contains('not found'));
     });
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  group(
+    'leonard_drive up native dual-path validation',
+    () {
+      // An on-disk app + native host so the "exists on disk" checks are isolated
+      // from the activation/partial checks under test. The native host resolves
+      // to the real workspace file; the .app is a stand-in directory.
+      final String realHost = p.join(
+        packageRoot,
+        '..',
+        'leonard_native',
+        'bin',
+        'leonard_native_host.dart',
+      );
+      final String fixtureApp = p.join(
+        packageRoot,
+        'test',
+        'fixtures',
+        'host_target.dart',
+      );
+
+      test('native flags + --runner dart is a hard error (exit 64)', () async {
+        final ProcessResult r = await run(<String>[
+          'up',
+          '--runner',
+          'dart',
+          '-t',
+          'bin/host.dart',
+          '--udid',
+          'SIM-UDID',
+          '--app',
+          fixtureApp,
+          '--native-host',
+          realHost,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains('--runner flutter'));
+      });
+
+      test('--udid without --app exits 64 naming --app', () async {
+        final ProcessResult r = await run(<String>[
+          'up',
+          '--runner',
+          'flutter',
+          '-t',
+          'bin/main.dart',
+          '--udid',
+          'SIM-UDID',
+          '--native-host',
+          realHost,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains('--app'));
+      });
+
+      test(
+        '--udid + --app without a resolvable --native-host exits 64',
+        () async {
+          final ProcessResult r = await run(<String>[
+            'up',
+            '--runner',
+            'flutter',
+            '-t',
+            'bin/main.dart',
+            '--udid',
+            'SIM-UDID',
+            '--app',
+            fixtureApp,
+            '--native-host',
+            p.join(packageRoot, 'no', 'such', 'native_host.dart'),
+          ]);
+          expect(r.exitCode, 64);
+          expect(r.stderr, contains('--native-host'));
+        },
+      );
+
+      test('a nonexistent --app path exits 64', () async {
+        final ProcessResult r = await run(<String>[
+          'up',
+          '--runner',
+          'flutter',
+          '-t',
+          'bin/main.dart',
+          '--udid',
+          'SIM-UDID',
+          '--app',
+          p.join(packageRoot, 'no', 'such', 'Runner.app'),
+          '--native-host',
+          realHost,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains('--app'));
+      });
+
+      test('-d X + --udid Y (Y != X) is a hard error (exit 64)', () async {
+        final ProcessResult r = await run(<String>[
+          'up',
+          '--runner',
+          'flutter',
+          '-t',
+          'bin/main.dart',
+          '-d',
+          'deviceX',
+          '--udid',
+          'udidY',
+          '--app',
+          fixtureApp,
+          '--native-host',
+          realHost,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains('--udid'));
+      });
+
+      test(
+        'Appium at a dead port exits 1 with an actionable message',
+        () async {
+          // All native preconditions valid, so validation passes and the Appium
+          // pre-flight probe runs — a dead port must surface as exit 1 naming
+          // Appium + the server URL (NOT a raw StateError).
+          final ProcessResult r = await run(<String>[
+            'up',
+            '--runner',
+            'flutter',
+            '-t',
+            'bin/main.dart',
+            '--udid',
+            'SIM-UDID',
+            '--app',
+            fixtureApp,
+            '--native-host',
+            realHost,
+            '--appium-server',
+            'http://127.0.0.1:1',
+          ]);
+          expect(r.exitCode, 1);
+          expect(r.stderr, contains('Appium'));
+          expect(r.stderr, contains('http://127.0.0.1:1'));
+        },
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
 }
 
 String _findPackageRoot() {
