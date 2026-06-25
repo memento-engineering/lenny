@@ -84,6 +84,45 @@ ArgParser _parser() => ArgParser()
     help: 'up: Flutter device id (flutter runner only).',
   )
   ..addOption('target', abbr: 't', help: 'up: entrypoint Dart file to run.')
+  // Native dual-channel options (up). The native channel activates iff ANY
+  // of {--udid, --app, --native-host} is present; once activated all three
+  // are required (see _up validation).
+  ..addOption(
+    'udid',
+    help:
+        'up (native): the SHARED sim udid. Feeds BOTH flutter run -d <udid> '
+        'and the native host --udid. Activates the native dual path.',
+  )
+  ..addOption(
+    'app',
+    help:
+        'up (native): path to the built .app bundle for the native host. '
+        'Activates the native dual path.',
+  )
+  ..addOption(
+    'native-host',
+    help:
+        'up (native): filesystem path to leonard_native_host.dart. When '
+        'omitted, auto-resolved relative to the workspace. Activates the '
+        'native dual path.',
+  )
+  ..addOption(
+    'appium-server',
+    defaultsTo: 'http://127.0.0.1:4723',
+    help: 'up (native): Appium server URL (ATTACH — probed, never spawned).',
+  )
+  ..addOption(
+    'platform',
+    defaultsTo: 'ios',
+    help: 'up (native): target platform (default ios).',
+  )
+  ..addFlag(
+    'boot-sim',
+    negatable: false,
+    help:
+        'up (native): boot the sim (xcrun simctl boot) and own its shutdown. '
+        'Default OFF — attach to an operator-booted sim.',
+  )
   ..addOption(
     'uri-file',
     help: 'up: also write the discovered ws:// URI to this path.',
@@ -251,6 +290,19 @@ Future<int> _up(ArgResults res) async {
     stderr.writeln('error: up requires --target <entrypoint.dart>');
     return 64;
   }
+
+  // The native channel activates iff ANY of {--udid, --app, --native-host} is
+  // present. Once activated, all three are required — partial native config is
+  // a mistake, not a silent single-target fallback (§6).
+  final String? udid = res['udid'] as String?;
+  final String? app = res['app'] as String?;
+  final String? nativeHostFlag = res['native-host'] as String?;
+  final bool dual =
+      (udid != null && udid.isNotEmpty) ||
+      (app != null && app.isNotEmpty) ||
+      (nativeHostFlag != null && nativeHostFlag.isNotEmpty);
+  if (dual) return _upDual(res);
+
   final TargetRunner runner = switch (res['runner'] as String) {
     'flutter' => TargetRunner.flutter,
     'dart' => TargetRunner.dart,
@@ -363,6 +415,216 @@ Future<int> _up(ArgResults res) async {
   return code;
 }
 
+/// Best-effort auto-resolve the native host relative to the workspace root,
+/// mirroring `native_host_e2e_test._hostScript()`'s dual-path resolver. Returns
+/// the first candidate that exists, or `null` when none does.
+String? _resolveNativeHost(String? explicit) {
+  if (explicit != null && explicit.isNotEmpty) {
+    return File(explicit).existsSync() ? explicit : null;
+  }
+  const List<String> candidates = <String>[
+    'bin/leonard_native_host.dart',
+    'packages/leonard_native/bin/leonard_native_host.dart',
+  ];
+  for (final String c in candidates) {
+    if (File(c).existsSync()) return c;
+  }
+  return null;
+}
+
+/// `up` (native dual path) — boot a Flutter target AND the leonard_native host
+/// against the SAME device, discover both ws:// URIs, emit ONE extended
+/// `vm_service_ready` line, and HOLD both channels until a signal (or either
+/// child exits) tears BOTH down via the composite [DualLaunchHandle.shutdown].
+///
+/// The native channel is strictly opt-in (activated by --udid/--app/
+/// --native-host). All exit-64 validations run BEFORE any spawn ("no dual
+/// mode": a partial/invalid native config is a hard error, never a silent
+/// single-target fallback).
+Future<int> _upDual(ArgResults res) async {
+  final String target = res['target'] as String; // non-empty (checked in _up)
+
+  // --runner must be flutter: the native dual path pairs a Flutter target with
+  // the native host (a pure-Dart, Flutter-less target has no shared screen).
+  if ((res['runner'] as String) != 'flutter') {
+    stderr.writeln(
+      'error: native flags require --runner flutter (the native dual path '
+      'pairs a Flutter target with the native host)',
+    );
+    return 64;
+  }
+
+  final String? udid = res['udid'] as String?;
+  final String? app = res['app'] as String?;
+  final String? nativeHostFlag = res['native-host'] as String?;
+
+  // Activation requires ALL THREE — name the missing flag(s).
+  final List<String> missing = <String>[
+    if (udid == null || udid.isEmpty) '--udid',
+    if (app == null || app.isEmpty) '--app',
+  ];
+  final String? nativeHost = _resolveNativeHost(nativeHostFlag);
+  if (nativeHost == null) {
+    if (nativeHostFlag != null && nativeHostFlag.isNotEmpty) {
+      stderr.writeln(
+        'error: --native-host path does not exist: $nativeHostFlag',
+      );
+      return 64;
+    }
+    missing.add('--native-host');
+  }
+  if (missing.isNotEmpty) {
+    stderr.writeln(
+      'error: native channel requires ${missing.join(', ')} '
+      '(any of --udid/--app/--native-host present requires all three)',
+    );
+    return 64;
+  }
+
+  // On the dual path -d is superseded by --udid; a conflicting -d is a hard
+  // error (prevents the divergent-screen failure mode).
+  final String? device = res['device'] as String?;
+  if (device != null && device.isNotEmpty && device != udid) {
+    stderr.writeln(
+      'error: on the native dual path --device is superseded by --udid; '
+      'drop -d (or make it equal --udid)',
+    );
+    return 64;
+  }
+
+  if (!File(app!).existsSync() && !Directory(app).existsSync()) {
+    stderr.writeln('error: --app path does not exist: $app');
+    return 64;
+  }
+
+  final int? timeoutSecs = int.tryParse(res['timeout'] as String? ?? '180');
+  if (timeoutSecs == null || timeoutSecs <= 0) {
+    stderr.writeln('error: --timeout must be a positive integer (seconds)');
+    return 64;
+  }
+
+  final Uri? appiumServer = Uri.tryParse(res['appium-server'] as String);
+  if (appiumServer == null) {
+    stderr.writeln('error: --appium-server is not a valid URL');
+    return 64;
+  }
+  final String platform = res['platform'] as String;
+  final bool bootSim = res['boot-sim'] as bool;
+
+  final DualLaunchHandle handle;
+  try {
+    handle = await launchDualTarget(
+      flutterEntrypoint: target,
+      udid: udid!,
+      app: app,
+      nativeHostPath: nativeHost!,
+      appiumServer: appiumServer,
+      platform: platform,
+      bootSim: bootSim,
+      onLog: stderr.writeln,
+      timeout: Duration(seconds: timeoutSecs),
+    );
+  } on TimeoutException {
+    stderr.writeln(
+      'error: no VM service URI within ${timeoutSecs}s; gave up booting target',
+    );
+    return 1;
+  } on ArgumentError catch (e) {
+    stderr.writeln('error: ${e.message}');
+    return 64;
+  } on StateError catch (e) {
+    // The Appium pre-flight probe and the LEONARD_HOST_READY gate both surface
+    // as StateErrors; reformat into operator-facing precondition messages.
+    final String msg = e.message;
+    if (msg.contains('LEONARD_HOST_READY')) {
+      stderr.writeln(
+        'error: native host exited before LEONARD_HOST_READY — is Appium up '
+        'at $appiumServer and the sim ($udid) booted?',
+      );
+    } else {
+      stderr.writeln('error: $msg');
+    }
+    return 1;
+  } on Object catch (e) {
+    stderr.writeln('error: launch failed: $e');
+    return 1;
+  }
+
+  // Machine-readable handoff: ONE extended vm_service_ready line carrying both
+  // endpoints + the shared device (back-compat: ws_uri stays the Flutter URI).
+  _emit(<String, dynamic>{
+    'event': 'vm_service_ready',
+    'ws_uri': handle.flutterWsUri.toString(),
+    'flutter_ws_uri': handle.flutterWsUri.toString(),
+    'native_endpoint': handle.nativeEndpoint.toString(),
+    'device_id': handle.deviceId,
+    'runner': 'flutter',
+    'pid': pid,
+  });
+
+  final String? uriFile = res['uri-file'] as String?;
+  if (uriFile != null && uriFile.isNotEmpty) {
+    final File f = File(uriFile);
+    await f.parent.create(recursive: true);
+    // Both URIs, newline-separated, FLUTTER FIRST. Line 1 is byte-compatible
+    // with the single-target single-URI file.
+    await f.writeAsString(
+      '${handle.flutterWsUri}\n${handle.nativeEndpoint}\n',
+      flush: true,
+    );
+  }
+  final String? pidFile = res['pid-file'] as String?;
+  if (pidFile != null && pidFile.isNotEmpty) {
+    final File f = File(pidFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('$pid\n', flush: true);
+  }
+
+  // Hold until a signal or EITHER child exits; teardown tears BOTH channels
+  // (and, if owned, the sim) down via the composite shutdown.
+  final Completer<int> done = Completer<int>();
+  Future<void> tearDown(String why) async {
+    if (done.isCompleted) return;
+    stderr.writeln('info: $why; shutting down targets…');
+    await handle.shutdown();
+    if (!done.isCompleted) done.complete(0);
+  }
+
+  final StreamSubscription<ProcessSignal> sigint = ProcessSignal.sigint
+      .watch()
+      .listen((_) => tearDown('received SIGINT'));
+  StreamSubscription<ProcessSignal>? sigterm;
+  try {
+    sigterm = ProcessSignal.sigterm.watch().listen(
+      (_) => tearDown('received SIGTERM'),
+    );
+  } on Object {
+    // SIGTERM is not watchable on every platform; SIGINT + target-exit remain.
+  }
+  unawaited(
+    handle.exitCode.then((int code) {
+      if (!done.isCompleted) {
+        stderr.writeln('info: a target exited (code $code)');
+        unawaited(tearDown('a target exited'));
+      }
+    }),
+  );
+
+  final int code = await done.future;
+  await sigint.cancel();
+  await sigterm?.cancel();
+  if (pidFile != null && pidFile.isNotEmpty) {
+    try {
+      final File f = File(pidFile);
+      if (f.existsSync()) await f.delete();
+    } on Object {
+      // best-effort cleanup
+    }
+  }
+  _emit(<String, dynamic>{'event': 'shutdown'});
+  return code;
+}
+
 /// `down` — stop a target started by `up`, by signalling the `up` process
 /// recorded in its --pid-file (whose handler tears the target down cleanly).
 Future<int> _down(ArgResults res) async {
@@ -405,6 +667,10 @@ void _usage(IOSink out) {
     '[--pid-file P]',
   );
   out.writeln('  up          --runner dart -t <entry> [--uri-file F]');
+  out.writeln(
+    '  up (native) --runner flutter -t <entry> --udid <sim> --app <Runner.app>'
+    ' [--native-host <path>] [--appium-server <url>] [--boot-sim]',
+  );
   out.writeln('  down        --pid-file P');
   out.writeln();
   out.writeln(_parser().usage);

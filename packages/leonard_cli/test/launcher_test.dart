@@ -126,5 +126,55 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+
+    test(
+      'native host vector: dart run + disabled auth + native args (AC4)',
+      () {
+        const String nativeHost =
+            'packages/leonard_native/bin/'
+            'leonard_native_host.dart';
+        const String u = 'http://127.0.0.1:4723';
+        const String ud = 'SIM-UDID';
+        const String a = '/path/Runner.app';
+        final inv = buildRunnerInvocation(
+          runner: TargetRunner.dart,
+          entrypoint: nativeHost,
+          disableAuthCodes: true,
+          extraArgs: <String>[
+            '--server',
+            u,
+            '--udid',
+            ud,
+            '--app',
+            a,
+            '--platform',
+            'ios',
+          ],
+        );
+        expect(inv.executable, 'dart');
+        expect(inv.args, <String>[
+          'run',
+          '--enable-vm-service=0',
+          '--disable-service-auth-codes',
+          nativeHost,
+          '--server',
+          u,
+          '--udid',
+          ud,
+          '--app',
+          a,
+          '--platform',
+          'ios',
+        ]);
+      },
+    );
+  });
+
+  group('parseVmServiceWsUri — native host shape', () {
+    test('the native host dart-run URL line scrapes to a ws URI', () {
+      const line =
+          'The Dart VM service is listening on http://127.0.0.1:53219/';
+      expect(parseVmServiceWsUri(line).toString(), 'ws://127.0.0.1:53219/ws');
+    });
   });
 }

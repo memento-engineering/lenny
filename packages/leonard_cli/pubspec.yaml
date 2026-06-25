@@ -10,6 +10,7 @@ environment:
 dependencies:
   args: ^2.6.0
   leonard_agent: ^0.1.3
+  meta: ^1.16.0
   path: ^1.9.0
 
 dev_dependencies:
