@@ -65,6 +65,30 @@ class Api {
     ];
   }
 
+  /// Gauntlet: confirmation code revealed only after a slow round-trip.
+  Future<String> fetchConfirmationCode() async {
+    final r = await _dio.get<Map<String, Object?>>('/confirmation');
+    return r.data!['code'] as String;
+  }
+
+  /// Gauntlet: the server always reconciles a "like" back to false, so the
+  /// optimistic UI flash disagrees with the settled state.
+  Future<bool> toggleLike() async {
+    final r = await _dio.post<Map<String, Object?>>('/like');
+    return r.data!['liked'] as bool;
+  }
+
+  /// Gauntlet: debounced search. Returns the result titles for [query].
+  Future<List<String>> search(String query) async {
+    final r = await _dio.get<Map<String, Object?>>(
+      '/search',
+      queryParameters: <String, Object?>{'q': query},
+    );
+    final list = (r.data!['results'] as List<Object?>)
+        .cast<Map<String, Object?>>();
+    return <String>[for (final m in list) m['title'] as String];
+  }
+
   Future<void> updateSettings({
     required String theme,
     required bool notifications,

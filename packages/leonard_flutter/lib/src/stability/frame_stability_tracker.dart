@@ -52,13 +52,12 @@ mixin FrameStabilityTracker on SchedulerBinding {
     );
   }
 
-  /// Convenience getter: `true` iff any tracked signal indicates the
-  /// framework is doing work this turn.
+  /// Convenience getter: `true` iff a tracked signal indicates *pending work
+  /// this turn*. Mirrors [FrameworkBusySnapshot.isAnyBusy] and likewise
+  /// excludes the persistent-callback baseline (registered once, fires every
+  /// frame as steady-state — never a settling signal; see lenny-ndnp).
   bool get isAnyFrameworkSignalBusy =>
-      _enabled &&
-      (_transientInFlight > 0 ||
-          _persistentRegistered > 0 ||
-          _microtaskPending);
+      _enabled && (_transientInFlight > 0 || _microtaskPending);
 
   @override
   int scheduleFrameCallback(

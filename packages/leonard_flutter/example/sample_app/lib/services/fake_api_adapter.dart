@@ -22,6 +22,23 @@ class FakeApiAdapter implements HttpClientAdapter {
 
   final Duration latency;
 
+  /// Extra per-endpoint latency on top of [latency], used by the gauntlet's
+  /// settle scenarios to make in-flight `dio` work observable for long
+  /// enough to stress the stability policy.
+  static const Map<String, Duration> _scenarioLatency = <String, Duration>{
+    'GET /confirmation': Duration(milliseconds: 1300),
+    'POST /like': Duration(milliseconds: 550),
+    'GET /search': Duration(milliseconds: 350),
+  };
+
+  /// Deterministic result counts for the debounced-search scenario, keyed by
+  /// the `q` query parameter. The fixture's ground-truth oracle relies on
+  /// these being stable.
+  static const Map<String, int> _searchCounts = <String, int>{
+    'widget': 5,
+    'alpha': 3,
+  };
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -30,7 +47,25 @@ class FakeApiAdapter implements HttpClientAdapter {
   ) async {
     await Future<void>.delayed(latency);
     final key = '${options.method} ${options.path}';
+    final Duration? extra = _scenarioLatency[key];
+    if (extra != null) await Future<void>.delayed(extra);
     switch (key) {
+      // ── Gauntlet settle scenarios ──────────────────────────────────
+      case 'GET /confirmation':
+        return _json(200, <String, Object?>{'code': 'AZ-4471'});
+      case 'POST /like':
+        // Always reconciles to NOT liked — the server "rejects" the
+        // optimistic like, so the settled state disagrees with the flash.
+        return _json(200, <String, Object?>{'liked': false});
+      case 'GET /search':
+        final String q = (options.queryParameters['q'] ?? '').toString();
+        final int n = _searchCounts[q] ?? 0;
+        return _json(200, <String, Object?>{
+          'results': <Map<String, Object?>>[
+            for (var i = 0; i < n; i++)
+              <String, Object?>{'id': '$q-$i', 'title': '$q result ${i + 1}'},
+          ],
+        });
       case 'POST /auth/login':
         final raw = await _readAll(requestStream);
         final decoded = raw.isEmpty

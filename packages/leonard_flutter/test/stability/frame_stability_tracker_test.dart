@@ -88,9 +88,9 @@ void main() {
     binding.scheduleFrameCallback((_) {});
     expect(binding.isAnyFrameworkSignalBusy, isTrue);
     _runFrame(binding, const Duration(milliseconds: 6100));
-    // Persistent callbacks added by other tests / framework keep this true,
-    // so we only assert the transient contribution by checking that
-    // transientCallbacks itself returned to its pre-schedule value.
+    // After the frame fires, the scheduled transient callback has run; assert
+    // the transient contribution returned to zero. (Persistent callbacks no
+    // longer count toward busy — see lenny-ndnp.)
     expect(binding.frameworkBusySnapshot().transientCallbacks, 0);
   });
 

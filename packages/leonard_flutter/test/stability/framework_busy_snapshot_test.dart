@@ -27,17 +27,6 @@ void main() {
     expect(
       const FrameworkBusySnapshot(
         transientCallbacks: 0,
-        persistentCallbacks: 1,
-        pendingMicrotasks: false,
-        lastFrameCommitTimestamp: null,
-        recentSkippedFrames: 0,
-        recentFrameCommits: <Duration>[],
-      ).isAnyBusy,
-      isTrue,
-    );
-    expect(
-      const FrameworkBusySnapshot(
-        transientCallbacks: 0,
         persistentCallbacks: 0,
         pendingMicrotasks: true,
         lastFrameCommitTimestamp: null,
@@ -45,6 +34,23 @@ void main() {
         recentFrameCommits: <Duration>[],
       ).isAnyBusy,
       isTrue,
+    );
+  });
+
+  test('isAnyBusy ignores the persistent-callback baseline (lenny-ndnp)', () {
+    // Persistent frame callbacks are registered once at startup and live
+    // forever; they must NOT count as "busy this turn". Otherwise isAnyBusy
+    // is permanently true and the settle loop never reaches idle.
+    expect(
+      const FrameworkBusySnapshot(
+        transientCallbacks: 0,
+        persistentCallbacks: 2,
+        pendingMicrotasks: false,
+        lastFrameCommitTimestamp: null,
+        recentSkippedFrames: 0,
+        recentFrameCommits: <Duration>[],
+      ).isAnyBusy,
+      isFalse,
     );
   });
 
