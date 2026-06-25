@@ -325,4 +325,28 @@ void main() {
       isTrue,
     );
   });
+
+  // AC2 (m5): `native.press` exposes `alert_dismiss` end to end — the tool
+  // forwards the key to backend.press and returns ToolResult(ok:true,
+  // value:{'key':'alert_dismiss'}) on success; the description mentions it.
+  test('alert_dismiss press forwards to the backend (ok + key echo)', () async {
+    final FakeNativeBackend fake = _fake();
+    final NativeExtension ext = await _initialized(fake);
+    addTearDown(ext.dispose);
+
+    final LeonardTool press = ext.tools.firstWhere((t) => t.name == 'press');
+    final res = await press.call(<String, Object?>{'key': 'alert_dismiss'});
+    expect(res.ok, isTrue);
+    expect((res.value! as Map)['key'], 'alert_dismiss');
+    expect(
+      fake.calls.any((c) => c.name == 'press' && c.detail == 'alert_dismiss'),
+      isTrue,
+    );
+  });
+
+  test('press tool description mentions alert_dismiss', () {
+    final NativeExtension ext = NativeExtension(_fake());
+    final LeonardTool press = ext.tools.firstWhere((t) => t.name == 'press');
+    expect(press.description, contains('alert_dismiss'));
+  });
 }

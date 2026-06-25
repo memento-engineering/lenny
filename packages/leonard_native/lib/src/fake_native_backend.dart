@@ -172,6 +172,7 @@ class FakeNativeBackend implements NativeBackend {
       'return',
       'done',
       'consent_accept',
+      'alert_dismiss',
       'back',
     };
     if (!recognized.contains(key)) {

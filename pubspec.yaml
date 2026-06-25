@@ -51,6 +51,14 @@ melos:
       run: >-
         dart test packages/leonard_agent/test/e2e/dogfood_e2e_test.dart
 
+    test:e2e:auth0:
+      description: >-
+        Run the live Auth0 round-trip dogfood e2e (leonard_native m5). Requires a
+        booted iOS sim + Appium + LEONARD_NATIVE_* and AUTH0_EMAIL/AUTH0_PASSWORD.
+        Self-skips when absent, so it is safe to invoke locally.
+      run: >-
+        dart test packages/leonard_cli/test/dogfood_auth0_e2e_test.dart
+
     # ---------- private sub-scripts (not listed by melos run) ----------
     test:dart:
       private: true

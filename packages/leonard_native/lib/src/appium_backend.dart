@@ -540,6 +540,15 @@ class AppiumBackend implements NativeBackend {
         // SpringBoard alert (NOT in /source) — accept via the W3C endpoint.
         await _post('/session/$_sid/alert/accept', const <String, Object?>{});
         return;
+      case 'alert_dismiss':
+        // iOS-only: dismiss a SpringBoard system alert (e.g. "Save Password?")
+        // — a separate process NOT in /source, exactly parallel to
+        // consent_accept. /alert/dismiss = the "Not Now" / cancel button. When
+        // no alert is open the W3C endpoint returns a "no alert open" error,
+        // which _unwrap surfaces as a NativeException (ok:false) — a non-fatal
+        // no-op for an adaptive caller.
+        await _post('/session/$_sid/alert/dismiss', const <String, Object?>{});
+        return;
       case 'enter':
       case 'return':
       case 'done':

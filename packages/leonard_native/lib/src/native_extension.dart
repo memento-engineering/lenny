@@ -233,9 +233,10 @@ class _PressTool extends LeonardTool {
 
   @override
   String get description =>
-      'Issue a logical key press. iOS: enter/return/done/consent_accept '
-      '(consent_accept accepts the iOS sign-in consent alert). Android: back. '
-      'An unrecognized key is a structured error.';
+      'Issue a logical key press. iOS: enter/return/done/consent_accept/'
+      'alert_dismiss (consent_accept accepts the iOS sign-in consent alert; '
+      'alert_dismiss dismisses an iOS system alert, e.g. the Save Password '
+      'prompt). Android: back. An unrecognized key is a structured error.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{

@@ -140,10 +140,14 @@ abstract class NativeBackend {
     String text,
   );
 
-  /// A logical key press. iOS: `enter`|`return`|`done`|`consent_accept` —
-  /// `consent_accept` issues `POST /session/{id}/alert/accept` (the iOS-only
-  /// ASWebAuthenticationSession consent path). Android additive: `back`. An
-  /// unrecognized key throws [NativeException].
+  /// A logical key press. iOS: `enter`|`return`|`done`|`consent_accept`|
+  /// `alert_dismiss` — `consent_accept` issues
+  /// `POST /session/{id}/alert/accept` (the iOS-only ASWebAuthenticationSession
+  /// consent path); `alert_dismiss` issues `POST /session/{id}/alert/dismiss`
+  /// (the iOS-only "Save Password?" / system-alert cancel path, parallel to
+  /// `consent_accept`). Android additive: `back`. An unrecognized key throws
+  /// [NativeException]; an alert-endpoint key issued when no alert is open
+  /// surfaces the W3C "no alert open" error as a [NativeException].
   Future<void> press(String key);
 
   /// Swipe gesture (W3C actions / `mobile: swipe`).
