@@ -209,6 +209,40 @@ Future<Map<String, dynamic>> _invoke(
   return j;
 }
 
+/// Like [_invoke] but RETRIES until the tool returns `ok:true` (bounded). The
+/// Auth0 web form renders ASYNCHRONOUSLY after consent — the proven spike slept
+/// 7s here before touching the fields; a single shot races the page load and
+/// gets "no element matched selector". Returns the last attempt (possibly
+/// `ok:false`) so the caller's existing assertion reports a genuine failure.
+Future<Map<String, dynamic>> _invokeUntilOk(
+  String packageRoot,
+  String driveBin,
+  String flutterWs,
+  String nativeEndpoint,
+  String tool,
+  String argsJson, {
+  String? redact,
+  int tries = 12,
+  Duration gap = const Duration(seconds: 2),
+}) async {
+  Map<String, dynamic> j = <String, dynamic>{};
+  for (int i = 0; i < tries; i++) {
+    j = await _invoke(
+      packageRoot,
+      driveBin,
+      flutterWs,
+      nativeEndpoint,
+      tool,
+      argsJson,
+      redact: redact,
+    );
+    final Map<String, dynamic> r = (j['result'] as Map).cast<String, dynamic>();
+    if (r['ok'] == true) return j;
+    await Future<void>.delayed(gap);
+  }
+  return j;
+}
+
 /// Run `leonard_drive drive-dual observe` and return the merged observation
 /// (`{observation: <merged Observation.toJson()>}` → `observation`). Drains
 /// both pipes.
@@ -406,9 +440,14 @@ void main() {
         reason: 'core.tap failed: ${result['error']}',
       );
 
-      // ----- Step 2 (AC6): accept the iOS consent sheet via the alert endpoint
-      // (SpringBoard — NOT in /source).
-      final Map<String, dynamic> consent = await _invoke(
+      // ----- Step 2 (AC6): accept the iOS consent sheet IF present. ADAPTIVE —
+      // the fixture uses useEphemeralSession (forces a fresh session so the
+      // login form ALWAYS shows; a persistent session would skip to the
+      // authorize grant), and an ephemeral session presents NO consent sheet (no
+      // shared data to approve). So a miss (ok:false / no alert open) is a
+      // NON-FATAL no-op; when a sheet IS present it blocks the form, so accept
+      // it. The email step (next) retries until the form renders regardless.
+      await _invoke(
         packageRoot,
         driveBin,
         flutterWs,
@@ -416,15 +455,11 @@ void main() {
         'native.press',
         '{"key":"consent_accept"}',
       );
-      result = (consent['result'] as Map).cast<String, dynamic>();
-      expect(
-        result['ok'],
-        isTrue,
-        reason: 'consent_accept failed: ${result['error']}',
-      );
 
       // ----- Step 3 (AC7): clear+type email. Reads back EXACT, masked:false.
-      final Map<String, dynamic> emailRes = await _invoke(
+      // Retry-until-ok: the Auth0 form renders async after consent (§ the spike
+      // slept here) — a single shot races the page load.
+      final Map<String, dynamic> emailRes = await _invokeUntilOk(
         packageRoot,
         driveBin,
         flutterWs,
@@ -449,7 +484,7 @@ void main() {
       // ----- Step 4 (AC8): clear+type password. Reads back MASKED — assert
       // masked:true + non-empty + readback != password. NEVER equality on a
       // secure field.
-      final Map<String, dynamic> pwRes = await _invoke(
+      final Map<String, dynamic> pwRes = await _invokeUntilOk(
         packageRoot,
         driveBin,
         flutterWs,
@@ -479,8 +514,9 @@ void main() {
         reason: 'secure field read back the plaintext (masking failed)',
       );
 
-      // ----- Step 5 (AC9): tap Continue (sign in).
-      final Map<String, dynamic> cont = await _invoke(
+      // ----- Step 5 (AC9): tap Continue (sign in). Retry-until-ok — the button
+      // is on the same async-rendered form.
+      final Map<String, dynamic> cont = await _invokeUntilOk(
         packageRoot,
         driveBin,
         flutterWs,
