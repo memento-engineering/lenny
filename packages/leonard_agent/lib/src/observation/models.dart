@@ -211,13 +211,15 @@ class CoreFragment {
 /// One semantics node from the captured tree.
 ///
 /// Schema mirrors what the `SemanticsCapture` emits:
-/// `{id, role, label?, identifier?, state?, actions?, rect}`. `rect` is a
-/// four-int list `[left, top, right, bottom]` in physical pixels.
+/// `{id, role, label?, identifier?, value?, state?, actions?, rect}`. `rect` is
+/// a four-int list `[left, top, right, bottom]` in physical pixels.
 ///
 /// `identifier` is the stable, locale-independent key from
 /// `Semantics(identifier:)` — preferred for addressing a node across
 /// locales/sessions, while `label` (rendered text) is what the model reads to
-/// understand what the node is. Empty when the app sets none.
+/// understand what the node is. `value` is a node's current contents — a text
+/// field's text, or masked bullets for a secure field. All three are empty
+/// when absent.
 @immutable
 class SemanticsNode {
   const SemanticsNode({
@@ -228,6 +230,7 @@ class SemanticsNode {
     required this.actions,
     required this.rect,
     this.identifier = '',
+    this.value = '',
     this.scroll,
   });
 
@@ -246,6 +249,7 @@ class SemanticsNode {
     final Object? rawRole = j['role'];
     final Object? rawLabel = j['label'];
     final Object? rawIdentifier = j['identifier'];
+    final Object? rawValue = j['value'];
     final Object? rawState = j['state'];
     final Object? rawActions = j['actions'];
     final Object? rawScroll = j['scroll'];
@@ -262,6 +266,7 @@ class SemanticsNode {
       role: rawRole is String ? rawRole : '',
       label: rawLabel is String ? rawLabel : '',
       identifier: rawIdentifier is String ? rawIdentifier : '',
+      value: rawValue is String ? rawValue : '',
       state: rawState is List
           ? List<String>.unmodifiable(rawState.whereType<String>())
           : const <String>[],
@@ -281,6 +286,11 @@ class SemanticsNode {
   /// the app sets none. Preferred for addressing a node; not a substitute for
   /// [label] when reasoning about what the node is.
   final String identifier;
+
+  /// The node's current contents — a text field's text, or masked bullets for
+  /// a secure field. Empty when the node has none. Lets the model read what is
+  /// already typed instead of relying on the screenshot alone.
+  final String value;
   final List<String> state;
   final List<String> actions;
 
@@ -297,6 +307,7 @@ class SemanticsNode {
     'role': role,
     if (label.isNotEmpty) 'label': label,
     if (identifier.isNotEmpty) 'identifier': identifier,
+    if (value.isNotEmpty) 'value': value,
     if (state.isNotEmpty) 'state': List<String>.from(state),
     if (actions.isNotEmpty) 'actions': List<String>.from(actions),
     'rect': List<int>.from(rect),
@@ -311,6 +322,7 @@ class SemanticsNode {
       role == other.role &&
       label == other.label &&
       identifier == other.identifier &&
+      value == other.value &&
       _listEq(state, other.state) &&
       _listEq(actions, other.actions) &&
       _listEq(rect, other.rect) &&
@@ -322,6 +334,7 @@ class SemanticsNode {
     role,
     label,
     identifier,
+    value,
     Object.hashAll(state),
     Object.hashAll(actions),
     Object.hashAll(rect),

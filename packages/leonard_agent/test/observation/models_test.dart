@@ -117,6 +117,47 @@ void main() {
     });
   });
 
+  group('SemanticsNode value', () {
+    test('tryFromJson parses value and toJson re-emits it', () {
+      final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 3,
+        'role': 'textfield',
+        'label': 'Email',
+        'value': 'nonce@example.com',
+        'rect': <int>[0, 0, 100, 50],
+      });
+      expect(n, isNotNull);
+      expect(n!.value, 'nonce@example.com');
+      // Must survive toJson — the re-serialization is what the brain reads, so
+      // a Flutter text field's contents are visible (not just via screenshot).
+      expect(n.toJson()['value'], 'nonce@example.com');
+    });
+
+    test('absent value defaults to empty and toJson omits the key', () {
+      final SemanticsNode n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 1,
+        'role': 'button',
+        'label': 'OK',
+        'rect': <int>[0, 0, 100, 50],
+      })!;
+      expect(n.value, '');
+      expect(n.toJson().containsKey('value'), isFalse);
+    });
+
+    test('value participates in equality (a field filling in is a change)', () {
+      Map<String, dynamic> wire(String v) => <String, dynamic>{
+        'id': 5,
+        'role': 'textfield',
+        'rect': <int>[0, 0, 10, 10],
+        'value': v,
+      };
+      expect(
+        SemanticsNode.tryFromJson(wire('')),
+        isNot(equals(SemanticsNode.tryFromJson(wire('typed')))),
+      );
+    });
+  });
+
   group('Observation.fromJson', () {
     test('rebundles flat wire format into core+extensions+stability', () {
       final Map<String, dynamic> wire = <String, dynamic>{

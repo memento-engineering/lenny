@@ -10,9 +10,12 @@ to your app as needed.
 
 - **Observation** — the current UI as a list of semantics `nodes`. Each node
   has an integer `id`, a `role` (`button`, `textfield`, `switch`, `text`,
-  `header`, …), an optional `label`, an optional `identifier`, an `actions`
-  list (e.g. `tap`), and a `rect`. Read the `label` (rendered text) to
-  understand *what a node is and does*. The `identifier` is a stable,
+  `header`, …), an optional `label`, an optional `identifier`, an optional
+  `value`, an `actions` list (e.g. `tap`), and a `rect`. Read the `label`
+  (rendered text) to understand *what a node is and does*. A `value` is the
+  node's current contents — a text field's text, or masked bullets for a
+  secure field — so you can see what is already entered. The `identifier` is a
+  stable,
   app-assigned key (set via `Semantics(identifier:)`) — locale-independent and
   steady across turns; use it to tell two same-looking nodes apart and to
   recognise the same node again when its `label` is missing, localized, or
