@@ -4,7 +4,7 @@ description: >-
   mobile app over the OS accessibility tree (via Appium/XCUITest): a stateful,
   self-watching extension projecting the a11y tree into a genesis_perception
   tree and exposing tap / enter_text / press / swipe tools.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 

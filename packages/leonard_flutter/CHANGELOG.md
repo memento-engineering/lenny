@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- The core semantics fragment now emits `identifier` (from
+  `SemanticsData.identifier`, set via `Semantics(identifier:)`) alongside
+  `label` and `value` — a stable, locale-independent key for addressing a node.
+  Emitted present-only, so apps that set no identifiers are unaffected.
+
 ## 0.1.6
 
 - The core semantics fragment now emits a `value` field (from

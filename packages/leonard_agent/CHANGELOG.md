@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.5
+
+- Perception nodes now carry `identifier` and `value` end-to-end to the brain.
+  `SemanticsNode` parses and re-emits the stable, locale-independent
+  `identifier` (from `Semantics(identifier:)`) and the node's `value`
+  (text-field contents / secure-field bullets); both join `==`/`hashCode`, so a
+  field filling in shows up in the diff. The host emitted these already — the
+  agent model had been dropping them, so the brain only saw them on the native
+  channel.
+- The bundled agent guide (`kDefaultAgentsMd`) documents the split: read `label`
+  to understand what a node is, use `identifier` as the stable handle for
+  addressing it across locales/sessions, and always act by integer `node_id`.
+
 ## 0.1.4
 
 - Multi-host attach: `MultiHostSession` attaches to N VM-service hosts at once,

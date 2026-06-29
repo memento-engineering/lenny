@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Bundled `AGENTS.md` template documents the perception `identifier` / `value`
+  fields and the addressing-vs-inference guidance, matching `leonard_agent`
+  0.1.5 (`kDefaultAgentsMd`); depends on `leonard_agent ^0.1.5`.
+
 ## 0.1.4
 
 - `leonard_drive up` gains a native dual path: boot a Flutter target AND the

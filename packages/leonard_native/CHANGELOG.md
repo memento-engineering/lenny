@@ -1,3 +1,11 @@
+## 0.1.1
+
+- The per-node record now surfaces the OS accessibility identifier under the
+  canonical `identifier` key — the same stable, locale-proof addressing key as
+  Flutter's `Semantics(identifier:)` — for cross-host record parity with the
+  Flutter semantics fragment. Previously `a11yId` was selector-internal and
+  never wired to the observation.
+
 ## 0.1.0 — initial native host
 
 - Initial `leonard_native` package: `NativeExtension` (a stateful,
