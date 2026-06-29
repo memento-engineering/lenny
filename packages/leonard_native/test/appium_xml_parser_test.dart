@@ -80,12 +80,15 @@ void main() {
       expect(logIn.a11yId, 'Log in');
       expect(logIn.rect, <int>[156, 450, 246, 498]);
       expect(logIn.xpath, "//XCUIElementTypeButton[@name='Log in']");
+      // a11yId is surfaced on the wire as the canonical `identifier` (the
+      // stable addressing key); xpath stays selector-internal (never wired).
       // No value/state/actions/scroll on the button -> omitted from the record.
       expect(logIn.toRecord(), <String, Object?>{
         'id': 1,
         'role': 'button',
         'rect': <int>[156, 450, 246, 498],
         'label': 'Log in',
+        'identifier': 'Log in',
       });
     },
   );
@@ -99,6 +102,7 @@ void main() {
     expect(email.xpath, "//XCUIElementTypeTextField[@name='Email address']");
     expect(email.value, isNull); // empty before typing -> omitted
     expect(email.toRecord().containsKey('value'), isFalse);
+    expect(email.toRecord()['identifier'], 'Email address'); // a11yId on wire
   });
 
   test(
@@ -122,6 +126,8 @@ void main() {
         .toList();
     expect(images, hasLength(2));
     expect(images[0].a11yId, isNull);
+    // No a11yId -> the wire record omits `identifier` (present-only).
+    expect(images[0].toRecord().containsKey('identifier'), isFalse);
     expect(images[0].xpath, '(//XCUIElementTypeImage)[1]');
     expect(images[1].xpath, '(//XCUIElementTypeImage)[2]');
   });

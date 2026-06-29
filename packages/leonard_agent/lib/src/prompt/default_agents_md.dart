@@ -25,9 +25,16 @@ to your app as needed.
 
 - **Observation** — the current UI as a list of semantics `nodes`. Each node
   has an integer `id`, a `role` (`button`, `textfield`, `switch`, `text`,
-  `header`, …), an optional `label`, an `actions` list (e.g. `tap`), and a
-  `rect`. Scrollable nodes also carry `scroll` — `{pos, min?, max?}` in the
-  same pixel units as `rect`: the current offset and how far it can travel.
+  `header`, …), an optional `label`, an optional `identifier`, an `actions`
+  list (e.g. `tap`), and a `rect`. Read the `label` (rendered text) to
+  understand *what a node is and does*. The `identifier` is a stable,
+  app-assigned key (set via `Semantics(identifier:)`) — locale-independent and
+  steady across turns; use it to tell two same-looking nodes apart and to
+  recognise the same node again when its `label` is missing, localized, or
+  changed. Do **not** reason about meaning from `identifier` alone — it is a
+  developer string, not a description. Scrollable nodes also carry `scroll` —
+  `{pos, min?, max?}` in the same pixel units as `rect`: the current offset and
+  how far it can travel.
   The observation also carries `routeStack` (navigation) and extension
   fragments (`router`, `riverpod`, `dio`).
 - **Diff** — what changed since your last action.
@@ -39,7 +46,10 @@ turn must be a tool call.
 ## Tool-call rules
 
 - **Target nodes by their integer `id`.** Pass `node_id` as an integer copied
-  verbatim from the Observation — `5`, never the string `"5"`.
+  verbatim from the Observation — `5`, never the string `"5"`. Use `label` /
+  `identifier` to *decide which* node you mean, but always *act* with its
+  current integer `node_id` — never pass an `identifier` where a `node_id` is
+  required (the `id` can differ from the `identifier`).
 - **Use each tool's exact field names** (`node_id`, `text`, `route_name`, …).
   Do not invent aliases such as `id`, `target`, or a label in place of
   `node_id`.

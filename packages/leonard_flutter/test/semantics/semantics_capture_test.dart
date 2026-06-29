@@ -50,6 +50,7 @@ void main() {
           'id',
           'role',
           'label',
+          'identifier',
           'value',
           'state',
           'actions',
@@ -77,6 +78,44 @@ void main() {
     expect(env['count'], recs.length);
     expect(env['semantics'], isA<List<Object?>>());
     capture.dispose();
+    h.dispose();
+  });
+
+  testWidgets('Semantics(identifier:) is captured; absent omits the key', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: <Widget>[
+              Semantics(
+                identifier: 'submit_btn',
+                button: true,
+                label: 'Submit',
+                child: const SizedBox(width: 120, height: 48),
+              ),
+              const Text('Plain'),
+            ],
+          ),
+        ),
+      ),
+    );
+    final SemanticsCapture cap = SemanticsCapture();
+    final List<Map<String, Object>> recs = cap.capture();
+    // The stable identifier is surfaced, and the human-readable label still
+    // rides alongside it (addressing vs. inference — both present).
+    final Map<String, Object> withId = recs.firstWhere(
+      (Map<String, Object> r) => r['identifier'] == 'submit_btn',
+    );
+    expect(withId['label'], 'Submit');
+    // A node with no Semantics(identifier:) omits the key entirely (present-only).
+    final Map<String, Object> plain = recs.firstWhere(
+      (Map<String, Object> r) => r['label'] == 'Plain',
+    );
+    expect(plain.containsKey('identifier'), isFalse);
+    cap.dispose();
     h.dispose();
   });
 

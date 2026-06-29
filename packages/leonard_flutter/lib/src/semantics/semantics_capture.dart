@@ -9,8 +9,15 @@ import 'package:flutter/widgets.dart';
 /// describing visible, interactive nodes.
 ///
 /// Each capture returns a list of records with the schema
-/// `id, role, label?, value?, state?, actions?, rect` where `rect` is a
-/// four-element integer list `[left, top, right, bottom]`.
+/// `id, role, label?, identifier?, value?, state?, actions?, rect` where `rect`
+/// is a four-element integer list `[left, top, right, bottom]`.
+///
+/// `identifier` is the stable, locale-independent key set by
+/// `Semantics(identifier:)` (Flutter's [SemanticsData.identifier]). It is the
+/// preferred handle for *addressing* a node across locales/sessions; `label`
+/// (rendered text) remains the field to reason about *what a node is*. Emitted
+/// only when the app sets one, so targets that don't use identifiers are
+/// unaffected.
 ///
 /// Stable ids: the same framework [SemanticsNode] (identified by
 /// [SemanticsNode.id]) maps to the same emitted `id` across repeated
@@ -177,6 +184,7 @@ class _Rec {
     this.id,
     this.role,
     this.label,
+    this.identifier,
     this.value,
     this.state,
     this.actions,
@@ -187,6 +195,10 @@ class _Rec {
   final int id;
   final String role;
   final String label;
+
+  /// Stable, locale-independent key from `Semantics(identifier:)`. Empty when
+  /// the app sets none. Preferred for addressing; not a substitute for [label].
+  final String identifier;
   final String value;
   final List<String> state;
   final List<String> actions;
@@ -211,6 +223,7 @@ class _Rec {
       ],
     };
     if (label.isNotEmpty) m['label'] = label;
+    if (identifier.isNotEmpty) m['identifier'] = identifier;
     if (value.isNotEmpty) m['value'] = value;
     if (state.isNotEmpty) m['state'] = state;
     if (actions.isNotEmpty) m['actions'] = actions;
@@ -246,6 +259,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
         _stableIdFor(n),
         _role(d),
         d.label,
+        d.identifier,
         d.value,
         _state(d),
         _actions(d),

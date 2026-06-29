@@ -89,13 +89,20 @@ void main() {
 
       final Map<String, Object?> button = (elements.first! as Map)
           .cast<String, Object?>();
-      // id/role/rect always present; label present; value/state/actions/scroll
-      // omitted (empty).
-      expect(button.keys.toList(), <String>['id', 'role', 'rect', 'label']);
+      // id/role/rect always present; label present; identifier present (the
+      // a11yId surfaced on the wire); value/state/actions/scroll omitted (empty).
+      expect(button.keys.toList(), <String>[
+        'id',
+        'role',
+        'rect',
+        'label',
+        'identifier',
+      ]);
       expect(button['id'], 1);
       expect(button['role'], 'button');
       expect(button['rect'], <int>[156, 450, 246, 498]);
       expect(button['label'], 'Log in');
+      expect(button['identifier'], 'Log in');
       expect(button.containsKey('value'), isFalse);
       expect(button.containsKey('state'), isFalse);
     },

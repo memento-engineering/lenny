@@ -14,11 +14,14 @@ import 'package:meta/meta.dart';
 /// `rect` is a 4-int `[left, top, right, bottom]` (NOT `{x,y,w,h}`, NOT
 /// doubles). Optional fields are **omitted when empty** at serialization time
 /// ([toRecord]), in the canonical key order
-/// `id, role, rect, label?, value?, state?, actions?, scroll?`.
+/// `id, role, rect, label?, identifier?, value?, state?, actions?, scroll?`.
 @immutable
 class NativeNode {
   /// Records one perceived node. [id]/[role]/[rect] are always present; the
-  /// rest are optional. [a11yId]/[xpath] are selector-internal (never wired).
+  /// rest are optional. [a11yId] is the OS accessibility identifier — used as
+  /// resolver tier 1 AND surfaced on the wire as `identifier` (the stable,
+  /// locale-proof addressing key, mirroring Flutter's `Semantics(identifier:)`).
+  /// [xpath] stays selector-internal (never wired).
   const NativeNode({
     required this.id,
     required this.role,
@@ -56,7 +59,10 @@ class NativeNode {
   /// Carried for schema parity with Flutter; null in m2 iOS.
   final Map<String, Object?>? scroll;
 
-  /// Raw OS accessibility identifier — selector tier 1.
+  /// Raw OS accessibility identifier — selector tier 1, and the source of the
+  /// wire `identifier` field ([toRecord]). On iOS this is what
+  /// `Semantics(identifier:)` lowers to, giving the brain the same stable,
+  /// locale-proof addressing key on the native channel as on Flutter.
   final String? a11yId;
 
   /// Node's synthesized/derived XPath — selector tier 3.
@@ -64,9 +70,10 @@ class NativeNode {
 
   /// Emits the canonical cross-host record, matching the Flutter `_Rec.toJson`
   /// key order EXACTLY: `id`/`role`/`rect` always present;
-  /// `label`/`value`/`state`/`actions`/`scroll` OMITTED when null/empty.
-  /// `a11yId`/`xpath` are NOT emitted to the wire (selector-internal); they
-  /// live on the in-memory node only.
+  /// `label`/`identifier`/`value`/`state`/`actions`/`scroll` OMITTED when
+  /// null/empty. `identifier` carries [a11yId] (the stable addressing key);
+  /// `xpath` is NOT emitted to the wire (selector-internal) and lives on the
+  /// in-memory node only.
   Map<String, Object?> toRecord() {
     final Map<String, Object?> m = <String, Object?>{
       'id': id,
@@ -74,6 +81,7 @@ class NativeNode {
       'rect': rect,
     };
     if (label != null && label!.isNotEmpty) m['label'] = label;
+    if (a11yId != null && a11yId!.isNotEmpty) m['identifier'] = a11yId;
     if (value != null && value!.isNotEmpty) m['value'] = value;
     if (state.isNotEmpty) m['state'] = state;
     if (actions.isNotEmpty) m['actions'] = actions;

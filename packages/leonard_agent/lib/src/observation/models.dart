@@ -211,8 +211,13 @@ class CoreFragment {
 /// One semantics node from the captured tree.
 ///
 /// Schema mirrors what the `SemanticsCapture` emits:
-/// `{id, role, label?, state?, actions?, rect}`. `rect` is a four-int list
-/// `[left, top, right, bottom]` in physical pixels.
+/// `{id, role, label?, identifier?, state?, actions?, rect}`. `rect` is a
+/// four-int list `[left, top, right, bottom]` in physical pixels.
+///
+/// `identifier` is the stable, locale-independent key from
+/// `Semantics(identifier:)` — preferred for addressing a node across
+/// locales/sessions, while `label` (rendered text) is what the model reads to
+/// understand what the node is. Empty when the app sets none.
 @immutable
 class SemanticsNode {
   const SemanticsNode({
@@ -222,6 +227,7 @@ class SemanticsNode {
     required this.state,
     required this.actions,
     required this.rect,
+    this.identifier = '',
     this.scroll,
   });
 
@@ -239,6 +245,7 @@ class SemanticsNode {
     }
     final Object? rawRole = j['role'];
     final Object? rawLabel = j['label'];
+    final Object? rawIdentifier = j['identifier'];
     final Object? rawState = j['state'];
     final Object? rawActions = j['actions'];
     final Object? rawScroll = j['scroll'];
@@ -254,6 +261,7 @@ class SemanticsNode {
       id: rawId,
       role: rawRole is String ? rawRole : '',
       label: rawLabel is String ? rawLabel : '',
+      identifier: rawIdentifier is String ? rawIdentifier : '',
       state: rawState is List
           ? List<String>.unmodifiable(rawState.whereType<String>())
           : const <String>[],
@@ -268,6 +276,11 @@ class SemanticsNode {
   final int id;
   final String role;
   final String label;
+
+  /// Stable, locale-independent key from `Semantics(identifier:)`. Empty when
+  /// the app sets none. Preferred for addressing a node; not a substitute for
+  /// [label] when reasoning about what the node is.
+  final String identifier;
   final List<String> state;
   final List<String> actions;
 
@@ -283,6 +296,7 @@ class SemanticsNode {
     'id': id,
     'role': role,
     if (label.isNotEmpty) 'label': label,
+    if (identifier.isNotEmpty) 'identifier': identifier,
     if (state.isNotEmpty) 'state': List<String>.from(state),
     if (actions.isNotEmpty) 'actions': List<String>.from(actions),
     'rect': List<int>.from(rect),
@@ -296,6 +310,7 @@ class SemanticsNode {
       id == other.id &&
       role == other.role &&
       label == other.label &&
+      identifier == other.identifier &&
       _listEq(state, other.state) &&
       _listEq(actions, other.actions) &&
       _listEq(rect, other.rect) &&
@@ -306,6 +321,7 @@ class SemanticsNode {
     id,
     role,
     label,
+    identifier,
     Object.hashAll(state),
     Object.hashAll(actions),
     Object.hashAll(rect),

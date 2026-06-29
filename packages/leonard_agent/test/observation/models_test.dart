@@ -68,6 +68,55 @@ void main() {
     });
   });
 
+  group('SemanticsNode identifier', () {
+    test('tryFromJson parses identifier and toJson re-emits it', () {
+      final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 7,
+        'role': 'button',
+        'label': 'Submit',
+        'identifier': 'submit_btn',
+        'rect': <int>[0, 0, 100, 50],
+      });
+      expect(n, isNotNull);
+      expect(n!.identifier, 'submit_btn');
+      // Must survive the toJson round-trip — that re-serialization is what the
+      // brain actually reads (prompt/diff/trajectory), not the raw wire record.
+      expect(n.toJson()['identifier'], 'submit_btn');
+      // label still rides alongside — addressing vs. inference, both present.
+      expect(n.toJson()['label'], 'Submit');
+    });
+
+    test('absent identifier defaults to empty and toJson omits the key', () {
+      final SemanticsNode n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 1,
+        'role': 'button',
+        'label': 'OK',
+        'rect': <int>[0, 0, 100, 50],
+      })!;
+      expect(n.identifier, '');
+      expect(n.toJson().containsKey('identifier'), isFalse);
+    });
+
+    test('identifier participates in equality', () {
+      Map<String, dynamic> wire(String id) => <String, dynamic>{
+        'id': 5,
+        'role': 'button',
+        'label': 'same label',
+        'identifier': id,
+        'rect': <int>[0, 0, 10, 10],
+      };
+      expect(
+        SemanticsNode.tryFromJson(wire('a')),
+        equals(SemanticsNode.tryFromJson(wire('a'))),
+      );
+      // Two nodes with identical labels but different identifiers are distinct.
+      expect(
+        SemanticsNode.tryFromJson(wire('a')),
+        isNot(equals(SemanticsNode.tryFromJson(wire('b')))),
+      );
+    });
+  });
+
   group('Observation.fromJson', () {
     test('rebundles flat wire format into core+extensions+stability', () {
       final Map<String, dynamic> wire = <String, dynamic>{
