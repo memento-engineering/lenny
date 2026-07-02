@@ -445,7 +445,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         }),
       );
     });
-    if (kDebugMode) {
+    // Profile too (matching the screenshot + tool extensions below): a
+    // profile-mode app is the only way to run standalone on iOS without the
+    // JIT tooling attached, and an agent driving it there still needs the
+    // core observation — not just the tools. get_stable_observation relies on
+    // the semantics tree + scheduler signals, both present in profile.
+    if (kDebugMode || kProfileMode) {
       _registerExtension(
         '$kLeonardExtensionPrefix.core.get_stable_observation',
         (String method, Map<String, String> parameters) async {
