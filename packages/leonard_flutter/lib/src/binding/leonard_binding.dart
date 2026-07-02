@@ -126,6 +126,23 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// prevents re-hooking; this flag is a defence-in-depth guard.
   bool _errorHooksInstalled = false;
 
+  /// Completed by the [_wireExtensions] microtask once every extension's
+  /// [LeonardExtension.initialize] has run AND all extension tools are
+  /// registered on the VM service (`ext.exploration.<ns>.<tool>`).
+  final Completer<void> _extensionsReady = Completer<void>();
+
+  /// Completes once extension initialization and VM-service tool
+  /// registration have finished — the embedder's readiness barrier.
+  ///
+  /// Registration happens in a microtask after [ensureInitialized] /
+  /// [run] return, so an app that advertises its VM-service URI to an
+  /// external driver (e.g. printing a launch sentinel a harness
+  /// launcher scrapes) MUST await this first; otherwise the driver's
+  /// first call can race extension registration. Completes even when an
+  /// individual extension's `initialize` fails (failures are
+  /// exception-isolated and logged by the registry).
+  Future<void> get extensionsReady => _extensionsReady.future;
+
   /// User-supplied list, registration order preserved.
   List<LeonardExtension> get extensions => List.unmodifiable(_extensions);
 
@@ -221,12 +238,17 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     _registerCoreExtensions();
     _registerDiagnosticsExtension();
     // Run extension initialization in a microtask so it completes before the
-    // first frame without blocking the synchronous return.
-    scheduleMicrotask(
-      () => _extensionRegistry.initializeAll().then(
-        (_) => _registerExtensionToolExtensions(),
-      ),
-    );
+    // first frame without blocking the synchronous return. [extensionsReady]
+    // completes when the chain finishes (even on failure — the finally), so
+    // embedders can sequence readiness sentinels after tool registration.
+    scheduleMicrotask(() async {
+      try {
+        await _extensionRegistry.initializeAll();
+        _registerExtensionToolExtensions();
+      } finally {
+        if (!_extensionsReady.isCompleted) _extensionsReady.complete();
+      }
+    });
   }
 
   /// High-level entry point. Make this the FIRST Flutter-touching line
