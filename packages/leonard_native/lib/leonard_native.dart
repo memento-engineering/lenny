@@ -20,6 +20,8 @@ export 'src/native_backend.dart'
         NativeTarget,
         NativeSwipe,
         NativeException;
+export 'src/native_backend_factory.dart' show backendForPlatform;
 export 'src/native_extension.dart' show NativeExtension;
 export 'src/native_perception.dart' show NativePerception;
 export 'src/native_snapshot.dart' show NativeNode, NativeSnapshot;
+export 'src/uiautomator2_backend.dart' show UiAutomator2Backend;
