@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Checked-in UiAutomator2 /source fixture for the UiAutomator2Backend
+  ._parseSource unit test — the Android counterpart of auth0_source.xml, shaped
+  as the SAME ten controls so the two parser tests read as a matched pair:
+
+    - Log in button    bounds="[156,450][246,498]" -> rect [156,450,246,498]
+    - Email EditText   bounds="[40,376][362,428]"  -> rect [40,376,362,428]
+    - Password EditText bounds="[41,441][317,493]" -> rect [41,441,317,493]
+
+  Anonymous ImageViews (no text/content-desc/resource-id) exercise the
+  deterministic POSITIONAL xpath synthesis `(//android.widget.ImageView)[n]`;
+  the password EditText carries no resource-id, so it exercises the same
+  fallback for a named-but-unidentified field. The outer FrameLayout is pure
+  structural scaffolding, retained to prove the container filter collapses it.
+-->
+<hierarchy rotation="0">
+  <android.widget.FrameLayout class="android.widget.FrameLayout" bounds="[0,0][1080,2400]">
+    <android.widget.Button class="android.widget.Button" resource-id="com.nicospencer.lennyspike:id/login_button" text="Log in" content-desc="Log in" bounds="[156,450][246,498]" clickable="true" password="false"/>
+    <android.widget.TextView class="android.widget.TextView" text="opening Auth0…" content-desc="" bounds="[40,520][400,560]" password="false"/>
+    <android.view.View class="android.view.View" resource-id="form" content-desc="form" bounds="[0,300][420,700]"/>
+    <android.widget.ImageView class="android.widget.ImageView" bounds="[10,10][40,40]"/>
+    <android.widget.EditText class="android.widget.EditText" resource-id="username" text="" content-desc="Email address" bounds="[40,376][362,428]" password="false"/>
+    <android.widget.EditText class="android.widget.EditText" text="" content-desc="Password" bounds="[41,441][317,493]" password="true"/>
+    <android.widget.Switch class="android.widget.Switch" text="Show password" content-desc="Show password" bounds="[41,500][317,540]"/>
+    <android.widget.ImageView class="android.widget.ImageView" bounds="[10,600][40,640]"/>
+    <android.view.View class="android.view.View" text="Reset password" content-desc="Reset password" bounds="[41,560][200,600]"/>
+    <android.widget.Button class="android.widget.Button" text="SIGN IN" content-desc="SIGN IN" bounds="[40,700][380,760]"/>
+  </android.widget.FrameLayout>
+</hierarchy>

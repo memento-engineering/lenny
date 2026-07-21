@@ -1,0 +1,1886 @@
+# Pinned review scope: grid/lenny-qxx.7 vs origin/main
+# `git diff origin/main...HEAD` — the ONLY code this bead changed.
+# Commits under review (`git log origin/main..HEAD`):
+#   4ad801e chore(melos): add test:e2e:auth0:android for the Android live tier
+#   7c43e60 test(cli): add the hardware-gated Android Auth0 round-trip e2e
+#   fb3ab00 test(native): cover the Android parse, press keys, and masked flag
+#   4d6b68e feat(native): host --platform android selects the Android backend
+#   e9f7329 feat(native): export UiAutomator2Backend and backendForPlatform
+#   cc1e808 feat(native): add backendForPlatform, the backend selection point
+#   13fa1c4 feat(native): add the Android impl of the NativeBackend seam
+#   055321c chore: remove factoryskills tooling — the grid replaces factoryskills
+#   22d11c4 feat(binding): register get_stable_observation in profile mode too
+#   12cf598 feat(binding): extensionsReady — the embedder's post-registration readiness barrier
+
+diff --git a/.factoryskills/config b/.factoryskills/config
+deleted file mode 100644
+index e118433..0000000
+--- a/.factoryskills/config
++++ /dev/null
+@@ -1,3 +0,0 @@
+-# factoryskills project configuration
+-merge_strategy=direct
+-default_base_branch=main
+diff --git a/packages/leonard_cli/test/dogfood_auth0_android_e2e_test.dart b/packages/leonard_cli/test/dogfood_auth0_android_e2e_test.dart
+new file mode 100644
+index 0000000..1004174
+--- /dev/null
++++ b/packages/leonard_cli/test/dogfood_auth0_android_e2e_test.dart
+@@ -0,0 +1,669 @@
++/// Live, hardware-gated **Android** Auth0 round-trip dogfood e2e for
++/// `leonard_drive` — the Android sibling of the iOS `dogfood_auth0_e2e_test`.
++/// It drives the full real Auth0 web login THROUGH THE LENNY HARNESS (never raw
++/// Appium): boot a Flutter target AND the leonard_native host against the SAME
++/// emulator via `up` (with `--platform android`, which selects the
++/// `UiAutomator2Backend`), then drive the round-trip with stateless
++/// `leonard_drive drive-dual invoke`/`observe` calls, and assert the headline
++/// claim — after the OS-level Auth0 drive completes, the deeplink callback
++/// returns control to the still-alive Flutter process and the merged `core`
++/// fragment RELIGHTS with the authenticated status (resume-on-Flutter).
++///
++/// ANDROID DIVERGENCES from the iOS file (all inside the backend or this test,
++/// never in `leonard_agent` or the multi-host attach):
++///   * the Auth0 handoff is a **Chrome Custom Tab**, not an
++///     `ASWebAuthenticationSession` — there is NO system consent sheet, so the
++///     iOS `native.press consent_accept` step is absent entirely;
++///   * there is no SpringBoard "Save Password?" alert; Chrome may raise its own
++///     save-password prompt, cleared adaptively by label tap in the poll;
++///   * a masked Android field reads back EMPTY via `attribute/text` (Android
++///     never exposes the secret), so the assertion is `masked == true` plus
++///     readback-is-not-the-plaintext — NOT the iOS "non-empty bullets";
++///   * fresh web state comes from `adb shell pm clear` on the app (and, when
++///     `LEONARD_NATIVE_ANDROID_CLEAR_CHROME` is set, on Chrome, whose cookie
++///     jar the Custom Tab shares) instead of `xcrun simctl uninstall`.
++///
++/// The Flutter app process MUST stay alive the whole round-trip. The
++/// `UiAutomator2Backend` connects with `autoLaunch:false` and no app capability
++/// precisely so Appium ATTACHES to the running `flutter run` process instead of
++/// relaunching it — the Android form of iOS's no-terminate invariant.
++///
++/// Self-skips (one skipped test, no new tag — the house rule) when the live tier
++/// is absent. The live tier needs ALL of:
++///
++///   * a reachable Appium server with the UiAutomator2 driver (default
++///     `http://127.0.0.1:4723`, override via `LEONARD_NATIVE_APPIUM_SERVER`);
++///   * an already-booted Android emulator id in `LEONARD_NATIVE_ANDROID_UDID`
++///     (e.g. `emulator-5554`);
++///   * a built `.apk` path in `LEONARD_NATIVE_ANDROID_APK`;
++///   * the app package id in `LEONARD_NATIVE_ANDROID_PACKAGE`;
++///   * the Flutter project root in `LEONARD_NATIVE_FLUTTER_PROJECT`;
++///   * a Flutter entrypoint in `LEONARD_NATIVE_FLUTTER_TARGET`;
++///   * the Auth0 credentials in `AUTH0_EMAIL` / `AUTH0_PASSWORD`.
++///
++/// The Auth0 form xpaths default to the Auth0 universal-login Android shape and
++/// are overridable via `LEONARD_NATIVE_ANDROID_EMAIL_XPATH`,
++/// `LEONARD_NATIVE_ANDROID_PW_XPATH`, `LEONARD_NATIVE_ANDROID_SUBMIT_XPATH`, so
++/// a tenant with a different template retunes without editing this file.
++///
++/// CREDENTIALS VIA ENV ONLY — never hardcoded, never logged, never committed.
++/// `AUTH0_PASSWORD` rides `--args` (visible in `ps`): run only on trusted
++/// machines with a low-privilege throwaway account.
++@Timeout(Duration(seconds: 300))
++library;
++
++import 'dart:async';
++import 'dart:convert';
++import 'dart:io';
++
++import 'package:path/path.dart' as p;
++import 'package:test/test.dart';
++
++const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
++const String _udidEnv = 'LEONARD_NATIVE_ANDROID_UDID';
++const String _apkEnv = 'LEONARD_NATIVE_ANDROID_APK';
++const String _packageEnv = 'LEONARD_NATIVE_ANDROID_PACKAGE';
++const String _flutterProjectEnv = 'LEONARD_NATIVE_FLUTTER_PROJECT';
++const String _flutterTargetEnv = 'LEONARD_NATIVE_FLUTTER_TARGET';
++const String _emailEnv = 'AUTH0_EMAIL';
++const String _passwordEnv = 'AUTH0_PASSWORD';
++const String _clearChromeEnv = 'LEONARD_NATIVE_ANDROID_CLEAR_CHROME';
++
++const String _defaultServer = 'http://127.0.0.1:4723';
++
++/// Auth0 universal-login on Android renders in a Chrome Custom Tab; the web
++/// inputs surface in the UiAutomator2 tree as `android.widget.EditText`.
++const String _defaultEmailXpath =
++    '//android.widget.EditText[@resource-id="username"]';
++const String _defaultPwXpath =
++    '//android.widget.EditText[@resource-id="password"]';
++const String _defaultSubmitXpath = '//android.widget.Button[@text="Continue"]';
++
++String _env(String key, String fallback) =>
++    Platform.environment[key]?.trim().isNotEmpty == true
++    ? Platform.environment[key]!.trim()
++    : fallback;
++
++String _appiumServer() => _env(_serverEnv, _defaultServer);
++
++/// True when a live Appium server answers `GET /status` (W3C health check).
++/// Async — the probe runs INSIDE the test body. A sync `sleep`-based probe
++/// would block the isolate's event loop and always self-skip. Copied verbatim
++/// from `dogfood_auth0_e2e_test.dart`.
++Future<bool> _appiumReachable(String server) async {
++  try {
++    final Uri base = Uri.parse(server);
++    final HttpClient client = HttpClient()
++      ..connectionTimeout = const Duration(seconds: 3);
++    try {
++      final HttpClientRequest req = await client.getUrl(
++        base.replace(path: '${base.path}/status'),
++      );
++      final HttpClientResponse res = await req.close().timeout(
++        const Duration(seconds: 5),
++      );
++      await res.drain<void>(null);
++      return res.statusCode >= 200 && res.statusCode < 500;
++    } finally {
++      client.close(force: true);
++    }
++  } on Object {
++    return false;
++  }
++}
++
++/// Env-only skip reason (synchronous). Credentials are checked for PRESENCE
++/// only — their values are never logged.
++String? _envSkipReason() {
++  final String? udid = Platform.environment[_udidEnv];
++  final String? apk = Platform.environment[_apkEnv];
++  final String? pkg = Platform.environment[_packageEnv];
++  final String? flutterProject = Platform.environment[_flutterProjectEnv];
++  final String? flutterTarget = Platform.environment[_flutterTargetEnv];
++  final String? email = Platform.environment[_emailEnv];
++  final String? password = Platform.environment[_passwordEnv];
++  if (udid == null ||
++      udid.isEmpty ||
++      apk == null ||
++      apk.isEmpty ||
++      pkg == null ||
++      pkg.isEmpty ||
++      flutterProject == null ||
++      flutterProject.isEmpty ||
++      flutterTarget == null ||
++      flutterTarget.isEmpty) {
++    return '$_udidEnv + $_apkEnv + $_packageEnv + $_flutterProjectEnv + '
++        '$_flutterTargetEnv must point at a booted Android emulator + a built '
++        '.apk + its package id + a Flutter project root + an entrypoint — '
++        'live Android Auth0 dogfood e2e skipped';
++  }
++  if (email == null || email.isEmpty || password == null || password.isEmpty) {
++    return '$_emailEnv + $_passwordEnv must be set (operator-supplied Auth0 '
++        'credentials) — live Android Auth0 dogfood e2e skipped';
++  }
++  if (!File(apk).existsSync()) {
++    return '$_apkEnv ($apk) does not exist — live Android Auth0 dogfood e2e '
++        'skipped';
++  }
++  if (!File(p.join(flutterProject, 'pubspec.yaml')).existsSync()) {
++    return '$_flutterProjectEnv ($flutterProject) is not a Flutter project '
++        '(no pubspec.yaml) — live Android Auth0 dogfood e2e skipped';
++  }
++  return null;
++}
++
++/// Locate the native host runner relative to the cwd. Copied verbatim from
++/// `dogfood_auth0_e2e_test.dart`.
++String _hostScript(String packageRoot) {
++  final List<String> candidates = <String>[
++    p.join(
++      packageRoot,
++      '..',
++      'leonard_native',
++      'bin',
++      'leonard_native_host.dart',
++    ),
++    'bin/leonard_native_host.dart',
++    'packages/leonard_native/bin/leonard_native_host.dart',
++  ];
++  for (final String c in candidates) {
++    if (File(c).existsSync()) return c;
++  }
++  throw StateError(
++    'cannot locate leonard_native_host.dart from ${Directory.current.path}',
++  );
++}
++
++/// Run `drive-dual invoke` and return the parsed `{tool, result}` JSON.
++/// `result` IS the canonical `{ok, value, error}` envelope. Drains both pipes.
++Future<Map<String, dynamic>> _invoke(
++  String packageRoot,
++  String driveBin,
++  String flutterWs,
++  String nativeEndpoint,
++  String tool,
++  String argsJson, {
++  String? redact,
++}) async {
++  final ProcessResult r =
++      await Process.run(Platform.resolvedExecutable, <String>[
++        'run',
++        driveBin,
++        'drive-dual',
++        'invoke',
++        '--flutter-uri',
++        flutterWs,
++        '--native-uri',
++        nativeEndpoint,
++        '--tool',
++        tool,
++        '--args',
++        argsJson,
++      ], workingDirectory: packageRoot);
++  String stderr = r.stderr as String;
++  if (redact != null && redact.isNotEmpty) {
++    stderr = stderr.replaceAll(redact, '***');
++  }
++  expect(r.exitCode, 0, reason: 'invoke $tool routed-fail stderr: $stderr');
++  return (jsonDecode(r.stdout as String) as Map).cast<String, dynamic>();
++}
++
++/// Like [_invoke] but RETRIES until the tool returns `ok:true` (bounded). The
++/// Auth0 form renders ASYNCHRONOUSLY inside the Custom Tab; a single shot races
++/// the page load. Returns the last attempt so the caller's assertion reports a
++/// genuine failure.
++Future<Map<String, dynamic>> _invokeUntilOk(
++  String packageRoot,
++  String driveBin,
++  String flutterWs,
++  String nativeEndpoint,
++  String tool,
++  String argsJson, {
++  String? redact,
++  int tries = 12,
++  Duration gap = const Duration(seconds: 2),
++}) async {
++  Map<String, dynamic> j = <String, dynamic>{};
++  for (int i = 0; i < tries; i++) {
++    j = await _invoke(
++      packageRoot,
++      driveBin,
++      flutterWs,
++      nativeEndpoint,
++      tool,
++      argsJson,
++      redact: redact,
++    );
++    final Map<String, dynamic> r = (j['result'] as Map).cast<String, dynamic>();
++    if (r['ok'] == true) return j;
++    await Future<void>.delayed(gap);
++  }
++  return j;
++}
++
++/// Run `drive-dual observe` and return the merged observation.
++Future<Map<String, dynamic>> _observe(
++  String packageRoot,
++  String driveBin,
++  String flutterWs,
++  String nativeEndpoint,
++) async {
++  final ProcessResult r =
++      await Process.run(Platform.resolvedExecutable, <String>[
++        'run',
++        driveBin,
++        'drive-dual',
++        'observe',
++        '--flutter-uri',
++        flutterWs,
++        '--native-uri',
++        nativeEndpoint,
++      ], workingDirectory: packageRoot);
++  expect(r.exitCode, 0, reason: 'observe stderr: ${r.stderr}');
++  final Map<String, dynamic> obsJson = (jsonDecode(r.stdout as String) as Map)
++      .cast<String, dynamic>();
++  return (obsJson['observation'] as Map).cast<String, dynamic>();
++}
++
++/// Walk the merged `core` fragment and find the integer `id` of the first node
++/// whose `label == label`. Copied verbatim from `dogfood_auth0_e2e_test.dart`.
++int? _findCoreNodeId(Object? core, String label) {
++  if (core is Map) {
++    if (core['label'] == label && core['id'] is int) {
++      return core['id'] as int;
++    }
++    for (final Object? v in core.values) {
++      final int? found = _findCoreNodeId(v, label);
++      if (found != null) return found;
++    }
++  } else if (core is List) {
++    for (final Object? e in core) {
++      final int? found = _findCoreNodeId(e, label);
++      if (found != null) return found;
++    }
++  }
++  return null;
++}
++
++String _findPackageRoot() {
++  Directory dir = Directory.current;
++  for (int i = 0; i < 8; i++) {
++    final File pubspec = File(p.join(dir.path, 'pubspec.yaml'));
++    if (pubspec.existsSync() &&
++        pubspec.readAsStringSync().contains('name: leonard_cli')) {
++      return dir.path;
++    }
++    final Directory parent = dir.parent;
++    if (parent.path == dir.path) break;
++    dir = parent;
++  }
++  return p.normalize(p.join(Directory.current.path, 'packages', 'leonard_cli'));
++}
++
++void main() {
++  final String? envSkip = _envSkipReason();
++  final String packageRoot = _findPackageRoot();
++  final String driveBin = p.join(packageRoot, 'bin', 'leonard_drive.dart');
++
++  test('lenny harness drives the full Android Auth0 round-trip + resumes on '
++      'Flutter', () async {
++    if (envSkip != null) {
++      markTestSkipped(envSkip);
++      return;
++    }
++    final String server = _appiumServer();
++    if (!await _appiumReachable(server)) {
++      markTestSkipped(
++        'no Appium server at $server — live Android Auth0 dogfood e2e skipped',
++      );
++      return;
++    }
++    final String udid = Platform.environment[_udidEnv]!;
++    final String apk = Platform.environment[_apkEnv]!;
++    final String pkg = Platform.environment[_packageEnv]!;
++    final String flutterProject = Platform.environment[_flutterProjectEnv]!;
++    final String flutterTarget = Platform.environment[_flutterTargetEnv]!;
++    final String email = Platform.environment[_emailEnv]!;
++    final String password = Platform.environment[_passwordEnv]!;
++    final String emailXpath = _env(
++      'LEONARD_NATIVE_ANDROID_EMAIL_XPATH',
++      _defaultEmailXpath,
++    );
++    final String pwXpath = _env(
++      'LEONARD_NATIVE_ANDROID_PW_XPATH',
++      _defaultPwXpath,
++    );
++    final String submitXpath = _env(
++      'LEONARD_NATIVE_ANDROID_SUBMIT_XPATH',
++      _defaultSubmitXpath,
++    );
++    final String nativeHost = _hostScript(packageRoot);
++
++    // Step 0: fresh-state prep BEFORE up — best-effort `pm clear` (NOT a
++    // force-stop of a running app; `up` has not started it yet). Clearing the
++    // app drops its Auth0 credential store; clearing Chrome (opt-in) drops the
++    // Custom Tab's shared cookie jar, which is what makes the login form render
++    // instead of skipping straight to the authorize grant.
++    for (final String target in <String>[
++      pkg,
++      if (Platform.environment[_clearChromeEnv]?.isNotEmpty == true)
++        'com.android.chrome',
++    ]) {
++      try {
++        await Process.run('adb', <String>[
++          '-s',
++          udid,
++          'shell',
++          'pm',
++          'clear',
++          target,
++        ]);
++      } on Object {
++        // Best-effort: adb absence / not-installed must not fail the test.
++      }
++    }
++
++    final Directory tmp = Directory.systemTemp.createTempSync(
++      'leonard_auth0_android_e2e',
++    );
++    final String pidFile = p.join(tmp.path, 'up.pid');
++    final String uriFile = p.join(tmp.path, 'up.uris');
++    final Completer<Map<String, dynamic>> ready =
++        Completer<Map<String, dynamic>>();
++    final Completer<void> shutdownSeen = Completer<void>();
++    final List<String> out = <String>[];
++
++    // `up` with --platform android: launchDualTarget forwards it to the native
++    // host, whose backendForPlatform selects the UiAutomator2Backend. One
++    // --udid (the emulator id) drives BOTH `flutter run -d` and the host.
++    final Process up =
++        await Process.start(Platform.resolvedExecutable, <String>[
++          'run',
++          driveBin,
++          'up',
++          '--runner',
++          'flutter',
++          '-t',
++          flutterTarget,
++          '--udid',
++          udid,
++          '--app',
++          apk,
++          '--platform',
++          'android',
++          '--native-host',
++          nativeHost,
++          '--appium-server',
++          server,
++          '--pid-file',
++          pidFile,
++          '--uri-file',
++          uriFile,
++        ], workingDirectory: flutterProject);
++    up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
++      String line,
++    ) {
++      out.add(line);
++      Object? obj;
++      try {
++        obj = jsonDecode(line);
++      } on Object {
++        return;
++      }
++      if (obj is! Map) return;
++      if (obj['event'] == 'vm_service_ready' && !ready.isCompleted) {
++        ready.complete(obj.cast<String, dynamic>());
++      }
++      if (obj['event'] == 'shutdown' && !shutdownSeen.isCompleted) {
++        shutdownSeen.complete();
++      }
++    });
++    // Drain stderr (full-pipe gotcha) — buffer for triage on timeout.
++    final List<String> err = <String>[];
++    up.stderr
++        .transform(utf8.decoder)
++        .transform(const LineSplitter())
++        .listen(err.add);
++
++    Map<String, dynamic>? lastObservation;
++    try {
++      final Map<String, dynamic> envelope = await ready.future.timeout(
++        const Duration(seconds: 240),
++        onTimeout: () => throw StateError(
++          'no vm_service_ready line. up stdout:\n${out.join('\n')}',
++        ),
++      );
++      final String flutterWs = envelope['flutter_ws_uri'] as String;
++      final String nativeEndpoint = envelope['native_endpoint'] as String;
++      expect(flutterWs, isNotEmpty);
++      expect(nativeEndpoint, isNotEmpty);
++
++      // ----- Step 1: observe → resolve the Flutter "Log in" node id →
++      // core.tap by node_id (core.tap is node_id-ONLY).
++      final Map<String, dynamic> obs0 = await _observe(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++      );
++      lastObservation = obs0;
++      // The native fragment must be present — the UiAutomator2 host attached.
++      expect(
++        (obs0['extensions'] as Map).containsKey('native'),
++        isTrue,
++        reason: 'native fragment absent: ${jsonEncode(obs0['extensions'])}',
++      );
++      final int? loginId = _findCoreNodeId(obs0['core'], 'Log in');
++      expect(
++        loginId,
++        isNotNull,
++        reason:
++            'no core node with label "Log in" in ${jsonEncode(obs0['core'])}',
++      );
++      final Map<String, dynamic> tapLogin = await _invoke(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++        'core.tap',
++        '{"node_id":$loginId}',
++      );
++      expect(tapLogin['tool'], 'core.tap');
++      Map<String, dynamic> result = (tapLogin['result'] as Map)
++          .cast<String, dynamic>();
++      expect(result['ok'], isTrue, reason: 'core.tap failed: $result');
++
++      // ----- Step 2: NO consent step. Android opens a Chrome Custom Tab with
++      // no system consent sheet (the iOS ASWebAuthenticationSession alert has
++      // no Android counterpart). The email step below retries until the web
++      // form renders inside the tab.
++
++      // ----- Step 3: clear+type email. Reads back EXACT, masked:false.
++      final Map<String, dynamic> emailRes = await _invokeUntilOk(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++        'native.enter_text',
++        jsonEncode(<String, Object?>{'xpath': emailXpath, 'text': email}),
++      );
++      result = (emailRes['result'] as Map).cast<String, dynamic>();
++      expect(
++        result['ok'],
++        isTrue,
++        reason: 'email enter_text ($emailXpath): ${result['error']}',
++      );
++      final Map<String, dynamic> emailValue = (result['value'] as Map)
++          .cast<String, dynamic>();
++      expect(emailValue['readback'], email);
++      expect(emailValue['masked'], isFalse);
++
++      // The native fragment must reflect the typed email after the
++      // refresh-after-act — the Android parser maps an EditText's `text` to the
++      // node `value`, so the observation carries it.
++      final Map<String, dynamic> afterEmail = await _observe(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++      );
++      lastObservation = afterEmail;
++      expect(
++        jsonEncode(afterEmail['extensions']).contains(email),
++        isTrue,
++        reason: 'typed email never reached the native observation fragment',
++      );
++
++      // ----- Step 4: clear+type password. ANDROID DIVERGENCE: a masked field
++      // reads back EMPTY via attribute/text (Android never exposes the secret),
++      // so assert masked:true + readback != plaintext, and NOT the iOS
++      // "non-empty bullets" clause.
++      final Map<String, dynamic> pwRes = await _invokeUntilOk(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++        'native.enter_text',
++        jsonEncode(<String, Object?>{'xpath': pwXpath, 'text': password}),
++        redact: password,
++      );
++      result = (pwRes['result'] as Map).cast<String, dynamic>();
++      expect(
++        result['ok'],
++        isTrue,
++        reason: 'password enter_text ($pwXpath): ${result['error']}',
++      );
++      final Map<String, dynamic> pwValue = (result['value'] as Map)
++          .cast<String, dynamic>();
++      expect(pwValue['masked'], isTrue);
++      // Inequality computed in Dart (NOT isNot(password)) so the secret never
++      // lands in a matcher description / failure log.
++      expect(
++        (pwValue['readback'] as String?) != password,
++        isTrue,
++        reason: 'secure field read back the plaintext (masking failed)',
++      );
++
++      // ----- Step 5: submit the form (sign in). Retry-until-ok.
++      final Map<String, dynamic> cont = await _invokeUntilOk(
++        packageRoot,
++        driveBin,
++        flutterWs,
++        nativeEndpoint,
++        'native.tap',
++        jsonEncode(<String, Object?>{'xpath': submitXpath}),
++      );
++      result = (cont['result'] as Map).cast<String, dynamic>();
++      expect(
++        result['ok'],
++        isTrue,
++        reason: 'submit tap ($submitXpath): ${result['error']}',
++      );
++
++      // ----- Steps 6+7: the adaptive poll. Each iteration:
++      //   (a) clear Chrome's own save-password prompt by label (Android's
++      //       counterpart to the iOS SpringBoard alert — a real widget in
++      //       /source, so a label tap, NOT press('alert_dismiss') which is
++      //       iOS-only and would throw);
++      //   (b) once, clear the Auth0 authorize screen by label;
++      //   (c) observe → scan the merged core for `logged in: <email>` (resume)
++      //       or `wrong email or password` (BAD_CREDS, a hard failure).
++      // Bounded: 16 × 2s ≈ 32s, under @Timeout(300s).
++      const List<String> dismissLabels = <String>[
++        'Never',
++        'No thanks',
++        'Not now',
++      ];
++      const List<String> authorizeLabels = <String>[
++        'Accept',
++        'Allow',
++        'Authorize App',
++        'Authorize',
++      ];
++      bool authorizeTried = false;
++      String verdict = 'TIMEOUT';
++      final String successNeedle = 'logged in: $email';
++      Map<String, dynamic>? resumeObservation;
++      for (int i = 0; i < 16; i++) {
++        for (final String label in dismissLabels) {
++          await _invoke(
++            packageRoot,
++            driveBin,
++            flutterWs,
++            nativeEndpoint,
++            'native.tap',
++            jsonEncode(<String, Object?>{'label': label}),
++          );
++        }
++        if (!authorizeTried) {
++          for (final String label in authorizeLabels) {
++            final Map<String, dynamic> auth = await _invoke(
++              packageRoot,
++              driveBin,
++              flutterWs,
++              nativeEndpoint,
++              'native.tap',
++              jsonEncode(<String, Object?>{'label': label}),
++            );
++            final Map<String, dynamic> r = (auth['result'] as Map)
++                .cast<String, dynamic>();
++            if (r['ok'] == true) {
++              authorizeTried = true;
++              break;
++            }
++          }
++        }
++        final Map<String, dynamic> obs = await _observe(
++          packageRoot,
++          driveBin,
++          flutterWs,
++          nativeEndpoint,
++        );
++        lastObservation = obs;
++        if (jsonEncode(obs['core']).contains(successNeedle)) {
++          verdict = 'LOGGED_IN';
++          resumeObservation = obs;
++          break;
++        }
++        if (jsonEncode(obs).contains('wrong email or password')) {
++          verdict = 'BAD_CREDS';
++          break;
++        }
++        await Future<void>.delayed(const Duration(seconds: 2));
++      }
++
++      expect(
++        verdict,
++        'LOGGED_IN',
++        reason:
++            'Android round-trip did not resume on Flutter (verdict=$verdict). '
++            'up stderr:\n${err.join('\n')}\nlast core:\n'
++            '${jsonEncode(lastObservation?['core'])}',
++      );
++
++      // The merged core fragment relit with the authenticated status.
++      expect(jsonEncode(resumeObservation!['core']), contains(successNeedle));
++      // The dual attach is still well-formed at resume (native still attached).
++      final Map<String, dynamic> exts = (resumeObservation['extensions'] as Map)
++          .cast<String, dynamic>();
++      expect(exts.containsKey('native'), isTrue, reason: 'exts: ${exts.keys}');
++
++      // Tear BOTH channels down via the single pid-file.
++      final ProcessResult down = await Process.run(
++        Platform.resolvedExecutable,
++        <String>['run', driveBin, 'down', '--pid-file', pidFile],
++        workingDirectory: packageRoot,
++      );
++      expect(down.exitCode, 0, reason: 'down stderr: ${down.stderr}');
++      await up.exitCode.timeout(const Duration(seconds: 60));
++      await shutdownSeen.future.timeout(const Duration(seconds: 10));
++    } finally {
++      up.kill(ProcessSignal.sigkill);
++      try {
++        tmp.deleteSync(recursive: true);
++      } on Object {
++        // best-effort
++      }
++    }
++  });
++}
+diff --git a/packages/leonard_flutter/lib/src/binding/leonard_binding.dart b/packages/leonard_flutter/lib/src/binding/leonard_binding.dart
+index a464d89..0db9d2c 100644
+--- a/packages/leonard_flutter/lib/src/binding/leonard_binding.dart
++++ b/packages/leonard_flutter/lib/src/binding/leonard_binding.dart
+@@ -126,6 +126,23 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
+   /// prevents re-hooking; this flag is a defence-in-depth guard.
+   bool _errorHooksInstalled = false;
+ 
++  /// Completed by the [_wireExtensions] microtask once every extension's
++  /// [LeonardExtension.initialize] has run AND all extension tools are
++  /// registered on the VM service (`ext.exploration.<ns>.<tool>`).
++  final Completer<void> _extensionsReady = Completer<void>();
++
++  /// Completes once extension initialization and VM-service tool
++  /// registration have finished — the embedder's readiness barrier.
++  ///
++  /// Registration happens in a microtask after [ensureInitialized] /
++  /// [run] return, so an app that advertises its VM-service URI to an
++  /// external driver (e.g. printing a launch sentinel a harness
++  /// launcher scrapes) MUST await this first; otherwise the driver's
++  /// first call can race extension registration. Completes even when an
++  /// individual extension's `initialize` fails (failures are
++  /// exception-isolated and logged by the registry).
++  Future<void> get extensionsReady => _extensionsReady.future;
++
+   /// User-supplied list, registration order preserved.
+   List<LeonardExtension> get extensions => List.unmodifiable(_extensions);
+ 
+@@ -221,12 +238,17 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
+     _registerCoreExtensions();
+     _registerDiagnosticsExtension();
+     // Run extension initialization in a microtask so it completes before the
+-    // first frame without blocking the synchronous return.
+-    scheduleMicrotask(
+-      () => _extensionRegistry.initializeAll().then(
+-        (_) => _registerExtensionToolExtensions(),
+-      ),
+-    );
++    // first frame without blocking the synchronous return. [extensionsReady]
++    // completes when the chain finishes (even on failure — the finally), so
++    // embedders can sequence readiness sentinels after tool registration.
++    scheduleMicrotask(() async {
++      try {
++        await _extensionRegistry.initializeAll();
++        _registerExtensionToolExtensions();
++      } finally {
++        if (!_extensionsReady.isCompleted) _extensionsReady.complete();
++      }
++    });
+   }
+ 
+   /// High-level entry point. Make this the FIRST Flutter-touching line
+@@ -423,7 +445,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
+         }),
+       );
+     });
+-    if (kDebugMode) {
++    // Profile too (matching the screenshot + tool extensions below): a
++    // profile-mode app is the only way to run standalone on iOS without the
++    // JIT tooling attached, and an agent driving it there still needs the
++    // core observation — not just the tools. get_stable_observation relies on
++    // the semantics tree + scheduler signals, both present in profile.
++    if (kDebugMode || kProfileMode) {
+       _registerExtension(
+         '$kLeonardExtensionPrefix.core.get_stable_observation',
+         (String method, Map<String, String> parameters) async {
+diff --git a/packages/leonard_native/bin/leonard_native_host.dart b/packages/leonard_native/bin/leonard_native_host.dart
+index ce164ff..2f55064 100644
+--- a/packages/leonard_native/bin/leonard_native_host.dart
++++ b/packages/leonard_native/bin/leonard_native_host.dart
+@@ -4,11 +4,12 @@
+ /// Flutter binding and the tmux host expose, but for a native target.
+ ///
+ /// Run with the VM service enabled against an ALREADY-RUNNING Appium server and
+-/// an ALREADY-BOOTED iOS simulator (this host boots neither), then point a
+-/// driver at the printed ws URI:
++/// an ALREADY-BOOTED iOS simulator or Android emulator (this host boots
++/// neither), then point a driver at the printed ws URI:
+ ///
+ ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
+-///     bin/leonard_native_host.dart --udid SIM_UDID --app /path/to/Runner.app
++///     bin/leonard_native_host.dart --udid DEVICE_UDID --app /path/to/app \
++///     [--platform ios|android]
+ ///
+ /// Prints `LEONARD_HOST_READY` once installed. SIGTERM/SIGINT dispose the
+ /// extension (cancelling the watcher + tearing down the device session) and
+@@ -35,17 +36,23 @@ Future<void> main(List<String> args) async {
+   if (udid == null || app == null) {
+     stderr.writeln(
+       'usage: leonard_native_host --udid <sim-udid> '
+-      '--app <path-to-.app> [--server <url>] [--platform ios]',
++      '--app <path-to-.app|.apk> [--server <url>] [--platform ios|android]',
+     );
+     exit(64);
+   }
+ 
+-  final AppiumBackend backend = AppiumBackend(
+-    server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
+-    platform: o['platform'] ?? 'ios',
+-    udid: udid,
+-    app: app,
+-  );
++  final NativeBackend backend;
++  try {
++    backend = backendForPlatform(
++      platform: o['platform'] ?? 'ios',
++      server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
++      udid: udid,
++      app: app,
++    );
++  } on ArgumentError catch (e) {
++    stderr.writeln('error: ${e.message}');
++    exit(64);
++  }
+   final NativeExtension ext = NativeExtension(backend);
+   final ExplorationHost host = ExplorationHost(
+     extensions: <LeonardExtension>[ext],
+diff --git a/packages/leonard_native/lib/leonard_native.dart b/packages/leonard_native/lib/leonard_native.dart
+index e7b8f05..ca8e768 100644
+--- a/packages/leonard_native/lib/leonard_native.dart
++++ b/packages/leonard_native/lib/leonard_native.dart
+@@ -20,6 +20,8 @@ export 'src/native_backend.dart'
+         NativeTarget,
+         NativeSwipe,
+         NativeException;
++export 'src/native_backend_factory.dart' show backendForPlatform;
+ export 'src/native_extension.dart' show NativeExtension;
+ export 'src/native_perception.dart' show NativePerception;
+ export 'src/native_snapshot.dart' show NativeNode, NativeSnapshot;
++export 'src/uiautomator2_backend.dart' show UiAutomator2Backend;
+diff --git a/packages/leonard_native/lib/src/native_backend_factory.dart b/packages/leonard_native/lib/src/native_backend_factory.dart
+new file mode 100644
+index 0000000..451eeb9
+--- /dev/null
++++ b/packages/leonard_native/lib/src/native_backend_factory.dart
+@@ -0,0 +1,37 @@
++/// The single platform -> [NativeBackend] selection point.
++///
++/// The host runner (`bin/leonard_native_host.dart`) and any future embedder
++/// pick a backend through here rather than constructing one directly, so
++/// `--platform` wiring is testable without a VM service or a device.
++library;
++
++import 'appium_backend.dart';
++import 'native_backend.dart';
++import 'uiautomator2_backend.dart';
++
++/// Returns the [NativeBackend] for [platform] targeting [udid] + [app] on
++/// [server] (default `http://127.0.0.1:4723`).
++///
++/// `ios` -> [AppiumBackend] (XCUITest); `android` -> [UiAutomator2Backend].
++/// An unrecognized platform throws [ArgumentError] — LOUD, never a silent
++/// fallback to iOS, which would perceive an Android target through an XCUITest
++/// parser and yield an empty tree.
++NativeBackend backendForPlatform({
++  required String platform,
++  required String udid,
++  required String app,
++  Uri? server,
++}) => switch (platform) {
++  'ios' => AppiumBackend(
++    server: server,
++    platform: platform,
++    udid: udid,
++    app: app,
++  ),
++  'android' => UiAutomator2Backend(server: server, udid: udid, app: app),
++  _ => throw ArgumentError.value(
++    platform,
++    'platform',
++    'unsupported native platform (expected "ios" or "android")',
++  ),
++};
+diff --git a/packages/leonard_native/lib/src/uiautomator2_backend.dart b/packages/leonard_native/lib/src/uiautomator2_backend.dart
+new file mode 100644
+index 0000000..b2d365f
+--- /dev/null
++++ b/packages/leonard_native/lib/src/uiautomator2_backend.dart
+@@ -0,0 +1,579 @@
++/// `UiAutomator2Backend` — the concrete [NativeBackend] over W3C WebDriver HTTP
++/// against a local Appium server running the **UiAutomator2** driver (Android).
++///
++/// The additive Android sibling of `AppiumBackend` (seam contract,
++/// `native_backend.dart`). The generic W3C transport (session, `/element` find,
++/// the 4-tier resolve chain, pointer-action tap/swipe) is identical to the iOS
++/// impl; only the Android divergences live here, per the seam's "all platform
++/// quirks inside the impl" rule:
++///
++///   * `/source` is a UiAutomator2 tree (`<hierarchy>` of `android.widget.*` /
++///     `android.view.*` elements) — a different parser from XCUITest;
++///   * the tier-1 accessibility id on UiAutomator2 is the element's
++///     `content-desc` (NOT `resource-id`), so [NativeNode.a11yId] carries
++///     `content-desc` and the resolver's `_find('accessibility id', …)` matches;
++///   * [enterText] masks from `GET .../attribute/password == 'true'` (Android
++///     has no `SecureTextField` type), and reads back via `GET .../attribute/
++///     text` (FN4), then dismisses the keyboard with `POST /back` (non-fatal,
++///     B6);
++///   * [press] recognizes `back` (`POST /back`) and `enter`/`return`/`done`
++///     (a newline via `/keys`); the iOS-only alert keys `consent_accept` /
++///     `alert_dismiss` throw [NativeException] (Android's Auth0 handoff is a
++///     Chrome Custom Tab with no SpringBoard consent/save-password alert).
++///
++/// All device latency lives here so `buildPerception()` stays synchronous
++/// (ADR-0006). The backend does NOT boot the emulator or spawn Appium.
++library;
++
++import 'dart:async';
++import 'dart:convert';
++
++import 'package:http/http.dart' as http;
++import 'package:meta/meta.dart';
++import 'package:xml/xml.dart';
++
++import 'native_backend.dart';
++import 'native_snapshot.dart';
++
++/// The W3C element key returned by every successful `find`.
++const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
++
++/// `bounds="[l,t][r,b]"` — the UiAutomator2 rect encoding.
++final RegExp _boundsRe = RegExp(r'\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]');
++
++/// Drives a native Android app over a local Appium server (W3C WebDriver +
++/// UiAutomator2).
++class UiAutomator2Backend implements NativeBackend {
++  /// Constructs a backend targeting [udid] + [app] on [server] (default
++  /// `http://127.0.0.1:4723`). The backend does NOT spawn Appium or boot the
++  /// emulator — both must already be running. [platform] is fixed `android`.
++  UiAutomator2Backend({
++    Uri? server,
++    required this.udid,
++    required this.app,
++    this.pollInterval = const Duration(seconds: 1),
++    http.Client? client,
++  }) : server = server ?? Uri.parse('http://127.0.0.1:4723'),
++       _client = client ?? http.Client();
++
++  /// The local Appium server URL.
++  final Uri server;
++
++  /// The booted emulator/device udid (e.g. `emulator-5554`).
++  final String udid;
++
++  /// The Android application under test — an `.apk` path or an application
++  /// package id. Retained for parity with the iOS impl; the dual-attach session
++  /// uses `autoLaunch:false` and attaches to the foreground app, so a running
++  /// `flutter run` process is NOT relaunched.
++  final String app;
++
++  /// The watcher poll cadence.
++  final Duration pollInterval;
++
++  /// Fixed platform tag emitted on every [NativeSnapshot].
++  final String platform = 'android';
++
++  final http.Client _client;
++
++  /// The active W3C session id, or null before [connect] / after [close].
++  String? _sessionId;
++
++  // ---------------------------------------------------------------------------
++  // Transport (the platform-neutral W3C machinery, with the B5 hardening).
++  // ---------------------------------------------------------------------------
++
++  Uri _u(String path) => server.resolve(path);
++
++  /// Throws [NativeException] (never `StateError`) when no session is open.
++  String get _sid =>
++      _sessionId ?? (throw NativeException('no session: call connect() first'));
++
++  Future<Map<String, Object?>> _post(String path, Object body) async {
++    final http.Response r = await _client.post(
++      _u(path),
++      headers: const <String, String>{'content-type': 'application/json'},
++      body: jsonEncode(body),
++    );
++    return _unwrap(r);
++  }
++
++  Future<Map<String, Object?>> _get(String path) async {
++    final http.Response r = await _client.get(_u(path));
++    return _unwrap(r);
++  }
++
++  /// B5: honor the HTTP status first; on non-2xx OR a `value.error` envelope
++  /// throw [NativeException]. A non-JSON / HTML / empty body throws
++  /// `NativeException('non-JSON response: …')`, NEVER a bare `FormatException`
++  /// — so `_find`'s retry guard stays load-bearing.
++  Map<String, Object?> _unwrap(http.Response r) {
++    Object? decoded;
++    try {
++      decoded = r.body.isEmpty ? null : jsonDecode(r.body);
++    } on FormatException {
++      throw NativeException(
++        'non-JSON response: HTTP ${r.statusCode}: ${_truncate(r.body)}',
++      );
++    }
++    if (decoded is! Map<String, Object?>) {
++      throw NativeException(
++        'non-JSON response: HTTP ${r.statusCode}: ${_truncate(r.body)}',
++      );
++    }
++    final Object? value = decoded['value'];
++    if (value is Map && value['error'] != null) {
++      throw NativeException(
++        '${value['error']}: ${value['message'] ?? ''}'.trim(),
++      );
++    }
++    if (r.statusCode < 200 || r.statusCode >= 300) {
++      throw NativeException('HTTP ${r.statusCode}: ${_truncate(r.body)}');
++    }
++    return decoded;
++  }
++
++  static String _truncate(String s) =>
++      s.length <= 400 ? s : '${s.substring(0, 400)}…';
++
++  // ---------------------------------------------------------------------------
++  // Session lifecycle.
++  // ---------------------------------------------------------------------------
++
++  @override
++  Future<void> connect() async {
++    if (_sessionId != null) return; // idempotent
++    // Attach to the foreground app (the running `flutter run` process) WITHOUT
++    // relaunching it: UiAutomator2 with `autoLaunch:false` and no app/appPackage
++    // cap starts a session against whatever is on screen. This is the Android
++    // analogue of iOS's "never terminate the Flutter process" invariant — a
++    // relaunch would drop the flutter_ws channel the dual round-trip needs.
++    final Map<String, Object?> caps = <String, Object?>{
++      'platformName': 'Android',
++      'appium:automationName': 'UiAutomator2',
++      'appium:udid': udid,
++      'appium:noReset': true,
++      'appium:autoLaunch': false,
++      'appium:newCommandTimeout': 0,
++    };
++    final Map<String, Object?> j = await _post('/session', <String, Object?>{
++      'capabilities': <String, Object?>{
++        'alwaysMatch': caps,
++        'firstMatch': <Object?>[<String, Object?>{}],
++      },
++    });
++    final Object? value = j['value'];
++    final String? sid = value is Map
++        ? (value['sessionId'] ?? j['sessionId']) as String?
++        : j['sessionId'] as String?;
++    if (sid == null) {
++      throw NativeException('session open returned no sessionId');
++    }
++    _sessionId = sid;
++  }
++
++  @override
++  Future<void> close() async {
++    final String? sid = _sessionId;
++    _sessionId = null;
++    if (sid != null) {
++      try {
++        await _client.delete(_u('/session/$sid'));
++      } on Object {
++        // best-effort: releasing the UiAutomator2 session must never throw.
++      }
++    }
++    _client.close();
++  }
++
++  // ---------------------------------------------------------------------------
++  // Observation: poll /source -> parse the UiAutomator2 XML -> NativeSnapshot.
++  // ---------------------------------------------------------------------------
++
++  @override
++  Stream<NativeSnapshot> watch() async* {
++    while (_sessionId != null) {
++      await Future<void>.delayed(pollInterval);
++      if (_sessionId == null) break;
++      yield await snapshot();
++    }
++  }
++
++  @override
++  Future<NativeSnapshot> snapshot() async {
++    final Map<String, Object?> j = await _get('/session/$_sid/source');
++    final String xml = (j['value'] ?? '').toString();
++    return NativeSnapshot(platform: platform, nodes: _parseSource(xml));
++  }
++
++  // ---------------------------------------------------------------------------
++  // The UiAutomator2 /source XML parser.
++  // ---------------------------------------------------------------------------
++
++  /// Map an Android widget `class` to the Flutter role vocabulary.
++  static String _role(String cls) {
++    switch (cls) {
++      case 'android.widget.Button':
++      case 'android.widget.ImageButton':
++        return 'button';
++      case 'android.widget.EditText':
++      case 'android.widget.AutoCompleteTextView':
++        return 'textfield';
++      case 'android.widget.ImageView':
++        return 'image';
++      case 'android.widget.Switch':
++      case 'android.widget.CheckBox':
++      case 'android.widget.ToggleButton':
++      case 'android.widget.CompoundButton':
++        return 'switch';
++      default:
++        return 'text';
++    }
++  }
++
++  /// Parse `bounds="[l,t][r,b]"` into `[l,t,r,b]`; `[0,0,0,0]` when absent.
++  static List<int> _rect(String? bounds) {
++    if (bounds == null) return const <int>[0, 0, 0, 0];
++    final RegExpMatch? m = _boundsRe.firstMatch(bounds);
++    if (m == null) return const <int>[0, 0, 0, 0];
++    return <int>[
++      int.parse(m.group(1)!),
++      int.parse(m.group(2)!),
++      int.parse(m.group(3)!),
++      int.parse(m.group(4)!),
++    ];
++  }
++
++  /// Parse a raw UiAutomator2 `/source` XML document into the flattened,
++  /// filtered list of [NativeNode]s in document order. Exposed for the parser
++  /// unit test — the Android analogue of `AppiumBackend.parseSource`.
++  @visibleForTesting
++  List<NativeNode> parseSource(String xml) => _parseSource(xml);
++
++  List<NativeNode> _parseSource(String xml) {
++    final XmlDocument doc = XmlDocument.parse(xml);
++
++    // Pass 1: keep the signal-bearing elements, count per-class for positional
++    // xpath, and record resource-id uniqueness per class.
++    final List<XmlElement> kept = <XmlElement>[];
++    final Map<String, int> classCount = <String, int>{};
++    final Map<XmlElement, int> classIndex = <XmlElement, int>{};
++    final Map<String, int> ridCountByClass = <String, int>{};
++
++    for (final XmlElement el in doc.descendantElements) {
++      final String cls = _className(el);
++      final String? text = _attr(el, 'text');
++      final String? desc = _attr(el, 'content-desc');
++      final String? rid = _attr(el, 'resource-id');
++      final String role = _role(cls);
++
++      // Filter: drop pure structural containers — no text/content-desc/
++      // resource-id AND the class maps to the default `text` role.
++      final bool hasSignal = text != null || desc != null || rid != null;
++      if (!hasSignal && role == 'text') continue;
++
++      kept.add(el);
++      final int idx = (classCount[cls] ?? 0) + 1;
++      classCount[cls] = idx;
++      classIndex[el] = idx;
++      if (rid != null) {
++        ridCountByClass['$cls $rid'] = (ridCountByClass['$cls $rid'] ?? 0) + 1;
++      }
++    }
++
++    // Pass 2: materialize NativeNodes with dense document-order ids.
++    final List<NativeNode> out = <NativeNode>[];
++    int id = 0;
++    for (final XmlElement el in kept) {
++      final String cls = _className(el);
++      final String? text = _attr(el, 'text');
++      final String? desc = _attr(el, 'content-desc');
++      final String? rid = _attr(el, 'resource-id');
++      final String role = _role(cls);
++
++      out.add(
++        NativeNode(
++          id: ++id,
++          role: role,
++          // Human label: prefer the visible `text`, fall back to `content-desc`.
++          label: text ?? desc,
++          // Editable content only (an EditText's current text); non-fields omit.
++          value: role == 'textfield' ? text : null,
++          rect: _rect(el.getAttribute('bounds')),
++          // Tier-1 accessibility id on UiAutomator2 IS `content-desc`.
++          a11yId: desc,
++          xpath: _xpathFor(el, cls, rid, classIndex, ridCountByClass),
++        ),
++      );
++    }
++    return out;
++  }
++
++  /// An element's Android `class` — the `class` attribute, else the tag name.
++  static String _className(XmlElement el) =>
++      el.getAttribute('class') ?? el.name.local;
++
++  /// Read an attribute, normalizing empty strings to null.
++  static String? _attr(XmlElement el, String key) {
++    final String? v = el.getAttribute(key);
++    return (v == null || v.isEmpty) ? null : v;
++  }
++
++  /// Deterministic xpath synthesis: prefer a unique `[@resource-id=…]` xpath;
++  /// otherwise a positional `(//<class>)[n]` by 1-based document-order index
++  /// among kept nodes of that class (the Android analogue of iOS's
++  /// name-or-positional rule, keyed on `resource-id` rather than `name`).
++  static String _xpathFor(
++    XmlElement el,
++    String cls,
++    String? rid,
++    Map<XmlElement, int> classIndex,
++    Map<String, int> ridCountByClass,
++  ) {
++    if (rid != null && (ridCountByClass['$cls $rid'] ?? 0) == 1) {
++      return "//$cls[@resource-id='$rid']";
++    }
++    return '(//$cls)[${classIndex[el]}]';
++  }
++
++  // ---------------------------------------------------------------------------
++  // Resolution: the 4-tier selector chain (identical to iOS).
++  // ---------------------------------------------------------------------------
++
++  @override
++  Future<NativeTarget?> resolve(
++    NativeSelector selector,
++    NativeSnapshot? cached,
++  ) async {
++    // Tier 1: a11y-id (on UiAutomator2, the element's content-desc).
++    if (selector.a11yId != null) {
++      final String? eid = await _find('accessibility id', selector.a11yId!);
++      if (eid != null) return NativeTarget(elementId: eid, via: 'a11y-id');
++    }
++
++    // Tier 2: label -> the matched cached node's a11yId / synthesized xpath.
++    if (selector.label != null) {
++      final NativeNode? node = _matchLabel(cached, selector.label!);
++      if (node != null) {
++        String? eid;
++        if (node.a11yId != null && node.a11yId!.isNotEmpty) {
++          eid = await _find('accessibility id', node.a11yId!);
++        } else if (node.xpath != null && node.xpath!.isNotEmpty) {
++          eid = await _find('xpath', node.xpath!);
++        }
++        if (eid != null) return NativeTarget(elementId: eid, via: 'label');
++      }
++    }
++
++    // Tier 3: explicit xpath (load-bearing for anonymous web-form fields).
++    if (selector.xpath != null) {
++      final String? eid = await _find('xpath', selector.xpath!);
++      if (eid != null) return NativeTarget(elementId: eid, via: 'xpath');
++    }
++
++    // Tier 4: rect-center — from the selector rect, or a cached node rect.
++    final List<int>? rect = selector.rect ?? _cachedRect(cached, selector);
++    if (rect != null && rect.length == 4) {
++      return NativeTarget(
++        point: (
++          x: ((rect[0] + rect[2]) / 2).round(),
++          y: ((rect[1] + rect[3]) / 2).round(),
++        ),
++        via: 'rect-center',
++      );
++    }
++    return null;
++  }
++
++  NativeNode? _matchLabel(NativeSnapshot? cached, String label) {
++    if (cached == null) return null;
++    for (final NativeNode n in cached.nodes) {
++      if (n.label == label) return n;
++    }
++    return null;
++  }
++
++  List<int>? _cachedRect(NativeSnapshot? cached, NativeSelector selector) {
++    if (cached == null || selector.label == null) return null;
++    return _matchLabel(cached, selector.label!)?.rect;
++  }
++
++  /// Find one element via a W3C strategy, retrying with a short timeout so a
++  /// transient miss does not fail the whole resolution. Returns null when the
++  /// element never appears within the window.
++  Future<String?> _find(
++    String strategy,
++    String value, {
++    Duration timeout = const Duration(seconds: 10),
++  }) async {
++    final DateTime end = DateTime.now().add(timeout);
++    while (true) {
++      try {
++        final Map<String, Object?> j = await _post(
++          '/session/$_sid/element',
++          <String, Object?>{'using': strategy, 'value': value},
++        );
++        final Object? v = j['value'];
++        if (v is Map) {
++          final Object? eid = v[_w3cElementKey] ?? v.values.first;
++          if (eid is String) return eid;
++        }
++        return null;
++      } on NativeException {
++        if (!DateTime.now().isBefore(end)) return null;
++        await Future<void>.delayed(const Duration(milliseconds: 400));
++      }
++    }
++  }
++
++  // ---------------------------------------------------------------------------
++  // Actions.
++  // ---------------------------------------------------------------------------
++
++  @override
++  Future<void> tap(NativeTarget target) async {
++    if (target.elementId != null) {
++      await _post(
++        '/session/$_sid/element/${target.elementId}/click',
++        const <String, Object?>{},
++      );
++      return;
++    }
++    final ({int x, int y})? p = target.point;
++    if (p == null) {
++      throw NativeException('tap: target has neither elementId nor point');
++    }
++    // W3C pointer action: a tap at the rect-center point.
++    await _post('/session/$_sid/actions', <String, Object?>{
++      'actions': <Object?>[
++        <String, Object?>{
++          'type': 'pointer',
++          'id': 'finger1',
++          'parameters': <String, Object?>{'pointerType': 'touch'},
++          'actions': <Object?>[
++            <String, Object?>{
++              'type': 'pointerMove',
++              'duration': 0,
++              'x': p.x,
++              'y': p.y,
++            },
++            <String, Object?>{'type': 'pointerDown', 'button': 0},
++            <String, Object?>{'type': 'pause', 'duration': 50},
++            <String, Object?>{'type': 'pointerUp', 'button': 0},
++          ],
++        },
++      ],
++    });
++  }
++
++  @override
++  Future<({String readback, bool masked})> enterText(
++    NativeTarget target,
++    String text,
++  ) async {
++    final String? eid = target.elementId;
++    if (eid == null) {
++      throw NativeException('enter_text requires a resolved element');
++    }
++    await _post('/session/$_sid/element/$eid/clear', const <String, Object?>{});
++    await _post('/session/$_sid/element/$eid/value', <String, Object?>{
++      'text': text,
++    });
++    // Android masks from the element's `password` attribute (there is no
++    // SecureTextField type). A password EditText reads back EMPTY via
++    // attribute/text (Android never exposes the entered secret) — the seam's
++    // `masked` contract holds regardless: masked is attribute-derived, not
++    // `readback != text`.
++    final bool masked = await _isSecureField(eid);
++    final String readback = await _readValue(eid);
++    // Per-platform keyboard dismiss, INSIDE the backend (kept off the seam).
++    await _dismissKeyboard();
++    return (readback: readback, masked: masked);
++  }
++
++  /// FN4 (Android): the field value is `attribute/text`.
++  Future<String> _readValue(String eid) async {
++    final Map<String, Object?> j = await _get(
++      '/session/$_sid/element/$eid/attribute/text',
++    );
++    return (j['value'] ?? '').toString();
++  }
++
++  /// True iff the element's `password` attribute is `true` (UiAutomator2's
++  /// masked-field signal; the Android analogue of the iOS SecureTextField type).
++  Future<bool> _isSecureField(String eid) async {
++    try {
++      final Map<String, Object?> j = await _get(
++        '/session/$_sid/element/$eid/attribute/password',
++      );
++      return (j['value'] ?? '').toString() == 'true';
++    } on NativeException {
++      return false;
++    }
++  }
++
++  /// Android keyboard dismiss: `POST /back`. Non-fatal (B6) — a dismiss failure
++  /// must never fail the type.
++  Future<void> _dismissKeyboard() async {
++    try {
++      await _post('/session/$_sid/back', const <String, Object?>{});
++    } on Object {
++      // Non-fatal: dismiss is best-effort.
++    }
++  }
++
++  @override
++  Future<void> press(String key) async {
++    switch (key) {
++      case 'back':
++        await _post('/session/$_sid/back', const <String, Object?>{});
++        return;
++      case 'enter':
++      case 'return':
++      case 'done':
++        // Inject a newline keystroke into the active element.
++        await _post('/session/$_sid/keys', <String, Object?>{
++          'value': <String>['\n'],
++        });
++        return;
++      case 'consent_accept':
++      case 'alert_dismiss':
++        // iOS-only (ASWebAuthenticationSession consent / SpringBoard alert).
++        // Android's Auth0 handoff is a Chrome Custom Tab — no system alert — so
++        // these surface as a NativeException (ok:false), which an adaptive
++        // caller tolerates as a no-op.
++        throw NativeException('unknown press key: $key (iOS-only)');
++      default:
++        throw NativeException('unknown press key: $key');
++    }
++  }
++
++  @override
++  Future<void> swipe(NativeSwipe gesture) async {
++    await _post('/session/$_sid/actions', <String, Object?>{
++      'actions': <Object?>[
++        <String, Object?>{
++          'type': 'pointer',
++          'id': 'finger1',
++          'parameters': <String, Object?>{'pointerType': 'touch'},
++          'actions': <Object?>[
++            <String, Object?>{
++              'type': 'pointerMove',
++              'duration': 0,
++              'x': gesture.fromX,
++              'y': gesture.fromY,
++            },
++            <String, Object?>{'type': 'pointerDown', 'button': 0},
++            <String, Object?>{
++              'type': 'pointerMove',
++              'duration': gesture.durationMs,
++              'x': gesture.toX,
++              'y': gesture.toY,
++            },
++            <String, Object?>{'type': 'pointerUp', 'button': 0},
++          ],
++        },
++      ],
++    });
++  }
++}
+diff --git a/packages/leonard_native/test/fixtures/auth0_android_source.xml b/packages/leonard_native/test/fixtures/auth0_android_source.xml
+new file mode 100644
+index 0000000..bc13689
+--- /dev/null
++++ b/packages/leonard_native/test/fixtures/auth0_android_source.xml
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  Checked-in UiAutomator2 /source fixture for the UiAutomator2Backend
++  ._parseSource unit test — the Android counterpart of auth0_source.xml, shaped
++  as the SAME ten controls so the two parser tests read as a matched pair:
++
++    - Log in button    bounds="[156,450][246,498]" -> rect [156,450,246,498]
++    - Email EditText   bounds="[40,376][362,428]"  -> rect [40,376,362,428]
++    - Password EditText bounds="[41,441][317,493]" -> rect [41,441,317,493]
++
++  Anonymous ImageViews (no text/content-desc/resource-id) exercise the
++  deterministic POSITIONAL xpath synthesis `(//android.widget.ImageView)[n]`;
++  the password EditText carries no resource-id, so it exercises the same
++  fallback for a named-but-unidentified field. The outer FrameLayout is pure
++  structural scaffolding, retained to prove the container filter collapses it.
++-->
++<hierarchy rotation="0">
++  <android.widget.FrameLayout class="android.widget.FrameLayout" bounds="[0,0][1080,2400]">
++    <android.widget.Button class="android.widget.Button" resource-id="com.nicospencer.lennyspike:id/login_button" text="Log in" content-desc="Log in" bounds="[156,450][246,498]" clickable="true" password="false"/>
++    <android.widget.TextView class="android.widget.TextView" text="opening Auth0…" content-desc="" bounds="[40,520][400,560]" password="false"/>
++    <android.view.View class="android.view.View" resource-id="form" content-desc="form" bounds="[0,300][420,700]"/>
++    <android.widget.ImageView class="android.widget.ImageView" bounds="[10,10][40,40]"/>
++    <android.widget.EditText class="android.widget.EditText" resource-id="username" text="" content-desc="Email address" bounds="[40,376][362,428]" password="false"/>
++    <android.widget.EditText class="android.widget.EditText" text="" content-desc="Password" bounds="[41,441][317,493]" password="true"/>
++    <android.widget.Switch class="android.widget.Switch" text="Show password" content-desc="Show password" bounds="[41,500][317,540]"/>
++    <android.widget.ImageView class="android.widget.ImageView" bounds="[10,600][40,640]"/>
++    <android.view.View class="android.view.View" text="Reset password" content-desc="Reset password" bounds="[41,560][200,600]"/>
++    <android.widget.Button class="android.widget.Button" text="SIGN IN" content-desc="SIGN IN" bounds="[40,700][380,760]"/>
++  </android.widget.FrameLayout>
++</hierarchy>
+diff --git a/packages/leonard_native/test/native_backend_factory_test.dart b/packages/leonard_native/test/native_backend_factory_test.dart
+new file mode 100644
+index 0000000..9789993
+--- /dev/null
++++ b/packages/leonard_native/test/native_backend_factory_test.dart
+@@ -0,0 +1,50 @@
++/// UNIT: locks the `--platform` wiring the host runner depends on — that
++/// `android` selects the UiAutomator2 impl, `ios` selects the XCUITest impl,
++/// and an unknown platform fails LOUD instead of silently defaulting to iOS
++/// (which would parse an Android tree with an XCUITest parser and observe
++/// nothing).
++library;
++
++import 'package:leonard_native/leonard_native.dart';
++import 'package:test/test.dart';
++
++void main() {
++  test('android -> UiAutomator2Backend', () {
++    final NativeBackend b = backendForPlatform(
++      platform: 'android',
++      udid: 'emulator-5554',
++      app: 'com.example.app',
++    );
++    expect(b, isA<UiAutomator2Backend>());
++    b.close();
++  });
++
++  test('ios -> AppiumBackend', () {
++    final NativeBackend b = backendForPlatform(
++      platform: 'ios',
++      udid: 'SIM-UDID',
++      app: '/x/Runner.app',
++    );
++    expect(b, isA<AppiumBackend>());
++    b.close();
++  });
++
++  test('an unknown platform throws ArgumentError (LOUD, no iOS fallback)', () {
++    expect(
++      () =>
++          backendForPlatform(platform: 'windows', udid: 'W', app: '/x/app.exe'),
++      throwsA(isA<ArgumentError>()),
++    );
++  });
++
++  test('the server override is threaded through', () {
++    final NativeBackend b = backendForPlatform(
++      platform: 'android',
++      udid: 'emulator-5554',
++      app: 'com.example.app',
++      server: Uri.parse('http://127.0.0.1:4999'),
++    );
++    expect((b as UiAutomator2Backend).server.port, 4999);
++    b.close();
++  });
++}
+diff --git a/packages/leonard_native/test/uiautomator2_backend_test.dart b/packages/leonard_native/test/uiautomator2_backend_test.dart
+new file mode 100644
+index 0000000..3d57d9b
+--- /dev/null
++++ b/packages/leonard_native/test/uiautomator2_backend_test.dart
+@@ -0,0 +1,311 @@
++/// UNIT (NOT e2e): exercises the REAL [UiAutomator2Backend] against a checked-in
++/// UiAutomator2 `/source` fixture and a MOCKED `http.Client` — no Appium server,
++/// no emulator. Locks the three Android divergences the iOS tests cannot cover:
++/// the `<hierarchy>` parse (class->role, `bounds`->rect, `content-desc` as the
++/// tier-1 identifier, `resource-id`-or-positional xpath), the `back` press key,
++/// and the `attribute/password`-derived masked flag.
++library;
++
++import 'dart:convert';
++import 'dart:io';
++
++import 'package:http/http.dart' as http;
++import 'package:http/testing.dart';
++import 'package:leonard_native/leonard_native.dart';
++import 'package:test/test.dart';
++
++/// Resolve the fixture from either invocation cwd (package root or repo root),
++/// mirroring `appium_xml_parser_test.dart`'s dual-path resolver.
++File _fixture() {
++  for (final String p in <String>[
++    'test/fixtures/auth0_android_source.xml',
++    'packages/leonard_native/test/fixtures/auth0_android_source.xml',
++  ]) {
++    final File f = File(p);
++    if (f.existsSync()) return f;
++  }
++  fail(
++    'auth0_android_source.xml fixture not found from '
++    '${Directory.current.path}',
++  );
++}
++
++NativeNode _byLabel(List<NativeNode> nodes, String label) =>
++    nodes.firstWhere((NativeNode n) => n.label == label);
++
++void main() {
++  group('UiAutomator2Backend.parseSource', () {
++    late List<NativeNode> nodes;
++
++    setUpAll(() {
++      final UiAutomator2Backend backend = UiAutomator2Backend(
++        udid: 'fixture',
++        app: 'com.example.app',
++      );
++      nodes = backend.parseSource(_fixture().readAsStringSync());
++      // Free the http.Client the constructor opened.
++      backend.close();
++    });
++
++    test('flattens the a11y tree to the real controls in document order', () {
++      // The FrameLayout scaffolding is dropped (no signal + default role); the
++      // kept nodes are the real controls with dense 1-based document-order ids.
++      expect(nodes.map((NativeNode n) => n.role).toList(), <String>[
++        'button', // Log in
++        'text', // opening Auth0…
++        'text', // form (named container View)
++        'image', // anonymous ImageView #1
++        'textfield', // Email address
++        'textfield', // Password
++        'switch', // Show password
++        'image', // anonymous ImageView #2
++        'text', // Reset password (a web View, not an iOS link)
++        'button', // SIGN IN
++      ]);
++      expect(nodes.map((NativeNode n) => n.id).toList(), <int>[
++        1,
++        2,
++        3,
++        4,
++        5,
++        6,
++        7,
++        8,
++        9,
++        10,
++      ]);
++      expect(nodes, hasLength(10));
++    });
++
++    test(
++      'Log in button — bounds->rect, text label, content-desc identifier',
++      () {
++        final NativeNode logIn = nodes.first;
++        expect(logIn.id, 1);
++        expect(logIn.role, 'button');
++        expect(logIn.label, 'Log in');
++        expect(logIn.a11yId, 'Log in'); // content-desc == the tier-1 key
++        expect(logIn.rect, <int>[
++          156,
++          450,
++          246,
++          498,
++        ]); // [l,t][r,b] -> [l,t,r,b]
++        expect(
++          logIn.xpath,
++          '//android.widget.Button[@resource-id='
++          "'com.nicospencer.lennyspike:id/login_button']",
++        );
++        // Non-editable -> no `value`; xpath stays selector-internal.
++        expect(logIn.toRecord(), <String, Object?>{
++          'id': 1,
++          'role': 'button',
++          'rect': <int>[156, 450, 246, 498],
++          'label': 'Log in',
++          'identifier': 'Log in',
++        });
++      },
++    );
++
++    test('Email EditText — content-desc label fallback, value omitted', () {
++      final NativeNode email = _byLabel(nodes, 'Email address');
++      expect(email.role, 'textfield');
++      // `text` is empty before typing, so the label falls back to content-desc.
++      expect(email.label, 'Email address');
++      expect(email.a11yId, 'Email address');
++      expect(email.rect, <int>[40, 376, 362, 428]);
++      expect(email.xpath, "//android.widget.EditText[@resource-id='username']");
++      expect(email.value, isNull);
++      expect(email.toRecord().containsKey('value'), isFalse);
++      expect(email.toRecord()['identifier'], 'Email address');
++    });
++
++    test('Password EditText — no resource-id falls back to positional xpath', () {
++      final NativeNode pw = _byLabel(nodes, 'Password');
++      expect(pw.role, 'textfield');
++      expect(pw.a11yId, 'Password');
++      expect(pw.rect, <int>[41, 441, 317, 493]);
++      // Second EditText among kept nodes of that class, and unnamed -> position.
++      expect(pw.xpath, '(//android.widget.EditText)[2]');
++    });
++
++    test('anonymous nodes get deterministic positional xpath synthesis', () {
++      final List<NativeNode> images = nodes
++          .where((NativeNode n) => n.role == 'image')
++          .toList();
++      expect(images, hasLength(2));
++      expect(images[0].a11yId, isNull);
++      expect(images[0].toRecord().containsKey('identifier'), isFalse);
++      expect(images[0].xpath, '(//android.widget.ImageView)[1]');
++      expect(images[1].xpath, '(//android.widget.ImageView)[2]');
++    });
++
++    test('duplicate resource-ids fall through to positional xpath', () {
++      // Two same-class, same-resource-id buttons: the uniqueness gate pushes
++      // BOTH to positional, while a uniquely-identified sibling stays named.
++      const String xml = '''
++<?xml version="1.0" encoding="UTF-8"?>
++<hierarchy rotation="0">
++  <android.widget.Button class="android.widget.Button" resource-id="ok" text="OK" bounds="[0,0][10,10]"/>
++  <android.widget.Button class="android.widget.Button" resource-id="ok" text="OK" bounds="[0,20][10,30]"/>
++  <android.widget.Button class="android.widget.Button" resource-id="cancel" text="Cancel" bounds="[0,40][10,50]"/>
++</hierarchy>''';
++      final UiAutomator2Backend backend = UiAutomator2Backend(
++        udid: 'fixture',
++        app: 'com.example.app',
++      );
++      final List<NativeNode> parsed = backend.parseSource(xml);
++      backend.close();
++      expect(parsed, hasLength(3));
++      expect(parsed[0].xpath, '(//android.widget.Button)[1]');
++      expect(parsed[1].xpath, '(//android.widget.Button)[2]');
++      expect(parsed[2].xpath, "//android.widget.Button[@resource-id='cancel']");
++    });
++  });
++
++  group('UiAutomator2Backend.press (Android key vocabulary)', () {
++    late List<String> hits;
++
++    UiAutomator2Backend backend() {
++      hits = <String>[];
++      final MockClient client = MockClient((http.Request req) async {
++        final String path = req.url.path;
++        hits.add('${req.method} $path');
++        final Object? value = req.method == 'POST' && path == '/session'
++            ? <String, Object?>{'sessionId': 's1'}
++            : null;
++        return http.Response(
++          jsonEncode(<String, Object?>{'value': value}),
++          200,
++          headers: const <String, String>{'content-type': 'application/json'},
++        );
++      });
++      return UiAutomator2Backend(
++        udid: 'emulator-5554',
++        app: 'com.example.app',
++        client: client,
++      );
++    }
++
++    test('back -> POST /session/<sid>/back', () async {
++      final UiAutomator2Backend b = backend();
++      await b.connect();
++      await b.press('back');
++      expect(hits, contains('POST /session/s1/back'));
++      await b.close();
++    });
++
++    test('enter -> POST /session/<sid>/keys', () async {
++      final UiAutomator2Backend b = backend();
++      await b.connect();
++      await b.press('enter');
++      expect(hits, contains('POST /session/s1/keys'));
++      await b.close();
++    });
++
++    test(
++      'iOS-only alert keys throw NativeException (no Android alert)',
++      () async {
++        final UiAutomator2Backend b = backend();
++        await b.connect();
++        // Android's Auth0 handoff is a Chrome Custom Tab — there is no
++        // SpringBoard consent / Save-Password alert, so an adaptive caller sees
++        // ok:false rather than a bogus success.
++        await expectLater(
++          () => b.press('consent_accept'),
++          throwsA(isA<NativeException>()),
++        );
++        await expectLater(
++          () => b.press('alert_dismiss'),
++          throwsA(isA<NativeException>()),
++        );
++        await expectLater(
++          () => b.press('wat'),
++          throwsA(isA<NativeException>()),
++        );
++        expect(hits, isNot(contains('POST /session/s1/alert/accept')));
++        await b.close();
++      },
++    );
++  });
++
++  group('UiAutomator2Backend.enterText masked flag (password-attr-derived)', () {
++    late List<String> hits;
++
++    // A backend wired to a MockClient reporting the given `password` attribute.
++    UiAutomator2Backend backendReporting({
++      required String password,
++      required String text,
++    }) {
++      hits = <String>[];
++      final MockClient client = MockClient((http.Request req) async {
++        final String path = req.url.path;
++        hits.add('${req.method} $path');
++        Object? value;
++        if (req.method == 'POST' && path == '/session') {
++          value = <String, Object?>{'sessionId': 's1'};
++        } else if (path.endsWith('/attribute/password')) {
++          value = password;
++        } else if (path.endsWith('/attribute/text')) {
++          value = text;
++        }
++        return http.Response(
++          jsonEncode(<String, Object?>{'value': value}),
++          200,
++          headers: const <String, String>{'content-type': 'application/json'},
++        );
++      });
++      return UiAutomator2Backend(
++        udid: 'emulator-5554',
++        app: 'com.example.app',
++        client: client,
++      );
++    }
++
++    test(
++      'password="true" -> masked:true, reads attribute/text (not /value)',
++      () async {
++        // Android never exposes a secret through attribute/text — it reads back
++        // EMPTY. `masked` must still be true, because it is attribute-derived.
++        final UiAutomator2Backend b = backendReporting(
++          password: 'true',
++          text: '',
++        );
++        await b.connect();
++        final ({String readback, bool masked}) r = await b.enterText(
++          const NativeTarget(elementId: 'E', via: 'xpath'),
++          'sup3r-secret',
++        );
++        expect(r.masked, isTrue);
++        expect(r.readback, isNot('sup3r-secret')); // never the plaintext
++        expect(hits, contains('GET /session/s1/element/E/attribute/password'));
++        expect(hits, contains('GET /session/s1/element/E/attribute/text'));
++        expect(
++          hits,
++          isNot(contains('GET /session/s1/element/E/attribute/value')),
++        );
++        // The keyboard dismiss is the Android back key, inside enterText.
++        expect(hits, contains('POST /session/s1/back'));
++        await b.close();
++      },
++    );
++
++    test(
++      'password="false" -> masked:false, readback is the typed value',
++      () async {
++        final UiAutomator2Backend b = backendReporting(
++          password: 'false',
++          text: 'hello@example.com',
++        );
++        await b.connect();
++        final ({String readback, bool masked}) r = await b.enterText(
++          const NativeTarget(elementId: 'E', via: 'xpath'),
++          'hello@example.com',
++        );
++        expect(r.masked, isFalse);
++        expect(r.readback, 'hello@example.com');
++        await b.close();
++      },
++    );
++  });
++}
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 673d278..c475d5b 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -59,6 +59,16 @@ melos:
+       run: >-
+         dart test packages/leonard_cli/test/dogfood_auth0_e2e_test.dart
+ 
++    test:e2e:auth0:android:
++      description: >-
++        Run the live ANDROID Auth0 round-trip dogfood e2e (leonard_native
++        UiAutomator2Backend). Requires a booted Android emulator + Appium with
++        the UiAutomator2 driver + LEONARD_NATIVE_ANDROID_* and
++        AUTH0_EMAIL/AUTH0_PASSWORD. Self-skips when absent, so it is safe to
++        invoke locally.
++      run: >-
++        dart test packages/leonard_cli/test/dogfood_auth0_android_e2e_test.dart
++
+     # ---------- private sub-scripts (not listed by melos run) ----------
+     test:dart:
+       private: true
