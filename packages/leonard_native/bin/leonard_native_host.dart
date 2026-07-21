@@ -4,11 +4,12 @@
 /// Flutter binding and the tmux host expose, but for a native target.
 ///
 /// Run with the VM service enabled against an ALREADY-RUNNING Appium server and
-/// an ALREADY-BOOTED iOS simulator (this host boots neither), then point a
-/// driver at the printed ws URI:
+/// an ALREADY-BOOTED iOS simulator or Android emulator (this host boots
+/// neither), then point a driver at the printed ws URI:
 ///
 ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
-///     bin/leonard_native_host.dart --udid SIM_UDID --app /path/to/Runner.app
+///     bin/leonard_native_host.dart --udid DEVICE_UDID --app /path/to/app \
+///     [--platform ios|android]
 ///
 /// Prints `LEONARD_HOST_READY` once installed. SIGTERM/SIGINT dispose the
 /// extension (cancelling the watcher + tearing down the device session) and
@@ -35,17 +36,23 @@ Future<void> main(List<String> args) async {
   if (udid == null || app == null) {
     stderr.writeln(
       'usage: leonard_native_host --udid <sim-udid> '
-      '--app <path-to-.app> [--server <url>] [--platform ios]',
+      '--app <path-to-.app|.apk> [--server <url>] [--platform ios|android]',
     );
     exit(64);
   }
 
-  final AppiumBackend backend = AppiumBackend(
-    server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
-    platform: o['platform'] ?? 'ios',
-    udid: udid,
-    app: app,
-  );
+  final NativeBackend backend;
+  try {
+    backend = backendForPlatform(
+      platform: o['platform'] ?? 'ios',
+      server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
+      udid: udid,
+      app: app,
+    );
+  } on ArgumentError catch (e) {
+    stderr.writeln('error: ${e.message}');
+    exit(64);
+  }
   final NativeExtension ext = NativeExtension(backend);
   final ExplorationHost host = ExplorationHost(
     extensions: <LeonardExtension>[ext],
