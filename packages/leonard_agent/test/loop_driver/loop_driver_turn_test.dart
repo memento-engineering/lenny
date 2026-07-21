@@ -496,65 +496,78 @@ void main() {
       },
     );
 
-    test('three extension observation errors auto-disable that extension', () async {
-      final sink = _MemorySink();
-      final writer = await _newWriter(sink);
-      final tools = <ToolDescriptor>[
-        _coreWait(),
-        const ToolDescriptor(
-          name: 'router.go',
-          description: 'navigate',
-          inputSchema: <String, dynamic>{
-            'type': 'object',
-            'properties': <String, dynamic>{},
-            'additionalProperties': false,
-          },
-        ),
-      ];
-      final host = _FakeHost(
-        observations: <Observation>[
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-          _obsWithExtensions(<String, Map<String, dynamic>>{
-            'router': <String, dynamic>{'error': 'boom'},
-          }),
-        ],
-        tools: tools,
-      );
-      host.setActiveNamespaces(<String>{'router'});
-      final provider = _FakeProvider(
-        script: <ModelDecision>[
-          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
-        ],
-      );
-      final driver = _newDriver(host: host, provider: provider, writer: writer);
+    test(
+      'three extension observation errors auto-disable that extension',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final tools = <ToolDescriptor>[
+          _coreWait(),
+          const ToolDescriptor(
+            name: 'router.go',
+            description: 'navigate',
+            inputSchema: <String, dynamic>{
+              'type': 'object',
+              'properties': <String, dynamic>{},
+              'additionalProperties': false,
+            },
+          ),
+        ];
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+            _obsWithExtensions(<String, Map<String, dynamic>>{
+              'router': <String, dynamic>{'error': 'boom'},
+            }),
+          ],
+          tools: tools,
+        );
+        host.setActiveNamespaces(<String>{'router'});
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+            ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
 
-      await driver.runTurn();
-      await driver.runTurn();
-      await driver.runTurn();
+        await driver.runTurn();
+        await driver.runTurn();
+        await driver.runTurn();
 
-      expect(host.disabledExtensions, contains('router'));
-      // Exactly one disableExtension call.
-      final disableCalls = host.calls
-          .where((c) => c == 'disableExtension:router')
-          .length;
-      expect(disableCalls, 1);
-      // Exactly one extension_disabled trajectory record.
-      final disabledRecords = sink.lines.where((l) {
-        final j = jsonDecode(l);
-        return j is Map && j['type'] == 'extension_disabled';
-      }).toList();
-      expect(disabledRecords, hasLength(1));
-      final j = jsonDecode(disabledRecords.first) as Map<String, dynamic>;
-      expect(j['namespace'], 'router');
-      expect(j['turn'], 2);
-    });
+        expect(host.disabledExtensions, contains('router'));
+        // Exactly one disableExtension call.
+        final disableCalls = host.calls
+            .where((c) => c == 'disableExtension:router')
+            .length;
+        expect(disableCalls, 1);
+        // Exactly one extension_disabled trajectory record.
+        final disabledRecords = sink.lines.where((l) {
+          final j = jsonDecode(l);
+          return j is Map && j['type'] == 'extension_disabled';
+        }).toList();
+        expect(disabledRecords, hasLength(1));
+        final j = jsonDecode(disabledRecords.first) as Map<String, dynamic>;
+        expect(j['namespace'], 'router');
+        expect(j['turn'], 2);
+      },
+    );
 
     test(
       'successful extension observation between failures resets the counter',
@@ -606,74 +619,71 @@ void main() {
     );
   });
 
-  group(
-    'LoopDriver._accountExtensionStrikes core-namespace exemption',
-    () {
-      test(
-        'core is never disabled even after 4 turns with no curr.extensions[core]',
-        () async {
-          final sink = _MemorySink();
-          final writer = await _newWriter(sink);
-          // 'core' is in activeExtensionNamespaces; curr.extensions never has 'core'.
-          // 'dio' is also active but always absent from extensions — a healthy extension
-          // that simply has nothing to report (no in-flight/recent requests), NOT
-          // a failure.
-          final host = _FakeHost(
-            observations: List.generate(
-              6,
-              (_) => _obsWithExtensions(const <String, Map<String, dynamic>>{}),
+  group('LoopDriver._accountExtensionStrikes core-namespace exemption', () {
+    test(
+      'core is never disabled even after 4 turns with no curr.extensions[core]',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        // 'core' is in activeExtensionNamespaces; curr.extensions never has 'core'.
+        // 'dio' is also active but always absent from extensions — a healthy extension
+        // that simply has nothing to report (no in-flight/recent requests), NOT
+        // a failure.
+        final host = _FakeHost(
+          observations: List.generate(
+            6,
+            (_) => _obsWithExtensions(const <String, Map<String, dynamic>>{}),
+          ),
+          tools: <ToolDescriptor>[
+            _coreDone(),
+            _coreWait(),
+            const ToolDescriptor(
+              name: 'dio.fetch',
+              description: 'fetch',
+              inputSchema: <String, dynamic>{'type': 'object'},
             ),
-            tools: <ToolDescriptor>[
-              _coreDone(),
-              _coreWait(),
-              const ToolDescriptor(
-                name: 'dio.fetch',
-                description: 'fetch',
-                inputSchema: <String, dynamic>{'type': 'object'},
-              ),
-            ],
-          );
-          host.setActiveNamespaces(<String>{'core', 'dio'});
-          final provider = _FakeProvider(
-            script: List.generate(
-              4,
-              (_) => ModelDecision(
-                action: (tool: 'core.wait', args: <String, dynamic>{}),
-              ),
+          ],
+        );
+        host.setActiveNamespaces(<String>{'core', 'dio'});
+        final provider = _FakeProvider(
+          script: List.generate(
+            4,
+            (_) => ModelDecision(
+              action: (tool: 'core.wait', args: <String, dynamic>{}),
             ),
-          );
-          final driver = _newDriver(
-            host: host,
-            provider: provider,
-            writer: writer,
-          );
+          ),
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
 
-          for (var i = 0; i < 4; i++) {
-            await driver.runTurn();
-          }
+        for (var i = 0; i < 4; i++) {
+          await driver.runTurn();
+        }
 
-          expect(
-            host.disabledExtensions,
-            isNot(contains('core')),
-            reason:
-                'core must never be auto-disabled regardless of how many '
-                'turns pass without a curr.extensions[core] entry',
-          );
-          expect(
-            host.mergedTools().map((t) => t.name),
-            contains('core.wait'),
-            reason: 'core tools must remain in mergedTools after 4 turns',
-          );
-          expect(
-            host.disabledExtensions,
-            isNot(contains('dio')),
-            reason:
-                'an extension that is merely absent from curr.extensions (null '
-                'fragment = nothing to report) is healthy and must NOT be '
-                'auto-disabled; only an explicit error fragment is a strike',
-          );
-        },
-      );
-    },
-  );
+        expect(
+          host.disabledExtensions,
+          isNot(contains('core')),
+          reason:
+              'core must never be auto-disabled regardless of how many '
+              'turns pass without a curr.extensions[core] entry',
+        );
+        expect(
+          host.mergedTools().map((t) => t.name),
+          contains('core.wait'),
+          reason: 'core tools must remain in mergedTools after 4 turns',
+        );
+        expect(
+          host.disabledExtensions,
+          isNot(contains('dio')),
+          reason:
+              'an extension that is merely absent from curr.extensions (null '
+              'fragment = nothing to report) is healthy and must NOT be '
+              'auto-disabled; only an explicit error fragment is a strike',
+        );
+      },
+    );
+  });
 }

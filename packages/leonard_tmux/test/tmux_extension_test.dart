@@ -85,15 +85,17 @@ void main() {
     );
   });
 
-  test('send_keys with missing args is a structured error, not a throw',
-      () async {
-    final ext = TmuxExtension(_client(_populatedFake()));
-    await ext.initialize(ExtensionContext(namespace: 'tmux'));
-    addTearDown(ext.dispose);
+  test(
+    'send_keys with missing args is a structured error, not a throw',
+    () async {
+      final ext = TmuxExtension(_client(_populatedFake()));
+      await ext.initialize(ExtensionContext(namespace: 'tmux'));
+      addTearDown(ext.dispose);
 
-    final tool = ext.tools.firstWhere((t) => t.name == 'send_keys');
-    final res = await tool.call(const <String, Object?>{'pane': '%0'});
-    expect(res.ok, isFalse);
-    expect(res.error, isNotNull);
-  });
+      final tool = ext.tools.firstWhere((t) => t.name == 'send_keys');
+      final res = await tool.call(const <String, Object?>{'pane': '%0'});
+      expect(res.ok, isFalse);
+      expect(res.error, isNotNull);
+    },
+  );
 }

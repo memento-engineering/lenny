@@ -32,15 +32,12 @@ void main() {
     );
   });
 
-  test(
-    'every error is recorded into the ring',
-    () {
-      final int before = binding.debugHighestErrorSeq();
-      binding.debugAppendError('first', StackTrace.current);
-      binding.debugAppendError('second', StackTrace.current);
-      expect(binding.debugHighestErrorSeq(), before + 2);
-    },
-  );
+  test('every error is recorded into the ring', () {
+    final int before = binding.debugHighestErrorSeq();
+    binding.debugAppendError('first', StackTrace.current);
+    binding.debugAppendError('second', StackTrace.current);
+    expect(binding.debugHighestErrorSeq(), before + 2);
+  });
 
   test('FlutterError.onError wrapper records and forwards', () {
     final int beforeSeq = binding.debugHighestErrorSeq();

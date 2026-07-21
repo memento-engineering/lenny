@@ -24,47 +24,59 @@ void main() {
       expect(hs['capabilities'], isEmpty);
     });
 
-    test('observation is a valid Observation bundle carrying the fragment',
-        () async {
-      final host = ExplorationHost(
-        extensions: <LeonardExtension>[_DemoExtension()],
-      );
-      final env =
-          jsonDecode(await host.observationJson()) as Map<String, dynamic>;
-      expect(env['type'], 'Observation');
-      final value = (env['value'] as Map).cast<String, dynamic>();
-      // The real consumer (leonard_agent) accepts the bundle.
-      final Observation obs = Observation.fromJson(value);
-      expect(obs.extensions.keys, contains('demo'));
-      // The projected field survives serialization.
-      expect(jsonEncode(value['extensions']), contains('count'));
-    });
+    test(
+      'observation is a valid Observation bundle carrying the fragment',
+      () async {
+        final host = ExplorationHost(
+          extensions: <LeonardExtension>[_DemoExtension()],
+        );
+        final env =
+            jsonDecode(await host.observationJson()) as Map<String, dynamic>;
+        expect(env['type'], 'Observation');
+        final value = (env['value'] as Map).cast<String, dynamic>();
+        // The real consumer (leonard_agent) accepts the bundle.
+        final Observation obs = Observation.fromJson(value);
+        expect(obs.extensions.keys, contains('demo'));
+        // The projected field survives serialization.
+        expect(jsonEncode(value['extensions']), contains('count'));
+      },
+    );
 
-    test('invoke dispatches to the tool and returns the {ok,value} envelope',
-        () async {
-      final host = ExplorationHost(
-        extensions: <LeonardExtension>[_DemoExtension()],
-      );
-      // The driver JSON-encodes each arg value on the wire: by:2 -> "2".
-      final env = jsonDecode(
-        await host.invokeToolJson('demo.bump', <String, String>{'by': '2'}),
-      ) as Map<String, dynamic>;
-      expect(env['ok'], true);
-      expect((env['value'] as Map)['count'], 2);
-    });
+    test(
+      'invoke dispatches to the tool and returns the {ok,value} envelope',
+      () async {
+        final host = ExplorationHost(
+          extensions: <LeonardExtension>[_DemoExtension()],
+        );
+        // The driver JSON-encodes each arg value on the wire: by:2 -> "2".
+        final env =
+            jsonDecode(
+                  await host.invokeToolJson('demo.bump', <String, String>{
+                    'by': '2',
+                  }),
+                )
+                as Map<String, dynamic>;
+        expect(env['ok'], true);
+        expect((env['value'] as Map)['count'], 2);
+      },
+    );
 
-    test('a tools-only extension contributes no observation fragment',
-        () async {
-      final host = ExplorationHost(
-        extensions: <LeonardExtension>[_ToolsOnlyExtension()],
-      );
-      final value = (jsonDecode(await host.observationJson())
-          as Map)['value'] as Map;
-      expect(value['extensions'], isEmpty);
-      final hs = jsonDecode(await host.handshakeJson()) as Map<String, dynamic>;
-      expect(((hs['extensions'] as List).single as Map)['tools'],
-          <String>['noop']);
-    });
+    test(
+      'a tools-only extension contributes no observation fragment',
+      () async {
+        final host = ExplorationHost(
+          extensions: <LeonardExtension>[_ToolsOnlyExtension()],
+        );
+        final value =
+            (jsonDecode(await host.observationJson()) as Map)['value'] as Map;
+        expect(value['extensions'], isEmpty);
+        final hs =
+            jsonDecode(await host.handshakeJson()) as Map<String, dynamic>;
+        expect(((hs['extensions'] as List).single as Map)['tools'], <String>[
+          'noop',
+        ]);
+      },
+    );
 
     test('invoking an unknown tool throws ArgumentError', () async {
       final host = ExplorationHost(
@@ -128,16 +140,19 @@ class _BumpTool extends LeonardTool {
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'by': <String, Object?>{'type': 'integer'},
-        },
-      });
+    'type': 'object',
+    'properties': <String, Object?>{
+      'by': <String, Object?>{'type': 'integer'},
+    },
+  });
 
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
     owner._count += (args['by'] as int?) ?? 1;
-    return ToolResult(ok: true, value: <String, Object?>{'count': owner._count});
+    return ToolResult(
+      ok: true,
+      value: <String, Object?>{'count': owner._count},
+    );
   }
 }
 

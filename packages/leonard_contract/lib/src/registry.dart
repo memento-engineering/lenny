@@ -107,9 +107,7 @@ class ExtensionRegistry {
         throw StateError('duplicate extension namespace: ${p.namespace}');
       }
     }
-    _entries.add(
-      _Entry(p, ExtensionContext(namespace: p.namespace)),
-    );
+    _entries.add(_Entry(p, ExtensionContext(namespace: p.namespace)));
   }
 
   /// Compute the merged tool list keyed by fully-qualified name.

@@ -163,7 +163,8 @@ void main() {
     );
     final ObservationDiff d = ObservationDiffer.diff(prev, curr);
     expect(d.extensions['opaque'], isA<ExtensionDiffOpaque>());
-    final ExtensionDiffOpaque o = d.extensions['opaque']! as ExtensionDiffOpaque;
+    final ExtensionDiffOpaque o =
+        d.extensions['opaque']! as ExtensionDiffOpaque;
     expect((o.previous as Map)['a'], equals(1));
     expect((o.current as Map)['a'], equals(2));
   });

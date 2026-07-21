@@ -8,7 +8,8 @@
 /// EXPERIMENTAL — see the versioning posture on `LeonardExtension`.
 library;
 
-export 'src/dispatch.dart' show decodeServiceExtensionParams, dispatchToolToEnvelope;
+export 'src/dispatch.dart'
+    show decodeServiceExtensionParams, dispatchToolToEnvelope;
 export 'src/extension.dart';
 export 'src/extension_context.dart';
 export 'src/perception_anchor.dart';

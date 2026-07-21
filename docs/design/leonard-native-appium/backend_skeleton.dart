@@ -37,10 +37,14 @@ class AppiumBackend {
   Uri _u(String p) => base.resolve(p);
 
   Future<Map<String, Object?>> _post(String p, Object body) async {
-    final r = await _c.post(_u(p),
-        headers: {'content-type': 'application/json'}, body: jsonEncode(body));
+    final r = await _c.post(
+      _u(p),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(body),
+    );
     return _unwrap(r.body);
   }
+
   Future<Map<String, Object?>> _get(String p) async =>
       _unwrap((await _c.get(_u(p))).body);
 
@@ -55,11 +59,15 @@ class AppiumBackend {
 
   Future<void> connect(Map<String, Object?> caps) async {
     final j = await _post('/session', {
-      'capabilities': {'alwaysMatch': caps, 'firstMatch': [<String, Object?>{}]}
+      'capabilities': {
+        'alwaysMatch': caps,
+        'firstMatch': [<String, Object?>{}],
+      },
     });
     final v = j['value'] as Map<String, Object?>;
     _sid = (v['sessionId'] ?? j['sessionId']) as String;
   }
+
   Future<void> quit() async {
     if (_sid != null) {
       try {
@@ -72,14 +80,18 @@ class AppiumBackend {
   Future<void> context(String name) async =>
       _post('/session/$_s/context', {'name': name});
 
-  Future<String?> find(String xpath,
-      {Duration timeout = const Duration(seconds: 10),
-      bool required = false}) async {
+  Future<String?> find(
+    String xpath, {
+    Duration timeout = const Duration(seconds: 10),
+    bool required = false,
+  }) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       try {
-        final j = await _post('/session/$_s/element',
-            {'using': 'xpath', 'value': xpath});
+        final j = await _post('/session/$_s/element', {
+          'using': 'xpath',
+          'value': xpath,
+        });
         final v = j['value'] as Map<String, Object?>;
         return v.values.first as String; // element-6066-11e4-a52e-4f735466cecf
       } on AppiumError {
@@ -89,21 +101,25 @@ class AppiumBackend {
     if (required) throw AppiumError('not found: $xpath');
     return null;
   }
+
   Future<void> tap(String eid) async =>
       _post('/session/$_s/element/$eid/click', const {});
   Future<void> type(String eid, String text) async {
     await _post('/session/$_s/element/$eid/clear', const {});
     await _post('/session/$_s/element/$eid/value', {'text': text});
   }
+
   Future<String> readValue(String eid) async {
     final j = await _get('/session/$_s/element/$eid/attribute/value');
     return (j['value'] ?? '').toString();
   }
+
   Future<AppiumSnapshot> observe() async {
     final src = (await _get('/session/$_s/source'))['value'].toString();
     final shot = (await _get('/session/$_s/screenshot'))['value'].toString();
     return AppiumSnapshot(src, shot);
   }
+
   Future<void> back() async =>
       _post('/session/$_s/back', const {}); // android keyboard dismiss
 }
@@ -139,7 +155,9 @@ Future<int> main(List<String> args) async {
   // [--device 'iPhone 15 Pro'] [--server http://127.0.0.1:4723]
   final o = _parse(args);
   final b = AppiumBackend(
-      Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'), o['platform']!);
+    Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
+    o['platform']!,
+  );
   final email = o['email']!, pw = o['password']!, osv = o['os'] ?? '';
   // NOTE: bundleId/appPackage below are placeholders -- swap to the
   // throwaway auth0_flutter sample's ids before running.
@@ -165,16 +183,22 @@ Future<int> main(List<String> args) async {
     await b.connect(caps);
     await b.context('NATIVE_APP'); // step 1
     await sleep(1000);
-    final launch = await b.find(b.platform == 'ios' ? iosSignIn : andSignIn,
-        required: true);
+    final launch = await b.find(
+      b.platform == 'ios' ? iosSignIn : andSignIn,
+      required: true,
+    );
     await b.tap(launch!); // opens the hosted Auth0 page
     if (b.platform == 'ios') {
       await sleep(4000);
-      final consent =
-          await b.find(iosConsentTitle, timeout: const Duration(seconds: 10));
+      final consent = await b.find(
+        iosConsentTitle,
+        timeout: const Duration(seconds: 10),
+      );
       if (consent != null) {
-        final cont =
-            await b.find(iosContinue, timeout: const Duration(seconds: 5));
+        final cont = await b.find(
+          iosContinue,
+          timeout: const Duration(seconds: 5),
+        );
         if (cont != null) await b.tap(cont);
       }
       await sleep(1000);
@@ -182,15 +206,19 @@ Future<int> main(List<String> args) async {
       await sleep(1000);
     }
     // email
-    final ef = await b.find(b.platform == 'ios' ? iosEmail : andEmail,
-        required: true);
+    final ef = await b.find(
+      b.platform == 'ios' ? iosEmail : andEmail,
+      required: true,
+    );
     await b.tap(ef!);
     await b.type(ef, email);
     await dismissKeyboard(b, osv);
     await sleep(1000);
     // password
-    final pf = await b.find(b.platform == 'ios' ? iosPass : andPass,
-        required: true);
+    final pf = await b.find(
+      b.platform == 'ios' ? iosPass : andPass,
+      required: true,
+    );
     await b.tap(pf!);
     await b.type(pf, pw);
     await dismissKeyboard(b, osv);
@@ -205,13 +233,15 @@ Future<int> main(List<String> args) async {
     // secure field must NOT echo plaintext, but must be non-empty
     final passMasked = passVal != pw && passVal.isNotEmpty;
     final passLanded = passVal.length >= pw.length;
-    stdout.writeln(jsonEncode({
-      'event': 'spike_result',
-      'emailField': emailVal,
-      'emailOk': emailOk,
-      'passwordMasked': passMasked,
-      'passwordLanded': passLanded,
-    }));
+    stdout.writeln(
+      jsonEncode({
+        'event': 'spike_result',
+        'emailField': emailVal,
+        'emailOk': emailOk,
+        'passwordMasked': passMasked,
+        'passwordLanded': passLanded,
+      }),
+    );
     final pass = emailOk && passMasked && passLanded;
     await b.quit();
     return pass ? 0 : 1;

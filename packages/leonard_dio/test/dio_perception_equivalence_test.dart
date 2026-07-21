@@ -62,9 +62,7 @@ void main() {
       final _HangingAdapter adapter = _HangingAdapter();
       final Dio testDio = Dio()..httpClientAdapter = adapter;
       final LeonardDioExtension extension = LeonardDioExtension(testDio);
-      await extension.initialize(
-        ExtensionContext(namespace: 'dio'),
-      );
+      await extension.initialize(ExtensionContext(namespace: 'dio'));
 
       final Future<Response<dynamic>> req = testDio
           .get<dynamic>('https://api.example.com/users')
@@ -105,9 +103,7 @@ void main() {
       final _HangingAdapter adapter = _HangingAdapter();
       final Dio testDio = Dio()..httpClientAdapter = adapter;
       final LeonardDioExtension extension = LeonardDioExtension(testDio);
-      await extension.initialize(
-        ExtensionContext(namespace: 'dio'),
-      );
+      await extension.initialize(ExtensionContext(namespace: 'dio'));
 
       // No requests sent — extension is completely idle. The binding's
       // isPerceptionIdle() gate (reproducing the retired observe()==null)

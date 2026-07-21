@@ -44,9 +44,7 @@ class _HangingAdapter implements HttpClientAdapter {
 }
 
 Future<void> _init(LeonardDioExtension p) async {
-  await p.initialize(
-    ExtensionContext(namespace: 'dio'),
-  );
+  await p.initialize(ExtensionContext(namespace: 'dio'));
 }
 
 /// Pump until [predicate] holds or the deadline expires; keeps tests

@@ -97,7 +97,9 @@ void main() {
     addTearDown(w.container.dispose);
     await w.extension.initialize(ctx());
 
-    final missing = await w.extension.tools.single.call(const <String, Object?>{});
+    final missing = await w.extension.tools.single.call(
+      const <String, Object?>{},
+    );
     expect(missing.ok, isFalse);
     expect(missing.error, contains('provider_id'));
 

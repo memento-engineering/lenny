@@ -69,7 +69,9 @@ void main() {
     await tester.pumpWidget(
       _host(
         running: false,
-        extensions: const [ExtensionManifestEntry(namespace: 'router', tools: [])],
+        extensions: const [
+          ExtensionManifestEntry(namespace: 'router', tools: []),
+        ],
       ),
     );
     await tester.pump();

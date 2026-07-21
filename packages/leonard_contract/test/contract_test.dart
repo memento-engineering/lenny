@@ -66,18 +66,21 @@ void main() {
     );
   });
 
-  test('decodeServiceExtensionParams JSON-decodes values, falls back to raw', () {
-    final out = decodeServiceExtensionParams(<String, String>{
-      'n': '5',
-      'b': 'true',
-      's': 'hello',
-      'j': '{"k":1}',
-    });
-    expect(out['n'], 5);
-    expect(out['b'], true);
-    expect(out['s'], 'hello');
-    expect(out['j'], <String, Object?>{'k': 1});
-  });
+  test(
+    'decodeServiceExtensionParams JSON-decodes values, falls back to raw',
+    () {
+      final out = decodeServiceExtensionParams(<String, String>{
+        'n': '5',
+        'b': 'true',
+        's': 'hello',
+        'j': '{"k":1}',
+      });
+      expect(out['n'], 5);
+      expect(out['b'], true);
+      expect(out['s'], 'hello');
+      expect(out['j'], <String, Object?>{'k': 1});
+    },
+  );
 
   test('dispatchToolToEnvelope wraps an ok result', () async {
     final body = await dispatchToolToEnvelope(const _EchoTool(), {'a': 1});

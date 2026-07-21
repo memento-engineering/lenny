@@ -127,7 +127,8 @@ void main() {
       final HandshakeResult h = await client.handshake();
       expect(h.contractVersion, '2');
       final Map<String, List<String>> byNs = <String, List<String>>{
-        for (final ExtensionManifestEntry p in h.extensions) p.namespace: p.tools,
+        for (final ExtensionManifestEntry p in h.extensions)
+          p.namespace: p.tools,
       };
       expect(byNs.keys, containsAll(<String>['core', 'sample']));
       expect(byNs['sample'], <String>['echo']);

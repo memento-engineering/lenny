@@ -26,7 +26,11 @@ void main() {
     });
 
     test('screenshot without --vm-uri exits 64', () async {
-      final ProcessResult r = await run(<String>['screenshot', '--out', 'x.png']);
+      final ProcessResult r = await run(<String>[
+        'screenshot',
+        '--out',
+        'x.png',
+      ]);
       expect(r.exitCode, 64);
       expect(r.stderr, contains('--vm-uri'));
     });

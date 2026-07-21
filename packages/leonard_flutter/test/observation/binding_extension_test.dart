@@ -150,7 +150,10 @@ void main() {
         final Map<String, Object?> extensions =
             obs['extensions']! as Map<String, Object?>;
         expect(extensions.keys.toList(), <String>['a', 'b']);
-        expect((extensions['a']! as Map<String, Object?>)['extensionA'], isTrue);
+        expect(
+          (extensions['a']! as Map<String, Object?>)['extensionA'],
+          isTrue,
+        );
         expect((extensions['b']! as Map<String, Object?>)['extensionB'], 1);
       },
     );
