@@ -1579,6 +1579,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 --------------------------------------------------------------------------------
 characters
+ffi
 package_config
 
 Copyright 2019, the Dart project authors. 
@@ -22156,11 +22157,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 lenny_workspace
 leonard_agent
 leonard_cli
+leonard_contract
 leonard_devtools
 leonard_dio
 leonard_flutter
+leonard_host
+leonard_native
 leonard_riverpod
 leonard_router
+leonard_tmux
 
 MIT License
 
