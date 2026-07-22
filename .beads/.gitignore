@@ -2,12 +2,14 @@
 dolt/
 embeddeddolt/
 proxieddb/
+proxied_server_client_info.json
 
 # Runtime files
 bd.sock
 bd.sock.startlock
 sync-state.json
 last-touched
+last_pull
 .exclusive-lock
 
 # Daemon runtime (lock, log, pid)
