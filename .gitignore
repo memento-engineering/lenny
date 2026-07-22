@@ -41,11 +41,19 @@ site/.astro/
 .beads/proxieddb/
 lenny-whn/
 
-# Gas City
-.beads/*
-!.beads/config.yaml
-!.beads/metadata.json
-!.beads/identity.toml
+# .beads/ exclusions are owned by bd's own .beads/.gitignore (kept current with
+# `bd doctor`). Do NOT blanket-ignore `.beads/*` with negations here: bd warns
+# that negation patterns override the fork protection in .git/info/exclude, and
+# the blanket silently hides files bd expects tracked (config.yaml carries
+# sync.remote, so a fresh clone can't bootstrap without it).
+#
+# Two per-machine files bd's template doesn't cover yet:
+#   hooks.log    — local hook output
+#   routes.jsonl — prefix->filesystem-path routing table; absolute-ish paths
+#                  valid only on this machine (same reason bd ignores `redirect`)
+.beads/hooks.log
+.beads/routes.jsonl
+.beads/formulas/
 
 # the_grid live-arm scratch (the station cuts per-bead worktrees here when THIS
 # checkout is the substation root: .grid/worktrees/<substation>/<bead>, and each
@@ -94,7 +102,6 @@ lenny-whn/
 spikes/
 .gc/
 .factoryskills/sessions.jsonl
-.beads/identity.toml
 
 # Env files — never commit secrets
 *.env
