@@ -16,7 +16,7 @@
 // dispatches against a missing widget tree and crashes the loop as
 // `HarnessError.connectionLost`.
 //
-// ignore_for_file: invalid_use_of_visible_for_testing_member
+// ignore_for_file: depend_on_referenced_packages, invalid_use_of_visible_for_testing_member
 //
 // `debugSetPolicyLoopSeamsForTesting` is `@visibleForTesting`; the
 // runner is test-adjacent and runs under `flutter test`, so the lint

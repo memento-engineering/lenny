@@ -128,6 +128,7 @@ class ModelDecision {
     this.rationale,
     this.waitStrategy,
     this.providerRequestId,
+    this.modelMetadata = const <String, dynamic>{},
   });
 
   /// The action chosen this turn — `tool` is a tool name, `args` is the
@@ -153,6 +154,11 @@ class ModelDecision {
   /// so an operator can cross-reference swift-infer's
   /// `/v1/trace/:id` endpoint without manual time-correlation.
   final String? providerRequestId;
+
+  /// Provider response metadata persisted with the trajectory turn.
+  /// Dartantic-backed providers include `served_model_id` and an explicit
+  /// `provider_request_id` entry; custom providers may leave this empty.
+  final Map<String, dynamic> modelMetadata;
 }
 
 /// One delta emitted on the [ModelProvider.thinking] stream.

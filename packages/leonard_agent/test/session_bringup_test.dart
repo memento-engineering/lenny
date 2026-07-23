@@ -4,7 +4,6 @@ library;
 import 'dart:async';
 
 import 'package:leonard_agent/leonard_agent.dart';
-import 'package:leonard_agent/src/session_bringup.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 

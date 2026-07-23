@@ -300,6 +300,73 @@ void main() {
       expect(last['validation']['ok'], isTrue);
     });
 
+    test('persists provider response metadata and request id', () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        observations: <Observation>[_emptyObs()],
+        tools: <ToolDescriptor>[_coreWait()],
+      );
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(
+            action: (tool: 'core.wait', args: <String, dynamic>{}),
+            providerRequestId: 'msg_42',
+            modelMetadata: <String, dynamic>{
+              'served_model_id': 'qwen',
+              'provider_request_id': 'msg_42',
+            },
+          ),
+        ],
+      );
+
+      await _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+      ).runTurn();
+
+      final turn = jsonDecode(sink.lines.last) as Map<String, dynamic>;
+      expect(turn['model_metadata'], <String, dynamic>{
+        'served_model_id': 'qwen',
+        'provider_request_id': 'msg_42',
+      });
+      expect(turn['provider_request_id'], 'msg_42');
+    });
+
+    test('persists explicit metadata when the request id is absent', () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        observations: <Observation>[_emptyObs()],
+        tools: <ToolDescriptor>[_coreWait()],
+      );
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(
+            action: (tool: 'core.wait', args: <String, dynamic>{}),
+            modelMetadata: <String, dynamic>{
+              'served_model_id': 'qwen',
+              'provider_request_id': null,
+            },
+          ),
+        ],
+      );
+
+      await _newDriver(
+        host: host,
+        provider: provider,
+        writer: writer,
+      ).runTurn();
+
+      final turn = jsonDecode(sink.lines.last) as Map<String, dynamic>;
+      expect(turn['model_metadata'], <String, dynamic>{
+        'served_model_id': 'qwen',
+        'provider_request_id': null,
+      });
+      expect(turn.containsKey('provider_request_id'), isFalse);
+    });
+
     test(
       'failed action: error carries forward as toolResult on next turn',
       () async {

@@ -284,6 +284,7 @@ class LoopDriver {
       diff: diff.toJson(),
       thinking: v.decision.thinking,
       modelMetadata: <String, dynamic>{
+        ...v.decision.modelMetadata,
         if (v.decision.rationale != null) 'rationale': v.decision.rationale,
         if (v.decision.waitStrategy != null)
           'wait_strategy': v.decision.waitStrategy,

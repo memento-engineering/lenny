@@ -42,6 +42,26 @@ void main() {
     expect(d.waitStrategy, isNull);
   });
 
+  test('ModelDecision carries provider response metadata', () {
+    const withoutMetadata = ModelDecision(
+      action: (tool: 'core.wait', args: <String, dynamic>{}),
+    );
+    expect(withoutMetadata.modelMetadata, isEmpty);
+
+    const withMetadata = ModelDecision(
+      action: (tool: 'core.wait', args: <String, dynamic>{}),
+      providerRequestId: 'msg_42',
+      modelMetadata: <String, dynamic>{
+        'served_model_id': 'qwen',
+        'provider_request_id': 'msg_42',
+      },
+    );
+    expect(withMetadata.modelMetadata, <String, dynamic>{
+      'served_model_id': 'qwen',
+      'provider_request_id': 'msg_42',
+    });
+  });
+
   test('schema is draft-07 with action oneOf per tool', () {
     final s = ActionSchema.fromToolList(<ToolDescriptor>[
       _t('core.tap'),
