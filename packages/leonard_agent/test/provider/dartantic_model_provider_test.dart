@@ -133,42 +133,48 @@ void main() {
       p.dispose();
     });
 
-    test('records an explicitly absent provider request id', () async {
-      final p = _provider([
-        {
-          'type': 'content_block_start',
-          'index': 0,
-          'content_block': {
-            'type': 'tool_use',
-            'id': 'tu1',
-            'name': 'core_tap',
-            'input': <String, dynamic>{},
+    test(
+      'falls back to ChatResult.id when the upstream id is absent',
+      () async {
+        final p = _provider([
+          {
+            'type': 'content_block_start',
+            'index': 0,
+            'content_block': {
+              'type': 'tool_use',
+              'id': 'tu1',
+              'name': 'core_tap',
+              'input': <String, dynamic>{},
+            },
           },
-        },
-        {
-          'type': 'content_block_delta',
-          'index': 0,
-          'delta': {'type': 'input_json_delta', 'partial_json': '{"nodeId":7}'},
-        },
-        {'type': 'content_block_stop', 'index': 0},
-        {
-          'type': 'message_delta',
-          'delta': {'stop_reason': 'tool_use'},
-        },
-      ]);
+          {
+            'type': 'content_block_delta',
+            'index': 0,
+            'delta': {
+              'type': 'input_json_delta',
+              'partial_json': '{"nodeId":7}',
+            },
+          },
+          {'type': 'content_block_stop', 'index': 0},
+          {
+            'type': 'message_delta',
+            'delta': {'stop_reason': 'tool_use'},
+          },
+        ]);
 
-      final decision = await p.decide(
-        _snapshot(),
-        ActionSchema.fromToolList([_tapTool]),
-      );
+        final decision = await p.decide(
+          _snapshot(),
+          ActionSchema.fromToolList([_tapTool]),
+        );
 
-      expect(decision.providerRequestId, isNull);
-      expect(decision.modelMetadata, <String, dynamic>{
-        'served_model_id': 'qwen',
-        'provider_request_id': null,
-      });
-      p.dispose();
-    });
+        expect(decision.providerRequestId, isNotNull);
+        expect(decision.modelMetadata, <String, dynamic>{
+          'served_model_id': 'qwen',
+          'provider_request_id': decision.providerRequestId,
+        });
+        p.dispose();
+      },
+    );
 
     test('throws SchemaRejection when no tool call is emitted', () async {
       final p = _provider([

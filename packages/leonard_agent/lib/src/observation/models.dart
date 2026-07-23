@@ -536,8 +536,9 @@ class StabilityMetadata {
     final Object? raw = j['extensions_busy'];
     if (raw is List) {
       for (final Object? e in raw) {
-        if (e is Map)
+        if (e is Map) {
           busy.add(ExtensionBusy.fromJson(e.cast<String, dynamic>()));
+        }
       }
     }
     return StabilityMetadata(
