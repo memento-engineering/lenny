@@ -164,6 +164,10 @@ class DartanticModelProvider implements ModelProvider {
       ),
       thinking: thinkingBuf.isEmpty ? null : thinkingBuf.toString(),
       providerRequestId: providerRequestId,
+      modelMetadata: <String, dynamic>{
+        'served_model_id': model,
+        'provider_request_id': providerRequestId,
+      },
     );
   }
 

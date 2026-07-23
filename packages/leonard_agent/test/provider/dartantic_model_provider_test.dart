@@ -119,6 +119,10 @@ void main() {
       expect(decision.action.args, {'nodeId': 7});
       expect(decision.thinking, 'find the button');
       expect(decision.providerRequestId, 'msg_42');
+      expect(decision.modelMetadata, <String, dynamic>{
+        'served_model_id': 'qwen',
+        'provider_request_id': 'msg_42',
+      });
       expect(
         thinkingDeltas.where((d) => !d.isFinal).map((d) => d.text).join(),
         'find the button',
@@ -126,6 +130,43 @@ void main() {
       expect(thinkingDeltas.last.isFinal, isTrue);
 
       await sub.cancel();
+      p.dispose();
+    });
+
+    test('records an explicitly absent provider request id', () async {
+      final p = _provider([
+        {
+          'type': 'content_block_start',
+          'index': 0,
+          'content_block': {
+            'type': 'tool_use',
+            'id': 'tu1',
+            'name': 'core_tap',
+            'input': <String, dynamic>{},
+          },
+        },
+        {
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': {'type': 'input_json_delta', 'partial_json': '{"nodeId":7}'},
+        },
+        {'type': 'content_block_stop', 'index': 0},
+        {
+          'type': 'message_delta',
+          'delta': {'stop_reason': 'tool_use'},
+        },
+      ]);
+
+      final decision = await p.decide(
+        _snapshot(),
+        ActionSchema.fromToolList([_tapTool]),
+      );
+
+      expect(decision.providerRequestId, isNull);
+      expect(decision.modelMetadata, <String, dynamic>{
+        'served_model_id': 'qwen',
+        'provider_request_id': null,
+      });
       p.dispose();
     });
 
