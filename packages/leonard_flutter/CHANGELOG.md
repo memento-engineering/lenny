@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.8
+
+- Republish so the pub.dev archive actually carries `LeonardBinding.extensionsReady`
+  (a `Future<void>` that completes once the leonard service extensions are
+  registered). The getter landed in the repo while the version stayed 0.1.7, so
+  the hosted 0.1.7 archive predates it and consumers pinning `^0.1.7` from
+  pub.dev could not compile against it (butane_flutter-s2w).
+
 ## 0.1.7
 
 - The core semantics fragment now emits `identifier` (from
