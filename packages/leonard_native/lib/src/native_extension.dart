@@ -4,7 +4,8 @@
 /// the Flutter reference extensions: [initialize] connects the [NativeBackend]
 /// and subscribes to its [NativeBackend.watch] poll loop, keeping a live
 /// [NativeSnapshot] current, so [buildPerception] reads it **synchronously**
-/// (ADR-0006). There is no async work at observation time; the async I/O lives
+/// (the pull-free build invariant). There is no async work at observation
+/// time; the async I/O lives
 /// behind the backend seam. Tools (`tap`, `enter_text`, `press`, `swipe`)
 /// resolve a selector and act through the backend, then refresh the snapshot so
 /// the next observation reflects the action promptly.

@@ -1,9 +1,10 @@
 /// The `NativeBackend` seam — the I/O boundary that keeps `buildPerception()`
-/// synchronous (ADR-0006). ALL device latency (WebDriver round-trips, a11y-tree
-/// polling) lives behind it; the extension never touches the device directly.
+/// synchronous (the pull-free build invariant). ALL device latency (WebDriver
+/// round-trips, a11y-tree polling) lives behind it; the extension never
+/// touches the device directly.
 ///
-/// `AppiumBackend` is the first concrete impl; `FakeNativeBackend` is the test
-/// impl; a later `UiAutomator2Backend` is purely additive.
+/// `AppiumBackend` (iOS/XCUITest) and `UiAutomator2Backend` (Android) are the
+/// concrete impls; `FakeNativeBackend` is the test impl.
 library;
 
 import 'package:meta/meta.dart';

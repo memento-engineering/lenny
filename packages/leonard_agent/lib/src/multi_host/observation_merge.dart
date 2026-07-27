@@ -3,7 +3,7 @@
 /// Folds N per-host [Observation]s into one merged observation whose
 /// `extensions` map is the side-by-side union of every host's namespaced
 /// fragment. The merge is a **synchronous pure function** — no async, no
-/// I/O (genesis ADR-0006, pull-free build): the caller (`MultiHostSession`)
+/// I/O (the pull-free build invariant): the caller (`MultiHostSession`)
 /// gathers each host's observation out-of-band (`Future.wait` of the
 /// per-host pullers) and then calls this on the already-resolved values.
 ///
