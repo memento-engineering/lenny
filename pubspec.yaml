@@ -28,9 +28,14 @@ melos:
         Run all unit/widget tests (excludes perf tests in leonard_devtools
         and excludes the env-gated dogfood e2e). Runs dart test on pure-Dart
         packages and flutter test on Flutter packages.
-      steps:
-        - test:dart
-        - test:flutter
+
+        Invoked through `dart run melos`, so this works from the workspace's
+        own melos dev_dependency. A `steps:` list would shell out to a BARE
+        `melos`, which only resolves when melos is also globally activated --
+        otherwise the script dies with "melos: command not found".
+      run: >-
+        dart run melos exec --no-flutter -- dart test &&
+        dart run melos exec --flutter -- flutter test
 
     analyze:
       description: >-
@@ -69,19 +74,13 @@ melos:
       run: >-
         dart test packages/leonard_cli/test/dogfood_auth0_android_e2e_test.dart
 
-    # ---------- private sub-scripts (not listed by melos run) ----------
-    test:dart:
-      private: true
-      description: dart test on pure-Dart packages (leonard_agent, leonard_cli)
-      exec: dart test
-      packageFilters:
-        flutter: false
-
-    test:flutter:
-      private: true
-      description: flutter test on Flutter packages; leonard_devtools skips perf tags via dart_test.yaml
-      exec: flutter test
-      packageFilters:
-        flutter: true
-        ignore:
-          - "**/example/**"
+    # The `test` script above inlines both tiers directly. The former
+    # `test:dart` / `test:flutter` private sub-scripts existed only to be
+    # named in a `steps:` list; nothing else referenced them, and that
+    # indirection was the sole reason a bare `melos` had to be on PATH.
+    #
+    # Their `ignore: ["**/example/**"]` filter was a no-op -- melos matches
+    # that glob against the package NAME (`sample_app`,
+    # `diagnostic_fixture`), not its path, so the examples were always part
+    # of the flutter tier. Inlining preserves that: the example packages
+    # still run, exactly as before.
