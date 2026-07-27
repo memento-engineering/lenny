@@ -21,8 +21,9 @@
 ///     `alert_dismiss` throw [NativeException] (Android's Auth0 handoff is a
 ///     Chrome Custom Tab with no SpringBoard consent/save-password alert).
 ///
-/// All device latency lives here so `buildPerception()` stays synchronous
-/// (ADR-0006). The backend does NOT boot the emulator or spawn Appium.
+/// All device latency lives here so `buildPerception()` stays synchronous —
+/// the pull-free build invariant. The backend does NOT boot the emulator or
+/// spawn Appium.
 library;
 
 import 'dart:async';

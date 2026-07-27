@@ -1,12 +1,10 @@
 /// `AppiumBackend` — the concrete [NativeBackend] over W3C WebDriver HTTP
 /// against a local Appium server running XCUITest (iOS).
 ///
-/// A hardened production lift of `docs/design/leonard-native-appium/
-/// backend_skeleton.dart`, reproducing the proven spike recipe
-/// (`~/lenny-spike/RESULTS.md`, GREEN 2026-06-20: Appium 3.5.2 +
-/// appium-xcuitest-driver 11.12.2, Xcode 26.5, iOS 26 sim). All device latency
-/// (WebDriver round-trips, `/source` polling) lives here so the extension's
-/// `buildPerception()` stays synchronous (ADR-0006).
+/// Verified against Appium 3.5.2 + appium-xcuitest-driver 11.12.2, Xcode 26.5,
+/// iOS 26 sim. All device latency (WebDriver round-trips, `/source` polling)
+/// lives here so the extension's `buildPerception()` stays synchronous — the
+/// pull-free build invariant.
 ///
 /// Hardening applied (m2-spec §5.5): B5 (`_unwrap` honors HTTP status +
 /// non-JSON bodies → [NativeException], never `FormatException`), FN3
@@ -162,7 +160,7 @@ class AppiumBackend implements NativeBackend {
     }
     _sessionId = sid;
     // XCUITest NATIVE_APP context sees the ASWebAuthenticationSession web
-    // inputs (spike B1 retired).
+    // inputs.
     await _post('/session/$_sid/context', const <String, Object?>{
       'name': 'NATIVE_APP',
     });
