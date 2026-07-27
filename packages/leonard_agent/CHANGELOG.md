@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+- Provider response metadata is now persisted with the trajectory turn. The
+  served model id and the streamed result identifier carry through model
+  decisions into trajectory turns, so swift-infer observability stays on
+  dartantic's standard result-identifier seam.
+- New `ModelDecision.modelMetadata` (optional, defaults to empty).
+  Dartantic-backed providers populate `served_model_id` and an explicit
+  `provider_request_id`; custom providers may leave it empty.
+
 ## 0.1.5
 
 - Perception nodes now carry `identifier` and `value` end-to-end to the brain.
