@@ -219,4 +219,55 @@ void main() {
       },
     );
   });
+
+  group('DiagnosticsHotPathRegression', () {
+    test(
+      'get_stable_observation carries no diagnostics_tree key and stays '
+      'byte-identical across a get_diagnostics_tree call',
+      () async {
+        if (!kDebugMode) return;
+        await Future<void>.delayed(Duration.zero);
+        const Map<String, String> params = <String, String>{
+          'actionRelativeBudgetMs': '1',
+        };
+        final Map<String, Object?> before =
+            jsonDecode(await binding.invokeServiceExtension(_ext, params))
+                as Map<String, Object?>;
+        // The on-demand sibling runs BETWEEN the two hot-path calls.
+        final Map<String, Object?> diag =
+            jsonDecode(
+                  await binding.invokeServiceExtension(
+                    'ext.leonard.core.get_diagnostics_tree',
+                    const <String, String>{},
+                  ),
+                )
+                as Map<String, Object?>;
+        expect(diag['diagnostics_tree'], isA<Map<String, Object?>>());
+        final Map<String, Object?> after =
+            jsonDecode(await binding.invokeServiceExtension(_ext, params))
+                as Map<String, Object?>;
+
+        final Map<String, Object?> beforeValue =
+            before['value']! as Map<String, Object?>;
+        final Map<String, Object?> afterValue =
+            after['value']! as Map<String, Object?>;
+        // The hot path must NOT grow a diagnostics_tree entry — not at the
+        // top level and not inside any extension fragment.
+        expect(beforeValue.containsKey('diagnostics_tree'), isFalse);
+        expect(afterValue.containsKey('diagnostics_tree'), isFalse);
+        for (final Object? fragment
+            in (beforeValue['extensions']! as Map<String, Object?>).values) {
+          expect(
+            (fragment! as Map<String, Object?>).containsKey(
+              'diagnostics_tree',
+            ),
+            isFalse,
+          );
+        }
+        // Byte-identity: the diagnostics call left the observation
+        // byte-for-byte unchanged.
+        expect(jsonEncode(beforeValue), jsonEncode(afterValue));
+      },
+    );
+  });
 }
