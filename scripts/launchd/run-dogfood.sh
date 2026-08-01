@@ -34,7 +34,7 @@ echo "[dogfood] run start ts=$TS endpoint=${SWIFT_INFER_ENDPOINT:-<unset>}"
 DART_EXIT=0
 dart test \
   --timeout=5m \
-  "$REPO_ROOT/packages/exploration_agent/test/e2e/dogfood_e2e_test.dart" \
+  "$REPO_ROOT/packages/leonard_agent/integration_test/dogfood/dogfood_e2e_test.dart" \
   2>&1 || DART_EXIT=$?
 
 # ── determine current run outcome ─────────────────────────────────────────

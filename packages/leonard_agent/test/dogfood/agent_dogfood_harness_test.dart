@@ -1,7 +1,7 @@
 /// Unit tests for [AgentDogfoodHarness].
 ///
 /// These tests do NOT exercise swift-infer — that is the role of
-/// `test/e2e/dogfood_e2e_test.dart`. Here we wire stub `VmService`s to
+/// `integration_test/dogfood/dogfood_e2e_test.dart`. Here we wire stub `VmService`s to
 /// drive the harness through its two non-happy outcomes
 /// (budgetExceeded, typedException) and assert the typed result shape.
 library;
@@ -522,7 +522,7 @@ void main() {
 
   group('dogfood_turn.decision.provider_request_id', () {
     // The harness has no http.Client/provider injection seam (see
-    // observation_fixture_e2e_test.dart for the rationale), so a
+    // observation_fixture_integration_test.dart for the rationale), so a
     // successful turn cannot be driven through `run()` without a real
     // swift-infer. We use the `@visibleForTesting` interceptor factory
     // exposed at the bottom of agent_dogfood_harness.dart to drive the
