@@ -1,6 +1,6 @@
 name: leonard_router
 description: "Reference extension: Router/Navigator observation and navigate tool."
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 

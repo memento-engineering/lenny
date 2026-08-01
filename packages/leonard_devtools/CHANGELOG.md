@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: the DevTools extension probes and consumes `ext.leonard.*`
+  extensions (protocol version 2); requires an app on `leonard_agent` 0.2.0.
+
 ## 0.1.1
 
 - Provider construction moves to the `DartanticModelProvider` seam (the agent's
