@@ -21,6 +21,17 @@ jobs:
       - run: ./tool/check_no_dart_io.sh
       - name: Collect test coverage
         run: ./tool/collect_coverage.sh
+      - name: Validate lcov reports
+        run: |
+          expected="$(( $(dart run melos list --parsable | wc -l | tr -d ' ') + 1 ))"
+          actual="$(find artifacts/coverage -maxdepth 1 -name '*.lcov' | wc -l | tr -d ' ')"
+          test "$actual" = "$expected"
+          for report in artifacts/coverage/*.lcov; do
+            test -s "$report"
+            lcov --quiet --list "$report" >/dev/null
+            ! grep '^SF:' "$report" | grep -qv '^SF:packages/'
+          done
+          grep -q '^SF:packages/' artifacts/coverage/workspace.lcov
       - name: Upload lcov reports
         uses: actions/upload-artifact@v4
         with:

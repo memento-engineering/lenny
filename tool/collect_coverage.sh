@@ -5,74 +5,79 @@ workspace_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 artifact_dir="$workspace_root/artifacts/coverage"
 coverage_packages='^leonard_'
 
-dart_packages=(
-  leonard_agent
-  leonard_cli
-  leonard_contract
-  leonard_host
-  leonard_native
-  leonard_tmux
-)
-flutter_packages=(
-  leonard_flutter
-  leonard_devtools
-  leonard_dio
-  leonard_riverpod
-  leonard_router
-)
+if [[ "${1:-}" == "dart-package" ]]; then
+  raw_dir="$MELOS_PACKAGE_PATH/coverage"
+  rm -rf "$raw_dir"
+  dart test --coverage="$raw_dir"
+  dart run coverage:format_coverage \
+    --package="$MELOS_PACKAGE_PATH" \
+    --report-on="$COVERAGE_WORKSPACE_ROOT/packages" \
+    --base-directory="$COVERAGE_WORKSPACE_ROOT" \
+    --in="$raw_dir" \
+    --lcov \
+    --out="$COVERAGE_ARTIFACT_DIR/$MELOS_PACKAGE_NAME.lcov"
+  exit
+fi
+
+if [[ "${1:-}" == "flutter-package" ]]; then
+  raw_lcov="$MELOS_PACKAGE_PATH/coverage/lcov.info"
+  rm -rf "$MELOS_PACKAGE_PATH/coverage"
+  flutter test \
+    --coverage \
+    --coverage-package="$COVERAGE_PACKAGES" \
+    --coverage-path="$raw_lcov"
+  if ! grep -q '^SF:' "$raw_lcov"; then
+    flutter test --coverage --coverage-path="$raw_lcov"
+  fi
+
+  normalized_lcov="$raw_lcov.normalized"
+  while IFS= read -r line; do
+    if [[ "$line" == SF:* ]]; then
+      source_path="${line#SF:}"
+      if [[ "$source_path" != /* ]]; then
+        source_path="$(cd "$MELOS_PACKAGE_PATH" && realpath "$source_path")"
+      fi
+      line="SF:${source_path#"$COVERAGE_WORKSPACE_ROOT"/}"
+    fi
+    printf '%s\n' "$line"
+  done <"$raw_lcov" >"$normalized_lcov"
+  mv -f "$normalized_lcov" "$raw_lcov"
+
+  lcov \
+    --quiet \
+    --ignore-errors empty \
+    --base-directory "$COVERAGE_WORKSPACE_ROOT" \
+    --add-tracefile "$raw_lcov" \
+    --output-file "$COVERAGE_ARTIFACT_DIR/$MELOS_PACKAGE_NAME.lcov"
+  exit
+fi
 
 rm -rf "$artifact_dir"
 mkdir -p "$artifact_dir"
 
-for package in "${dart_packages[@]}"; do
-  package_dir="$workspace_root/packages/$package"
-  raw_dir="$package_dir/coverage"
-  rm -rf "$raw_dir"
-  (
-    cd "$package_dir"
-    dart test test --coverage="$raw_dir"
-    dart run coverage:format_coverage \
-      --package="$package_dir" \
-      --report-on="$workspace_root/packages" \
-      --base-directory="$workspace_root" \
-      --in="$raw_dir" \
-      --lcov \
-      --out="$artifact_dir/$package.lcov"
-  )
-done
+export COVERAGE_WORKSPACE_ROOT="$workspace_root"
+export COVERAGE_ARTIFACT_DIR="$artifact_dir"
+export COVERAGE_PACKAGES="$coverage_packages"
 
-for package in "${flutter_packages[@]}"; do
-  package_dir="$workspace_root/packages/$package"
-  raw_lcov="$package_dir/coverage/lcov.info"
-  rm -rf "$package_dir/coverage"
-  (
-    cd "$package_dir"
-    flutter test test \
-      --coverage \
-      --coverage-package="$coverage_packages" \
-      --coverage-path="$raw_lcov"
-  )
-  lcov \
-    --quiet \
-    --base-directory "$workspace_root" \
-    --add-tracefile "$raw_lcov" \
-    --substitute "s#^$workspace_root/##" \
-    --substitute "s#^lib/#packages/$package/lib/#" \
-    --substitute 's#^\.\./(leonard_[^/]+)/#packages/$1/#' \
-    --output-file "$artifact_dir/$package.lcov"
-done
+dart run melos exec --no-flutter --fail-fast -- \
+  "$workspace_root/tool/collect_coverage.sh dart-package"
+
+dart run melos exec --flutter --fail-fast -- \
+  "$workspace_root/tool/collect_coverage.sh flutter-package"
 
 trace_args=()
-for package in "${dart_packages[@]}" "${flutter_packages[@]}"; do
-  trace_args+=(--add-tracefile "$artifact_dir/$package.lcov")
+for report in "$artifact_dir"/*.lcov; do
+  trace_args+=(--add-tracefile "$report")
 done
 lcov \
   --quiet \
+  --ignore-errors empty,unused \
   --base-directory "$workspace_root" \
   "${trace_args[@]}" \
   --output-file "$artifact_dir/workspace.lcov"
 
 for report in "$artifact_dir"/*.lcov; do
+  test -s "$report"
   lcov --quiet --list "$report" >/dev/null
   if grep '^SF:' "$report" | grep -qv '^SF:packages/'; then
     echo "non-workspace source path in $report" >&2
