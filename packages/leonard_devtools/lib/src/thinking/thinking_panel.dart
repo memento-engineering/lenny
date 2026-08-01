@@ -2,7 +2,7 @@
 /// model's reasoning trace, streamed live via the session's
 /// `Stream<TurnEvent>`.
 ///
-/// Web-compatible: pure Flutter, no `dart:io`.
+/// Web-compatible: pure Flutter.
 library;
 
 import 'dart:async';

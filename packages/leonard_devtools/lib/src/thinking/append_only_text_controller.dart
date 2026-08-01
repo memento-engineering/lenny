@@ -2,7 +2,7 @@
 /// counter so a single leaf [ValueListenableBuilder] rebuilds per token
 /// (the rest of the widget tree stays put).
 ///
-/// Web-compatible: pure Flutter / Dart, no `dart:io`.
+/// Web-compatible: pure Flutter and Dart.
 library;
 
 import 'package:flutter/foundation.dart';

@@ -15,9 +15,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_foundation/genesis_foundation.dart';
 import 'package:leonard_agent/leonard_agent.dart'
     show ExtensionManifestEntry, LeonardSession;
 import 'package:leonard_devtools/src/extension_root.dart';
+import 'package:leonard_devtools/src/diagnostics/diagnostics_snapshot.dart';
 import 'package:leonard_devtools/src/leonard_shell.dart';
 import 'package:leonard_devtools/src/manifest_probe.dart' show ManifestProbe;
 import 'package:leonard_devtools/src/panels/prompt_panel_config_store.dart';
@@ -77,6 +79,9 @@ Future<List<ExtensionManifestEntry>> _noManifest() async =>
 Future<LeonardSession> _noSession() async =>
     throw StateError('no session in this test');
 
+Future<TreeSnapshot> _noDiagnostics() async =>
+    throw StateError('no diagnostics in this test');
+
 /// Fake [LeonardDevToolsScope]. Its constructor touches the globals in
 /// the same position `_LiveDevToolsScope`'s initializer list does.
 class _FakeScope implements LeonardDevToolsScope {
@@ -107,6 +112,9 @@ class _FakeScope implements LeonardDevToolsScope {
 
   @override
   SessionFactory get sessionFactory => _noSession;
+
+  @override
+  DiagnosticsSnapshotLoader get diagnosticsSnapshotLoader => _noDiagnostics;
 }
 
 /// The pre-fix shape: the scope is resolved in the root's OWN build,
@@ -126,6 +134,7 @@ class _PreFixRoot extends StatelessWidget {
       child: LeonardShell(
         manifestProbe: scope.manifestProbe,
         sessionFactory: scope.sessionFactory,
+        diagnosticsSnapshotLoader: scope.diagnosticsSnapshotLoader,
         store: scope.providerConfigStore,
         promptConfigStore: scope.promptConfigStore,
         probeRetrigger: scope.probeRetrigger,

@@ -1,9 +1,12 @@
 # leonard_devtools
 
-DevTools extension for Leonard. Surfaces three tabs
-(Prompt, Thinking, Timeline) inside the connected app's DevTools instance and
-runs the harness in-panel so trajectories persist via the Dart Tooling Daemon
-filesystem APIs (no extra IPC, no `dart:io`). See PRD §22.
+A plain `leonard_flutter` dependency automatically discovers one Leonard
+DevTools extension with Conversation and Diagnostics modes. Diagnostics
+requests Genesis diagnostics contract 1
+(`ext.leonard.core.get_diagnostics_tree`) only while its panel is open;
+no adopter dependency on `leonard_devtools` or `genesis_foundation` is
+required. The conversation harness persists trajectories through the
+Dart Tooling Daemon (no extra IPC and no `dart:io`).
 
 ## Build
 

@@ -27,8 +27,12 @@ import 'package:leonard_devtools/src/panels/provider_config.dart';
 import 'package:leonard_devtools/src/panels/provider_config_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_foundation/genesis_foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+
+Future<TreeSnapshot> _noDiagnostics() async =>
+    throw StateError('no diagnostics in this test');
 
 /// Fake session whose `turnEvents` we drive by hand. Unlike the
 /// `prompt_tab_mount_test` fake, this one exposes [turnEvents] (and an
@@ -125,6 +129,7 @@ void main() {
           home: LeonardShell(
             manifestProbe: () async => const <ExtensionManifestEntry>[],
             sessionFactory: () async => fake,
+            diagnosticsSnapshotLoader: _noDiagnostics,
             store: store,
             catalog: catalog,
           ),
@@ -155,13 +160,21 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('prompt.start')));
       await tester.tap(find.byKey(const Key('prompt.start')));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Conversation'));
+      await tester.pumpAndSettle();
 
       // The session is live → the ConversationViewModel is built and the
       // transcript shows its active-but-empty state (NOT the idle text). This is
       // the assertion that FAILS before the fix: the VM was never built, so the
       // shell stayed on `transcript.idle`.
-      expect(find.byKey(const Key('transcript.idle')), findsNothing);
-      expect(find.byKey(const Key('transcript.empty')), findsOneWidget);
+      expect(
+        find.byKey(const Key('transcript.idle'), skipOffstage: false),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('transcript.empty'), skipOffstage: false),
+        findsOneWidget,
+      );
 
       // Emit the first turn's reasoning — the VM must materialize an entry.
       fake.emitTurn(
@@ -169,9 +182,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('transcript.empty')), findsNothing);
-      expect(find.byKey(const Key('transcript.list')), findsOneWidget);
-      expect(find.byKey(const ValueKey('entry.0')), findsOneWidget);
+      expect(
+        find.byKey(const Key('transcript.empty'), skipOffstage: false),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('transcript.list'), skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('entry.0'), skipOffstage: false),
+        findsOneWidget,
+      );
 
       // Unblock the controller's dispose() (it awaits `run`) at teardown.
       fake.runCompleter?.complete(

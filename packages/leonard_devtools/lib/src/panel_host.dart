@@ -11,7 +11,7 @@ import 'panels/prompt_panel_controller.dart' show SessionFactory;
 /// The host no longer plumbs a VM service `Uri`: the DevTools wiring
 /// (`leonard_shell.dart` / `main.dart`) supplies a [manifestProbe]
 /// and a [sessionFactory] that close over `serviceManager.service`, so
-/// this widget stays free of `serviceManager` (and `dart:io`) and still
+/// this widget stays free of `serviceManager` and still
 /// compiles in pure-VM widget tests.
 class LeonardPanelHost extends StatefulWidget {
   const LeonardPanelHost({
@@ -31,7 +31,7 @@ class LeonardPanelHost extends StatefulWidget {
   /// Builds the in-panel [LeonardSession]. Production wires a closure
   /// over `serviceManager.service` + the main isolate id (via
   /// [LeonardSession.fromVmService]); tests inject a stub. (The CLI
-  /// frontend, which runs on the Dart VM, uses the dart:io connect path
+  /// frontend, which runs on the Dart VM, uses its native connect path
   /// instead — it never goes through this widget.)
   final SessionFactory sessionFactory;
 

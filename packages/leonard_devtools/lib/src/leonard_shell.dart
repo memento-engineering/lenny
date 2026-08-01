@@ -6,6 +6,8 @@ import 'conversation/conversation_state.dart' show ConversationState, RunStatus;
 import 'conversation/conversation_view_model.dart';
 import 'conversation/run_status_header.dart';
 import 'conversation/transcript_list.dart';
+import 'diagnostics/diagnostics_panel.dart';
+import 'diagnostics/diagnostics_snapshot.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
@@ -35,6 +37,7 @@ class LeonardShell extends StatefulWidget {
     super.key,
     required this.manifestProbe,
     required this.sessionFactory,
+    required this.diagnosticsSnapshotLoader,
     this.probeRetrigger,
     ProviderConfigStore? store,
     ModelCatalog? catalog,
@@ -53,6 +56,9 @@ class LeonardShell extends StatefulWidget {
   /// over `serviceManager.service` + the main isolate id (via
   /// [LeonardSession.fromVmService]); tests pass a stub.
   final SessionFactory sessionFactory;
+
+  /// Loads diagnostics from the connected app over its DevTools service.
+  final DiagnosticsSnapshotLoader diagnosticsSnapshotLoader;
 
   /// Optional listenable that, when it fires, triggers a fresh probe.
   /// Production wires `Listenable.merge([serviceManager.connectedState,
@@ -131,7 +137,12 @@ class _LeonardShellState extends State<LeonardShell> {
     final stream = _trajectory.value;
     if (stream == null) return;
     final session = _hostKey.currentState?.session;
-    if (session == null) return;
+    if (session == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _trajectory.value == stream) _onTrajectoryChanged();
+      });
+      return;
+    }
     final vm = ConversationViewModel(
       turnEvents: session.turnEvents,
       trajectory: stream,
@@ -148,42 +159,59 @@ class _LeonardShellState extends State<LeonardShell> {
       key: _hostKey,
       manifestProbe: widget.manifestProbe,
       sessionFactory: widget.sessionFactory,
-      child: Scaffold(
-        body: Column(
-          children: [
-            RunStatusHeader(vm: _conversationVm),
-            _conversationVm != null
-                ? ValueListenableBuilder<ConversationState>(
-                    valueListenable: _conversationVm!,
-                    builder: (_, state, __) => ContextMeter(usage: state.usage),
-                  )
-                : const SizedBox.shrink(),
-            Expanded(
-              child: _conversationVm != null
-                  ? TranscriptList(viewModel: _conversationVm!)
-                  : const Center(
-                      child: Text(
-                        'Start a session to see the transcript.',
-                        key: Key('transcript.idle'),
-                      ),
-                    ),
-            ),
-            // Composer pinned to the bottom as a compact bar (NOT Expanded) so
-            // the transcript above fills all remaining space — no dead gap.
-            // Settings reveal on demand above the bar (see PromptPanel).
-            _PromptTabBody(
-              hostKey: _hostKey,
-              store: widget.store,
-              catalog: widget.catalog,
-              promptConfigStore: widget.promptConfigStore,
-              trajectorySink: _trajectory,
-              completionSink: _completionStatus,
-            ),
-          ],
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: const TabBar(
+            tabs: <Tab>[
+              Tab(text: 'Conversation'),
+              Tab(text: 'Diagnostics'),
+            ],
+          ),
+          body: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
+            children: <Widget>[
+              _conversationBody(),
+              DiagnosticsPanel(loader: widget.diagnosticsSnapshotLoader),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _conversationBody() => Column(
+    children: [
+      RunStatusHeader(vm: _conversationVm),
+      _conversationVm != null
+          ? ValueListenableBuilder<ConversationState>(
+              valueListenable: _conversationVm!,
+              builder: (_, state, __) => ContextMeter(usage: state.usage),
+            )
+          : const SizedBox.shrink(),
+      Expanded(
+        child: _conversationVm != null
+            ? TranscriptList(viewModel: _conversationVm!)
+            : const Center(
+                child: Text(
+                  'Start a session to see the transcript.',
+                  key: Key('transcript.idle'),
+                ),
+              ),
+      ),
+      // Composer pinned to the bottom as a compact bar (NOT Expanded) so
+      // the transcript above fills all remaining space — no dead gap.
+      // Settings reveal on demand above the bar (see PromptPanel).
+      _PromptTabBody(
+        hostKey: _hostKey,
+        store: widget.store,
+        catalog: widget.catalog,
+        promptConfigStore: widget.promptConfigStore,
+        trajectorySink: _trajectory,
+        completionSink: _completionStatus,
+      ),
+    ],
+  );
 }
 
 /// Renders the Prompt tab off the host's `ValueListenable<ManifestProbeResult>`.
