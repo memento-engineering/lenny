@@ -109,6 +109,8 @@ extensions are where Flutter specifics live.
 | Package                                         | What it is                                                                                                                               |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | [`leonard_agent`](packages/leonard_agent)       | The harness loop — web-compatible, frontend-agnostic. Stability policy, action validation, trajectory log, and the model providers.      |
+| [`leonard_contract`](packages/leonard_contract) | Pure-Dart extension contract — shared types and registries implemented by Flutter and non-Flutter hosts. |
+| [`leonard_host`](packages/leonard_host)         | Pure-Dart VM-service host — exposes Leonard extensions for non-Flutter Dart programs.                    |
 | [`leonard_flutter`](packages/leonard_flutter)   | The host: a custom `WidgetsBinding` that claims the lifecycle slot in `main()` and exposes the VM-service extensions the harness drives. |
 | [`leonard_native`](packages/leonard_native)     | The native channel — perceives and drives UI **outside** the Flutter engine via the OS accessibility tree (iOS XCUITest over Appium), so the harness can drive the real Auth0 hosted web-login and resume on Flutter. Pairs with multi-host attach. |
 | [`leonard_cli`](packages/leonard_cli)           | Headless frontend — connects to a running app's VM service and streams a trajectory to disk.                                             |
@@ -116,6 +118,7 @@ extensions are where Flutter specifics live.
 | [`leonard_router`](packages/leonard_router)     | Reference extension — route-stack observation and a `router.navigate` tool.                                                              |
 | [`leonard_riverpod`](packages/leonard_riverpod) | Reference extension — reports which providers are loading.                                                                               |
 | [`leonard_dio`](packages/leonard_dio)           | Reference extension — reports (and can cancel) in-flight HTTP requests.                                                                  |
+| [`leonard_tmux`](packages/leonard_tmux)         | Process-backed tmux extension — observes sessions, panes, and output and exposes tmux actions.           |
 
 ## Getting started
 

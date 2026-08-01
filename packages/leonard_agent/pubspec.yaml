@@ -13,7 +13,6 @@ dependencies:
   dartantic_interface: ^4.0.0
   http: ^1.2.0
   json_schema: ^5.1.7
-  json_schema_builder: ^0.1.5
   meta: ^1.16.0
   vm_service: ^14.2.0
 
