@@ -1,4 +1,4 @@
-/// UNIT (NOT e2e): exercises `AppiumBackend._parseSource` against a checked-in
+/// UNIT (NOT e2e): exercises `XcuiTestBackend._parseSource` against a checked-in
 /// XCUITest `/source` fixture — no Appium server, no device. Asserts the
 /// m2-spec §5.3 worked example: `{x,y,w,h}` -> `[l,t,r,b]` rect conversion,
 /// the role vocab, labels, a11yIds, dense document-order ids, and the
@@ -23,16 +23,16 @@ File _fixture() {
   fail('auth0_source.xml fixture not found from cwd ${Directory.current.path}');
 }
 
-File _appiumBackendSource() {
+File _xcuiTestBackendSource() {
   for (final String p in <String>[
-    'lib/src/appium_backend.dart',
-    'packages/leonard_native/lib/src/appium_backend.dart',
+    'lib/src/xcuitest_backend.dart',
+    'packages/leonard_native/lib/src/xcuitest_backend.dart',
   ]) {
     final File f = File(p);
     if (f.existsSync()) return f;
   }
   fail(
-    'appium_backend.dart source not found from cwd '
+    'xcuitest_backend.dart source not found from cwd '
     '${Directory.current.path}',
   );
 }
@@ -44,8 +44,7 @@ void main() {
   late List<NativeNode> nodes;
 
   setUpAll(() {
-    final AppiumBackend backend = AppiumBackend(
-      platform: 'ios',
+    final XcuiTestBackend backend = XcuiTestBackend(
       udid: 'fixture',
       app: '/dev/null',
     );
@@ -54,9 +53,8 @@ void main() {
     backend.close();
   });
 
-  test('Appium backend source uses escaped NUL separators', () {
-    final List<int> sourceBytes = _appiumBackendSource().readAsBytesSync();
-
+  test('XCUITest backend source uses escaped NUL separators', () {
+    final List<int> sourceBytes = _xcuiTestBackendSource().readAsBytesSync();
     expect(sourceBytes, isNot(contains(0x00)));
     expect(String.fromCharCodes(sourceBytes).split(r'\u0000').length - 1, 3);
   });
@@ -182,8 +180,7 @@ void main() {
     <XCUIElementTypeButton name="Cancel" label="Cancel" x="0" y="40" width="10" height="10"/>
   </XCUIElementTypeApplication>
 </AppiumAUT>''';
-    final AppiumBackend backend = AppiumBackend(
-      platform: 'ios',
+    final XcuiTestBackend backend = XcuiTestBackend(
       udid: 'fixture',
       app: '/dev/null',
     );

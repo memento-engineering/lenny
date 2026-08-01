@@ -5,14 +5,14 @@
 /// `--platform` wiring is testable without a VM service or a device.
 library;
 
-import 'appium_backend.dart';
+import 'xcuitest_backend.dart';
 import 'native_backend.dart';
 import 'uiautomator2_backend.dart';
 
 /// Returns the [NativeBackend] for [platform] targeting [udid] + [app] on
 /// [server] (default `http://127.0.0.1:4723`).
 ///
-/// `ios` -> [AppiumBackend] (XCUITest); `android` -> [UiAutomator2Backend].
+/// `ios` -> [XcuiTestBackend]; `android` -> [UiAutomator2Backend].
 /// An unrecognized platform throws [ArgumentError] — LOUD, never a silent
 /// fallback to iOS, which would perceive an Android target through an XCUITest
 /// parser and yield an empty tree.
@@ -22,12 +22,7 @@ NativeBackend backendForPlatform({
   required String app,
   Uri? server,
 }) => switch (platform) {
-  'ios' => AppiumBackend(
-    server: server,
-    platform: platform,
-    udid: udid,
-    app: app,
-  ),
+  'ios' => XcuiTestBackend(server: server, udid: udid, app: app),
   'android' => UiAutomator2Backend(server: server, udid: udid, app: app),
   _ => throw ArgumentError.value(
     platform,

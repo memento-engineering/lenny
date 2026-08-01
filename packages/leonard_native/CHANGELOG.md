@@ -1,3 +1,12 @@
+## 0.2.0
+
+- Breaking: the iOS `AppiumBackend` public API is renamed to
+  `XcuiTestBackend`, and its `platform:` constructor parameter is removed.
+- Migration: replace `AppiumBackend(..., platform: 'ios')` with
+  `XcuiTestBackend(...)`.
+- Breaking: VM-service methods now use the unified `ext.leonard.*` namespace
+  supplied by `leonard_contract`.
+
 ## 0.1.2
 
 - Android support: `UiAutomator2Backend` drives a native Android app over a

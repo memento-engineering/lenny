@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Checked-in XCUITest /source fixture for the AppiumBackend._parseSource unit
+  Checked-in XCUITest /source fixture for the XcuiTestBackend._parseSource unit
   test. Derived from ~/lenny-spike/spike_source.xml (the GREEN Auth0 login
   capture, 2026-06-20). Trimmed to the Auth0 login subtree plus the host
   "Log in" button, preserving the REAL x/y/width/height of the three

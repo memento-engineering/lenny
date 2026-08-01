@@ -11,7 +11,7 @@
 /// native app live.
 library;
 
-export 'src/appium_backend.dart' show AppiumBackend;
+export 'src/xcuitest_backend.dart' show XcuiTestBackend;
 export 'src/fake_native_backend.dart' show FakeNativeBackend, FakeNativeCall;
 export 'src/native_backend.dart'
     show

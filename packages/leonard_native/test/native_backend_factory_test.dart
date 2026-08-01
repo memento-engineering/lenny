@@ -19,13 +19,13 @@ void main() {
     b.close();
   });
 
-  test('ios -> AppiumBackend', () {
+  test('ios -> XcuiTestBackend', () {
     final NativeBackend b = backendForPlatform(
       platform: 'ios',
       udid: 'SIM-UDID',
       app: '/x/Runner.app',
     );
-    expect(b, isA<AppiumBackend>());
+    expect(b, isA<XcuiTestBackend>());
     b.close();
   });
 

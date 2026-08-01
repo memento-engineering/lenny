@@ -3,7 +3,7 @@
 /// round-trips, a11y-tree polling) lives behind it; the extension never
 /// touches the device directly.
 ///
-/// `AppiumBackend` (iOS/XCUITest) and `UiAutomator2Backend` (Android) are the
+/// `XcuiTestBackend` (iOS) and `UiAutomator2Backend` (Android) are the
 /// concrete impls; `FakeNativeBackend` is the test impl.
 library;
 
@@ -92,16 +92,17 @@ class NativeException implements Exception {
   String toString() => 'NativeException: $message';
 }
 
-/// The seam the watcher drives and the tools act through. `AppiumBackend` is
+/// The seam the watcher drives and the tools act through. `XcuiTestBackend` is
 /// the first impl; `FakeNativeBackend` is the test impl. Per-platform behavior
 /// (iOS ASWebAuthenticationSession consent, iOS Done vs Android back keyboard
 /// dismiss, iOS-vs-Android readback attribute) lives INSIDE the impl, never in
 /// the extension/tools.
 ///
 /// Recognized [press] keys are platform-specific and documented on the impl,
-/// NOT enforced by an allowlist on the tool. iOS recognizes
-/// `enter`/`return`/`done`/`consent_accept`; Android additively recognizes
-/// `back`. An unrecognized key surfaces as a [NativeException] from the impl.
+/// NOT enforced by an allowlist on the tool. The shared iOS/Android set is
+/// `enter`/`return`/`done`; the iOS-only set is
+/// `consent_accept`/`alert_dismiss`; the Android-only set is `back`. An
+/// unrecognized key surfaces as a [NativeException] from the impl.
 abstract class NativeBackend {
   /// Open the device session against an ALREADY-RUNNING Appium server and an
   /// ALREADY-BOOTED simulator. The backend does NOT spawn Appium or boot the
@@ -141,14 +142,12 @@ abstract class NativeBackend {
     String text,
   );
 
-  /// A logical key press. iOS: `enter`|`return`|`done`|`consent_accept`|
-  /// `alert_dismiss` — `consent_accept` issues
-  /// `POST /session/{id}/alert/accept` (the iOS-only ASWebAuthenticationSession
-  /// consent path); `alert_dismiss` issues `POST /session/{id}/alert/dismiss`
-  /// (the iOS-only "Save Password?" / system-alert cancel path, parallel to
-  /// `consent_accept`). Android additive: `back`. An unrecognized key throws
-  /// [NativeException]; an alert-endpoint key issued when no alert is open
-  /// surfaces the W3C "no alert open" error as a [NativeException].
+  /// A logical key press. Shared by iOS and Android: `enter`|`return`|`done`.
+  /// iOS-only: `consent_accept`|`alert_dismiss`; `consent_accept` issues
+  /// `POST /session/{id}/alert/accept` and `alert_dismiss` issues
+  /// `POST /session/{id}/alert/dismiss`. Android-only: `back`. An unrecognized
+  /// key throws [NativeException]; an alert-endpoint key issued when no alert is
+  /// open surfaces the W3C "no alert open" error as a [NativeException].
   Future<void> press(String key);
 
   /// Swipe gesture (W3C actions / `mobile: swipe`).
