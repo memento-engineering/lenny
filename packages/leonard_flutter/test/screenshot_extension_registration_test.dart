@@ -14,11 +14,11 @@ void main() {
     LeonardBinding.ensureInitialized(extensions: const <LeonardExtension>[]);
   });
 
-  test('ext.exploration.core.screenshot is registered exactly once', () {
+  test('ext.leonard.core.screenshot is registered exactly once', () {
     // Re-registering the same name throws -> registration succeeded.
     expect(
       () => developer.registerExtension(
-        'ext.exploration.core.screenshot',
+        'ext.leonard.core.screenshot',
         (String m, Map<String, String> p) async =>
             developer.ServiceExtensionResponse.result('{}'),
       ),

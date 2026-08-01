@@ -52,7 +52,7 @@ void main() {
       // Both hosts got the SAME policy.
       RecordedCall obsCall(RecordingVmService vm) => vm.calls.firstWhere(
         (RecordedCall c) =>
-            c.method == 'ext.exploration.core.get_stable_observation',
+            c.method == 'ext.leonard.core.get_stable_observation',
       );
       expect(obsCall(fast).args!['policy'], equals('bounded-stability'));
       expect(obsCall(slow).args!['policy'], equals('bounded-stability'));

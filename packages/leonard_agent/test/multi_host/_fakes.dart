@@ -4,7 +4,7 @@
 /// `callServiceExtension` is driven by a handler closure and which records
 /// every executed action + dispose. Wrapping it in
 /// [VmServiceClient.forTest] exercises the REAL per-host dispatch
-/// (`ext.exploration.<ns>.<tool>`, JSON-encoded args) and the REAL
+/// (`ext.leonard.<ns>.<tool>`, JSON-encoded args) and the REAL
 /// handshake decode — the multi-host layer is the only thing under test.
 library;
 
@@ -73,13 +73,13 @@ class RecordingVmService extends VmService {
   }) async {
     calls.add(RecordedCall(method, isolateId, args));
     final Response r = Response();
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       r.json = <String, dynamic>{
         'contractVersion': contractVersion,
         'extensions': extensions,
         'capabilities': capabilities,
       };
-    } else if (method == 'ext.exploration.core.get_stable_observation') {
+    } else if (method == 'ext.leonard.core.get_stable_observation') {
       if (observeDelay > Duration.zero) {
         await Future<void>.delayed(observeDelay);
       }

@@ -2,7 +2,7 @@
 /// candidate interactable widget lacks an enclosing semantics annotation.
 ///
 /// Surfaced via the host VM service extension
-/// `ext.exploration.core.diagnostics_warnings`. Connect-time only;
+/// `ext.leonard.core.diagnostics_warnings`. Connect-time only;
 /// not a per-turn observation contributor.
 class InteractiveSemanticsWarning {
   InteractiveSemanticsWarning({

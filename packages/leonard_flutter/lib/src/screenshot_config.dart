@@ -1,4 +1,4 @@
-/// Default-enabled flags for `ext.exploration.core.screenshot`,
+/// Default-enabled flags for `ext.leonard.core.screenshot`,
 /// keyed by model capability. Read by the harness per turn.
 class ScreenshotConfig {
   /// Default ON for vision-capable models (PRD §11.1, §16.3).

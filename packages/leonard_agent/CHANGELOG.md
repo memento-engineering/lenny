@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: VM-service methods now use `ext.leonard.*`. Construct names with
+  `kLeonardExtensionPrefix` from `leonard_contract`.
+- The VM-service client now consumes the shared Leonard wire contract.
+
 ## 0.1.6
 
 - Provider response metadata is now persisted with the trajectory turn. The

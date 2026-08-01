@@ -23,7 +23,7 @@
 ///     'extensions': <String, dynamic>{},
 ///   },
 ///   handlers: <String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>{
-///     'ext.exploration.router.navigate': (args) async =>
+///     'ext.leonard.router.navigate': (args) async =>
 ///         <String, dynamic>{'ok': true, 'value': args?['route_name']},
 ///   },
 /// );
@@ -32,6 +32,7 @@ library;
 
 import 'dart:async';
 
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:vm_service/vm_service.dart';
 
 /// A single recorded [callServiceExtension] invocation.
@@ -47,17 +48,17 @@ class FakeRpcCall {
 }
 
 /// Pure-Dart [VmService] subclass that returns scripted responses for
-/// the `ext.exploration.*` RPC surface the agent loop exercises.
+/// the `ext.leonard.*` RPC surface the agent loop exercises.
 ///
 /// Three dispatch layers (evaluated in order):
 /// 1. **Handshake** — any call to
-///    `ext.exploration.core.handshake` returns [handshakeResponse]
+///    `ext.leonard.core.handshake` returns [handshakeResponse]
 ///    verbatim as the [Response.json].
 /// 2. **Observation** — any call to
-///    `ext.exploration.core.get_stable_observation` returns
+///    `ext.leonard.core.get_stable_observation` returns
 ///    `{type: 'Observation', value: observationBundle}` when
 ///    [observationBundle] is non-null; throws [RPCError(-32601)] otherwise.
-/// 3. **Handler table** — any other `ext.exploration.*` call is
+/// 3. **Handler table** — any other `ext.leonard.*` call is
 ///    looked up in [handlers] and invoked; throws [RPCError(-32601)] when
 ///    no entry is found.
 ///
@@ -77,7 +78,7 @@ class LeonardVmServiceFake extends VmService {
            >{},
        super(const Stream<dynamic>.empty(), (_) {});
 
-  /// Scripted response for `ext.exploration.core.handshake`.
+  /// Scripted response for `ext.leonard.core.handshake`.
   /// Must include at least `protocolVersion` (String) and `extensions`
   /// (List) to satisfy [VmServiceClient.handshake]'s decode.
   final Map<String, dynamic> handshakeResponse;
@@ -89,7 +90,7 @@ class LeonardVmServiceFake extends VmService {
 
   /// Per-method dispatch table for calls not matched by the handshake or
   /// observation short-circuits. Keys are fully-qualified wire names
-  /// (`ext.exploration.<ns>.<tool>`).
+  /// (`ext.leonard.<ns>.<tool>`).
   final Map<
     String,
     Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
@@ -99,9 +100,9 @@ class LeonardVmServiceFake extends VmService {
   /// Every [callServiceExtension] invocation, in order.
   final List<FakeRpcCall> calls = <FakeRpcCall>[];
 
-  static const String _kHandshake = 'ext.exploration.core.handshake';
+  static const String _kHandshake = '$kLeonardExtensionPrefix.core.handshake';
   static const String _kObservation =
-      'ext.exploration.core.get_stable_observation';
+      '$kLeonardExtensionPrefix.core.get_stable_observation';
 
   @override
   Future<Response> callServiceExtension(

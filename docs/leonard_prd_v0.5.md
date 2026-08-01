@@ -270,7 +270,7 @@ class ExtensionContext {
 
   /// Register a callback for VM service extension methods.
   void registerExtension(String suffix, ExtensionHandler handler);
-  // The host registers this as `ext.exploration.${extension.namespace}.${suffix}`.
+  // The host registers this as `ext.leonard.${extension.namespace}.${suffix}`.
 
   /// Subscribe to per-frame callbacks if the extension needs them.
   /// Use sparingly; this runs on every frame.

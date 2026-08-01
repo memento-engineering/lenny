@@ -52,7 +52,7 @@ class CoreToolError implements Exception {
 ///
 /// The binding registers a single instance of [CoreExtension] BEFORE any
 /// user-supplied extension, which both (a) exposes the tools at
-/// `ext.exploration.core.<tool>` and (b) reserves the `core`
+/// `ext.leonard.core.<tool>` and (b) reserves the `core`
 /// namespace via [ExtensionRegistry]'s existing duplicate-namespace check
 /// (any user extension claiming `core` will fail to register and be
 /// skipped).

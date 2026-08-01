@@ -112,7 +112,7 @@ Future<void> onActionExecuted(ExecutedAction action) async {
 
 ### 1.8 `ExtensionContext` (PRD §7.5)
 
-Per-extension context handed to `initialize`. Auto-namespaces VM service extensions under `ext.exploration.<namespace>.<suffix>` and gates frame callbacks through the host scheduler. Three registration methods:
+Per-extension context handed to `initialize`. Auto-namespaces VM service extensions under `ext.leonard.<namespace>.<suffix>` and gates frame callbacks through the host scheduler. Three registration methods:
 
 - `registerErrorHandler(ErrorHandler)` — append to this extension's chained error handlers; return `true` to claim, `false` to defer.
 - `registerExtension(String suffix, ExtensionHandler)` — register a VM service extension under this extension's namespace.
@@ -215,7 +215,7 @@ These are not enforced by the type system, but the host registry and most review
 
 ### 4.1 Namespace selection
 
-A namespace must match `^[a-z][a-z0-9_]*$` and be unique within a session. The registry rejects duplicate registrations at `LeonardBinding.ensureInitialized` time (PRD §7.1, §7.8). Pick a short, package-aligned token (`router`, `riverpod`, `dio`); avoid generic words like `app` or `host`. The same token scopes both your tool names (`<namespace>.<tool>`) and your VM service extensions (`ext.exploration.<namespace>.<suffix>`).
+A namespace must match `^[a-z][a-z0-9_]*$` and be unique within a session. The registry rejects duplicate registrations at `LeonardBinding.ensureInitialized` time (PRD §7.1, §7.8). Pick a short, package-aligned token (`router`, `riverpod`, `dio`); avoid generic words like `app` or `host`. The same token scopes both your tool names (`<namespace>.<tool>`) and your VM service extensions (`ext.leonard.<namespace>.<suffix>`).
 
 ### 4.2 Observation budget
 

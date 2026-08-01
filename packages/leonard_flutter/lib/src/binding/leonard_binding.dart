@@ -5,6 +5,8 @@ import 'dart:ui' show ErrorCallback, PlatformDispatcher;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:genesis_perception/genesis_perception.dart';
+import 'package:leonard_contract/leonard_contract.dart'
+    show kLeonardExtensionPrefix, kLeonardProtocolVersion;
 import '../contract/perception_extension.dart';
 import '../contract/extension.dart';
 import '../contract/registry.dart';
@@ -24,10 +26,8 @@ import '../stability/frame_stability_tracker.dart';
 import 'leonard_app.dart';
 
 /// Reserved prefix. Format:
-/// `ext.exploration.<core_or_extension_namespace>.<suffix>`.
+/// `ext.leonard.<core_or_extension_namespace>.<suffix>`.
 /// `core` is reserved for host-owned extensions.
-const String kLeonardExtensionPrefix = 'ext.exploration';
-
 /// Default capacity of the runtime error ring buffer (PRD §6.1).
 const int kDefaultErrorBufferCapacity = 50;
 
@@ -128,7 +128,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
   /// Completed by the [_wireExtensions] microtask once every extension's
   /// [LeonardExtension.initialize] has run AND all extension tools are
-  /// registered on the VM service (`ext.exploration.<ns>.<tool>`).
+  /// registered on the VM service (`ext.leonard.<ns>.<tool>`).
   final Completer<void> _extensionsReady = Completer<void>();
 
   /// Completes once extension initialization and VM-service tool
@@ -396,7 +396,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       }
       return developer.ServiceExtensionResponse.result(
         jsonEncode(<String, Object?>{
-          'protocolVersion': '2',
+          'protocolVersion': kLeonardProtocolVersion,
           'bindingType': 'LeonardBinding',
           'flutterMode': kDebugMode ? 'debug' : 'profile',
           'extensionCount': _extensions.length,
@@ -528,7 +528,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   ///
   /// Iterates [ExtensionRegistry.mergedTools] (keyed by `<ns>.<tool>`)
   /// and calls [_registerExtension] for each entry, exposing it at
-  /// `ext.exploration.<ns>.<tool>`. This also populates
+  /// `ext.leonard.<ns>.<tool>`. This also populates
   /// [_extensionCallbacks] so [invokeServiceExtension] can reach extension
   /// tools in tests without a live VM connection.
   ///
@@ -765,7 +765,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   }
 
   /// Test-only: dispatch a extension tool by its fully-qualified service
-  /// extension method name (e.g. `ext.exploration.sample.echo`).
+  /// extension method name (e.g. `ext.leonard.sample.echo`).
   ///
   /// Extension tools are registered by [_registerExtensionToolExtensions] via [_registerExtension],
   /// which populates both [developer.registerExtension] and [_extensionCallbacks]. They can
@@ -775,7 +775,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// [dispatchToolToEnvelope].
   ///
   /// Throws [ArgumentError] when the method name does not start with
-  /// `ext.exploration.`, is missing the `<ns>.<tool>` tail, or
+  /// `ext.leonard.`, is missing the `<ns>.<tool>` tail, or
   /// when no tool is registered for the qualified name.
   @visibleForTesting
   Future<String> invokeExtensionTool(

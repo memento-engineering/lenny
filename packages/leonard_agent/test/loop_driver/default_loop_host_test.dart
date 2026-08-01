@@ -48,11 +48,11 @@ Response _resp(Map<String, dynamic> json) {
 }
 
 /// Build a fake VM-service that responds to:
-///   * `ext.exploration.core.handshake` with the supplied plugin
+///   * `ext.leonard.core.handshake` with the supplied plugin
 ///     manifest (namespaces only — descriptors are caller-supplied).
-///   * `ext.exploration.core.get_stable_observation` via
+///   * `ext.leonard.core.get_stable_observation` via
 ///     [observationHandler] (defaults to one node, route `/`).
-///   * any other `ext.exploration.<ns>.<tool>` via
+///   * any other `ext.leonard.<ns>.<tool>` via
 ///     [executeActionHandler] — `args` arrives JSON-encoded per value
 ///     (mirrors the real binding's `_decodeParams`).
 _FakeVmService _fakeVm({
@@ -63,13 +63,13 @@ _FakeVmService _fakeVm({
   executeActionHandler,
 }) {
   return _FakeVmService((method, args) async {
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': '1.0.0',
         'extensions': extensions,
       });
     }
-    if (method == 'ext.exploration.core.get_stable_observation') {
+    if (method == 'ext.leonard.core.get_stable_observation') {
       final obs = observationHandler != null
           ? await observationHandler(method, args)
           : <String, dynamic>{
@@ -98,10 +98,10 @@ _FakeVmService _fakeVm({
             };
       return _resp(obs);
     }
-    // Action: any extension method under `ext.exploration.` that
+    // Action: any extension method under `ext.leonard.` that
     // is not handshake/observation. Includes both core tools
     // (`...core.tap`) and extension tools (`...router.go`).
-    if (method.startsWith('ext.exploration.')) {
+    if (method.startsWith('ext.leonard.')) {
       final result = executeActionHandler != null
           ? await executeActionHandler(method, args)
           : <String, dynamic>{'ok': true};
@@ -392,14 +392,14 @@ void main() {
         'core.tap',
         const <String, dynamic>{'id': 42},
       );
-      expect(lastMethod, 'ext.exploration.core.tap');
+      expect(lastMethod, 'ext.leonard.core.tap');
       // `id` arrives JSON-encoded.
       expect(lastArgs?['id'], equals('42'));
       expect(
         result,
         equals(<String, dynamic>{
           'ok': true,
-          'echo': 'ext.exploration.core.tap',
+          'echo': 'ext.leonard.core.tap',
         }),
       );
 
@@ -408,7 +408,7 @@ void main() {
 
     test('non-transport RPCError propagates unwrapped', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],
@@ -445,7 +445,7 @@ void main() {
       () async {
         int extraCalls = 0;
         final vm = _FakeVmService((method, args) async {
-          if (method == 'ext.exploration.core.handshake') {
+          if (method == 'ext.leonard.core.handshake') {
             return _resp(<String, dynamic>{
               'contractVersion': '1.0.0',
               'extensions': <Map<String, dynamic>>[],
@@ -485,7 +485,7 @@ void main() {
     test('observe: RPCError(-32000, "Service connection disposed") → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],
@@ -516,7 +516,7 @@ void main() {
     test('executeAction: RPCError(-32603, "connection closed") → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],
@@ -543,7 +543,7 @@ void main() {
     test('observe: bare StateError("disposed") from VmService → '
         'VmServiceConnectionLost', () async {
       final vm = _FakeVmService((method, args) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],

@@ -54,11 +54,11 @@ void main() {
   tearDownAll(() async => LeonardBinding.debugReset());
 
   test(
-    'ext.exploration.testplugin.echo is in _extensionCallbacks '
+    'ext.leonard.testplugin.echo is in _extensionCallbacks '
     '(proves real _registerExtension path, not invokeExtensionTool bypass)',
     () {
       expect(
-        binding.debugHasRegisteredExtension('ext.exploration.testplugin.echo'),
+        binding.debugHasRegisteredExtension('ext.leonard.testplugin.echo'),
         isTrue,
         reason:
             'extension tool must be registered via _registerExtension '
@@ -67,10 +67,10 @@ void main() {
     },
   );
 
-  test('ext.exploration.core.tap is in _extensionCallbacks '
+  test('ext.leonard.core.tap is in _extensionCallbacks '
       '(CoreExtension tools registered by binding-level loop)', () {
     expect(
-      binding.debugHasRegisteredExtension('ext.exploration.core.tap'),
+      binding.debugHasRegisteredExtension('ext.leonard.core.tap'),
       isTrue,
     );
   });
@@ -79,7 +79,7 @@ void main() {
     'invokeServiceExtension dispatches testplugin.echo without invokeExtensionTool',
     () async {
       final String raw = await binding.invokeServiceExtension(
-        'ext.exploration.testplugin.echo',
+        'ext.leonard.testplugin.echo',
         {'text': jsonEncode('hello')},
       );
       final Map<String, dynamic> envelope =

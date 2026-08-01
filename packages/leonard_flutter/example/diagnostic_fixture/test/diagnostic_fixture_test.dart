@@ -5,12 +5,12 @@ import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String _diagnosticsExt = 'ext.exploration.core.diagnostics_warnings';
+const String _diagnosticsExt = 'ext.leonard.core.diagnostics_warnings';
 
 /// Integration test for the connect-time diagnostic. Drives the
 /// fixture's [HitScreen] / [CleanScreen] through the production
 /// [LeonardBinding] and asserts the wire payload returned by
-/// `ext.exploration.core.diagnostics_warnings`.
+/// `ext.leonard.core.diagnostics_warnings`.
 ///
 /// All assertions run as plain `test()`. The production binding extends
 /// [WidgetsFlutterBinding] and intentionally rejects co-installation

@@ -24,7 +24,7 @@ class _FakeVmService extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
-    expect(method, equals('ext.exploration.core.handshake'));
+    expect(method, equals('ext.leonard.core.handshake'));
     final r = Response();
     r.json = <String, dynamic>{
       'contractVersion': '1.0.0',

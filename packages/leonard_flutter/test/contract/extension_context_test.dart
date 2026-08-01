@@ -5,7 +5,7 @@ void main() {
   test('extension method is auto-namespaced', () {
     expect(
       ExtensionContext.buildExtensionMethodName('router', 'ping'),
-      'ext.exploration.router.ping',
+      'ext.leonard.router.ping',
     );
   });
 }

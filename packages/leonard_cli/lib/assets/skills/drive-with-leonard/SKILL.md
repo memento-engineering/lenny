@@ -101,7 +101,7 @@ grep -oE '"outcome":"[^"]*"' /tmp/run.jsonl | tail -1
 
 The extension/perception model is target-agnostic — `leonard_tmux` is the proof
 (pure Dart, observes an external process). **Today the live VM-service host
-that exposes `ext.exploration.*` for `leonard_cli` to drive ships in
+that exposes `ext.leonard.*` for `leonard_cli` to drive ships in
 `leonard_flutter` (`LeonardBinding`).** A pure-Dart host (so a non-Flutter
 program can be driven live by `leonard_cli`) is the next piece; until then,
 non-Flutter extensions are used as a **library** (call `extension.observe()` /

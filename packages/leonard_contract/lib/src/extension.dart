@@ -53,7 +53,7 @@ abstract class LeonardExtension {
   /// Extension namespace; must match `^[a-z][a-z0-9_]*$`.
   ///
   /// Used to prefix tool names (`<namespace>.<tool>`) and to scope VM
-  /// service extensions (`ext.exploration.<namespace>.<suffix>`).
+  /// service extensions (`ext.leonard.<namespace>.<suffix>`).
   String get namespace;
 
   /// Tools this extension contributes. Returned in stable order.

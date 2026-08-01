@@ -75,11 +75,11 @@ void main() {
       });
       expect(
         native.calls.map((RecordedCall c) => c.method),
-        contains('ext.exploration.native.tap'),
+        contains('ext.leonard.native.tap'),
       );
       expect(
         flutter.calls.map((RecordedCall c) => c.method),
-        isNot(contains('ext.exploration.native.tap')),
+        isNot(contains('ext.leonard.native.tap')),
       );
     });
 
@@ -105,7 +105,7 @@ void main() {
         await host.executeAction('core.tap', <String, dynamic>{'node_id': 1});
         expect(
           vm.calls.map((RecordedCall c) => c.method),
-          contains('ext.exploration.core.tap'),
+          contains('ext.leonard.core.tap'),
         );
       },
     );

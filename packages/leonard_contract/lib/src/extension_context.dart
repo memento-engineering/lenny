@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 
 import 'package:meta/meta.dart';
 
+import 'protocol.dart';
+
 /// VM service extension handler signature.
 typedef ExtensionHandler =
     Future<developer.ServiceExtensionResponse> Function(
@@ -13,7 +15,7 @@ typedef ExtensionHandler =
 /// Per-extension context handed to `LeonardExtension.initialize`.
 ///
 /// Auto-namespaces VM service extensions under
-/// `ext.exploration.<namespace>.<suffix>`.
+/// `ext.leonard.<namespace>.<suffix>`.
 class ExtensionContext {
   ExtensionContext({required this.namespace});
 
@@ -24,12 +26,12 @@ class ExtensionContext {
   /// given namespace and suffix.
   @visibleForTesting
   static String buildExtensionMethodName(String ns, String suffix) =>
-      'ext.exploration.$ns.$suffix';
+      '$kLeonardExtensionPrefix.$ns.$suffix';
 
   /// Register a VM service extension under this extension's namespace.
   ///
   /// The extension is exposed at
-  /// `ext.exploration.<namespace>.<suffix>`.
+  /// `ext.leonard.<namespace>.<suffix>`.
   void registerExtension(String suffix, ExtensionHandler handler) {
     developer.registerExtension(
       buildExtensionMethodName(namespace, suffix),

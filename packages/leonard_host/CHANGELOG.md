@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: VM-service methods now use `ext.leonard.*`. Construct names with
+  `kLeonardExtensionPrefix` from `leonard_contract`.
+- The default handshake version is `kLeonardProtocolVersion` from
+  `leonard_contract`.
+
 ## 0.1.1
 
 - `handshakeJson()` now reports a `capabilities` list for parity with the
@@ -10,7 +17,7 @@
 ## 0.1.0
 
 - Initial release: `ExplorationHost` hosts a set of `leonard_contract`
-  extensions over the `ext.exploration.*` VM-service surface (handshake,
+  extensions over the `ext.leonard.*` VM-service surface (handshake,
   `get_stable_observation`, per-tool dispatch) via `dart:developer`, so a
   non-Flutter Dart program can be driven live by `leonard_cli` / `leonard_drive`.
 

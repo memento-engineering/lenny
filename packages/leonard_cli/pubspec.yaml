@@ -9,12 +9,12 @@ environment:
 
 dependencies:
   args: ^2.6.0
-  leonard_agent: ^0.1.5
+  leonard_agent: ^0.2.0
   meta: ^1.16.0
   path: ^1.9.0
 
 dev_dependencies:
-  leonard_contract: ^0.1.0
-  leonard_host: ^0.1.1
+  leonard_contract: ^0.2.0
+  leonard_host: ^0.2.0
   lints: ^5.1.0
   test: ^1.25.0

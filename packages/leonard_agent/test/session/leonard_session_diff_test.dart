@@ -103,7 +103,7 @@ void main() {
         Map<String, dynamic>? args,
       ) async {
         call++;
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': const <Object>[],
@@ -121,7 +121,7 @@ void main() {
 
       expect(
         fake.lastMethod,
-        equals('ext.exploration.core.get_stable_observation'),
+        equals('ext.leonard.core.get_stable_observation'),
       );
       expect(fake.lastArgs, containsPair('policy', 'action-relative'));
       expect(result.observation.core.nodes.keys, equals(<int>{1}));
@@ -142,7 +142,7 @@ void main() {
         String? iso,
         Map<String, dynamic>? args,
       ) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': const <Object>[],
@@ -187,7 +187,7 @@ void main() {
         String? iso,
         Map<String, dynamic>? args,
       ) async {
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': const <Object>[],
