@@ -544,7 +544,10 @@ class XcuiTestBackend implements NativeBackend {
       case 'enter':
       case 'return':
       case 'done':
-        await _dismissKeyboard();
+        // Inject a newline keystroke into the active element.
+        await _post('/session/$_sid/keys', <String, Object?>{
+          'value': <String>['\n'],
+        });
         return;
       default:
         throw NativeException('unknown press key: $key');

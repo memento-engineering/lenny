@@ -21,6 +21,50 @@ void main() {
     await b.close();
   });
 
+  test('enter posts a newline keystroke without dismissing keyboard', () async {
+    final List<String> hits = <String>[];
+    http.Request? keysRequest;
+    final MockClient client = MockClient((http.Request req) async {
+      hits.add('${req.method} ${req.url.path}');
+      if (req.url.path == '/session') {
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'value': <String, Object?>{'sessionId': 's1'},
+          }),
+          200,
+          headers: const <String, String>{
+            'content-type': 'application/json',
+          },
+        );
+      }
+      if (req.url.path == '/session/s1/keys') keysRequest = req;
+      return http.Response(
+        jsonEncode(<String, Object?>{'value': null}),
+        200,
+        headers: const <String, String>{'content-type': 'application/json'},
+      );
+    });
+    final XcuiTestBackend b = XcuiTestBackend(
+      udid: 'U',
+      app: '/x/Runner.app',
+      osVersion: '17',
+      client: client,
+    );
+
+    await b.connect();
+    await b.press('enter');
+
+    expect(hits, contains('POST /session/s1/keys'));
+    expect(
+      jsonDecode(keysRequest!.body),
+      <String, Object?>{
+        'value': <String>['\n'],
+      },
+    );
+    expect(hits, isNot(contains('POST /session/s1/element')));
+    await b.close();
+  });
+
   group('XcuiTestBackend.enterText masked flag (element-type-derived)', () {
     late List<String> hits;
 
