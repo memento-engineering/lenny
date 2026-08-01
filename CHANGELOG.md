@@ -22,7 +22,7 @@ state to an autonomous agent over the VM service.
 ### Rebrand
 - Packages renamed `exploration_* -> leonard_*`; terminology `plugin -> extension`
   throughout, including the serialized wire (`extensions` key).
-- VM-service prefix remains `ext.exploration.*` (protocol-stable).
+- VM-service prefix remains `ext.leonard.*` (protocol-stable).
 
 ### Dependencies
 - Perception is consumed from the published `genesis_perception ^0.1.1` (pub.dev),

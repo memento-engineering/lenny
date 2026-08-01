@@ -8,7 +8,7 @@
 
 ## 1. Goal & scope
 
-**Goal.** Ship a new pure-Dart package `leonard_native` that lets the existing, target-agnostic Leonard driver (`leonard_agent`/`leonard_cli`/`leonard_drive`) perceive and drive a **native mobile app** (iOS first) over the unchanged `ext.exploration.*` surface — by running `ExplorationHost` with ONE new `NativeExtension` whose observation source is the **OS accessibility tree** (via Appium/XCUITest) instead of a widget tree or a tmux server.
+**Goal.** Ship a new pure-Dart package `leonard_native` that lets the existing, target-agnostic Leonard driver (`leonard_agent`/`leonard_cli`/`leonard_drive`) perceive and drive a **native mobile app** (iOS first) over the unchanged `ext.leonard.*` surface — by running `ExplorationHost` with ONE new `NativeExtension` whose observation source is the **OS accessibility tree** (via Appium/XCUITest) instead of a widget tree or a tmux server.
 
 This is the direct native analogue of `leonard_tmux`: `NativeExtension` = `TmuxExtension`, `NativeSnapshot` = `TmuxObservation`, `NativePerception` = `TmuxPerception`, `NativeBackend` = the `TmuxClient`/`PollObservationSource` seam, `AppiumBackend` = `ProcessTmuxExecutor` (the concrete I/O behind the seam).
 
@@ -26,7 +26,7 @@ This is the direct native analogue of `leonard_tmux`: `NativeExtension` = `TmuxE
 - **m4 launch lifecycle** (boot/teardown of the target under the autonomous loop). The bin entrypoint stays the tmux-style "construct → install → wait on signal" shape; it does NOT manage the Appium server or simulator lifecycle, and m2 does NO launcher wiring.
 - **m5 full Auth0 round-trip** (completing SIGN IN, the callback return, resume-on-Flutter). m2's e2e deliberately STOPS before SIGN IN: it proves only host-boots-and-drives + masked-readback, NOT authentication.
 - Real-device iOS (sim ≠ device noted; not needed for m2).
-- Any change to `leonard_contract`, `leonard_host`, or the `ext.exploration.*` wire surface. m2 adds NO new contract members; those packages are byte-unchanged (§6 AC15).
+- Any change to `leonard_contract`, `leonard_host`, or the `ext.leonard.*` wire surface. m2 adds NO new contract members; those packages are byte-unchanged (§6 AC15).
 
 ### 1.1 Decision: one canonical cross-host record schema ("uniform now")
 
@@ -45,7 +45,7 @@ Canonical key order in serialization: `id, role, rect, label?, value?, state?, a
 
 This is a settled decision, not an open question. Two consequences:
 
-1. **Bounded Flutter change (in m2 scope).** The live Flutter `_Rec` emits `{id, role, rect, label?, state?, actions?, scroll?}` — it has **no `value` key**. m2 adds a first-class `value` field to `_Rec` in `semantics_capture.dart`, sourced from `SemanticsData.value` (already available alongside `d.label`), emitted in `toJson` as `if (value.isNotEmpty) m['value'] = value;` placed **between the `label` and `state` emits** to match the canonical key order. The doc comment (§3.4) is updated to list `value?`, and the pinned `semantics_capture_test.dart` is updated to (a) admit `value` in its schema allow-set and (b) positively assert `value` on a node that carries one (a `TextField` with text, or a `Slider`). **This is the ONLY change to `leonard_flutter`.** `leonard_contract`, `leonard_host`, and the `ext.exploration.*` wire surface stay byte-unchanged.
+1. **Bounded Flutter change (in m2 scope).** The live Flutter `_Rec` emits `{id, role, rect, label?, state?, actions?, scroll?}` — it has **no `value` key**. m2 adds a first-class `value` field to `_Rec` in `semantics_capture.dart`, sourced from `SemanticsData.value` (already available alongside `d.label`), emitted in `toJson` as `if (value.isNotEmpty) m['value'] = value;` placed **between the `label` and `state` emits** to match the canonical key order. The doc comment (§3.4) is updated to list `value?`, and the pinned `semantics_capture_test.dart` is updated to (a) admit `value` in its schema allow-set and (b) positively assert `value` on a node that carries one (a `TextField` with text, or a `Slider`). **This is the ONLY change to `leonard_flutter`.** `leonard_contract`, `leonard_host`, and the `ext.leonard.*` wire surface stay byte-unchanged.
 
 2. **Native record type mirrors the canonical schema EXACTLY** (same fields, same omit-when-empty, same key order). In m2 the iOS `AppiumBackend` populates `id/role/rect/label/value/actions`; it leaves `state`/`scroll` empty (so they are omitted). The `NativeNode` type still **carries** `state` and `scroll` so its schema is identical to Flutter's and a future backend can fill them. (Optionally map XCUITest `enabled`/`selected` → `state` if trivial; not required for m2.)
 
@@ -325,7 +325,7 @@ In `packages/leonard_flutter/lib/src/semantics/semantics_capture.dart`:
 4. **`_walk`**: pass `d.value` (from `SemanticsData`) into the `_Rec(...)` construction (it sits alongside `d.label`).
 5. **`semantics_capture_test.dart`** (pinned): add `'value'` to the schema allow-set (`btn.keys.toSet()` `isIn` set currently `{id, role, label, state, actions, rect, scroll}`), AND add a positive assertion: pump a `TextField`/`Slider` whose semantics carry a value and assert the emitted record has the expected `value` string.
 
-Nothing else in `leonard_flutter` changes. `leonard_contract`, `leonard_host`, and the `ext.exploration.*` wire surface are untouched.
+Nothing else in `leonard_flutter` changes. `leonard_contract`, `leonard_host`, and the `ext.leonard.*` wire surface are untouched.
 
 ---
 
@@ -654,7 +654,7 @@ Each is independently verifiable; the check method is named.
 16. **XCUITest-XML parser + xpath synthesis.** `_parseSource` over the checked-in `test/fixtures/auth0_source.xml` yields `NativeNode`s for the Log in button, the Email TextField, and the Password SecureTextField with the rects, roles, labels, a11yIds, and xpaths in §5.3's worked example; anonymous nodes get a deterministic positional `(//XCUIElementType<T>)[n]` xpath. *Check:* `appium_xml_parser_test.dart` asserts the parsed list against the §5.3 worked example (rect conversion, role vocab, dense ids in document order, named-vs-positional xpath synthesis).
 17. **Standalone host boots & is driveable (live).** `dart run --enable-vm-service=0 --disable-service-auth-codes bin/leonard_native_host.dart --udid <sim> --app <Runner.app>` against a booted iOS sim + running Appium prints `LEONARD_HOST_READY`, the VM prints its URI, and a `LeonardSession` can handshake, observe the `native` fragment, and drive the Auth0 login to a masked-password readback. *Check:* `native_host_e2e_test.dart` (self-skips when Appium/sim absent) — the live dogfood tier. Driver API: `LeonardSession.connect(wsUri)` → `start(goal, const LeonardConfig())` → `act({'name':'native.tap', 'args':{...}})` and `observe()` reading `obs.extensions['native']`, matching `host_e2e_test.dart`'s proven pattern.
 18. **Reproduces the GREEN spike.** Live e2e: tap "Log in" → accept consent via `press('consent_accept')` (alert/accept) → type nonce email (readback == typed) → type password (readback masked, non-empty, ≠ plaintext) → stop before SIGN IN. *Check:* the e2e asserts `emailOk && passwordMasked` exactly as `o1_drive.py` did.
-19. **No contract/host/wire changes.** `git diff feat/leonard-native..HEAD` touches only `packages/leonard_native/**`, the root workspace registration, AND the bounded edit to `packages/leonard_flutter/lib/src/semantics/semantics_capture.dart` (+ its test) — `leonard_contract`, `leonard_host`, and the `ext.exploration.*` wire surface are byte-unchanged. *Check:* diff review.
+19. **No contract/host/wire changes.** `git diff feat/leonard-native..HEAD` touches only `packages/leonard_native/**`, the root workspace registration, AND the bounded edit to `packages/leonard_flutter/lib/src/semantics/semantics_capture.dart` (+ its test) — `leonard_contract`, `leonard_host`, and the `ext.leonard.*` wire surface are byte-unchanged. *Check:* diff review.
 
 ---
 

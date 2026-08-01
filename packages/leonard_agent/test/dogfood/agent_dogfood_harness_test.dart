@@ -54,7 +54,7 @@ class _HangingVmService extends VmService {
 
 /// VmService that returns a successful handshake but hangs on every
 /// subsequent call. Drives the harness through `session.start()`
-/// (which calls `ext.exploration.core.handshake`) and into
+/// (which calls `ext.leonard.core.handshake`) and into
 /// the LoopDriver's per-turn observation pull, which hangs until the
 /// per-turn budget trips. Used to assert that the original failure
 /// surfaces — not the historic `StateError: writeHeader must precede`.
@@ -68,7 +68,7 @@ class _HandshakeOkThenHangingVmService extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) {
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       return Future<Response>.value(
         Response.parse(<String, dynamic>{
           'type': 'Response',
@@ -103,7 +103,7 @@ class _HandshakeOkThenTransportRpcErrorVmService extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       return Response.parse(<String, dynamic>{
         'type': 'Response',
         'protocolVersion': '2',

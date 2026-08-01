@@ -101,7 +101,7 @@ service. Layering (low → high):
 - **`leonard_contract`** — pure-Dart extension contract: `LeonardExtension` /
   `LeonardTool`, the `PerceptionExtension` mixin (`buildPerception() → Seed`),
   `ExtensionRegistry`, and the tool-dispatch/param-decode helpers. No Flutter.
-- **Hosts** serve the `ext.exploration.*` VM-service surface (handshake,
+- **Hosts** serve the `ext.leonard.*` VM-service surface (handshake,
   `get_stable_observation`, per-tool dispatch) from a set of extensions:
   - `leonard_flutter` (`LeonardBinding`) — the Flutter host (semantics, routes,
     screenshot, plus extensions).
@@ -109,7 +109,7 @@ service. Layering (low → high):
     Dart program (extensions only; no Flutter core fragment).
 - **`leonard_agent`** — the brain/harness and driver client (`LeonardSession`,
   `VmServiceClient`, the loop); `leonard_cli` / `leonard_drive` are its CLIs. It
-  is target-agnostic — it speaks the same `ext.exploration.*` surface whether
+  is target-agnostic — it speaks the same `ext.leonard.*` surface whether
   the target is Flutter or pure Dart — and can attach to **multiple hosts at
   once** (`MultiHostSession`): it merges each host's perception fragment into one
   observation and routes each tool call to the owning host by namespace, so the

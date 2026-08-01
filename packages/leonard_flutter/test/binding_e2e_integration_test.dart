@@ -164,7 +164,7 @@ void main() {
   test('invokeExtensionTool rejects unknown tool', () async {
     expect(
       () => binding.invokeExtensionTool(
-        'ext.exploration.sample.does_not_exist',
+        'ext.leonard.sample.does_not_exist',
         const <String, String>{},
       ),
       throwsArgumentError,
@@ -181,7 +181,7 @@ void main() {
     );
     expect(
       () => binding.invokeExtensionTool(
-        'ext.exploration.sample.',
+        'ext.leonard.sample.',
         const <String, String>{},
       ),
       throwsArgumentError,

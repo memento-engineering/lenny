@@ -17,7 +17,7 @@ class _FakeVm extends VmService {
     String? isolateId,
     Map<String, dynamic>? args,
   }) async {
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       return Response.parse(<String, dynamic>{
         'type': 'exploration.HandshakeResult',
         'contractVersion': '0.1',
@@ -29,7 +29,7 @@ class _FakeVm extends VmService {
         ],
       })!;
     }
-    if (method == 'ext.exploration.core.start') {
+    if (method == 'ext.leonard.core.start') {
       return Response.parse(<String, dynamic>{
         'type': 'exploration.StartResult',
       })!;

@@ -71,7 +71,7 @@ pub-native path, but the *distribution* is pub-native (no manual MCP install).
 ## Known gap surfaced by this work
 
 **Live VM-service driving is Flutter-only today.** `developer.registerExtension`
-for `ext.exploration.*` (the host the CLI connects to) lives only in
+for `ext.leonard.*` (the host the CLI connects to) lives only in
 `leonard_flutter` (`LeonardBinding`). `leonard_tmux` proves the
 extension/perception model is target-agnostic, but its example uses the
 extension **as a library** (`observe()`/`executeAction()`), not over the VM

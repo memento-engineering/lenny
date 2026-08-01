@@ -47,11 +47,11 @@ void main() {
         handshakeResponse: _handshake(version: '2'),
       );
       final r = await fake.callServiceExtension(
-        'ext.exploration.core.handshake',
+        'ext.leonard.core.handshake',
       );
       expect(r.json!['protocolVersion'], '2');
       expect(fake.calls, hasLength(1));
-      expect(fake.calls.single.method, 'ext.exploration.core.handshake');
+      expect(fake.calls.single.method, 'ext.leonard.core.handshake');
     });
 
     test('observation returns {type: Observation, value: bundle}', () async {
@@ -60,7 +60,7 @@ void main() {
         observationBundle: _bundle(routes: <String>['/home']),
       );
       final r = await fake.callServiceExtension(
-        'ext.exploration.core.get_stable_observation',
+        'ext.leonard.core.get_stable_observation',
         args: <String, dynamic>{'policy': 'action-relative'},
       );
       expect(r.json!['type'], 'Observation');
@@ -76,7 +76,7 @@ void main() {
       );
       await expectLater(
         fake.callServiceExtension(
-          'ext.exploration.core.get_stable_observation',
+          'ext.leonard.core.get_stable_observation',
         ),
         throwsA(isA<RPCError>().having((e) => e.code, 'code', -32601)),
       );
@@ -90,12 +90,12 @@ void main() {
               String,
               Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
             >{
-              'ext.exploration.router.navigate': (args) async =>
+              'ext.leonard.router.navigate': (args) async =>
                   <String, dynamic>{'ok': true, 'value': args?['route_name']},
             },
       );
       final r = await fake.callServiceExtension(
-        'ext.exploration.router.navigate',
+        'ext.leonard.router.navigate',
         args: <String, dynamic>{'route_name': '"settings"'},
       );
       expect(r.json!['ok'], true);
@@ -105,7 +105,7 @@ void main() {
     test('unknown method throws RPCError(-32601)', () async {
       final fake = LeonardVmServiceFake(handshakeResponse: _handshake());
       await expectLater(
-        fake.callServiceExtension('ext.exploration.core.unknown'),
+        fake.callServiceExtension('ext.leonard.core.unknown'),
         throwsA(isA<RPCError>().having((e) => e.code, 'code', -32601)),
       );
     });
@@ -115,14 +115,14 @@ void main() {
         handshakeResponse: _handshake(),
         observationBundle: _bundle(),
       );
-      await fake.callServiceExtension('ext.exploration.core.handshake');
+      await fake.callServiceExtension('ext.leonard.core.handshake');
       await fake.callServiceExtension(
-        'ext.exploration.core.get_stable_observation',
+        'ext.leonard.core.get_stable_observation',
         isolateId: 'iso-1',
         args: <String, dynamic>{'policy': 'action-relative'},
       );
       expect(fake.calls, hasLength(2));
-      expect(fake.calls[0].method, 'ext.exploration.core.handshake');
+      expect(fake.calls[0].method, 'ext.leonard.core.handshake');
       expect(fake.calls[1].isolateId, 'iso-1');
       expect(fake.calls[1].args?['policy'], 'action-relative');
     });

@@ -2,7 +2,7 @@
 
 A pure-Dart Leonard contract extension that lets the target-agnostic Leonard
 driver perceive and drive a **native mobile app** (iOS first) over the
-unchanged `ext.exploration.*` surface — by observing the OS accessibility tree
+unchanged `ext.leonard.*` surface — by observing the OS accessibility tree
 (via Appium/XCUITest) instead of a Flutter widget tree or a tmux server.
 
 This is the native analogue of `leonard_tmux`:

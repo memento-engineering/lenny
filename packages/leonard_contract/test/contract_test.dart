@@ -59,10 +59,15 @@ class _Ext extends LeonardExtension {
 }
 
 void main() {
-  test('buildExtensionMethodName composes ext.exploration.<ns>.<suffix>', () {
+  test('exports the Leonard VM-service protocol constants', () {
+    expect(kLeonardExtensionPrefix, 'ext.leonard');
+    expect(kLeonardProtocolVersion, '2');
+  });
+
+  test('buildExtensionMethodName composes ext.leonard.<ns>.<suffix>', () {
     expect(
       ExtensionContext.buildExtensionMethodName('core', 'tap'),
-      'ext.exploration.core.tap',
+      'ext.leonard.core.tap',
     );
   });
 

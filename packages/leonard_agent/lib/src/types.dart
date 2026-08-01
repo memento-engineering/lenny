@@ -1,7 +1,7 @@
 /// Public DTOs and progress events for [LeonardSession].
 library;
 
-/// Result of the `ext.exploration.core.handshake` exchange.
+/// Result of the `ext.leonard.core.handshake` exchange.
 class HandshakeResult {
   const HandshakeResult({
     required this.contractVersion,
@@ -17,7 +17,7 @@ class HandshakeResult {
 
   /// Host-level capabilities that are reachable but are NOT namespaced
   /// [LeonardTool]s — so they never appear in [extensions]. The canonical
-  /// one is `screenshot` (a raw `ext.exploration.core.screenshot` VM
+  /// one is `screenshot` (a raw `ext.leonard.core.screenshot` VM
   /// extension on the Flutter binding, debug/profile only). Surfaced here
   /// so a driver lists them where agents look: their absence from the tool
   /// manifest otherwise reads as "no such capability". Empty on hosts that

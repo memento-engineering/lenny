@@ -1,5 +1,5 @@
 /// VM-service host: serves the stateful `native` Leonard extension over
-/// `ext.exploration.*` so an external driver (`leonard_cli` / `leonard_drive`)
+/// `ext.leonard.*` so an external driver (`leonard_cli` / `leonard_drive`)
 /// can perceive and drive a native mobile app live — the same surface the
 /// Flutter binding and the tmux host expose, but for a native target.
 ///

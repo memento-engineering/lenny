@@ -2,7 +2,7 @@
 /// from a caller-supplied namespace whitelist and the binding's
 /// handshake manifest.
 ///
-/// The handshake (`ext.exploration.core.handshake`,
+/// The handshake (`ext.leonard.core.handshake`,
 /// [ExtensionManifestEntry]) carries *bare* tool names grouped under each
 /// extension namespace; this helper prefixes the namespace to produce the
 /// fully-qualified `<namespace>.<tool>` [ToolDescriptor.name] that

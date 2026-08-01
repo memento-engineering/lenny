@@ -36,16 +36,16 @@ installed.
 
 ## VM service extension namespace
 
-`leonard_flutter` reserves `ext.exploration.*` for all
+`leonard_flutter` reserves `ext.leonard.*` for all
 host- and extension-owned VM service extensions. Format:
 
-    ext.exploration.<namespace>.<suffix>
+    ext.leonard.<namespace>.<suffix>
 
 - `<namespace>` is `core` for host-owned extensions, or an extension's
   `namespace` (matching `^[a-z][a-z0-9_]*$`).
 - `<suffix>` is the extension's local name.
 
-The host registers `ext.exploration.core.handshake` from
+The host registers `ext.leonard.core.handshake` from
 `LeonardBinding.ensureInitialized(...)`. The harness uses it to
 confirm the binding is live and read protocol/version metadata.
 Extensions register through `ExtensionContext`, which auto-prefixes.

@@ -14,5 +14,6 @@ export 'src/extension.dart';
 export 'src/extension_context.dart';
 export 'src/perception_anchor.dart';
 export 'src/perception_extension.dart';
+export 'src/protocol.dart';
 export 'src/registry.dart' show ExtensionRegistry;
 export 'src/types.dart';

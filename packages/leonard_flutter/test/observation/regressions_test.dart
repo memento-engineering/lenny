@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
-const String _ext = 'ext.exploration.core.get_stable_observation';
+const String _ext = 'ext.leonard.core.get_stable_observation';
 
 class _ThrowsInBuild extends LeonardExtension with PerceptionExtension {
   const _ThrowsInBuild();

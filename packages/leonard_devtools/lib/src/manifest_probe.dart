@@ -1,7 +1,7 @@
 /// Manifest probe types for the DevTools Prompt panel.
 ///
 /// `LeonardPanelHost` resolves the extension manifest by calling
-/// `ext.exploration.handshake` through [VmServiceClient]. The shell
+/// `ext.leonard.handshake` through [VmServiceClient]. The shell
 /// renders the result via a `ValueListenable<ManifestProbeResult>` so the
 /// UI reacts to (re)connects without recreating the host.
 library;

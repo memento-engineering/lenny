@@ -9,17 +9,17 @@ import 'package:leonard_contract/leonard_contract.dart';
 /// non-Flutter Dart program.
 ///
 /// This is the non-Flutter peer of `leonard_flutter`'s `LeonardBinding`:
-/// both register the identical `ext.exploration.*` contract, but a plain
+/// both register the identical `ext.leonard.*` contract, but a plain
 /// Dart program has no widget tree, so the host omits the Flutter-only core
 /// fragment (semantics / routes / screenshot). Each registered
 /// `PerceptionExtension` contributes its `extensions.<namespace>` fragment,
 /// which is the whole observation for a non-Flutter target.
 ///
 /// Registers, via `dart:developer`:
-///   * `ext.exploration.core.handshake` — protocol version + tool manifest
-///   * `ext.exploration.core.get_stable_observation` —
+///   * `ext.leonard.core.handshake` — protocol version + tool manifest
+///   * `ext.leonard.core.get_stable_observation` —
 ///     `{type: Observation, value: {extensions: {ns: fragment}}}`
-///   * `ext.exploration.{ns}.{tool}` — `dispatchToolToEnvelope` per tool
+///   * `ext.leonard.{ns}.{tool}` — `dispatchToolToEnvelope` per tool
 ///
 /// The hosting program must run with the VM service enabled (e.g.
 /// `dart run --enable-vm-service`); the driver connects to the printed
@@ -30,7 +30,7 @@ class ExplorationHost {
   /// extension up front.
   ExplorationHost({
     required List<LeonardExtension> extensions,
-    String protocolVersion = '2',
+    String protocolVersion = kLeonardProtocolVersion,
     void Function(String message)? logger,
   }) : _protocolVersion = protocolVersion,
        _log = logger ?? _noop,
@@ -40,8 +40,6 @@ class ExplorationHost {
     }
   }
 
-  static const String _prefix = 'ext.exploration';
-
   final String _protocolVersion;
   final void Function(String) _log;
   final ExtensionRegistry _registry;
@@ -50,22 +48,27 @@ class ExplorationHost {
   static void _noop(String _) {}
 
   /// Initialize extensions, finalize the tool set, then register every
-  /// `ext.exploration.*` VM-service extension. Call once, after the VM
+  /// `ext.leonard.*` VM-service extension. Call once, after the VM
   /// service is up.
   Future<void> install() async {
     final Map<String, LeonardTool> tools = await _prepare();
 
-    developer.registerExtension('$_prefix.core.handshake', (_, _) async {
-      return developer.ServiceExtensionResponse.result(await handshakeJson());
-    });
-    developer.registerExtension('$_prefix.core.get_stable_observation', (
+    developer.registerExtension('$kLeonardExtensionPrefix.core.handshake', (
       _,
       _,
     ) async {
-      return developer.ServiceExtensionResponse.result(await observationJson());
+      return developer.ServiceExtensionResponse.result(await handshakeJson());
     });
+    developer.registerExtension(
+      '$kLeonardExtensionPrefix.core.get_stable_observation',
+      (_, _) async =>
+          developer.ServiceExtensionResponse.result(await observationJson()),
+    );
     for (final MapEntry<String, LeonardTool> e in tools.entries) {
-      developer.registerExtension('$_prefix.${e.key}', (_, params) async {
+      developer.registerExtension('$kLeonardExtensionPrefix.${e.key}', (
+        _,
+        params,
+      ) async {
         return developer.ServiceExtensionResponse.result(
           await dispatchToolToEnvelope(
             e.value,

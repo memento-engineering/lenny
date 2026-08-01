@@ -51,7 +51,7 @@ VmServiceClient _handshakeOnlyClient({
   List<Map<String, dynamic>> extensions = const <Map<String, dynamic>>[],
 }) {
   return _clientWith((method, iso, args) async {
-    if (method == 'ext.exploration.core.handshake') {
+    if (method == 'ext.leonard.core.handshake') {
       return _resp(<String, dynamic>{
         'contractVersion': contractVersion,
         'extensions': extensions,
@@ -125,7 +125,7 @@ void main() {
       final client = _clientWith((method, iso, args) async {
         lastMethod = method;
         lastArgs = args;
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],
@@ -150,7 +150,7 @@ void main() {
       await session.start('goal', const LeonardConfig());
 
       final Observation obs = await session.observe();
-      expect(lastMethod, equals('ext.exploration.core.get_stable_observation'));
+      expect(lastMethod, equals('ext.leonard.core.get_stable_observation'));
       expect(lastArgs, containsPair('policy', 'action-relative'));
       expect(obs.core.routeStack, isEmpty);
       expect(obs.stability.terminatedBy, equals('idle'));
@@ -162,7 +162,7 @@ void main() {
       final client = _clientWith((method, iso, args) async {
         lastMethod = method;
         lastArgs = args;
-        if (method == 'ext.exploration.core.handshake') {
+        if (method == 'ext.leonard.core.handshake') {
           return _resp(<String, dynamic>{
             'contractVersion': '1.0.0',
             'extensions': <Map<String, dynamic>>[],
@@ -177,7 +177,7 @@ void main() {
         'name': 'router.go',
         'args': <String, dynamic>{'route': '/home'},
       });
-      expect(lastMethod, equals('ext.exploration.router.go'));
+      expect(lastMethod, equals('ext.leonard.router.go'));
       // Args go on the wire JSON-encoded per value so the binding's
       // `_tryDecode` round-trips them.
       expect(lastArgs?['route'], equals('"/home"'));

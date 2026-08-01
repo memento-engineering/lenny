@@ -47,13 +47,13 @@ void main() {
       final List<String> bMethods = vmB.calls
           .map((RecordedCall c) => c.method)
           .toList();
-      expect(aMethods, contains('ext.exploration.core.tap'));
-      expect(aMethods, contains('ext.exploration.router.go'));
-      expect(bMethods, contains('ext.exploration.native.tap'));
+      expect(aMethods, contains('ext.leonard.core.tap'));
+      expect(aMethods, contains('ext.leonard.router.go'));
+      expect(bMethods, contains('ext.leonard.native.tap'));
 
       // Args are forwarded verbatim (JSON-encoded by the per-host client).
       final RecordedCall nativeCall = vmB.calls.firstWhere(
-        (RecordedCall c) => c.method == 'ext.exploration.native.tap',
+        (RecordedCall c) => c.method == 'ext.leonard.native.tap',
       );
       expect(nativeCall.args!['label'], equals('"Email"'));
     });

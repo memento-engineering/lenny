@@ -263,7 +263,7 @@ Future<int> _run(List<String> argv) async {
       case 'screenshot':
         // core.screenshot is a raw VM extension (not a manifest tool);
         // executeAction routes `core.screenshot` ->
-        // ext.exploration.core.screenshot, whose body is
+        // ext.leonard.core.screenshot, whose body is
         // { result: { png_base64, width_px, height_px, device_pixel_ratio } }.
         final Map<String, dynamic> shot = await session.act(<String, dynamic>{
           'name': 'core.screenshot',

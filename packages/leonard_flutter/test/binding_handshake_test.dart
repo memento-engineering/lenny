@@ -46,11 +46,11 @@ void main() {
   });
 
   test('handshake extension is registered exactly once', () {
-    expect(kLeonardExtensionPrefix, 'ext.exploration');
+    expect(kLeonardExtensionPrefix, 'ext.leonard');
     // Re-registering the same name throws -> registration succeeded.
     expect(
       () => developer.registerExtension(
-        'ext.exploration.core.handshake',
+        'ext.leonard.core.handshake',
         (m, p) async => developer.ServiceExtensionResponse.result('{}'),
       ),
       throwsArgumentError,
@@ -59,7 +59,7 @@ void main() {
 
   test('core.handshake payload carries the extensions manifest', () async {
     final String raw = await binding.invokeServiceExtension(
-      'ext.exploration.core.handshake',
+      'ext.leonard.core.handshake',
       const <String, String>{},
     );
     final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
@@ -84,7 +84,7 @@ void main() {
     'core.handshake advertises screenshot as a capability (debug)',
     () async {
       final String raw = await binding.invokeServiceExtension(
-        'ext.exploration.core.handshake',
+        'ext.leonard.core.handshake',
         const <String, String>{},
       );
       final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: VM-service methods now use `ext.leonard.*`. Construct names with
+  `kLeonardExtensionPrefix` from `leonard_contract`.
+- The handshake version is `kLeonardProtocolVersion` from `leonard_contract`.
+
 ## 0.1.0
 
 - Initial release: the pure-Dart extension contract extracted from

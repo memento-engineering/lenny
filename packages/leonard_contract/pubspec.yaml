@@ -2,7 +2,7 @@ name: leonard_contract
 description: >-
   Pure-Dart extension contract for Leonard — the Flutter-free types a host
   (Flutter binding or non-Flutter VM-service host) implements and exposes.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 

@@ -3,7 +3,7 @@
 ///
 /// Proves that [BindingVmServiceFake] routes by
 /// `extensionRegistry.mergedTools()` and not by the literal
-/// `ext.exploration.core.*` URL prefix:
+/// `ext.leonard.core.*` URL prefix:
 ///
 ///   - a extension registered under namespace `core` (deliberately
 ///     reusing the namespace that previously triggered the routing
@@ -12,7 +12,7 @@
 ///     which is NOT in `mergedTools()`, falls through to
 ///     `invokeServiceExtension`;
 ///   - any method that does not start with
-///     `ext.exploration.` still throws
+///     `ext.leonard.` still throws
 ///     `RPCError(..., -32601, ...)`.
 ///
 /// Fixture-serving paths are also covered, using a
@@ -130,7 +130,7 @@ void main() {
     'core.tap routes via extensionRegistry.mergedTools -> invokeExtensionTool',
     () async {
       final Response r = await fake.callServiceExtension(
-        'ext.exploration.core.tap',
+        'ext.leonard.core.tap',
         args: <String, dynamic>{'x': 0.1, 'y': 0.2},
       );
       expect(
@@ -149,7 +149,7 @@ void main() {
   test('core.get_stable_observation (binding-owned, not in mergedTools) '
       'falls through to invokeServiceExtension', () async {
     final Response r = await fake.callServiceExtension(
-      'ext.exploration.core.get_stable_observation',
+      'ext.leonard.core.get_stable_observation',
     );
     // The binding-owned extension wraps the result in
     // `{type: 'Observation', value: <bundle>}`; the extension envelope
@@ -197,7 +197,7 @@ void main() {
       );
 
       final Response r = await fixtureFake.callServiceExtension(
-        'ext.exploration.core.get_stable_observation',
+        'ext.leonard.core.get_stable_observation',
         args: <String, dynamic>{'policy': 'action_relative'},
       );
 
@@ -225,7 +225,7 @@ void main() {
       );
 
       final Response r = await fixtureFake.callServiceExtension(
-        'ext.exploration.core.tap',
+        'ext.leonard.core.tap',
         args: <String, dynamic>{'x': 0.5, 'y': 0.5},
       );
 
@@ -250,7 +250,7 @@ void main() {
       // test self-contained.)
       final BindingVmServiceFake noFixtureFake = BindingVmServiceFake(binding);
       final Response r = await noFixtureFake.callServiceExtension(
-        'ext.exploration.core.get_stable_observation',
+        'ext.leonard.core.get_stable_observation',
       );
       final Map<String, dynamic> envelope = r.json!;
       expect(envelope['type'], 'Observation');

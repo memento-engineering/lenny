@@ -1,9 +1,12 @@
 library;
 
+export 'package:leonard_contract/leonard_contract.dart'
+    show kLeonardExtensionPrefix, kLeonardProtocolVersion;
+
 export 'src/binding/leonard_app.dart'
     show LeonardApp, LeonardAppConfig, LeonardAppContext;
 export 'src/binding/leonard_binding.dart'
-    show LeonardBinding, kDefaultErrorBufferCapacity, kLeonardExtensionPrefix;
+    show LeonardBinding, kDefaultErrorBufferCapacity;
 export 'src/contract/extension.dart' show LeonardExtension;
 export 'src/core_tools/core_extension.dart'
     show CoreExtension, CoreToolError, CoreToolErrorCode;

@@ -63,7 +63,7 @@ void main() {
 
       final result = await client.handshake();
 
-      expect(fake.lastMethod, equals('ext.exploration.core.handshake'));
+      expect(fake.lastMethod, equals('ext.leonard.core.handshake'));
       expect(fake.lastIsolateId, equals('iso-1'));
       expect(result.contractVersion, equals('2'));
       expect(result.extensions, hasLength(1));
@@ -128,7 +128,7 @@ void main() {
   });
 
   group('VmServiceClient.executeAction / callExtension', () {
-    test('routes plugin tool calls to ext.exploration.<ns>.<tool>', () async {
+    test('routes plugin tool calls to ext.leonard.<ns>.<tool>', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
       );
@@ -138,21 +138,21 @@ void main() {
         'router.go',
         const <String, dynamic>{'route': '/home'},
       );
-      expect(fake.lastMethod, equals('ext.exploration.router.go'));
+      expect(fake.lastMethod, equals('ext.leonard.router.go'));
       // Each arg value is JSON-encoded on the wire so the binding's
       // `_tryDecode` round-trips nested values.
       expect(fake.lastArgs?['route'], equals('"/home"'));
       expect(act, equals(<String, dynamic>{'ok': true}));
     });
 
-    test('routes core tool calls to ext.exploration.core.<tool>', () async {
+    test('routes core tool calls to ext.leonard.core.<tool>', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{'ok': true}),
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await client.executeAction('core.tap', const <String, dynamic>{'id': 42});
-      expect(fake.lastMethod, equals('ext.exploration.core.tap'));
+      expect(fake.lastMethod, equals('ext.leonard.core.tap'));
       expect(fake.lastArgs?['id'], equals('42'));
     });
 
@@ -169,7 +169,7 @@ void main() {
           'target': 'home',
           'payload': <String, dynamic>{'k': 1},
         });
-        expect(fake.lastMethod, equals('ext.exploration.forms.fill'));
+        expect(fake.lastMethod, equals('ext.leonard.forms.fill'));
         expect(fake.lastArgs?['count'], equals('42'));
         expect(fake.lastArgs?['target'], equals('"home"'));
         expect(fake.lastArgs?['payload'], equals('{"k":1}'));
@@ -222,10 +222,10 @@ void main() {
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       await client.callExtension(
-        'ext.exploration.router.snapshot',
+        'ext.leonard.router.snapshot',
         const <String, dynamic>{},
       );
-      expect(fake.lastMethod, equals('ext.exploration.router.snapshot'));
+      expect(fake.lastMethod, equals('ext.leonard.router.snapshot'));
     });
 
     test('non-handshake extensions do NOT translate code -32601', () async {

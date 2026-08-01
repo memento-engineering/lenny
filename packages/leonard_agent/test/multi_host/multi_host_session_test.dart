@@ -33,19 +33,19 @@ void main() {
       // core.tap landed on A (and NOT B); native.tap landed on B (and NOT A).
       expect(
         vmA.calls.map((RecordedCall c) => c.method),
-        contains('ext.exploration.core.tap'),
+        contains('ext.leonard.core.tap'),
       );
       expect(
         vmA.calls.map((RecordedCall c) => c.method),
-        isNot(contains('ext.exploration.native.tap')),
+        isNot(contains('ext.leonard.native.tap')),
       );
       expect(
         vmB.calls.map((RecordedCall c) => c.method),
-        contains('ext.exploration.native.tap'),
+        contains('ext.leonard.native.tap'),
       );
       expect(
         vmB.calls.map((RecordedCall c) => c.method),
-        isNot(contains('ext.exploration.core.tap')),
+        isNot(contains('ext.leonard.core.tap')),
       );
     });
 

@@ -1,14 +1,14 @@
 # leonard_host
 
 A pure-Dart VM-service host for Leonard. `ExplorationHost` exposes a set of
-`leonard_contract` extensions over the same `ext.exploration.*` VM-service
+`leonard_contract` extensions over the same `ext.leonard.*` VM-service
 surface the Flutter binding hosts — minus the Flutter-only core fragment
 (semantics / routes / screenshot) — so a non-Flutter Dart program can be
 perceived and driven live by `leonard_cli` / `leonard_drive`.
 
 ```dart
 final host = ExplorationHost(extensions: [MyExtension()]);
-await host.install(); // registers ext.exploration.core.handshake,
+await host.install(); // registers ext.leonard.core.handshake,
                       // core.get_stable_observation, and a per-tool extension.
 ```
 

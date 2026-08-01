@@ -78,7 +78,7 @@ void main() {
         expect(fake.callCount, equals(1));
         expect(
           fake.lastMethod,
-          equals('ext.exploration.core.get_stable_observation'),
+          equals('ext.leonard.core.get_stable_observation'),
         );
         expect(fake.lastArgs, containsPair('policy', 'action-relative'));
         expect(obs.core.nodes.keys, equals(<int>{1}));

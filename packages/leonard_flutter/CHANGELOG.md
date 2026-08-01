@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: VM-service methods now use `ext.leonard.*`. Construct names with
+  `kLeonardExtensionPrefix` from `leonard_contract`.
+- The binding emits `kLeonardProtocolVersion` in its handshake.
+
 ## 0.1.8
 
 - Republish so the pub.dev archive actually carries `LeonardBinding.extensionsReady`
@@ -76,4 +82,4 @@
   observation pipeline (`PerceptionOwner`-backed serialization).
 - `LeonardExtension` authoring contract; core fragment is perception-native.
 - Ships the DevTools extension (the "Leonard" tab) via `extension/devtools/`.
-- VM-service surface `ext.exploration.*` (protocol-stable).
+- VM-service surface `ext.leonard.*` (protocol-stable).

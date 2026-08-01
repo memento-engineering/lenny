@@ -9,6 +9,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -20,9 +21,6 @@ import 'types.dart';
 /// returns when a service extension is not registered (i.e. the
 /// target app's `LeonardBinding` is absent).
 const int _kMethodNotFoundRpc = -32601;
-
-/// Service-extension method names exchanged with `LeonardBinding`.
-const String _extHandshake = 'ext.exploration.core.handshake';
 
 /// Typed VM-service client used by [LeonardSession].
 ///
@@ -99,14 +97,14 @@ class VmServiceClient {
     return VmServiceClient._(vm, id, ownsConnection: true);
   }
 
-  /// Exchange the `ext.exploration.core.handshake` contract
+  /// Exchange the `ext.leonard.core.handshake` contract
   /// version and active extension manifest.
   ///
   /// Throws [BindingNotInitializedError] when the extension is absent
   /// (RPC error code `-32601`, "method not found").
   Future<HandshakeResult> handshake() async {
     final Map<String, dynamic> json = await _safeCall(
-      _extHandshake,
+      '$kLeonardExtensionPrefix.core.handshake',
       const <String, dynamic>{},
     );
     final Object? rawVersion =
@@ -153,7 +151,7 @@ class VmServiceClient {
 
   /// Invoke the per-tool VM service extension that the binding registers
   /// via `ExtensionContext.registerExtension`:
-  /// `ext.exploration.<namespace>.<tool>`.
+  /// `ext.leonard.<namespace>.<tool>`.
   ///
   /// [name] must be the fully-qualified `<namespace>.<tool>` token that
   /// `buildExtensionTools` emits and `LoopHost.executeAction` documents
@@ -178,7 +176,7 @@ class VmServiceClient {
     }
     final String namespace = name.substring(0, dot);
     final String tool = name.substring(dot + 1);
-    final String ext = 'ext.exploration.$namespace.$tool';
+    final String ext = '$kLeonardExtensionPrefix.$namespace.$tool';
     final Map<String, dynamic> encoded = <String, dynamic>{
       for (final MapEntry<String, dynamic> e in args.entries)
         e.key: jsonEncode(e.value),
@@ -215,7 +213,8 @@ class VmServiceClient {
       );
       return r.json ?? const <String, dynamic>{};
     } on RPCError catch (e) {
-      if (ext == _extHandshake && e.code == _kMethodNotFoundRpc) {
+      if (ext == '$kLeonardExtensionPrefix.core.handshake' &&
+          e.code == _kMethodNotFoundRpc) {
         throw BindingNotInitializedError();
       }
       rethrow;

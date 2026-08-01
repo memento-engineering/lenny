@@ -112,11 +112,11 @@ void main() {
               String,
               Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
             >{
-              'ext.exploration.router.navigate': (args) async {
+              'ext.leonard.router.navigate': (args) async {
                 final String? raw = args?['route_name'] as String?;
                 return <String, dynamic>{'ok': true, 'value': raw};
               },
-              'ext.exploration.core.tap': (args) async {
+              'ext.leonard.core.tap': (args) async {
                 final Object? nodeId = args?['node_id'];
                 return <String, dynamic>{'ok': true, 'node_id': nodeId};
               },
@@ -186,7 +186,7 @@ void main() {
               String,
               Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
             >{
-              'ext.exploration.router.navigate': (args) async {
+              'ext.leonard.router.navigate': (args) async {
                 final String? raw = args?['route_name'] as String?;
                 return <String, dynamic>{'ok': true, 'value': raw};
               },
@@ -245,7 +245,7 @@ void main() {
               String,
               Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
             >{
-              'ext.exploration.core.tap': (args) async {
+              'ext.leonard.core.tap': (args) async {
                 final Object? nodeId = args?['node_id'];
                 return <String, dynamic>{'ok': true, 'node_id': nodeId};
               },
