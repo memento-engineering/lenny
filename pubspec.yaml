@@ -18,6 +18,7 @@ workspace:
   - packages/leonard_native
 
 dev_dependencies:
+  coverage: ^1.15.1
   melos: ^7.7.0
 
 melos:
