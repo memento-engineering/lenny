@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Bump `genesis_perception` to `^0.2.0` (the genesis builder wave). No API
+  changes in this package; the perception wire contract is unchanged.
+
 ## 0.2.0
 
 - Breaking: VM-service methods now use `ext.leonard.*`. Construct names with
