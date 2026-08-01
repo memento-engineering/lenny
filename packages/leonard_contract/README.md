@@ -15,6 +15,6 @@ Contains:
   dispatch helpers.
 
 Perception is pull-free: `buildPerception()` is a **synchronous** read of state
-kept current by an out-of-band watcher (genesis ADR-0006) — never make it async.
+kept current by an out-of-band watcher — never make it async.
 
 Pre-1.0 and experimental; APIs may change before 1.0.

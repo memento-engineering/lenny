@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Breaking: `leonard_drive` speaks the `ext.leonard.*` VM-service namespace
+  (protocol version 2). Target apps must run `leonard_*` 0.2.0 — a 0.1.x app
+  still registers `ext.exploration.*` and will not answer the handshake.
+
 ## 0.1.5
 
 - Bundled `AGENTS.md` template documents the perception `identifier` / `value`
