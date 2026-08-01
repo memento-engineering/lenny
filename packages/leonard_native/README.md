@@ -42,3 +42,38 @@ Args:
 - `--udid <udid>` — booted simulator udid (required)
 - `--app <path>` — path to the `.app` bundle (required)
 - `--platform ios` — target platform (default `ios`)
+
+## Mutation-testing pilot
+
+Mutation score is this pilot's primary test-quality metric: it measures the
+share of generated behavior changes detected by assertions. Line coverage is
+used only to skip instrumented lines with zero hits.
+
+From the workspace root, size the run before spending the full mutation cost:
+
+    ./tool/run_mutation_pilot.sh dry
+
+The measured mutant count is recorded in
+`artifacts/mutation/leonard_native/dry/console.txt`. Then run the calibration:
+
+    ./tool/run_mutation_pilot.sh full
+
+If `artifacts/coverage/leonard_native.lcov` exists, the runner supplies a
+package-relative copy to `mutation_test`; if it is absent, all candidate lines
+remain eligible. The human report is
+`artifacts/mutation/leonard_native/full/mutation-test-report.html`. The stable
+machine-readable score and survivor data are in
+`artifacts/mutation/leonard_native/full/mutation-test-report.xml`; JUnit,
+XUnit, and Markdown reports are emitted beside it.
+
+This pilot is informational. It defines no score threshold and is not a pull
+request gate. Future pull-request experiments may pass changed production Dart
+files as positional inputs, while a fuller sweep rotates separately. Parsing
+the XML into the external `tg-5drf.2` ledger projection is owned by that metrics
+work and is outside this pilot.
+
+`leonard_native` is pure Dart. An arbitrary test command can be configured in
+XML, but `flutter test` compatibility has not been verified, so this result
+does not establish mutation testing for Flutter packages. The deferred
+`lenny-mab` flake is outside this package and does not corrupt this baseline;
+it must be cleared before mutation expands to `leonard_devtools`.
