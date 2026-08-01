@@ -13,7 +13,7 @@ This is the native analogue of `leonard_tmux`:
 | `TmuxObservation` | `NativeSnapshot` |
 | `TmuxPerception` | `NativePerception` |
 | `TmuxClient` seam | `NativeBackend` seam |
-| `ProcessTmuxExecutor` | `AppiumBackend` |
+| `ProcessTmuxExecutor` | `XcuiTestBackend` |
 
 `NativeExtension` exposes four tools — `native.tap`, `native.enter_text`,
 `native.press`, `native.swipe` — and projects the a11y tree into the

@@ -1,7 +1,7 @@
 /// `UiAutomator2Backend` — the concrete [NativeBackend] over W3C WebDriver HTTP
 /// against a local Appium server running the **UiAutomator2** driver (Android).
 ///
-/// The additive Android sibling of `AppiumBackend` (seam contract,
+/// The Android sibling of `XcuiTestBackend` (seam contract,
 /// `native_backend.dart`). The generic W3C transport (session, `/element` find,
 /// the 4-tier resolve chain, pointer-action tap/swipe) is identical to the iOS
 /// impl; only the Android divergences live here, per the seam's "all platform
@@ -247,7 +247,7 @@ class UiAutomator2Backend implements NativeBackend {
 
   /// Parse a raw UiAutomator2 `/source` XML document into the flattened,
   /// filtered list of [NativeNode]s in document order. Exposed for the parser
-  /// unit test — the Android analogue of `AppiumBackend.parseSource`.
+  /// unit test — the Android analogue of `XcuiTestBackend.parseSource`.
   @visibleForTesting
   List<NativeNode> parseSource(String xml) => _parseSource(xml);
 

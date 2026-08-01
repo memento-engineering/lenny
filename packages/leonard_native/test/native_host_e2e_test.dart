@@ -4,9 +4,9 @@
 /// `leonard_cli` / `leonard_drive` would — the native analogue of
 /// `leonard_tmux/test/host_e2e_test.dart`.
 ///
-/// This is the ONLY tier that proves `AppiumBackend`'s real W3C wiring: the
+/// This is the ONLY tier that proves `XcuiTestBackend`'s real W3C wiring: the
 /// `POST /alert/accept` consent path, the masked secure-field readback, and the
-/// per-platform keyboard dismiss inside `AppiumBackend.enterText`.
+/// iOS keyboard dismiss inside `XcuiTestBackend.enterText`.
 ///
 /// Self-skips (one skipped test, no new tag — mirroring the tmux/dogfood
 /// precedents) when the live tier is absent. The live tier needs ALL of:

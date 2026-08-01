@@ -1,5 +1,4 @@
-/// `AppiumBackend` — the concrete [NativeBackend] over W3C WebDriver HTTP
-/// against a local Appium server running XCUITest (iOS).
+/// `XcuiTestBackend` — Appium W3C WebDriver using the XCUITest driver.
 ///
 /// Verified against Appium 3.5.2 + appium-xcuitest-driver 11.12.2, Xcode 26.5,
 /// iOS 26 sim. All device latency (WebDriver round-trips, `/source` polling)
@@ -9,9 +8,9 @@
 /// Hardening applied (m2-spec §5.5): B5 (`_unwrap` honors HTTP status +
 /// non-JSON bodies → [NativeException], never `FormatException`), FN3
 /// (`enterText` masked flag is element-type-derived, NOT `readback != text`),
-/// FN4 (`readValue` branches iOS `attribute/value` vs Android `attribute/text`),
-/// B6 (Android keyboard dismiss is non-fatal), B8 (`udid`/`app` required, no
-/// `bundleId`/`deviceName` caps), plus the skeleton-lift deletions: the
+/// FN4 (`readValue` uses the fixed `attribute/value` route), B8 (`udid`/`app`
+/// required, no `bundleId`/`deviceName` caps), plus the skeleton-lift
+/// deletions: the
 /// xpath-based "Continue" consent find is GONE — consent is
 /// `POST /session/{id}/alert/accept` (`press('consent_accept')`), because the
 /// SpringBoard consent is not in `/source`.
@@ -32,13 +31,12 @@ const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
 
 /// Drives a native iOS app over a local Appium server (W3C WebDriver +
 /// XCUITest).
-class AppiumBackend implements NativeBackend {
+class XcuiTestBackend implements NativeBackend {
   /// Constructs a backend targeting [udid] + [app] on [server] (default
   /// `http://127.0.0.1:4723`). The backend does NOT spawn Appium or boot the
-  /// simulator — both must already be running.
-  AppiumBackend({
+  /// simulator — both must already be running. [platform] is fixed to `ios`.
+  XcuiTestBackend({
     Uri? server,
-    required this.platform,
     required this.udid,
     required this.app,
     this.osVersion = '26',
@@ -50,8 +48,8 @@ class AppiumBackend implements NativeBackend {
   /// The local Appium server URL.
   final Uri server;
 
-  /// Target platform — `ios` for m2 (`android` deferred).
-  final String platform;
+  /// Fixed platform tag emitted on every [NativeSnapshot].
+  final String platform = 'ios';
 
   /// The booted simulator udid.
   final String udid;
@@ -70,8 +68,6 @@ class AppiumBackend implements NativeBackend {
   /// The active W3C session id, or null before [connect] / after [close].
   String? _sessionId;
 
-  bool get _ios => platform == 'ios';
-
   // ---------------------------------------------------------------------------
   // Transport (lifted from the skeleton WITH the B5 hardening).
   // ---------------------------------------------------------------------------
@@ -81,6 +77,10 @@ class AppiumBackend implements NativeBackend {
   /// Throws [NativeException] (never `StateError`) when no session is open.
   String get _sid =>
       _sessionId ?? (throw NativeException('no session: call connect() first'));
+
+  void _requireSession() {
+    _sid;
+  }
 
   Future<Map<String, Object?>> _post(String path, Object body) async {
     final http.Response r = await _client.post(
@@ -470,16 +470,15 @@ class AppiumBackend implements NativeBackend {
     // `readback != text` — the latter false-positives on OS normalization.
     final bool masked = await _isSecureField(eid);
     final String readback = await _readValue(eid);
-    // Per-platform keyboard dismiss, INSIDE the backend (kept off the seam).
+    // iOS keyboard dismiss, INSIDE the backend (kept off the seam).
     await _dismissKeyboard();
     return (readback: readback, masked: masked);
   }
 
-  /// FN4: iOS reads `attribute/value`; Android reads `attribute/text`.
+  /// FN4: XCUITest reads `attribute/value`.
   Future<String> _readValue(String eid) async {
-    final String attr = _ios ? 'value' : 'text';
     final Map<String, Object?> j = await _get(
-      '/session/$_sid/element/$eid/attribute/$attr',
+      '/session/$_sid/element/$eid/attribute/value',
     );
     return (j['value'] ?? '').toString();
   }
@@ -492,7 +491,6 @@ class AppiumBackend implements NativeBackend {
   /// `masked` always false on a live drive (breaks FN3 / AC9 / AC18). The
   /// element TYPE is what drives the masked flag.
   Future<bool> _isSecureField(String eid) async {
-    if (!_ios) return false;
     try {
       final Map<String, Object?> j = await _get(
         '/session/$_sid/element/$eid/attribute/type',
@@ -504,15 +502,10 @@ class AppiumBackend implements NativeBackend {
     }
   }
 
-  /// Per-platform keyboard dismiss. iOS 26 has no "Done" key (no-op); older iOS
-  /// taps "Done" when present; Android backs out. Non-fatal (B6) — a dismiss
-  /// failure must never fail the type.
+  /// iOS-only keyboard dismiss. iOS 26 has no "Done" key (no-op); older iOS
+  /// taps "Done" when present. A dismiss failure must never fail the type.
   Future<void> _dismissKeyboard() async {
     try {
-      if (!_ios) {
-        await _post('/session/$_sid/back', const <String, Object?>{});
-        return;
-      }
       if (osVersion.contains('26')) return; // iOS 26 has no Done key
       final String? done = await _find(
         'accessibility id',
@@ -526,12 +519,13 @@ class AppiumBackend implements NativeBackend {
         );
       }
     } on Object {
-      // Non-fatal: dismiss is best-effort (may 404 on UIA2).
+      // Non-fatal: dismiss is best-effort.
     }
   }
 
   @override
   Future<void> press(String key) async {
+    _requireSession();
     switch (key) {
       case 'consent_accept':
         // iOS-only: the ASWebAuthenticationSession consent is a separate
@@ -550,14 +544,7 @@ class AppiumBackend implements NativeBackend {
       case 'enter':
       case 'return':
       case 'done':
-        // Inject a newline keystroke into the active element.
-        await _post('/session/$_sid/keys', <String, Object?>{
-          'value': <String>['\n'],
-        });
-        return;
-      case 'back':
-        if (_ios) throw NativeException('unknown press key: $key');
-        await _post('/session/$_sid/back', const <String, Object?>{});
+        await _dismissKeyboard();
         return;
       default:
         throw NativeException('unknown press key: $key');
