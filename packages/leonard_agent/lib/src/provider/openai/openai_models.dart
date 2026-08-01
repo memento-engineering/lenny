@@ -1,7 +1,7 @@
-/// OpenAI frontier model registry. Web-compatible.
+/// OpenAI frontier model registry for the dartantic backend. Web-compatible.
 ///
-/// Consumed by `OpenAiModelProvider`. Each entry advertises capabilities
-/// per-model so the host can default behaviour (vision, context window).
+/// Each entry advertises per-model capabilities so the host can default
+/// behaviour such as vision support and context-window size.
 library;
 
 import '../types.dart';

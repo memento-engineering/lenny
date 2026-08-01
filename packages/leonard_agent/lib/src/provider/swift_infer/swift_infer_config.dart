@@ -1,4 +1,4 @@
-/// Configuration for [SwiftInferModelProvider].
+/// Configuration values for the dartantic [SwiftInferChatModel] seam.
 ///
 /// Sampling defaults are tuned for Qwen3.6-35B-A3B thinking mode per
 /// PRD §16.3. Other MLX-served models will require different values.

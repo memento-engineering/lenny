@@ -26,8 +26,8 @@ const ModelCapabilities _anthropicVisionCaps = ModelCapabilities(
 const ModelCapabilities _swiftInferQwenCaps = ModelCapabilities(
   vision: true,
   preserveThinking: true,
-  // Matches the (now-deleted) hand-rolled SwiftInferModelProvider, which
-  // advertised 128000; the seam reads capabilities from this lookup.
+  // Preserves the 128000-token capability established for the swift-infer
+  // dartantic seam; capability discovery reads this registry.
   maxContext: 128000,
   supportsToolUse: true,
 );
