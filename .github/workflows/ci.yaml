@@ -12,13 +12,24 @@ jobs:
         with:
           flutter-version: '3.41.4'
           channel: 'stable'
-      - name: Install lcov
-        run: sudo apt-get update && sudo apt-get install -y lcov
       - run: flutter pub get
       - run: dart pub global activate melos
       - run: ./tool/build_devtools_extension.sh
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
+      - run: melos run test --no-select
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+      - run: flutter pub get
+      - run: dart pub global activate melos
       - name: Collect test coverage
         run: ./tool/collect_coverage.sh
       - name: Validate lcov reports
