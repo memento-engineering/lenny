@@ -23,6 +23,20 @@ File _fixture() {
   fail('auth0_source.xml fixture not found from cwd ${Directory.current.path}');
 }
 
+File _appiumBackendSource() {
+  for (final String p in <String>[
+    'lib/src/appium_backend.dart',
+    'packages/leonard_native/lib/src/appium_backend.dart',
+  ]) {
+    final File f = File(p);
+    if (f.existsSync()) return f;
+  }
+  fail(
+    'appium_backend.dart source not found from cwd '
+    '${Directory.current.path}',
+  );
+}
+
 NativeNode _byLabel(List<NativeNode> nodes, String label) =>
     nodes.firstWhere((NativeNode n) => n.label == label);
 
@@ -38,6 +52,13 @@ void main() {
     nodes = backend.parseSource(_fixture().readAsStringSync());
     // Free the http.Client the constructor opened.
     backend.close();
+  });
+
+  test('Appium backend source uses escaped NUL separators', () {
+    final List<int> sourceBytes = _appiumBackendSource().readAsBytesSync();
+
+    expect(sourceBytes, isNot(contains(0x00)));
+    expect(String.fromCharCodes(sourceBytes).split(r'\u0000').length - 1, 3);
   });
 
   test('flattens the a11y tree to the real controls in document order', () {

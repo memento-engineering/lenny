@@ -262,8 +262,8 @@ class AppiumBackend implements NativeBackend {
       typeCount[type] = idx;
       typeIndex[el] = idx;
       if (name != null) {
-        nameCountByType['$type $name'] =
-            (nameCountByType['$type $name'] ?? 0) + 1;
+        nameCountByType['$type\u0000$name'] =
+            (nameCountByType['$type\u0000$name'] ?? 0) + 1;
       }
     }
 
@@ -313,7 +313,7 @@ class AppiumBackend implements NativeBackend {
     Map<XmlElement, int> typeIndex,
     Map<String, int> nameCountByType,
   ) {
-    if (name != null && (nameCountByType['$type $name'] ?? 0) == 1) {
+    if (name != null && (nameCountByType['$type\u0000$name'] ?? 0) == 1) {
       return "//$type[@name='$name']";
     }
     return '(//$type)[${typeIndex[el]}]';
