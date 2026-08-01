@@ -5,7 +5,7 @@ library;
 import 'package:leonard_agent/leonard_agent.dart';
 import 'package:test/test.dart';
 
-import '_fakes.dart';
+import '../support/multi_host_fakes.dart';
 
 void main() {
   group('handshake union (AC3, AC4)', () {

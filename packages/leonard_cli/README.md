@@ -75,7 +75,7 @@ curl "$SWIFT_INFER_ENDPOINT/v1/conversations/leonard-cli-…"
 
 ## Nightly dogfood
 
-The nightly e2e test (`packages/leonard_agent/test/e2e/dogfood_e2e_test.dart`) is
+The nightly e2e test (`packages/leonard_agent/integration_test/dogfood/dogfood_e2e_test.dart`) is
 self-pinned to local inference via its own `SwiftInferConfig` construction and does not
 depend on `leonard_cli`'s `--model` default. The launchagent that runs the nightly
 test (`scripts/launchd/run-dogfood.sh`) invokes `dart test` directly on the e2e test

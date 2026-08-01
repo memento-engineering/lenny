@@ -1,7 +1,7 @@
 /// Library entrypoint for the agent dogfood harness.
 ///
 /// Construction takes a caller-supplied [VmService] (the test wires it
-/// to a `BindingVmServiceFake` from `test/_support/`; the CLI does the
+/// to a `BindingVmServiceFake` from `test/support/`; the CLI does the
 /// same), a [SwiftInferConfig], the goal text, the tool descriptors
 /// the model can call, an [ObservationFixture], wall-clock budgets,
 /// and a [TrajectorySink] receiving the dogfood JSONL trace records.
@@ -594,7 +594,7 @@ class _NoopSink implements TrajectorySink {
 /// Test-only factory exposing the file-private
 /// [_DogfoodInterceptingTrajectoryWriter] as a [TrajectoryWriter]. The
 /// harness has no `http.Client` or `ModelProvider` injection seam (see
-/// `observation_fixture_e2e_test.dart` for the rationale), so unit
+/// `observation_fixture_integration_test.dart` for the rationale), so unit
 /// tests cannot drive a successful turn through `run()` without a
 /// real swift-infer. This entry point lets a unit test construct the
 /// interceptor over a [DogfoodTraceWriter] writing to a memory sink

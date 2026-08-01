@@ -7,7 +7,7 @@ the manual, reproducible version of the 2026-05-31 milestone run (tap "Sign In" 
 the end of a `/harden` cycle.
 
 > **Not the same as `melos run test:e2e`.** That is the *automated* dogfood e2e
-> (`packages/leonard_agent/test/e2e/dogfood_e2e_test.dart`): fixture-driven, runs against a
+> (`packages/leonard_agent/integration_test/dogfood/dogfood_e2e_test.dart`): fixture-driven, runs against a
 > **swift-infer** endpoint, no device, env-gated on `SWIFT_INFER_ENDPOINT`/`SWIFT_INFER_AGENT_TOKEN`,
 > and self-skips when unset. It's a CI/regression check of the provider+harness, not a live drive of
 > the app. See §7. **This runbook is the on-device drive.**
@@ -138,7 +138,7 @@ the turn's `observation.core`, and the `[model]` line. That capture is the seed 
 export SWIFT_INFER_ENDPOINT=...   # base URL
 export SWIFT_INFER_AGENT_TOKEN=... # bearer
 melos run test:e2e
-# == dart test packages/leonard_agent/test/e2e/dogfood_e2e_test.dart
+# == dart test packages/leonard_agent/integration_test/dogfood/dogfood_e2e_test.dart
 ```
 
 Fixture-driven, three canonical scenarios (`happyPathDarkMode`, `unknownToolNameSurvives`,

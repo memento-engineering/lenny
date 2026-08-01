@@ -6,9 +6,9 @@
 /// everything else falls through to `invokeServiceExtension`).
 ///
 /// Hoisted from three sibling clones:
-///   - `packages/leonard_flutter/test/binding_e2e_integration_test.dart` (origin)
+///   - `packages/leonard_flutter/test/unit/binding/binding_integration_test.dart` (origin)
 ///   - `packages/leonard_agent/test/integration/provider_loop_integration_test.dart`
-///   - `packages/leonard_agent/test/_support/binding_vm_service_fake.dart`
+///   - `packages/leonard_agent/test/support/leonard_vm_service_fake.dart`
 ///
 /// Lives under `lib/test_support/` so it's importable as
 /// `package:leonard_flutter/test_support/binding_vm_service_fake.dart`
