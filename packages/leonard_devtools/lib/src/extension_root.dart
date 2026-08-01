@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'leonard_shell.dart';
+import 'diagnostics/diagnostics_snapshot.dart';
 import 'manifest_probe.dart' show ManifestProbe;
 import 'panels/prompt_panel_config_store.dart' show PromptPanelConfigStore;
 import 'panels/prompt_panel_controller.dart' show SessionFactory;
@@ -32,6 +33,9 @@ abstract class LeonardDevToolsScope {
 
   /// Builds the in-panel session over the live VM service.
   SessionFactory get sessionFactory;
+
+  /// Loads the current Genesis diagnostics snapshot.
+  DiagnosticsSnapshotLoader get diagnosticsSnapshotLoader;
 
   /// Fires on (re)connect and on main-isolate change, so the shell
   /// re-probes the extension manifest.
@@ -84,6 +88,7 @@ class LeonardExtensionRoot extends StatelessWidget {
         return LeonardShell(
           manifestProbe: scope.manifestProbe,
           sessionFactory: scope.sessionFactory,
+          diagnosticsSnapshotLoader: scope.diagnosticsSnapshotLoader,
           store: scope.providerConfigStore,
           promptConfigStore: scope.promptConfigStore,
           probeRetrigger: scope.probeRetrigger,

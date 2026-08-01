@@ -14,7 +14,7 @@ typedef DtdWriteString = Future<void> Function(Uri uri, String contents);
 ///
 /// DTD has no append primitive, so each [writeLine] reads the existing file
 /// and writes back the concatenation; this preserves the per-record flush
-/// invariant required by `TrajectoryWriter` while staying free of `dart:io`
+/// invariant required by `TrajectoryWriter` while remaining web-compatible
 /// (the DevTools panel runs in a browser).
 class DtdTrajectorySink implements TrajectorySink {
   /// Construct from raw read/write callbacks. Tests use this directly.

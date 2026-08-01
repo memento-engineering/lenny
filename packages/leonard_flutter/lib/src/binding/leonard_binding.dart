@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:ui' show ErrorCallback, PlatformDispatcher;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide DiagnosticsProperty;
 import 'package:flutter/widgets.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 import 'package:leonard_contract/leonard_contract.dart'
@@ -82,6 +82,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// Test-only override of the widget-tree root used by the diagnostics
   /// walker. When null, falls back to `WidgetsBinding.instance.rootElement`.
   DiagnosticsRootProvider? _diagnosticsRootProviderForTesting;
+
+  /// Byte budget applied to the on-demand diagnostics projection served
+  /// by `ext.leonard.core.get_diagnostics_tree`. Defaults to
+  /// [kCoreBudgetBytes]; overridable via
+  /// [debugSetDiagnosticsBudgetForTesting].
+  int _diagnosticsBudgetBytes = kCoreBudgetBytes;
 
   /// Test-only override of [PolicyLoop]'s frame-wait function. When
   /// `null`, the loop awaits `SchedulerBinding.instance.endOfFrame`.
@@ -473,6 +479,22 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
           }
         },
       );
+      _registerExtension(
+        '$kLeonardExtensionPrefix.core.get_diagnostics_tree',
+        (String method, Map<String, String> parameters) async {
+          final TreeSnapshot snapshot = await _buildDiagnosticsTree();
+          final encoded = _budgetDiagnosticsTree(
+            snapshot,
+            _diagnosticsBudgetBytes,
+          );
+          return developer.ServiceExtensionResponse.result(
+            jsonEncode(<String, Object?>{
+              'diagnostics_tree': encoded.tree,
+              'truncated': encoded.truncated,
+            }),
+          );
+        },
+      );
     }
     if (kDebugMode || kProfileMode) {
       developer.registerExtension('$kLeonardExtensionPrefix.core.screenshot', (
@@ -740,6 +762,117 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     return <String, Object?>{...coreOut, 'extensions': extensionsOut};
   }
 
+  /// Builds the on-demand diagnostics projection served by
+  /// `ext.leonard.core.get_diagnostics_tree`.
+  ///
+  /// Captures the CURRENT core values without running the policy loop or
+  /// taking a screenshot, then projects the core perception tree and every
+  /// non-idle registry extension's perception tree — one shared UTC
+  /// timestamp for all `projectPerceptionTree` calls — repeating the hot
+  /// path's `prepareForObservation` → idle gate → mount/build
+  /// failure-isolation order.
+  Future<TreeSnapshot> _buildDiagnosticsTree() async {
+    final DateTime projectedAt = DateTime.now().toUtc();
+    final StabilityMetadata stability = StabilityMetadata(
+      policy: StabilityPolicy.actionRelative,
+      terminatedBy: TerminatedBy.idle,
+      durationMs: 0,
+      frameworkBusy: frameworkBusySnapshot().toJson(),
+      extensionsBusy: const <ExtensionBusy>[],
+    );
+    final CoreFragmentValues coreValues = await computeCoreFragmentValues(
+      captureSemantics: _semanticsCapture.captureAsync,
+      errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
+      stability: stability,
+      includeScreenshot: false,
+      captureScreenshot: null,
+      errorCursor: null,
+    );
+    _perceptionOwner.unmountRoot();
+    final Branch coreRoot = _perceptionOwner.mountRoot(
+      buildCorePerceptionSeed(
+        semantics: coreValues.semantics,
+        routes: coreValues.routes,
+        errors: coreValues.errors,
+        stability: coreValues.stability,
+        screenshot: null,
+      ),
+    );
+    final TreeSnapshot core = projectPerceptionTree(
+      coreRoot,
+      projectedAt: projectedAt,
+    );
+    final List<TreeNode> children = <TreeNode>[core.root];
+    for (final LeonardExtension extension in _extensionRegistry.extensions) {
+      if (extension is! PerceptionExtension) continue;
+      try {
+        extension.prepareForObservation();
+        if (extension.isPerceptionIdle()) continue;
+        _perceptionOwner.unmountRoot();
+        final Branch root = _perceptionOwner.mountRoot(
+          extension.buildPerception(),
+        );
+        children.add(
+          projectPerceptionTree(root, projectedAt: projectedAt).root,
+        );
+      } catch (error, stack) {
+        developer.log(
+          'extension ${extension.namespace} threw during diagnostics: '
+          '$error\n$stack',
+          name: 'exploration',
+        );
+      }
+    }
+    return TreeSnapshot(
+      contractVersion: core.contractVersion,
+      projectedAt: projectedAt,
+      root: TreeNode(
+        seedType: 'LeonardObservation',
+        id: 'leonard:observation',
+        properties: const <DiagnosticsProperty>[],
+        children: children,
+      ),
+    );
+  }
+
+  /// Applies [budget] (bytes, via [encodeWithBudget] — the byte-count
+  /// authority) to [snapshot]. When the full snapshot fits, returns it
+  /// untruncated. Otherwise drops complete extension subtrees from the
+  /// TAIL until the contract remains decodable and within budget. A
+  /// root-only snapshot that still cannot fit is refused loudly.
+  ({Map<String, Object?> tree, bool truncated}) _budgetDiagnosticsTree(
+    TreeSnapshot snapshot,
+    int budget,
+  ) {
+    final BudgetedJson full = encodeWithBudget(snapshot.toJson(), budget);
+    if (!full.truncated) {
+      return (
+        tree: jsonDecode(full.json) as Map<String, Object?>,
+        truncated: false,
+      );
+    }
+    TreeSnapshot partial = snapshot.copyWith(
+      root: snapshot.root.copyWith(children: const <TreeNode>[]),
+    );
+    if (encodeWithBudget(partial.toJson(), budget).truncated) {
+      throw StateError('diagnostics root exceeds $budget-byte budget');
+    }
+    for (final TreeNode child in snapshot.root.children) {
+      final TreeSnapshot candidate = partial.copyWith(
+        root: partial.root.copyWith(
+          children: <TreeNode>[...partial.root.children, child],
+        ),
+      );
+      if (encodeWithBudget(candidate.toJson(), budget).truncated) break;
+      partial = candidate;
+    }
+    final BudgetedJson encoded = encodeWithBudget(partial.toJson(), budget);
+    return (
+      tree: jsonDecode(encoded.json) as Map<String, Object?>,
+      truncated: true,
+    );
+  }
+
   /// Registers [callback] both with `dart:developer` and in our local
   /// registry so [invokeServiceExtension] can dispatch without going
   /// through the VM service.
@@ -812,6 +945,19 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   ) {
     _diagnosticsRootProviderForTesting = provider;
     _cachedDiagnostics = null;
+  }
+
+  /// Test-only: override the byte budget applied to the on-demand
+  /// diagnostics projection (`ext.leonard.core.get_diagnostics_tree`).
+  /// Production always runs with [kCoreBudgetBytes]; tests lower it to
+  /// force truncation, and MUST restore it (pass [kCoreBudgetBytes])
+  /// when done. Rejects non-positive values.
+  @visibleForTesting
+  void debugSetDiagnosticsBudgetForTesting(int bytes) {
+    if (bytes <= 0) {
+      throw ArgumentError.value(bytes, 'bytes', 'must be > 0');
+    }
+    _diagnosticsBudgetBytes = bytes;
   }
 
   /// Test-only: install overrides for the [PolicyLoop]'s frame-wait and

@@ -2,6 +2,13 @@
 
 Host `WidgetsBinding` for Leonard.
 
+A plain `leonard_flutter` dependency automatically discovers one Leonard
+DevTools extension with Conversation and Diagnostics modes. Diagnostics
+requests a Genesis diagnostics contract 1 projection
+(`ext.leonard.core.get_diagnostics_tree`) only while its panel is open;
+no adopter dependency on `leonard_devtools` or `genesis_foundation` is
+required.
+
 ## Usage
 
 ```dart

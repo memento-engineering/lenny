@@ -66,4 +66,32 @@ void main() {
     expect(source, contains('serviceManager.connectedState'));
     expect(source, contains('serviceManager.isolateManager.mainIsolate'));
   });
+
+  test(
+    '_loadDiagnosticsSnapshot borrows the DevTools VM connection and '
+    'calls the on-demand sibling only',
+    () {
+      final String body = _loadDiagnosticsSnapshotBody(source);
+      expect(body, contains('serviceManager.service'));
+      expect(body, contains('mainIsolate'));
+      expect(body, contains('kLeonardExtensionPrefix'));
+      expect(body, contains('core.get_diagnostics_tree'));
+      // The diagnostics loader must NOT ride the observation hot path,
+      // pass stability-policy arguments, or open its own socket.
+      expect(body, isNot(contains('core.get_stable_observation')));
+      expect(body, isNot(contains('action-relative')));
+      expect(body, isNot(contains('vm_service_io.dart')));
+    },
+  );
+}
+
+/// Returns the source of `_loadDiagnosticsSnapshot`: from its declaration
+/// to the start of the next static member, so surrounding methods (the
+/// probe, the session factory) cannot mask a violation.
+String _loadDiagnosticsSnapshotBody(String source) {
+  const marker = '_loadDiagnosticsSnapshot() async {';
+  final start = source.indexOf(marker);
+  expect(start, isNonNegative, reason: '_loadDiagnosticsSnapshot not found');
+  final next = source.indexOf('static ', start + marker.length);
+  return next == -1 ? source.substring(start) : source.substring(start, next);
 }

@@ -5,12 +5,16 @@ import 'package:dtd/dtd.dart';
 import 'package:leonard_agent/leonard_agent.dart'
     show BindingNotInitializedError, LeonardSession, ExtensionManifestEntry;
 import 'package:flutter/material.dart';
+import 'package:genesis_foundation/genesis_foundation.dart';
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:json_rpc_2/json_rpc_2.dart' show RpcException;
+import 'package:vm_service/vm_service.dart' show Response;
 
 // ignore: deprecated_member_use
 import 'dart:html' show window;
 
 import 'src/extension_root.dart';
+import 'src/diagnostics/diagnostics_snapshot.dart';
 import 'src/manifest_probe.dart' show ManifestProbe, probeManifest;
 import 'src/panels/prompt_panel_config_store.dart'
     show DtdPromptPanelConfigStore, PromptPanelConfigStore;
@@ -37,9 +41,8 @@ void main() => runApp(const LeonardDevToolsExtension());
 /// enforces at the source level.
 ///
 /// The DevTools extension is a Flutter **web** build, so it must never
-/// open its own VM-service websocket (`package:vm_service/vm_service_io.dart`
-/// pulls in `dart:io`, which throws `Unsupported operation: Platform._version`
-/// on web). Instead the manifest probe and the Start-button session both
+/// open its own VM-service websocket (which is unsupported on web). Instead
+/// the manifest probe and the Start-button session both
 /// reuse the live, web-safe connection DevTools already holds:
 /// `serviceManager.service` (a `package:web` JS websocket) pinned to
 /// `serviceManager.isolateManager.mainIsolate`.
@@ -99,10 +102,34 @@ class _LiveDevToolsScope implements LeonardDevToolsScope {
   @override
   SessionFactory get sessionFactory => _session;
 
+  @override
+  DiagnosticsSnapshotLoader get diagnosticsSnapshotLoader =>
+      _loadDiagnosticsSnapshot;
+
+  /// Loads one on-demand diagnostics snapshot over the borrowed DevTools
+  /// VM connection — the sibling extension, no policy arguments.
+  static Future<TreeSnapshot> _loadDiagnosticsSnapshot() async {
+    final vm = serviceManager.service;
+    final String? isolateId =
+        serviceManager.isolateManager.mainIsolate.value?.id;
+    if (vm == null || isolateId == null) {
+      throw StateError('VM service / main isolate not available');
+    }
+    final Response response = await vm.callServiceExtension(
+      '$kLeonardExtensionPrefix.core.get_diagnostics_tree',
+      isolateId: isolateId,
+    );
+    return decodeDiagnosticsSnapshot(
+      Map<String, Object?>.from(
+        response.json ?? const <String, Object?>{},
+      ),
+    );
+  }
+
   /// Loads the extension manifest over the live serviceManager VM
   /// service. When the service / main isolate aren't ready yet, throw
   /// BindingNotInitializedError → the host shows "Binding not detected"
-  /// rather than an uncaught dart:io crash; probeRetrigger re-runs it
+  /// rather than an uncaught platform crash; probeRetrigger re-runs it
   /// once they are.
   static Future<List<ExtensionManifestEntry>> _probe() async {
     final vm = serviceManager.service;

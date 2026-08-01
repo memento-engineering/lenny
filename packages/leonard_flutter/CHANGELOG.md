@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.2
+
+- feat: on-demand `ext.leonard.core.get_diagnostics_tree` diagnostics
+  extension. Projects the core + registered perception extensions to Genesis
+  diagnostics contract 1 only when requested (e.g. while the DevTools
+  Diagnostics panel is open) — `get_stable_observation`'s hot path is
+  unchanged and still carries no diagnostics tree. A plain `leonard_flutter`
+  dependency automatically discovers the bundled Leonard DevTools extension
+  with Conversation and Diagnostics modes; no adopter dependency on
+  `leonard_devtools` or `genesis_foundation` is required.
+
 ## 0.2.1
 
 - Bump `genesis_perception` to `^0.2.0` (the genesis builder wave). No API

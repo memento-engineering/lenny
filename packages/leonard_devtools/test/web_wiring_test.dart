@@ -11,6 +11,7 @@ import 'package:leonard_devtools/src/leonard_shell.dart';
 import 'package:leonard_devtools/src/manifest_probe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genesis_foundation/genesis_foundation.dart';
 import 'package:vm_service/vm_service.dart';
 
 /// Hand-rolled fake `VmService` — answers the handshake extension with
@@ -45,6 +46,9 @@ class _FakeVmService extends VmService {
 Future<LeonardSession> _noSession() async =>
     throw StateError('no session in this test');
 
+Future<TreeSnapshot> _noDiagnostics() async =>
+    throw StateError('no diagnostics in this test');
+
 void main() {
   testWidgets(
     'manifest probe built from probeManifest(fakeVmService, id) loads '
@@ -56,7 +60,11 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LeonardShell(manifestProbe: probe, sessionFactory: _noSession),
+          home: LeonardShell(
+            manifestProbe: probe,
+            sessionFactory: _noSession,
+            diagnosticsSnapshotLoader: _noDiagnostics,
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -79,7 +87,11 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: LeonardShell(manifestProbe: probe, sessionFactory: _noSession),
+        home: LeonardShell(
+          manifestProbe: probe,
+          sessionFactory: _noSession,
+          diagnosticsSnapshotLoader: _noDiagnostics,
+        ),
       ),
     );
     await tester.pumpAndSettle();

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+- feat: diagnostics tree inspector panel. The single shipped extension now
+  presents Conversation and Diagnostics modes; Diagnostics renders Genesis
+  diagnostics contract 1, loaded on demand over the existing DevTools VM
+  connection via `ext.leonard.core.get_diagnostics_tree` — only while the
+  panel is open. Apps need only a plain `leonard_flutter` dependency; no
+  adopter dependency on `leonard_devtools` or `genesis_foundation` is
+  required.
+
 ## 0.2.0
 
 - Breaking: the DevTools extension probes and consumes `ext.leonard.*`

@@ -1,5 +1,22 @@
 library;
 
+export 'src/diagnostics/diagnostics_panel.dart'
+    show
+        DiagnosticsPanel,
+        DiagnosticsPanelController,
+        DiagnosticsPanelState,
+        DiagnosticsLoading,
+        DiagnosticsLoaded,
+        DiagnosticsFailed;
+export 'src/diagnostics/diagnostics_snapshot.dart'
+    show DiagnosticsSnapshotLoader, decodeDiagnosticsSnapshot;
+export 'src/diagnostics/tree_snapshot_view.dart'
+    show
+        TreeSnapshotView,
+        diagnosticsPropertyValue,
+        diagnosticsLevelIcon,
+        diagnosticsLevelColor;
+
 export 'src/manifest_probe.dart'
     show
         ManifestProbe,
