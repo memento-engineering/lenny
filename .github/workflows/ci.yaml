@@ -69,6 +69,10 @@ jobs:
             prove_uncovered: 'true'
           - package: leonard_contract
             prove_uncovered: 'false'
+          # leonard_flutter is deliberately ABSENT from the nightly full
+          # sweep. Its suite costs ~11s per run under `flutter test` against
+          # 777 mutants — roughly 2.4 hours, every night. It is covered by
+          # the changed-file pr lane below until that is worth paying for.
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -99,11 +103,22 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [coverage]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        package: [leonard_native, leonard_contract]
+        include:
+          # `max_files` bounds the sweep by how expensive one mutant is.
+          # A pure-Dart suite runs in well under a second; leonard_flutter's
+          # costs ~11s under `flutter test`, so the same cap would blow the
+          # job timeout — and a timeout is a red job, which is exactly the
+          # noise gating-off is meant to remove.
+          - package: leonard_native
+            max_files: '5'
+          - package: leonard_contract
+            max_files: '5'
+          - package: leonard_flutter
+            max_files: '2'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,11 +134,12 @@ jobs:
         with:
           name: coverage-lcov
           path: artifacts/coverage
-      - name: Select at most five changed production Dart files
+      - name: Select changed production Dart files
         id: changed
         shell: bash
         env:
           PKG: ${{ matrix.package }}
+          MAX_FILES: ${{ matrix.max_files }}
         run: |
           mkdir -p "artifacts/mutation/$PKG/pr"
           # THREE-dot. A two-dot `base head` diff also reports files that
@@ -139,15 +155,17 @@ jobs:
               sed "s#^packages/$PKG/##" |
               sort -u
           )
-          selected=("${eligible[@]:0:5}")
+          selected=("${eligible[@]:0:$MAX_FILES}")
           printf '%s\n' "${selected[@]}" | sed '/^$/d' > "$RUNNER_TEMP/mutation-files.txt"
           count="$(wc -l < "$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
           echo "count=$count" >> "$GITHUB_OUTPUT"
           if (( count == 0 )); then
             echo "No eligible changed $PKG Dart files." |
               tee "artifacts/mutation/$PKG/pr/console.txt"
-          elif (( ${#eligible[@]} > 5 )); then
-            echo "Selected 5 of ${#eligible[@]} eligible files." |
+          elif (( ${#eligible[@]} > MAX_FILES )); then
+            # Never truncate silently — a capped sweep that reads as full
+            # coverage is worse than no sweep.
+            echo "Selected $MAX_FILES of ${#eligible[@]} eligible files; the rest were NOT swept." |
               tee "artifacts/mutation/$PKG/pr/selection.txt"
           fi
       - name: Run changed-file mutation sweep
@@ -156,18 +174,8 @@ jobs:
         env:
           PKG: ${{ matrix.package }}
         run: |
-          output_dir="$GITHUB_WORKSPACE/artifacts/mutation/$PKG/pr"
-          sed "s#^SF:packages/$PKG/#SF:lib/#" \
-            "artifacts/coverage/$PKG.lcov" \
-            > "$output_dir/$PKG.lcov"
           mapfile -t mutation_files < "$RUNNER_TEMP/mutation-files.txt"
-          cd "packages/$PKG"
-          dart test
-          dart run mutation_test \
-            --format all \
-            --output "$output_dir" \
-            --coverage "$output_dir/$PKG.lcov" \
-            "${mutation_files[@]}" 2>&1 | tee "$output_dir/console.txt"
+          ./tool/run_mutation_pilot.sh pr "$PKG" "${mutation_files[@]}"
       - name: Prove coverage input was applied
         if: steps.changed.outputs.count != '0'
         run: >-
