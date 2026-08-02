@@ -54,15 +54,149 @@ Future<NativeExtension> _initialized(FakeNativeBackend fake) async {
 }
 
 void main() {
-  test('exposes bare-token contract tools (registry adds the namespace)', () {
-    final NativeExtension ext = NativeExtension(_fake());
-    expect(ext.namespace, 'native');
-    expect(ext.tools.map((t) => t.name), <String>[
-      'tap',
-      'enter_text',
-      'press',
-      'swipe',
-    ]);
+  test('tool manifest snapshot includes schemas and defaults', () async {
+    final FakeNativeBackend fake = _fake();
+    final NativeExtension ext = NativeExtension(fake);
+    final LeonardTool swipe = ext.tools.firstWhere((t) => t.name == 'swipe');
+
+    final ToolResult result = await swipe.call(<String, Object?>{
+      'from': <int>[1, 2],
+      'to': <int>[3, 4],
+    });
+
+    expect(result.ok, isTrue);
+    final NativeSwipe gesture =
+        fake.calls.singleWhere((c) => c.name == 'swipe').detail! as NativeSwipe;
+    expect(
+      <Map<String, Object?>>[
+        for (final LeonardTool tool in ext.tools)
+          <String, Object?>{
+            'name': tool.name,
+            'description': tool.description,
+            'inputSchema': tool.inputSchema.raw,
+            'defaults': tool.name == 'swipe'
+                ? <String, Object?>{'duration_ms': gesture.durationMs}
+                : <String, Object?>{},
+          },
+      ],
+      <Map<String, Object?>>[
+        <String, Object?>{
+          'name': 'tap',
+          'description':
+              'Tap a native element. Resolve it by a11y id, label, XPath, or '
+              'rect (tried in that order; the winning tier is reported as '
+              '`via`).',
+          'inputSchema': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'id': <String, Object?>{
+                'type': 'string',
+                'description': 'a11y identifier (tier 1)',
+              },
+              'label': <String, Object?>{
+                'type': 'string',
+                'description': 'visible label (tier 2)',
+              },
+              'xpath': <String, Object?>{
+                'type': 'string',
+                'description':
+                    "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
+                    "address'] (tier 3)",
+              },
+              'rect': <String, Object?>{
+                'type': 'array',
+                'items': <String, Object?>{'type': 'integer'},
+                'description':
+                    '[l,t,r,b]; taps the center (tier 4, last resort)',
+              },
+            },
+            'additionalProperties': false,
+          },
+          'defaults': <String, Object?>{},
+        },
+        <String, Object?>{
+          'name': 'enter_text',
+          'description':
+              'Clear and type text into a native field, then dismiss the '
+              'keyboard. Returns the element-type-derived `masked` flag and '
+              'the `readback` value (a secure field reads back masked bullets, '
+              'never plaintext).',
+          'inputSchema': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'id': <String, Object?>{
+                'type': 'string',
+                'description': 'a11y identifier (tier 1)',
+              },
+              'label': <String, Object?>{
+                'type': 'string',
+                'description': 'visible label (tier 2)',
+              },
+              'xpath': <String, Object?>{
+                'type': 'string',
+                'description':
+                    "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
+                    "address'] (tier 3)",
+              },
+              'rect': <String, Object?>{
+                'type': 'array',
+                'items': <String, Object?>{'type': 'integer'},
+                'description':
+                    '[l,t,r,b]; taps the center (tier 4, last resort)',
+              },
+              'text': <String, Object?>{'type': 'string'},
+            },
+            'required': <String>['text'],
+            'additionalProperties': false,
+          },
+          'defaults': <String, Object?>{},
+        },
+        <String, Object?>{
+          'name': 'press',
+          'description':
+              'Issue a logical key press. Shared by iOS and Android: '
+              'enter/return/done. iOS-only: consent_accept/alert_dismiss '
+              '(consent_accept accepts the iOS sign-in consent alert; '
+              'alert_dismiss dismisses an iOS system alert, e.g. the Save '
+              'Password prompt). Android-only: back. An unrecognized key is a '
+              'structured error.',
+          'inputSchema': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'key': <String, Object?>{'type': 'string'},
+            },
+            'required': <String>['key'],
+            'additionalProperties': false,
+          },
+          'defaults': <String, Object?>{},
+        },
+        <String, Object?>{
+          'name': 'swipe',
+          'description':
+              'Swipe from one point to another (each [x,y] ints). Optional '
+              'duration_ms (default 300).',
+          'inputSchema': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'from': <String, Object?>{
+                'type': 'array',
+                'items': <String, Object?>{'type': 'integer'},
+                'description': '[x,y] start point',
+              },
+              'to': <String, Object?>{
+                'type': 'array',
+                'items': <String, Object?>{'type': 'integer'},
+                'description': '[x,y] end point',
+              },
+              'duration_ms': <String, Object?>{'type': 'integer'},
+            },
+            'required': <String>['from', 'to'],
+            'additionalProperties': false,
+          },
+          'defaults': <String, Object?>{'duration_ms': 300},
+        },
+      ],
+    );
   });
 
   test('idle before initialize; stateful perception after', () async {
@@ -349,11 +483,5 @@ void main() {
       fake.calls.any((c) => c.name == 'press' && c.detail == 'alert_dismiss'),
       isTrue,
     );
-  });
-
-  test('press tool description mentions alert_dismiss', () {
-    final NativeExtension ext = NativeExtension(_fake());
-    final LeonardTool press = ext.tools.firstWhere((t) => t.name == 'press');
-    expect(press.description, contains('alert_dismiss'));
   });
 }
