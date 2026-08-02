@@ -226,11 +226,17 @@ class ExtensionRegistry {
         '[Leonard] extension ${e.plugin.namespace} ${m.name} threw: '
         '$err\n$st',
       );
-      // Mutating `>=` to `==` here is an EQUIVALENT mutant, not a test gap:
-      // the disable at line 230 makes the line 217 guard return early on
-      // every later call, so `next` is never incremented past 3. Both
-      // operators fire on exactly the same input. Do not add a test chasing
-      // it — there is no behaviour to distinguish.
+      // Mutating `>=` to `==` here is an equivalent mutant: the disable
+      // below makes the guard above return early on every later call, so
+      // `next` never passes 3 and both operators fire on the same input.
+      //
+      // That equivalence is INCIDENTAL, not essential — it exists because
+      // `disabled` duplicates a fact `failures` already carries, which also
+      // makes `!e.disabled[m]!` here a dead conjunct (the guard above
+      // guarantees it) and leaves the threshold `3` repeated in the log
+      // string below. Extracting the strike policy would make `>=`
+      // load-bearing and killable. Tracked in lenny-xkwn; this comment is a
+      // stopgap, not a verdict that the shape is right.
       if (next >= 3 && !e.disabled[m]!) {
         e.disabled[m] = true;
         _log(
