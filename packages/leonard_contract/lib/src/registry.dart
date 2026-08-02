@@ -226,6 +226,11 @@ class ExtensionRegistry {
         '[Leonard] extension ${e.plugin.namespace} ${m.name} threw: '
         '$err\n$st',
       );
+      // Mutating `>=` to `==` here is an EQUIVALENT mutant, not a test gap:
+      // the disable at line 230 makes the line 217 guard return early on
+      // every later call, so `next` is never incremented past 3. Both
+      // operators fire on exactly the same input. Do not add a test chasing
+      // it — there is no behaviour to distinguish.
       if (next >= 3 && !e.disabled[m]!) {
         e.disabled[m] = true;
         _log(

@@ -57,6 +57,18 @@ jobs:
     needs: [coverage]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `prove_uncovered` asserts the lcov input actually narrowed the
+          # mutant set. It only holds for a package that still has uncovered
+          # lines; leonard_contract is near-fully covered, so a nonzero
+          # "Not covered by tests" count would be a false gate there.
+          - package: leonard_native
+            prove_uncovered: 'true'
+          - package: leonard_contract
+            prove_uncovered: 'false'
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -70,16 +82,17 @@ jobs:
           name: coverage-lcov
           path: artifacts/coverage
       - name: Run full mutation sweep
-        run: ./tool/run_mutation_pilot.sh full
+        run: ./tool/run_mutation_pilot.sh full ${{ matrix.package }}
       - name: Prove coverage input was applied
+        if: matrix.prove_uncovered == 'true'
         run: >-
           grep -Eq 'Not covered by tests: [1-9][0-9]*'
-          artifacts/mutation/leonard_native/full/console.txt
+          artifacts/mutation/${{ matrix.package }}/full/console.txt
       - name: Upload full mutation report
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-leonard-native-full
-          path: artifacts/mutation/leonard_native/full/
+          name: mutation-${{ matrix.package }}-full
+          path: artifacts/mutation/${{ matrix.package }}/full/
           if-no-files-found: error
           retention-days: 14
   mutation-pr:
