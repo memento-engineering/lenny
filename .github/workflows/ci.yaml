@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
@@ -48,6 +50,110 @@ jobs:
         with:
           name: coverage-lcov
           path: artifacts/coverage/*.lcov
+          if-no-files-found: error
+          retention-days: 14
+  mutation-nightly:
+    if: github.event_name == 'schedule'
+    needs: [coverage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      - run: flutter pub get
+      - name: Download coverage input
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-lcov
+          path: artifacts/coverage
+      - name: Run full mutation sweep
+        run: ./tool/run_mutation_pilot.sh full
+      - name: Prove coverage input was applied
+        run: >-
+          grep -Eq 'Not covered by tests: [1-9][0-9]*'
+          artifacts/mutation/leonard_native/full/console.txt
+      - name: Upload full mutation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-leonard-native-full
+          path: artifacts/mutation/leonard_native/full/
+          if-no-files-found: error
+          retention-days: 14
+  mutation-pr:
+    if: github.event_name == 'pull_request'
+    needs: [coverage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      - run: flutter pub get
+      - name: Download coverage input
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-lcov
+          path: artifacts/coverage
+      - name: Select at most five changed production Dart files
+        id: changed
+        shell: bash
+        run: |
+          mkdir -p artifacts/mutation/leonard_native/pr
+          mapfile -t eligible < <(
+            git diff --name-only --diff-filter=ACMR \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" |
+              grep -E '^packages/leonard_native/.*\.dart$' |
+              grep -Ev '^packages/leonard_native/(test|integration_test)/' |
+              sed 's#^packages/leonard_native/##' |
+              sort -u
+          )
+          selected=("${eligible[@]:0:5}")
+          printf '%s\n' "${selected[@]}" | sed '/^$/d' > "$RUNNER_TEMP/mutation-files.txt"
+          count="$(wc -l < "$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if (( count == 0 )); then
+            echo 'No eligible changed leonard_native Dart files.' |
+              tee artifacts/mutation/leonard_native/pr/console.txt
+          elif (( ${#eligible[@]} > 5 )); then
+            echo "Selected 5 of ${#eligible[@]} eligible files." |
+              tee artifacts/mutation/leonard_native/pr/selection.txt
+          fi
+      - name: Run changed-file mutation sweep
+        if: steps.changed.outputs.count != '0'
+        shell: bash
+        run: |
+          output_dir="$GITHUB_WORKSPACE/artifacts/mutation/leonard_native/pr"
+          sed 's#^SF:packages/leonard_native/#SF:lib/#' \
+            artifacts/coverage/leonard_native.lcov \
+            > "$output_dir/leonard_native.lcov"
+          mapfile -t mutation_files < "$RUNNER_TEMP/mutation-files.txt"
+          cd packages/leonard_native
+          dart test
+          dart run mutation_test \
+            --format all \
+            --output "$output_dir" \
+            --coverage "$output_dir/leonard_native.lcov" \
+            "${mutation_files[@]}" 2>&1 | tee "$output_dir/console.txt"
+      - name: Prove coverage input was applied
+        if: steps.changed.outputs.count != '0'
+        run: >-
+          grep -Eq 'Not covered by tests: [0-9]+'
+          artifacts/mutation/leonard_native/pr/console.txt
+      - name: Upload changed-file mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-leonard-native-pr-${{ github.event.pull_request.number }}
+          path: artifacts/mutation/leonard_native/pr/
           if-no-files-found: error
           retention-days: 14
   # Stable required-check name for branch protection. Pin protection to
