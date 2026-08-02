@@ -100,6 +100,10 @@ jobs:
     needs: [coverage]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [leonard_native, leonard_contract]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,15 +122,21 @@ jobs:
       - name: Select at most five changed production Dart files
         id: changed
         shell: bash
+        env:
+          PKG: ${{ matrix.package }}
         run: |
-          mkdir -p artifacts/mutation/leonard_native/pr
+          mkdir -p "artifacts/mutation/$PKG/pr"
+          # THREE-dot. A two-dot `base head` diff also reports files that
+          # main gained after this branch was cut -- the PR looks like it
+          # reverted them -- so unrelated packages get mutation-tested and
+          # someone else's score fails this job. Three-dot diffs against the
+          # merge-base, which is what "changed by this PR" means.
           mapfile -t eligible < <(
             git diff --name-only --diff-filter=ACMR \
-              "${{ github.event.pull_request.base.sha }}" \
-              "${{ github.event.pull_request.head.sha }}" |
-              grep -E '^packages/leonard_native/.*\.dart$' |
-              grep -Ev '^packages/leonard_native/(test|integration_test)/' |
-              sed 's#^packages/leonard_native/##' |
+              "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" |
+              grep -E "^packages/$PKG/.*\.dart$" |
+              grep -Ev "^packages/$PKG/(test|integration_test)/" |
+              sed "s#^packages/$PKG/##" |
               sort -u
           )
           selected=("${eligible[@]:0:5}")
@@ -134,39 +144,41 @@ jobs:
           count="$(wc -l < "$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
           echo "count=$count" >> "$GITHUB_OUTPUT"
           if (( count == 0 )); then
-            echo 'No eligible changed leonard_native Dart files.' |
-              tee artifacts/mutation/leonard_native/pr/console.txt
+            echo "No eligible changed $PKG Dart files." |
+              tee "artifacts/mutation/$PKG/pr/console.txt"
           elif (( ${#eligible[@]} > 5 )); then
             echo "Selected 5 of ${#eligible[@]} eligible files." |
-              tee artifacts/mutation/leonard_native/pr/selection.txt
+              tee "artifacts/mutation/$PKG/pr/selection.txt"
           fi
       - name: Run changed-file mutation sweep
         if: steps.changed.outputs.count != '0'
         shell: bash
+        env:
+          PKG: ${{ matrix.package }}
         run: |
-          output_dir="$GITHUB_WORKSPACE/artifacts/mutation/leonard_native/pr"
-          sed 's#^SF:packages/leonard_native/#SF:lib/#' \
-            artifacts/coverage/leonard_native.lcov \
-            > "$output_dir/leonard_native.lcov"
+          output_dir="$GITHUB_WORKSPACE/artifacts/mutation/$PKG/pr"
+          sed "s#^SF:packages/$PKG/#SF:lib/#" \
+            "artifacts/coverage/$PKG.lcov" \
+            > "$output_dir/$PKG.lcov"
           mapfile -t mutation_files < "$RUNNER_TEMP/mutation-files.txt"
-          cd packages/leonard_native
+          cd "packages/$PKG"
           dart test
           dart run mutation_test \
             --format all \
             --output "$output_dir" \
-            --coverage "$output_dir/leonard_native.lcov" \
+            --coverage "$output_dir/$PKG.lcov" \
             "${mutation_files[@]}" 2>&1 | tee "$output_dir/console.txt"
       - name: Prove coverage input was applied
         if: steps.changed.outputs.count != '0'
         run: >-
           grep -Eq 'Not covered by tests: [0-9]+'
-          artifacts/mutation/leonard_native/pr/console.txt
+          artifacts/mutation/${{ matrix.package }}/pr/console.txt
       - name: Upload changed-file mutation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-leonard-native-pr-${{ github.event.pull_request.number }}
-          path: artifacts/mutation/leonard_native/pr/
+          name: mutation-${{ matrix.package }}-pr-${{ github.event.pull_request.number }}
+          path: artifacts/mutation/${{ matrix.package }}/pr/
           if-no-files-found: error
           retention-days: 14
   # Stable required-check name for branch protection. Pin protection to
