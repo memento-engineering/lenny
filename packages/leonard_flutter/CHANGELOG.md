@@ -10,6 +10,10 @@
   dependency automatically discovers the bundled Leonard DevTools extension
   with Conversation and Diagnostics modes; no adopter dependency on
   `leonard_devtools` or `genesis_foundation` is required.
+- Fix: move the test-only `leonard_agent` dependency to `dev_dependencies`,
+  so applications can install `leonard_flutter` alongside packages that use
+  `sse_channel ^0.1.1` (including `signalr_netcore`) without a version-solving
+  conflict. No public API or runtime behavior changes.
 
 ## 0.2.1
 
