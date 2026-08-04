@@ -1,6 +1,6 @@
-name: leonard_flutter
-description: Host WidgetsBinding for Leonard.
-version: 0.3.0
+name: leonard_flutter_test
+description: Test support for applications and extensions built with leonard_flutter.
+version: 0.1.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -9,16 +9,11 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
-  flutter:
+  flutter_test:
     sdk: flutter
-  genesis_perception: ^0.2.0
-  leonard_contract: ^0.2.0
-  meta: ^1.16.0
+  leonard_flutter: ^0.3.0
   vm_service: ^14.2.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
   leonard_agent: ^0.2.0
   lints: ^5.1.0
-  mutation_test: ^1.8.0

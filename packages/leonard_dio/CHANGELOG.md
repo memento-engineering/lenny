@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Breaking: require `leonard_flutter ^0.3.0`; test support now comes from
+  `leonard_flutter_test`, and perception serialization is imported directly
+  from `genesis_perception`.
+
 ## 0.2.1
 
 - Bump `genesis_perception` to `^0.2.0` (the genesis builder wave). No API

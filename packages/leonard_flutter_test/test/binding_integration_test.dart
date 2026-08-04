@@ -14,7 +14,7 @@ import 'dart:async';
 import 'package:leonard_agent/leonard_agent.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
-import 'package:leonard_flutter/test_support/binding_vm_service_fake.dart';
+import 'package:leonard_flutter_test/leonard_flutter_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vm_service/vm_service.dart';
 

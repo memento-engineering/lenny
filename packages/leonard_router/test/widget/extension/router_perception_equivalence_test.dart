@@ -4,11 +4,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_flutter/contract.dart';
-import 'package:leonard_flutter/test_support/perception_serializer.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 import 'package:leonard_router/leonard_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
 
 Widget _app(GlobalKey<NavigatorState> key) => WidgetsApp(
   navigatorKey: key,

@@ -6,9 +6,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:leonard_dio/leonard_dio.dart';
 import 'package:leonard_flutter/contract.dart';
-import 'package:leonard_flutter/test_support/perception_serializer.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 class _HangingAdapter implements HttpClientAdapter {
   final Map<String, Completer<ResponseBody>> pending =

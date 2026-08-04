@@ -5,15 +5,7 @@
 /// `extensionRegistry.mergedTools()` go to `invokeExtensionTool`;
 /// everything else falls through to `invokeServiceExtension`).
 ///
-/// Hoisted from three sibling clones:
-///   - `packages/leonard_flutter/test/unit/binding/binding_integration_test.dart` (origin)
-///   - `packages/leonard_agent/test/integration/provider_loop_integration_test.dart`
-///   - `packages/leonard_agent/test/support/leonard_vm_service_fake.dart`
-///
-/// Lives under `lib/test_support/` so it's importable as
-/// `package:leonard_flutter/test_support/binding_vm_service_fake.dart`
-/// but is NOT re-exported from `lib/leonard_flutter.dart` — opt-in
-/// test-only surface.
+/// Import it from `package:leonard_flutter_test/leonard_flutter_test.dart`.
 ///
 /// Optional [observationFixture]: when non-null AND the
 /// method equals `ext.leonard.core.get_stable_observation`,
@@ -30,13 +22,8 @@
 library;
 
 // The fake bridges into the binding's `@visibleForTesting`
-// `invokeExtensionTool` and `invokeServiceExtension`. The file lives under
-// `lib/test_support/` (opt-in test-only surface, not re-exported from
-// the main library) so consumers can `package:`-import it from both
-// tests and dev tooling (e.g. `tool/agent_dogfood_runner.dart`). That
-// directory is NOT recognised as a test path by the analyzer, so the
-// visible-for-testing warnings fire here unless suppressed — same
-// trade-off the dogfood runner already documents.
+// `invokeExtensionTool` and `invokeServiceExtension`. This public test package
+// is not recognized as a test path by the analyzer, so suppress the warnings.
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'dart:convert';
@@ -44,9 +31,12 @@ import 'dart:convert';
 import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:vm_service/vm_service.dart';
 
+/// An in-process VM-service fake that dispatches calls through [LeonardBinding].
 class BindingVmServiceFake extends VmService {
-  BindingVmServiceFake(this._binding, {this.observationFixture})
-    : super(const Stream<dynamic>.empty(), (_) {});
+  /// Creates a fake backed by [binding], optionally serving [observationFixture].
+  BindingVmServiceFake(LeonardBinding binding, {this.observationFixture})
+    : _binding = binding,
+      super(const Stream<dynamic>.empty(), (_) {});
 
   final LeonardBinding _binding;
 

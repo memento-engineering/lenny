@@ -4,12 +4,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_flutter/contract.dart';
-import 'package:leonard_flutter/test_support/observation_equivalence.dart';
-import 'package:leonard_flutter/test_support/perception_serializer.dart';
+import 'package:genesis_perception/genesis_perception.dart';
+import 'package:leonard_flutter_test/leonard_flutter_test.dart';
 import 'package:leonard_riverpod/leonard_riverpod.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
 
 /// Build an extension whose observer is installed on its container.
 ({
