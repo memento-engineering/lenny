@@ -43,6 +43,41 @@ Args:
 - `--app <path>` — path to the `.app` bundle (required)
 - `--platform ios` — target platform (default `ios`)
 
+## Selecting Flutter widgets through the native channel on Android
+
+Flutter's projection into Android's accessibility tree is engine-version
+dependent. The checked-in [UiAutomator2 source fixture](test/fixtures/flutter_android_semantics_source.xml)
+was measured on a Pixel 7a running Android 16 and Chrome 150 with Flutter
+3.44.8 stable (framework `058e0af2c2`), engine hash
+`13ffd72b2f9a5ca4db2a74ea52d5353ec2e8f939` (revision `0cd610717b`). For
+`Semantics(identifier: 'allow', label: 'Allow')`, it records:
+
+```text
+View    resource-id='PrimaryFooterButtonKey' clickable=false  <- outer wrapper
+  Button (no resource-id, no content-desc)   clickable=true   <- tap target
+    View resource-id='allow'                 clickable=false  <- Semantics(identifier:)
+      View content-desc='Allow'              clickable=false  <- Semantics(label:)
+```
+
+Three details matter for selection: `Semantics(identifier:)` becomes Android
+`resource-id`, not `content-desc` (the label becomes `content-desc`); the node
+carrying the identifier is non-interactive; and its clickable `Button` ancestor
+is anonymous, with neither a resource-id nor a content-desc of its own.
+
+Consequently, the iOS-working `NativeSelector(a11yId: 'allow')` matches nothing
+on Android and returns no error. Use the explicit Android selector instead:
+
+```dart
+final NativeSelector selector = NativeSelector.flutterIdentifier('allow');
+```
+
+It expands to
+`//*[@resource-id='allow']/ancestor-or-self::*[@clickable="true"][1]`, selecting
+the actionable ancestor rather than stopping at the identifier wrapper.
+`resolve` intentionally does not auto-retry a missed `a11yId` as this XPath:
+doing so would make every legitimate accessibility-id miss silently mean
+something else.
+
 ## Recovering from platform overlays (backend-direct consumers)
 
 A system overlay can hide a field you have already resolved. The commonest is

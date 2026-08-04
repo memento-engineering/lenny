@@ -43,6 +43,18 @@ class NativeSelector {
     this.rect,
   });
 
+  /// Selects the clickable Android ancestor of Flutter's
+  /// `Semantics(identifier:)` projection.
+  ///
+  /// Flutter projects the identifier onto a non-clickable `resource-id` node,
+  /// while the actionable node is an anonymous ancestor. This explicit helper
+  /// is Android-specific; it does not reinterpret a missed [a11yId].
+  factory NativeSelector.flutterIdentifier(String identifier) => NativeSelector(
+    xpath:
+        '//*[@resource-id=${_xpathLiteral(identifier)}]'
+        '/ancestor-or-self::*[@clickable="true"][1]',
+  );
+
   /// Android tier 1: exact layout resource-id. Skipped on iOS.
   final String? resourceId;
 
@@ -57,6 +69,13 @@ class NativeSelector {
 
   /// Android tier 5 / iOS tier 4: `[l,t,r,b]`; tap at its center.
   final List<int>? rect;
+}
+
+String _xpathLiteral(String value) {
+  if (!value.contains("'")) return "'$value'";
+  if (!value.contains('"')) return '"$value"';
+  final List<String> parts = value.split("'");
+  return 'concat(${parts.map((String part) => "'$part'").join(', "\'", ')})';
 }
 
 /// A swipe gesture spec.
