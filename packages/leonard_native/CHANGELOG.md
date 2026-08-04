@@ -1,5 +1,17 @@
 ## 0.2.2
 
+- **Fix (destructive):** `UiAutomator2Backend`'s keyboard dismiss no longer
+  fires a bare `POST /back`. It now probes
+  `appium/device/is_keyboard_shown` first and presses nothing when no soft
+  keyboard is up. `back` is Android's dismiss gesture only while a keyboard
+  holds focus; with none up it is plain navigation, and since `setValue` /
+  `mobile: type` do not raise the soft keyboard, the old unconditional press
+  navigated a Chrome Custom Tab AWAY at the end of every successful
+  `enterText` — stranding the flow, because later field lookups then 404
+  against a page that is no longer showing. If the keyboard state cannot be
+  read, nothing is pressed: a keyboard left up is recoverable, a spurious
+  back is not. This brings Android in line with the iOS impl, which already
+  probed for a `Done` key before clicking.
 - `NativeNode` gains `resourceId`, the Android `resource-id` (null on iOS,
   where XCUITest has no analogue — its `identifier` is already carried by
   `a11yId`). It is the only stable, non-localising way for a Dart consumer to

@@ -14,8 +14,10 @@
 ///     `content-desc` and the resolver's `_find('accessibility id', …)` matches;
 ///   * [enterText] masks from `GET .../attribute/password == 'true'` (Android
 ///     has no `SecureTextField` type), and reads back via `GET .../attribute/
-///     text` (FN4), then dismisses the keyboard with `POST /back` (non-fatal,
-///     B6). It writes via `POST .../value` and, when that answers
+///     text` (FN4), then dismisses the keyboard with `POST /back` — but ONLY
+///     when `is_keyboard_shown` says one is up, because a bare back is
+///     navigation, not a dismiss (non-fatal, B6). It writes via
+///     `POST .../value` and, when that answers
 ///     `invalid element state`, FALLS BACK to `click` + `mobile: type` —
 ///     Chrome's web `<input>` nodes (any Custom Tab / WebView, so every OAuth
 ///     handoff) reject `ACTION_SET_TEXT` while accepting injected key events.
@@ -603,14 +605,44 @@ class UiAutomator2Backend implements NativeBackend {
     }
   }
 
-  /// Android keyboard dismiss: `POST /back`. Non-fatal (B6) — a dismiss failure
-  /// must never fail the type.
+  /// Android keyboard dismiss: `POST /back`, but ONLY when a soft keyboard is
+  /// actually shown. Non-fatal (B6) — a dismiss failure must never fail the
+  /// type.
+  ///
+  /// The gate is load-bearing, not defensive tidiness. `back` is Android's
+  /// dismiss gesture only WHILE a keyboard holds focus; with none up it is
+  /// plain navigation. `setValue` / `mobile: type` do not raise the soft
+  /// keyboard, so on a Chrome page there is nothing to dismiss and an
+  /// unconditional back navigates the CUSTOM TAB AWAY — measured, and it
+  /// stranded a real Auth0 login: the write succeeded, the back left the page,
+  /// and every subsequent field lookup 404'd against an app no longer showing
+  /// the form.
+  ///
+  /// The `on Object` catch below does NOT protect against that. The stray back
+  /// returns 200 — it SUCCEEDS at doing the wrong thing, and "non-fatal" only
+  /// ever guarded against errors. Only the gate helps.
+  ///
+  /// This also brings Android in line with the iOS impl, which already probes
+  /// for a `Done` key and clicks only when one is present.
   Future<void> _dismissKeyboard() async {
     try {
+      // Fail SAFE toward NOT acting: if the keyboard state cannot be read,
+      // press nothing. A keyboard left up is trivially recoverable; a spurious
+      // back is not. A throw from _isKeyboardShown lands in the catch below,
+      // which returns without pressing — deliberately.
+      if (!await _isKeyboardShown()) return;
       await _post('/session/$_sid/back', const <String, Object?>{});
     } on Object {
       // Non-fatal: dismiss is best-effort.
     }
+  }
+
+  /// True iff a soft keyboard is currently shown.
+  Future<bool> _isKeyboardShown() async {
+    final Map<String, Object?> j = await _get(
+      '/session/$_sid/appium/device/is_keyboard_shown',
+    );
+    return j['value'].toString() == 'true';
   }
 
   @override
