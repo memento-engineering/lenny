@@ -41,6 +41,17 @@ File _sheetFixture() {
   fail('auth0_android_source_sheet_up.xml fixture not found');
 }
 
+File _flutterSemanticsFixture() {
+  for (final String p in <String>[
+    'test/fixtures/flutter_android_semantics_source.xml',
+    'packages/leonard_native/test/fixtures/flutter_android_semantics_source.xml',
+  ]) {
+    final File f = File(p);
+    if (f.existsSync()) return f;
+  }
+  fail('flutter_android_semantics_source.xml fixture not found');
+}
+
 NativeNode _byLabel(List<NativeNode> nodes, String label) =>
     nodes.firstWhere((NativeNode n) => n.label == label);
 
@@ -216,6 +227,28 @@ void main() {
       nodes = backend.parseSource(_fixture().readAsStringSync());
       // Free the http.Client the constructor opened.
       backend.close();
+    });
+
+    test('preserves the measured Flutter Semantics Android projection', () {
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'fixture',
+        app: 'com.example.app',
+      );
+      final List<NativeNode> flutterNodes = backend.parseSource(
+        _flutterSemanticsFixture().readAsStringSync(),
+      );
+      backend.close();
+
+      expect(flutterNodes, hasLength(4));
+      expect(flutterNodes[0].resourceId, 'PrimaryFooterButtonKey');
+      expect(flutterNodes[0].a11yId, isNull);
+      expect(flutterNodes[1].role, 'button');
+      expect(flutterNodes[1].resourceId, isNull);
+      expect(flutterNodes[1].a11yId, isNull);
+      expect(flutterNodes[2].resourceId, 'allow');
+      expect(flutterNodes[2].a11yId, isNull);
+      expect(flutterNodes[3].resourceId, isNull);
+      expect(flutterNodes[3].a11yId, 'Allow');
     });
 
     test('flattens the a11y tree to the real controls in document order', () {

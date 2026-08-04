@@ -41,6 +41,15 @@ the install ordering themselves. It throws `StateError` if a foreign
 `WidgetsBinding` (e.g. `IntegrationTestWidgetsFlutterBinding`) is already
 installed.
 
+## Native Android accessibility projection
+
+When the same Flutter app is driven externally through Android's native
+accessibility channel, `Semantics(identifier:)` is not a directly tappable
+accessibility id. See [Selecting Flutter widgets through the native channel on
+Android](../leonard_native/README.md#selecting-flutter-widgets-through-the-native-channel-on-android)
+for the versioned engine fixture, projected tree, and
+`NativeSelector.flutterIdentifier` convention.
+
 ## VM service extension namespace
 
 `leonard_flutter` reserves `ext.leonard.*` for all

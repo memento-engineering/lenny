@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Capture: Pixel 7a; Android 16; Chrome 150; Flutter 3.44.8 stable
+  (framework 058e0af2c2); engine hash
+  13ffd72b2f9a5ca4db2a74ea52d5353ec2e8f939 (revision 0cd610717b).
+  App source: Semantics(identifier: 'allow', label: 'Allow').
+-->
+<hierarchy rotation="0">
+  <android.view.View class="android.view.View" resource-id="PrimaryFooterButtonKey" clickable="false" bounds="[0,0][200,80]">
+    <android.widget.Button class="android.widget.Button" clickable="true" bounds="[0,0][200,80]">
+      <android.view.View class="android.view.View" resource-id="allow" clickable="false" bounds="[0,0][200,80]">
+        <android.view.View class="android.view.View" content-desc="Allow" clickable="false" bounds="[0,0][200,80]"/>
+      </android.view.View>
+    </android.widget.Button>
+  </android.view.View>
+</hierarchy>
