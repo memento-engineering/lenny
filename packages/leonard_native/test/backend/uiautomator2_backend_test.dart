@@ -435,6 +435,7 @@ void main() {
       String readback = 'user@example.com',
       bool focusedAfterClick = true,
       String? sourceXml,
+      bool sourceFails = false,
     }) {
       hits = <String>[];
       bodies = <String>[];
@@ -442,6 +443,9 @@ void main() {
         final String path = req.url.path;
         hits.add('${req.method} $path');
         bodies.add(req.body);
+        if (sourceFails && path == '/session/s1/source') {
+          return http.Response('upstream exploded', 500);
+        }
         final bool isValueWrite =
             req.method == 'POST' && path == '/session/s1/element/E/value';
         if (isValueWrite && !valueErrorBody) {
@@ -516,6 +520,53 @@ void main() {
       expect(hits.where((String h) => h.endsWith('/source')), hasLength(1));
       expect(hits, isNot(contains('POST /session/s1/element/E/click')));
       expect(hits, isNot(contains('POST /session/s1/execute/sync')));
+      await b.close();
+    });
+
+    // The obstruction probe is INSERTED into the `invalid element state`
+    // handler, which every prior Android text-entry failure relied on to reach
+    // the click + `mobile: type` fallback deterministically. Reading `/source`
+    // introduces two brand-new ways for that handler to abort: a transport
+    // failure (NativeException) and a malformed body (XmlParserException, which
+    // would also escape the "backends only throw NativeException" invariant).
+    // Detection must therefore fail SAFE toward NOT acting — the same direction
+    // the keyboard gate takes — so an unreadable `/source` reads as "nothing
+    // obstructing" and the pre-existing fallback still runs.
+    test(
+      'a /source transport failure still falls back to click + type',
+      () async {
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceFails: true,
+        );
+        await b.connect();
+        final ({String readback, bool masked}) r = await b.enterText(
+          const NativeTarget(elementId: 'E', via: 'xpath'),
+          'user@example.com',
+        );
+        expect(r.readback, 'user@example.com');
+        expect(hits, contains('POST /session/s1/element/E/click'));
+        expect(hits, contains('POST /session/s1/execute/sync'));
+        await b.close();
+      },
+    );
+
+    test('a malformed /source body still falls back to click + type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        // Truncated mid-node: XmlDocument.parse throws XmlParserException,
+        // which is NOT a NativeException and would escape the tool layer's
+        // `on NativeException catch` entirely.
+        sourceXml: '<hierarchy><node class="android.widget.EditText"',
+      );
+      await b.connect();
+      final ({String readback, bool masked}) r = await b.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'user@example.com',
+      );
+      expect(r.readback, 'user@example.com');
+      expect(hits, contains('POST /session/s1/element/E/click'));
+      expect(hits, contains('POST /session/s1/execute/sync'));
       await b.close();
     });
 

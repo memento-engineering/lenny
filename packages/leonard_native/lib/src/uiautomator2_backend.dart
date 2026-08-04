@@ -595,8 +595,26 @@ class UiAutomator2Backend implements NativeBackend {
     return isTouchToFill ? 'Chrome Touch-To-Fill sheet' : 'Chrome bottom sheet';
   }
 
-  Future<String?> _detectObstruction() async =>
-      _obstructionName(await snapshot());
+  /// The obstruction probe, which reads a fresh `/source`.
+  ///
+  /// Fails SAFE toward NOT reporting an obstruction — the same direction the
+  /// keyboard gate takes. This runs inside the `invalid element state` handler,
+  /// which before this probe existed ALWAYS reached the click + `mobile: type`
+  /// fallback. Reading `/source` adds two new ways for that handler to abort: a
+  /// transport failure ([NativeException]) and a malformed body, where
+  /// `XmlDocument.parse` throws an `XmlParserException` that is not a
+  /// [NativeException] at all and would escape the tool layer's
+  /// `on NativeException catch`. Swallowing both restores the prior guarantee
+  /// exactly: an unreadable `/source` reads as "nothing obstructing", the write
+  /// still attempts its fallback, and the readback check remains the thing that
+  /// catches a silently-empty write.
+  Future<String?> _detectObstruction() async {
+    try {
+      return _obstructionName(await snapshot());
+    } on Object {
+      return null;
+    }
+  }
 
   /// FN4 (Android): the field value is `attribute/text`.
   Future<String> _readValue(String eid) async {
