@@ -82,11 +82,25 @@ class NativeSwipe {
 /// this and return `ToolResult(ok:false, error:e.message)` — they never
 /// rethrow.
 class NativeException implements Exception {
-  /// Wraps a human-readable [message].
-  NativeException(this.message);
+  /// Wraps a human-readable [message], optionally tagged with the remote
+  /// error [code] that produced it.
+  NativeException(this.message, {this.code});
 
   /// The failure message surfaced to the agent.
+  ///
+  /// This string is model-facing — a tool returns it as
+  /// `ToolResult.error` — so treat it as part of the contract. When [code] is
+  /// set the message still carries it as a prefix; that redundancy is
+  /// deliberate, so adding [code] did not change what the agent reads.
   final String message;
+
+  /// The W3C WebDriver error code (`invalid element state`,
+  /// `no such element`, ...) when this failure came from a remote error body;
+  /// `null` for transport, decode, and non-2xx-without-body failures.
+  ///
+  /// Callers branch on this rather than pattern-matching [message], so an
+  /// adaptive path cannot be silently disabled by a reworded message.
+  final String? code;
 
   @override
   String toString() => 'NativeException: $message';

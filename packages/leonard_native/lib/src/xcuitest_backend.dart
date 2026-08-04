@@ -117,8 +117,11 @@ class XcuiTestBackend implements NativeBackend {
     }
     final Object? value = decoded['value'];
     if (value is Map && value['error'] != null) {
+      // Kept symmetrical with UiAutomator2Backend._unwrap: both platforms
+      // speak W3C, so both tag the code. The message text is unchanged.
       throw NativeException(
         '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        code: value['error'].toString(),
       );
     }
     if (r.statusCode < 200 || r.statusCode >= 300) {

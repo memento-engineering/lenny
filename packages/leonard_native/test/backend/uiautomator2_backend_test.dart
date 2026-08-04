@@ -308,4 +308,227 @@ void main() {
       },
     );
   });
+
+  group('UiAutomator2Backend.enterText ACTION_SET_TEXT fallback', () {
+    late List<String> hits;
+    late List<String> bodies;
+
+    /// A backend whose `POST /element/{id}/value` answers with the W3C error
+    /// [valueError], or succeeds when it is null. Chrome web-content inputs
+    /// answer `invalid element state`: UiAutomator2 implements `/value` as
+    /// `performAction(ACTION_SET_TEXT)`, which Chrome's `<input>` nodes refuse.
+    /// [valueErrorBody] false reproduces a bare non-2xx with no error body, so
+    /// the codeless path is reachable.
+    UiAutomator2Backend backendWhereValueFails({
+      String? valueError,
+      bool valueErrorBody = true,
+      String readback = 'user@example.com',
+      bool focusedAfterClick = true,
+    }) {
+      hits = <String>[];
+      bodies = <String>[];
+      final MockClient client = MockClient((http.Request req) async {
+        final String path = req.url.path;
+        hits.add('${req.method} $path');
+        bodies.add(req.body);
+        final bool isValueWrite =
+            req.method == 'POST' && path == '/session/s1/element/E/value';
+        if (isValueWrite && !valueErrorBody) {
+          return http.Response('upstream exploded', 500);
+        }
+        if (isValueWrite && valueError != null) {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{
+                'error': valueError,
+                'message':
+                    "Cannot set the element to '$readback'. "
+                    'Did you interact with the correct element?',
+                'stacktrace':
+                    'io.appium.uiautomator2.handler.SendKeysToElement'
+                    '.setText(SendKeysToElement.java:87)',
+              },
+            }),
+            400,
+            headers: const <String, String>{'content-type': 'application/json'},
+          );
+        }
+        Object? value;
+        if (req.method == 'POST' && path == '/session') {
+          value = <String, Object?>{'sessionId': 's1'};
+        } else if (path.endsWith('/attribute/password')) {
+          value = 'false';
+        } else if (path.endsWith('/attribute/focused')) {
+          value = focusedAfterClick ? 'true' : 'false';
+        } else if (path.endsWith('/attribute/text')) {
+          value = readback;
+        }
+        return http.Response(
+          jsonEncode(<String, Object?>{'value': value}),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
+        );
+      });
+      return UiAutomator2Backend(
+        udid: 'emulator-5554',
+        app: 'com.example.app',
+        client: client,
+      );
+    }
+
+    test('invalid element state falls back to click + mobile: type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+      );
+      await b.connect();
+      final ({String readback, bool masked}) r = await b.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'user@example.com',
+      );
+
+      // The whole sequence, in order. Asserting only "it returned" would
+      // pass against a fallback that typed the wrong thing, skipped the
+      // clear, or never read back. The CLICK is asserted because it is
+      // load-bearing: measured on device, `mobile: type` against an
+      // unfocused element returns 200 and types nothing.
+      expect(hits, <String>[
+        'POST /session',
+        'POST /session/s1/element/E/clear',
+        'POST /session/s1/element/E/value',
+        'POST /session/s1/element/E/click',
+        'GET /session/s1/element/E/attribute/focused',
+        'POST /session/s1/execute/sync',
+        'GET /session/s1/element/E/attribute/password',
+        'GET /session/s1/element/E/attribute/text',
+        'POST /session/s1/back',
+      ]);
+      // The text must reach `mobile: type` verbatim.
+      expect(
+        jsonDecode(bodies[hits.indexOf('POST /session/s1/execute/sync')]),
+        <String, Object?>{
+          'script': 'mobile: type',
+          'args': <Object?>[
+            <String, Object?>{'text': 'user@example.com'},
+          ],
+        },
+      );
+      // `/keys` must NOT be used: it shares the ACTION_SET_TEXT handler for
+      // arbitrary text and fails with the same error on a real device.
+      expect(hits, isNot(contains('POST /session/s1/keys')));
+      // The seam's record is identical to the happy path's.
+      expect(r.readback, 'user@example.com');
+      expect(r.masked, isFalse);
+      await b.close();
+    });
+
+    test('a different remote error propagates and does NOT type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'stale element reference',
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>()
+              .having(
+                (NativeException e) => e.code,
+                'code',
+                'stale element reference',
+              )
+              // The message keeps the code as a prefix: it is model-facing, so
+              // adding `code` must not change what the agent reads.
+              .having(
+                (NativeException e) => e.message,
+                'message',
+                startsWith('stale element reference: '),
+              ),
+        ),
+      );
+      expect(
+        hits,
+        isNot(contains('POST /session/s1/execute/sync')),
+        reason: 'the fallback must not swallow unrelated failures',
+      );
+      await b.close();
+    });
+
+    test('a codeless transport failure propagates and does NOT type', () async {
+      // Proves `code` is a real discriminator rather than always-set: a bare
+      // non-2xx carries none, so the fallback must not fire.
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueErrorBody: false,
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.code,
+            'code',
+            isNull,
+          ),
+        ),
+      );
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
+      await b.close();
+    });
+
+    test(
+      'an unfocusable field fails loudly instead of typing into the void',
+      () async {
+        // The obstructed case (measured on device: Chrome's Touch-To-Fill
+        // sheet both refuses ACTION_SET_TEXT and swallows injected
+        // keystrokes). `mobile: type` would report success and write nothing,
+        // and for a MASKED field an empty readback is indistinguishable from a
+        // correct write — so the guard has to fire BEFORE typing.
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          focusedAfterClick: false,
+        );
+        await b.connect();
+        await expectLater(
+          b.enterText(
+            const NativeTarget(elementId: 'E', via: 'xpath'),
+            'user@example.com',
+          ),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              allOf(
+                contains('could not focus'),
+                // The message must name the likely cause; a bare "failed"
+                // leaves the caller with nothing to act on.
+                contains('Touch-To-Fill'),
+              ),
+            ),
+          ),
+        );
+        expect(
+          hits,
+          isNot(contains('POST /session/s1/execute/sync')),
+          reason: 'must not type when the field could not be focused',
+        );
+        await b.close();
+      },
+    );
+
+    test('the happy path types nothing extra', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(readback: 'hi');
+      await b.connect();
+      final ({String readback, bool masked}) r = await b.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'hi',
+      );
+      expect(hits, contains('POST /session/s1/element/E/value'));
+      expect(
+        hits,
+        isNot(contains('POST /session/s1/element/E/click')),
+        reason: 'the fallback must cost nothing when ACTION_SET_TEXT works',
+      );
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
+      expect(r.readback, 'hi');
+      await b.close();
+    });
+  });
 }
