@@ -83,6 +83,38 @@ class NativeSwipe {
 /// rethrow.
 class NativeException implements Exception {
   /// Backend recovery code for a resolved field hidden by a platform overlay.
+  ///
+  /// [NativeBackend.enterText] DETECTS the obstruction and throws with this
+  /// code. It does NOT recover: at that seam it holds an already-resolved
+  /// [NativeTarget] and cannot re-resolve the handle that dismissal
+  /// invalidates.
+  ///
+  /// Recovery is automatic **only through the Leonard tool surface** — the
+  /// `enter_text` tool owns it, being the layer that holds the selector. A
+  /// consumer driving a [NativeBackend] DIRECTLY must implement it, and this is
+  /// the whole recipe:
+  ///
+  /// ```dart
+  /// ({String readback, bool masked}) result;
+  /// try {
+  ///   result = await backend.enterText(target, text);
+  /// } on NativeException catch (e) {
+  ///   if (e.code != NativeException.fieldObscuredCode) rethrow;
+  ///   // Positively gated inside the backend: this THROWS rather than pressing
+  ///   // back when nothing is actually obstructing, so it cannot navigate a
+  ///   // Chrome Custom Tab away.
+  ///   await backend.press('dismiss_overlay');
+  ///   // Dismissal INVALIDATES the handle — re-resolve, never reuse `target`.
+  ///   final NativeTarget? fresh = await backend.resolve(selector, cached);
+  ///   if (fresh == null) {
+  ///     throw NativeException('element gone after obstruction dismissal');
+  ///   }
+  ///   result = await backend.enterText(fresh, text);
+  /// }
+  /// ```
+  ///
+  /// Branch on this code, never on [message] — the message is model-facing
+  /// prose and may be reworded.
   static const String fieldObscuredCode = 'field obscured';
 
   /// Wraps a human-readable [message], optionally tagged with a W3C or
@@ -140,6 +172,18 @@ abstract class NativeBackend {
   /// resolves. [cached] is the current snapshot (for label-match and
   /// rect-center synthesis) — pass it so resolution can fall back to a node
   /// rect without an extra round-trip.
+  ///
+  /// THIS ALREADY RETRIES INTERNALLY, and callers must size their own retry
+  /// budgets against that. Tiers 1-3 each run an element find with its own
+  /// ~10 s retry window, so a selector that carries an a11y-id, a label AND an
+  /// xpath and matches none of them can spend **~30 s inside a single call**
+  /// before tier 4 synthesizes a rect-center.
+  ///
+  /// An outer loop therefore multiplies: 20 attempts around a fully-missing
+  /// selector is ~10 minutes, which presents as a hang rather than a failure.
+  /// If you are polling for a condition (an overlay clearing, a page settling),
+  /// prefer detecting it directly over discovering it through a resolve
+  /// failure, and keep the outer count small.
   Future<NativeTarget?> resolve(
     NativeSelector selector,
     NativeSnapshot? cached,
@@ -153,6 +197,13 @@ abstract class NativeBackend {
   /// masked)`: `readback` is the `GET .../attribute/value` result; `masked` is
   /// derived from the ELEMENT TYPE (true iff the element is a SecureTextField),
   /// NOT from `readback != text`.
+  ///
+  /// WHEN A PLATFORM OVERLAY HIDES THE FIELD this throws
+  /// [NativeException] with [NativeException.fieldObscuredCode] and does NOT
+  /// recover — it holds a resolved [target] and cannot re-resolve the handle
+  /// that dismissal invalidates. Recovery is automatic only through the
+  /// `enter_text` TOOL; a backend-direct caller must implement it. The full
+  /// recipe is on [NativeException.fieldObscuredCode].
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
     String text,
