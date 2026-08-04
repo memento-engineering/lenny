@@ -8,9 +8,9 @@
 /// Hardening applied (m2-spec §5.5): B5 (`_unwrap` honors HTTP status +
 /// non-JSON bodies → [NativeException], never `FormatException`), FN3
 /// (`enterText` masked flag is element-type-derived, NOT `readback != text`),
-/// FN4 (`readValue` uses the fixed `attribute/value` route), B8 (`udid`/`app`
-/// required, no `bundleId`/`deviceName` caps), plus the skeleton-lift
-/// deletions: the
+/// FN4 (`readValue` uses the fixed `attribute/value` route), B8 (launch mode
+/// requires `udid`/`app`; attach mode requires `udid`/`bundleId`), plus the
+/// skeleton-lift deletions: the
 /// xpath-based "Continue" consent find is GONE — consent is
 /// `POST /session/{id}/alert/accept` (`press('consent_accept')`), because the
 /// SpringBoard consent is not in `/source`.
@@ -33,17 +33,38 @@ const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
 /// Drives a native iOS app over a local Appium server (W3C WebDriver +
 /// XCUITest).
 class XcuiTestBackend implements NativeBackend {
-  /// Constructs a backend targeting [udid] + [app] on [server] (default
+  /// Constructs an install-and-launch backend targeting [udid] + [app] on
+  /// [server] (default
   /// `http://127.0.0.1:4723`). The backend does NOT spawn Appium or boot the
   /// simulator — both must already be running. [platform] is fixed to `ios`.
   XcuiTestBackend({
     Uri? server,
     required this.udid,
-    required this.app,
+    required String app,
     this.osVersion = '26',
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
-  }) : server = server ?? Uri.parse('http://127.0.0.1:4723'),
+  }) : // A typed parameter keeps null out of this public launch constructor.
+       // ignore: prefer_initializing_formals
+       app = app,
+       bundleId = null,
+       server = server ?? Uri.parse('http://127.0.0.1:4723'),
+       _client = client ?? http.Client();
+
+  /// Constructs a backend that attaches to the already-running [bundleId]
+  /// without installing or relaunching it.
+  XcuiTestBackend.attach({
+    Uri? server,
+    required this.udid,
+    required String bundleId,
+    this.osVersion = '26',
+    this.pollInterval = const Duration(seconds: 1),
+    http.Client? client,
+  }) : app = null,
+       // A typed parameter keeps null out of this public attach constructor.
+       // ignore: prefer_initializing_formals
+       bundleId = bundleId,
+       server = server ?? Uri.parse('http://127.0.0.1:4723'),
        _client = client ?? http.Client();
 
   /// The local Appium server URL.
@@ -55,8 +76,13 @@ class XcuiTestBackend implements NativeBackend {
   /// The booted simulator udid.
   final String udid;
 
-  /// Path to the `.app` bundle to install/launch.
-  final String app;
+  /// Path installed and launched by the unnamed constructor; null in attach
+  /// mode.
+  final String? app;
+
+  /// Running application selected by the attach constructor; null in launch
+  /// mode.
+  final String? bundleId;
 
   /// The simulator OS version.
   final String osVersion;
@@ -147,7 +173,8 @@ class XcuiTestBackend implements NativeBackend {
         'platformName': 'iOS',
         'appium:automationName': 'XCUITest',
         'appium:udid': udid,
-        'appium:app': app,
+        if (app case final String app) 'appium:app': app,
+        if (bundleId case final String bundleId) 'appium:bundleId': bundleId,
         'appium:forceSimulatorSoftwareKeyboardPresence': true,
         'appium:noReset': true,
       },

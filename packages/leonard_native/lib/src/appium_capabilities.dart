@@ -2,12 +2,14 @@
 /// resets, or launches the application under test.
 const Set<String> appiumAttachCriticalCapabilityKeys = <String>{
   'appium:app',
+  'appium:bundleId',
   'appium:appPackage',
   'appium:appActivity',
   'appium:autoLaunch',
   'appium:noReset',
   'appium:fullReset',
   'app',
+  'bundleId',
   'appPackage',
   'appActivity',
   'autoLaunch',

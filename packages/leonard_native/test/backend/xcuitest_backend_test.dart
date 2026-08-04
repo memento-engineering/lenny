@@ -56,7 +56,7 @@ void main() {
   });
 
   group('XcuiTestBackend.connect capabilities', () {
-    test('merges safe extras into the complete session request', () async {
+    test('launch mode merges safe extras into the session request', () async {
       http.Request? sessionRequest;
       final MockClient client = MockClient((http.Request request) async {
         if (request.url.path == '/session') {
@@ -99,17 +99,71 @@ void main() {
         'appium:autoAcceptAlerts': true,
         'appium:wdaLaunchTimeout': 240000,
       });
+      expect(capabilities['alwaysMatch'], isNot(contains('appium:bundleId')));
       expect(capabilities['firstMatch'], <Object?>[<String, Object?>{}]);
     });
 
+    test(
+      'attach mode sends bundleId without app and merges safe extras',
+      () async {
+        http.Request? sessionRequest;
+        final MockClient client = MockClient((http.Request request) async {
+          if (request.url.path == '/session') {
+            sessionRequest = request;
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'value': <String, Object?>{'sessionId': 'ios-attach-session'},
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': null}),
+            200,
+          );
+        });
+        final XcuiTestBackend backend = XcuiTestBackend.attach(
+          udid: 'iphone',
+          bundleId: 'engineering.memento.Runner',
+          client: client,
+        );
+
+        await backend.connect(
+          extraCapabilities: <String, Object?>{'appium:autoAcceptAlerts': true},
+        );
+
+        expect(sessionRequest?.method, 'POST');
+        final Map<String, Object?> body =
+            jsonDecode(sessionRequest!.body) as Map<String, Object?>;
+        final Map<String, Object?> capabilities =
+            body['capabilities']! as Map<String, Object?>;
+        final Map<String, Object?> alwaysMatch =
+            capabilities['alwaysMatch']! as Map<String, Object?>;
+        expect(alwaysMatch, <String, Object?>{
+          'platformName': 'iOS',
+          'appium:automationName': 'XCUITest',
+          'appium:udid': 'iphone',
+          'appium:bundleId': 'engineering.memento.Runner',
+          'appium:forceSimulatorSoftwareKeyboardPresence': true,
+          'appium:noReset': true,
+          'appium:autoAcceptAlerts': true,
+        });
+        expect(alwaysMatch, isNot(contains('appium:app')));
+        expect(alwaysMatch, isNot(contains('app')));
+        expect(capabilities['firstMatch'], <Object?>[<String, Object?>{}]);
+      },
+    );
+
     const List<String> deniedKeys = <String>[
       'appium:app',
+      'appium:bundleId',
       'appium:appPackage',
       'appium:appActivity',
       'appium:autoLaunch',
       'appium:noReset',
       'appium:fullReset',
       'app',
+      'bundleId',
       'appPackage',
       'appActivity',
       'autoLaunch',
