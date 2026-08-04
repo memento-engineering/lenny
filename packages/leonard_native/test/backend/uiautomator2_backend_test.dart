@@ -175,6 +175,34 @@ void main() {
         expect(requests, 0);
       });
     }
+
+    test('validates denied extras before an idempotent return', () async {
+      int requests = 0;
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'pixel',
+        app: 'com.example.app',
+        client: MockClient((http.Request request) async {
+          requests++;
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{'sessionId': 'android-session'},
+            }),
+            200,
+          );
+        }),
+      );
+
+      await backend.connect();
+      expect(requests, 1);
+
+      await expectLater(
+        backend.connect(
+          extraCapabilities: const <String, Object?>{'appium:autoLaunch': true},
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(requests, 1);
+    });
   });
 
   group('UiAutomator2Backend.parseSource', () {

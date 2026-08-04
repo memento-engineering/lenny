@@ -141,6 +141,34 @@ void main() {
         expect(requests, 0);
       });
     }
+
+    test('validates denied extras before an idempotent return', () async {
+      int requests = 0;
+      final XcuiTestBackend backend = XcuiTestBackend(
+        udid: 'iphone',
+        app: '/x/Runner.app',
+        client: MockClient((http.Request request) async {
+          requests++;
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{'sessionId': 'ios-session'},
+            }),
+            200,
+          );
+        }),
+      );
+
+      await backend.connect();
+      expect(requests, 2);
+
+      await expectLater(
+        backend.connect(
+          extraCapabilities: const <String, Object?>{'appium:noReset': false},
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(requests, 2);
+    });
   });
 
   test('platform is fixed to ios', () async {
