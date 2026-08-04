@@ -36,7 +36,7 @@ void main() {
         'swipe',
         'close',
       ]);
-      expect(backend.calls[0].detail, isNull);
+      expect(backend.calls[0].detail, isEmpty);
       expect(backend.calls[1].detail, isNull);
       final ({NativeTarget target, String text}) enterTextDetail =
           backend.calls[2].detail! as ({NativeTarget target, String text});
@@ -46,6 +46,24 @@ void main() {
       expect(backend.calls[4].detail, isNull);
     },
   );
+
+  test('connect records an immutable copy of extra capabilities', () async {
+    final FakeNativeBackend backend = FakeNativeBackend();
+    final Map<String, Object?> extras = <String, Object?>{
+      'appium:autoGrantPermissions': true,
+    };
+
+    await backend.connect(extraCapabilities: extras);
+    extras['appium:autoGrantPermissions'] = false;
+
+    expect(backend.calls.single.detail, <String, Object?>{
+      'appium:autoGrantPermissions': true,
+    });
+    expect(
+      () => (backend.calls.single.detail! as Map<String, Object?>)['other'] = 1,
+      throwsUnsupportedError,
+    );
+  });
 
   test('pushSnapshot emits on watch and replaces snapshot payload', () async {
     final FakeNativeBackend backend = FakeNativeBackend();

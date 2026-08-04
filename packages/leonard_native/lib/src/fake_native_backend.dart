@@ -89,8 +89,15 @@ class FakeNativeBackend implements NativeBackend {
   void pushError(Object error) => _watch.addError(error);
 
   @override
-  Future<void> connect() async {
-    calls.add(FakeNativeCall('connect'));
+  Future<void> connect({
+    Map<String, Object?> extraCapabilities = const <String, Object?>{},
+  }) async {
+    calls.add(
+      FakeNativeCall(
+        'connect',
+        Map<String, Object?>.unmodifiable(extraCapabilities),
+      ),
+    );
   }
 
   @override

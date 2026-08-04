@@ -15,6 +15,94 @@ import 'package:leonard_native/leonard_native.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('XcuiTestBackend.connect capabilities', () {
+    test('merges safe extras into the complete session request', () async {
+      http.Request? sessionRequest;
+      final MockClient client = MockClient((http.Request request) async {
+        if (request.url.path == '/session') {
+          sessionRequest = request;
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{'sessionId': 'ios-session'},
+            }),
+            200,
+          );
+        }
+        return http.Response(jsonEncode(<String, Object?>{'value': null}), 200);
+      });
+      final XcuiTestBackend backend = XcuiTestBackend(
+        udid: 'iphone',
+        app: '/x/Runner.app',
+        client: client,
+      );
+
+      await backend.connect(
+        extraCapabilities: <String, Object?>{
+          'appium:autoAcceptAlerts': true,
+          'appium:wdaLaunchTimeout': 240000,
+          'appium:forceSimulatorSoftwareKeyboardPresence': false,
+        },
+      );
+
+      expect(sessionRequest?.method, 'POST');
+      final Map<String, Object?> body =
+          jsonDecode(sessionRequest!.body) as Map<String, Object?>;
+      final Map<String, Object?> capabilities =
+          body['capabilities']! as Map<String, Object?>;
+      expect(capabilities['alwaysMatch'], <String, Object?>{
+        'platformName': 'iOS',
+        'appium:automationName': 'XCUITest',
+        'appium:udid': 'iphone',
+        'appium:app': '/x/Runner.app',
+        'appium:forceSimulatorSoftwareKeyboardPresence': false,
+        'appium:noReset': true,
+        'appium:autoAcceptAlerts': true,
+        'appium:wdaLaunchTimeout': 240000,
+      });
+      expect(capabilities['firstMatch'], <Object?>[<String, Object?>{}]);
+    });
+
+    const List<String> deniedKeys = <String>[
+      'appium:app',
+      'appium:appPackage',
+      'appium:appActivity',
+      'appium:autoLaunch',
+      'appium:noReset',
+      'appium:fullReset',
+      'app',
+      'appPackage',
+      'appActivity',
+      'autoLaunch',
+      'noReset',
+      'fullReset',
+    ];
+    for (final String key in deniedKeys) {
+      test('rejects $key before transport I/O', () async {
+        int requests = 0;
+        final XcuiTestBackend backend = XcuiTestBackend(
+          udid: 'iphone',
+          app: '/x/Runner.app',
+          client: MockClient((http.Request request) async {
+            requests++;
+            return http.Response('{}', 200);
+          }),
+        );
+
+        await expectLater(
+          backend.connect(extraCapabilities: <String, Object?>{key: true}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (ArgumentError error) => error.message.toString(),
+              'message',
+              contains(key),
+            ),
+          ),
+        );
+        expect(requests, 0);
+      });
+    }
+  });
+
   test('platform is fixed to ios', () async {
     final XcuiTestBackend b = XcuiTestBackend(udid: 'U', app: '/x/Runner.app');
     expect(b.platform, 'ios');
