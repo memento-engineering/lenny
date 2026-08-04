@@ -32,9 +32,7 @@ void main() {
             'value': <String, Object?>{'sessionId': 's1'},
           }),
           200,
-          headers: const <String, String>{
-            'content-type': 'application/json',
-          },
+          headers: const <String, String>{'content-type': 'application/json'},
         );
       }
       if (req.url.path == '/session/s1/keys') keysRequest = req;
@@ -55,12 +53,9 @@ void main() {
     await b.press('enter');
 
     expect(hits, contains('POST /session/s1/keys'));
-    expect(
-      jsonDecode(keysRequest!.body),
-      <String, Object?>{
-        'value': <String>['\n'],
-      },
-    );
+    expect(jsonDecode(keysRequest!.body), <String, Object?>{
+      'value': <String>['\n'],
+    });
     expect(hits, isNot(contains('POST /session/s1/element')));
     await b.close();
   });

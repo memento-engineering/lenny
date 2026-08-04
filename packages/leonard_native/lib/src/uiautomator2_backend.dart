@@ -15,7 +15,10 @@
 ///   * [enterText] masks from `GET .../attribute/password == 'true'` (Android
 ///     has no `SecureTextField` type), and reads back via `GET .../attribute/
 ///     text` (FN4), then dismisses the keyboard with `POST /back` (non-fatal,
-///     B6);
+///     B6). It writes via `POST .../value` and FALLS BACK to typing into the
+///     focused element via `/keys` when that answers `invalid element state`
+///     — Chrome's web `<input>` nodes (any Custom Tab / WebView, so every
+///     OAuth handoff) reject `ACTION_SET_TEXT` while accepting key events;
 ///   * [press] recognizes `back` (`POST /back`) and `enter`/`return`/`done`
 ///     (a newline via `/keys`); the iOS-only alert keys `consent_accept` /
 ///     `alert_dismiss` throw [NativeException] (Android's Auth0 handoff is a
@@ -124,8 +127,11 @@ class UiAutomator2Backend implements NativeBackend {
     }
     final Object? value = decoded['value'];
     if (value is Map && value['error'] != null) {
+      // The message keeps the code as a prefix — it is model-facing, so its
+      // text is unchanged by carrying `code` structurally alongside it.
       throw NativeException(
         '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        code: value['error'].toString(),
       );
     }
     if (r.statusCode < 200 || r.statusCode >= 300) {
@@ -477,9 +483,28 @@ class UiAutomator2Backend implements NativeBackend {
       throw NativeException('enter_text requires a resolved element');
     }
     await _post('/session/$_sid/element/$eid/clear', const <String, Object?>{});
-    await _post('/session/$_sid/element/$eid/value', <String, Object?>{
-      'text': text,
-    });
+    try {
+      await _post('/session/$_sid/element/$eid/value', <String, Object?>{
+        'text': text,
+      });
+    } on NativeException catch (e) {
+      // UiAutomator2 implements `/value` as
+      // AccessibilityNodeInfo.performAction(ACTION_SET_TEXT). Chrome's web
+      // `<input>` nodes (a Custom Tab / WebView — every OAuth handoff) do not
+      // honour that action and answer `invalid element state`, even though the
+      // field is perfectly writable by key events. Fall back to typing into
+      // the focused element, which is the same `/keys` mechanism [press] uses
+      // for enter/return/done.
+      //
+      // Branching on `code` rather than the message text is deliberate: a
+      // reworded remote message must not be able to silently disable this.
+      if (e.code != 'invalid element state') rethrow;
+      // `clear` above succeeded, which leaves the target focused, and `/keys`
+      // types into the active element.
+      await _post('/session/$_sid/keys', <String, Object?>{
+        'value': <String>[text],
+      });
+    }
     // Android masks from the element's `password` attribute (there is no
     // SecureTextField type). A password EditText reads back EMPTY via
     // attribute/text (Android never exposes the entered secret) — the seam's
