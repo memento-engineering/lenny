@@ -113,7 +113,7 @@ void main() {
             .having(
               (NativeException e) => e.message,
               'message',
-              'field is obscured by Chrome Touch-To-Fill sheet',
+              'field is obscured by Android permission dialog',
             ),
       ),
       reason:
@@ -200,7 +200,7 @@ class _DismissFailsBackend extends FakeNativeBackend {
   ) async {
     trace.add('enterText:${target.elementId}');
     throw NativeException(
-      'field is obscured by Chrome Touch-To-Fill sheet',
+      'field is obscured by Android permission dialog',
       code: NativeException.fieldObscuredCode,
     );
   }
@@ -208,7 +208,10 @@ class _DismissFailsBackend extends FakeNativeBackend {
   @override
   Future<void> press(String key) async {
     trace.add('press:$key');
-    throw NativeException('no dismissible platform overlay is present');
+    throw NativeException(
+      'Android permission dialog requires an explicit '
+      'permission_allow or permission_deny press key',
+    );
   }
 }
 

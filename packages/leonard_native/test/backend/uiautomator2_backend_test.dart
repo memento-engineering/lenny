@@ -41,6 +41,17 @@ File _sheetFixture() {
   fail('auth0_android_source_sheet_up.xml fixture not found');
 }
 
+File _permissionDialogFixture() {
+  for (final String p in <String>[
+    'test/fixtures/android_permission_dialog_source.xml',
+    'packages/leonard_native/test/fixtures/android_permission_dialog_source.xml',
+  ]) {
+    final File f = File(p);
+    if (f.existsSync()) return f;
+  }
+  fail('android_permission_dialog_source.xml fixture not found');
+}
+
 File _flutterSemanticsFixture() {
   for (final String p in <String>[
     'test/fixtures/flutter_android_semantics_source.xml',
@@ -713,6 +724,156 @@ void main() {
       expect(hits.where((String h) => h.endsWith('/source')), hasLength(1));
       expect(hits, isNot(contains('POST /session/s1/element/E/click')));
       expect(hits, isNot(contains('POST /session/s1/execute/sync')));
+      await b.close();
+    });
+
+    test('permission dialog is detected before click and type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        sourceXml: _permissionDialogFixture().readAsStringSync(),
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>()
+              .having(
+                (NativeException e) => e.code,
+                'code',
+                NativeException.fieldObscuredCode,
+              )
+              .having(
+                (NativeException e) => e.message,
+                'message',
+                contains('field is obscured by Android permission dialog'),
+              ),
+        ),
+      );
+      expect(hits, isNot(contains('POST /session/s1/element/E/click')));
+      expect(hits, isNot(contains('POST /session/s1/back')));
+      await b.close();
+    });
+
+    test('permission detection ignores every visible string', () async {
+      final String localized = _permissionDialogFixture()
+          .readAsStringSync()
+          .replaceAll('Allow this app to send you notifications?', '通知を送信しますか？')
+          .replaceAll('Allow', '許可')
+          .replaceAll('Don’t allow', '許可しない');
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        sourceXml: localized,
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.message,
+            'message',
+            contains('field is obscured by Android permission dialog'),
+          ),
+        ),
+      );
+      await b.close();
+    });
+
+    test('permission dialog dismissal refuses without posting Back', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        sourceXml: _permissionDialogFixture().readAsStringSync(),
+      );
+      await b.connect();
+      await expectLater(
+        b.press('dismiss_overlay'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.message,
+            'message',
+            'Android permission dialog requires an explicit '
+                'permission_allow or permission_deny press key',
+          ),
+        ),
+      );
+      expect(hits.where((String h) => h.endsWith('/source')), hasLength(1));
+      expect(hits, isNot(contains('POST /session/s1/back')));
+      await b.close();
+    });
+
+    for (final (String key, String resourceId) in <(String, String)>[
+      (
+        'permission_allow',
+        'com.android.permissioncontroller:id/permission_allow_button',
+      ),
+      (
+        'permission_deny',
+        'com.android.permissioncontroller:id/permission_deny_button',
+      ),
+    ]) {
+      test('$key finds its resource id and clicks only that element', () async {
+        hits = <String>[];
+        Map<String, Object?>? findBody;
+        final MockClient client = MockClient((http.Request req) async {
+          hits.add('${req.method} ${req.url.path}');
+          Object? value;
+          if (req.method == 'POST' && req.url.path == '/session') {
+            value = <String, Object?>{'sessionId': 's1'};
+          } else if (req.url.path == '/session/s1/element') {
+            findBody = (jsonDecode(req.body) as Map).cast<String, Object?>();
+            value = <String, Object?>{
+              'element-6066-11e4-a52e-4f735466cecf': 'permission-button',
+            };
+          }
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': value}),
+            200,
+            headers: const <String, String>{'content-type': 'application/json'},
+          );
+        });
+        final UiAutomator2Backend b = UiAutomator2Backend(
+          udid: 'emulator-5554',
+          app: 'com.example.app',
+          client: client,
+        );
+        await b.connect();
+        await b.press(key);
+        expect(findBody, <String, Object?>{'using': 'id', 'value': resourceId});
+        expect(hits.where((String h) => h.endsWith('/click')), <String>[
+          'POST /session/s1/element/permission-button/click',
+        ]);
+        await b.close();
+      });
+    }
+
+    test('a missing permission button throws without clicking', () async {
+      hits = <String>[];
+      final MockClient client = MockClient((http.Request req) async {
+        hits.add('${req.method} ${req.url.path}');
+        final Object? value = req.url.path == '/session'
+            ? <String, Object?>{'sessionId': 's1'}
+            : null;
+        return http.Response(
+          jsonEncode(<String, Object?>{'value': value}),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
+        );
+      });
+      final UiAutomator2Backend b = UiAutomator2Backend(
+        udid: 'emulator-5554',
+        app: 'com.example.app',
+        client: client,
+      );
+      await b.connect();
+      await expectLater(
+        b.press('permission_allow'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.message,
+            'message',
+            'Android permission dialog button is not present: permission_allow',
+          ),
+        ),
+      );
+      expect(hits.where((String h) => h.endsWith('/click')), isEmpty);
       await b.close();
     });
 
