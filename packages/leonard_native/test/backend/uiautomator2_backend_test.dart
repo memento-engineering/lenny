@@ -373,43 +373,49 @@ void main() {
       );
     }
 
-    test(
-      'invalid element state falls back to /keys with the exact text',
-      () async {
-        final UiAutomator2Backend b = backendWhereValueFails(
-          valueError: 'invalid element state',
-        );
-        await b.connect();
-        final ({String readback, bool masked}) r = await b.enterText(
-          const NativeTarget(elementId: 'E', via: 'xpath'),
-          'user@example.com',
-        );
+    test('invalid element state falls back to click + mobile: type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+      );
+      await b.connect();
+      final ({String readback, bool masked}) r = await b.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'user@example.com',
+      );
 
-        // The whole sequence, in order. Asserting only "it returned" would
-        // pass against a fallback that typed the wrong thing, skipped the
-        // clear, or never read back.
-        expect(hits, <String>[
-          'POST /session',
-          'POST /session/s1/element/E/clear',
-          'POST /session/s1/element/E/value',
-          'POST /session/s1/keys',
-          'GET /session/s1/element/E/attribute/password',
-          'GET /session/s1/element/E/attribute/text',
-          'POST /session/s1/back',
-        ]);
-        // The text must reach /keys verbatim, as a single-element array.
-        expect(
-          jsonDecode(bodies[hits.indexOf('POST /session/s1/keys')]),
-          <String, Object?>{
-            'value': <String>['user@example.com'],
-          },
-        );
-        // The seam's record is identical to the happy path's.
-        expect(r.readback, 'user@example.com');
-        expect(r.masked, isFalse);
-        await b.close();
-      },
-    );
+      // The whole sequence, in order. Asserting only "it returned" would
+      // pass against a fallback that typed the wrong thing, skipped the
+      // clear, or never read back. The CLICK is asserted because it is
+      // load-bearing: measured on device, `mobile: type` against an
+      // unfocused element returns 200 and types nothing.
+      expect(hits, <String>[
+        'POST /session',
+        'POST /session/s1/element/E/clear',
+        'POST /session/s1/element/E/value',
+        'POST /session/s1/element/E/click',
+        'POST /session/s1/execute/sync',
+        'GET /session/s1/element/E/attribute/password',
+        'GET /session/s1/element/E/attribute/text',
+        'POST /session/s1/back',
+      ]);
+      // The text must reach `mobile: type` verbatim.
+      expect(
+        jsonDecode(bodies[hits.indexOf('POST /session/s1/execute/sync')]),
+        <String, Object?>{
+          'script': 'mobile: type',
+          'args': <Object?>[
+            <String, Object?>{'text': 'user@example.com'},
+          ],
+        },
+      );
+      // `/keys` must NOT be used: it shares the ACTION_SET_TEXT handler for
+      // arbitrary text and fails with the same error on a real device.
+      expect(hits, isNot(contains('POST /session/s1/keys')));
+      // The seam's record is identical to the happy path's.
+      expect(r.readback, 'user@example.com');
+      expect(r.masked, isFalse);
+      await b.close();
+    });
 
     test('a different remote error propagates and does NOT type', () async {
       final UiAutomator2Backend b = backendWhereValueFails(
@@ -436,7 +442,7 @@ void main() {
       );
       expect(
         hits,
-        isNot(contains('POST /session/s1/keys')),
+        isNot(contains('POST /session/s1/execute/sync')),
         reason: 'the fallback must not swallow unrelated failures',
       );
       await b.close();
@@ -459,11 +465,11 @@ void main() {
           ),
         ),
       );
-      expect(hits, isNot(contains('POST /session/s1/keys')));
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
       await b.close();
     });
 
-    test('the happy path issues no /keys call at all', () async {
+    test('the happy path types nothing extra', () async {
       final UiAutomator2Backend b = backendWhereValueFails(readback: 'hi');
       await b.connect();
       final ({String readback, bool masked}) r = await b.enterText(
@@ -473,9 +479,10 @@ void main() {
       expect(hits, contains('POST /session/s1/element/E/value'));
       expect(
         hits,
-        isNot(contains('POST /session/s1/keys')),
+        isNot(contains('POST /session/s1/element/E/click')),
         reason: 'the fallback must cost nothing when ACTION_SET_TEXT works',
       );
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
       expect(r.readback, 'hi');
       await b.close();
     });

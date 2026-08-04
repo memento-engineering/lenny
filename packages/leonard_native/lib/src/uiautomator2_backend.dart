@@ -15,10 +15,12 @@
 ///   * [enterText] masks from `GET .../attribute/password == 'true'` (Android
 ///     has no `SecureTextField` type), and reads back via `GET .../attribute/
 ///     text` (FN4), then dismisses the keyboard with `POST /back` (non-fatal,
-///     B6). It writes via `POST .../value` and FALLS BACK to typing into the
-///     focused element via `/keys` when that answers `invalid element state`
-///     — Chrome's web `<input>` nodes (any Custom Tab / WebView, so every
-///     OAuth handoff) reject `ACTION_SET_TEXT` while accepting key events;
+///     B6). It writes via `POST .../value` and, when that answers
+///     `invalid element state`, FALLS BACK to `click` + `mobile: type` —
+///     Chrome's web `<input>` nodes (any Custom Tab / WebView, so every OAuth
+///     handoff) reject `ACTION_SET_TEXT` while accepting injected key events.
+///     `/keys` is NOT the fallback: it shares the ACTION_SET_TEXT handler for
+///     arbitrary text and fails identically (see the note at the call site);
 ///   * [press] recognizes `back` (`POST /back`) and `enter`/`return`/`done`
 ///     (a newline via `/keys`); the iOS-only alert keys `consent_accept` /
 ///     `alert_dismiss` throw [NativeException] (Android's Auth0 handoff is a
@@ -492,17 +494,41 @@ class UiAutomator2Backend implements NativeBackend {
       // AccessibilityNodeInfo.performAction(ACTION_SET_TEXT). Chrome's web
       // `<input>` nodes (a Custom Tab / WebView — every OAuth handoff) do not
       // honour that action and answer `invalid element state`, even though the
-      // field is perfectly writable by key events. Fall back to typing into
-      // the focused element, which is the same `/keys` mechanism [press] uses
-      // for enter/return/done.
+      // field is writable by injected key events (`adb shell input text`
+      // lands). So fall back to key-event injection.
       //
       // Branching on `code` rather than the message text is deliberate: a
       // reworded remote message must not be able to silently disable this.
       if (e.code != 'invalid element state') rethrow;
-      // `clear` above succeeded, which leaves the target focused, and `/keys`
-      // types into the active element.
-      await _post('/session/$_sid/keys', <String, Object?>{
-        'value': <String>[text],
+
+      // NOT `/keys`. Measured on a real device (SM-M225FV, Android 13,
+      // Chrome 150, Appium 3.5.2 / uiautomator2 8.2.2): `POST /keys` with
+      // arbitrary text routes to the SAME SendKeysToElement ->
+      // ACTION_SET_TEXT handler and fails with the SAME
+      // `invalid element state`. [press] gets away with `/keys` only because
+      // a NEWLINE is handled as a key event, not as a set-text — so `press`
+      // working proves nothing about typing text.
+      //
+      // The click is LOAD-BEARING: `clear` does not leave the element
+      // focused (`attribute/focused` reads false right after it), and
+      // `mobile: type` against an unfocused element returns HTTP 200 while
+      // typing NOTHING. A silent no-op that reports success is the worst
+      // failure shape available, so the click must not be dropped — and the
+      // readback below is what would catch it.
+      //
+      // Note for consumers: clicking a Chrome field can raise the
+      // Touch-To-Fill "Use saved password?" sheet, and this fallback turns a
+      // previously-FAILING enterText into a succeeding one, so a recovery
+      // path keyed on that failure will stop firing.
+      await _post(
+        '/session/$_sid/element/$eid/click',
+        const <String, Object?>{},
+      );
+      await _post('/session/$_sid/execute/sync', <String, Object?>{
+        'script': 'mobile: type',
+        'args': <Object?>[
+          <String, Object?>{'text': text},
+        ],
       });
     }
     // Android masks from the element's `password` attribute (there is no
