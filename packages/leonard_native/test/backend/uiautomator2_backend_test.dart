@@ -140,6 +140,44 @@ void main() {
       expect(images[1].xpath, '(//android.widget.ImageView)[2]');
     });
 
+    test('resourceId is carried for named nodes and null for anonymous', () {
+      // The stable, non-localising key Dart consumers need for overlay
+      // detection: label/identifier both localise, resource-id does not.
+      expect(_byLabel(nodes, 'Email address').resourceId, 'username');
+      expect(
+        nodes.first.resourceId,
+        'com.nicospencer.lennyspike:id/login_button',
+        reason:
+            'the package-qualified form must survive verbatim — that is '
+            'what a consumer matches on',
+      );
+      // The Password EditText has no resource-id in the fixture, which is
+      // exactly why its xpath is positional.
+      final NativeNode pw = _byLabel(nodes, 'Password');
+      expect(pw.resourceId, isNull);
+      expect(pw.xpath, '(//android.widget.EditText)[2]');
+    });
+
+    test('resourceId is NOT emitted to the wire record', () {
+      // toRecord() is the canonical CROSS-HOST schema and must stay
+      // byte-identical to leonard_flutter's semantics fragment, which has no
+      // resource-id to emit. Wiring it would break that parity for a key the
+      // model does not need — it addresses nodes by identifier/label. This is
+      // the invariant, not a detail: it fails the moment someone helpfully
+      // adds resourceId to toRecord().
+      final NativeNode email = _byLabel(nodes, 'Email address');
+      expect(email.resourceId, isNotNull);
+      expect(email.toRecord().containsKey('resourceId'), isFalse);
+      expect(email.toRecord().containsKey('resource-id'), isFalse);
+      expect(email.toRecord().keys.toList(), <String>[
+        'id',
+        'role',
+        'rect',
+        'label',
+        'identifier',
+      ]);
+    });
+
     test('duplicate resource-ids fall through to positional xpath', () {
       // Two same-class, same-resource-id buttons: the uniqueness gate pushes
       // BOTH to positional, while a uniquely-identified sibling stays named.

@@ -59,6 +59,21 @@ void main() {
     expect(String.fromCharCodes(sourceBytes).split(r'\u0000').length - 1, 3);
   });
 
+  test(
+    'resourceId is null on every iOS node — a decision, not an oversight',
+    () {
+      // `resource-id` is Android vocabulary. XCUITest has no analogue: its
+      // `identifier` IS accessibilityIdentifier, already carried by a11yId. The
+      // field is deliberately left null rather than mapped onto something that
+      // merely looks similar, so a consumer branching on resourceId can trust
+      // that a non-null value means Android.
+      expect(nodes, isNotEmpty);
+      expect(nodes.every((NativeNode n) => n.resourceId == null), isTrue);
+      // And it stays off the wire on both platforms.
+      expect(nodes.first.toRecord().containsKey('resourceId'), isFalse);
+    },
+  );
+
   test('flattens the a11y tree to the real controls in document order', () {
     // The structural Application/Window/Other scaffolding is dropped; the kept
     // nodes are the real controls, in document order with dense 1-based ids.

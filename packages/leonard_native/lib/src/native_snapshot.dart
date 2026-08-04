@@ -33,6 +33,7 @@ class NativeNode {
     this.scroll,
     this.a11yId,
     this.xpath,
+    this.resourceId,
   });
 
   /// Dense per-session int (NOT the raw a11y-id).
@@ -68,12 +69,31 @@ class NativeNode {
   /// Node's synthesized/derived XPath — selector tier 3.
   final String? xpath;
 
+  /// Android `resource-id` (e.g. `com.android.chrome:id/bottom_sheet`), or null
+  /// — on iOS always null, since XCUITest has no analogue (its `identifier` is
+  /// already carried by [a11yId]).
+  ///
+  /// Like [xpath] this is IN-MEMORY ONLY and deliberately absent from
+  /// [toRecord]: that record is the canonical cross-host schema and must stay
+  /// byte-identical to the Flutter semantics fragment, which has no
+  /// resource-id to emit. Adding it to the wire would break that parity for a
+  /// key the model does not need — it addresses nodes by `identifier`/`label`.
+  ///
+  /// It exists for DART consumers, which is a different audience from the
+  /// model. The motivating case: detecting a platform overlay whose only
+  /// stable identifiers are resource-ids. Chrome's Touch-To-Fill sheet is
+  /// matched by `touch_to_fill_sheet_title` / `bottom_sheet`, while everything
+  /// human-readable on it — the title text, the content-desc, the per-row
+  /// summary — LOCALISES, so string matching breaks on a non-English device.
+  final String? resourceId;
+
   /// Emits the canonical cross-host record, matching the Flutter `_Rec.toJson`
   /// key order EXACTLY: `id`/`role`/`rect` always present;
   /// `label`/`identifier`/`value`/`state`/`actions`/`scroll` OMITTED when
   /// null/empty. `identifier` carries [a11yId] (the stable addressing key);
-  /// `xpath` is NOT emitted to the wire (selector-internal) and lives on the
-  /// in-memory node only.
+  /// `xpath` and [resourceId] are NOT emitted to the wire (selector-internal /
+  /// Dart-consumer-only) and live on the in-memory node alone — the record must
+  /// stay byte-identical to the Flutter semantics fragment.
   Map<String, Object?> toRecord() {
     final Map<String, Object?> m = <String, Object?>{
       'id': id,
