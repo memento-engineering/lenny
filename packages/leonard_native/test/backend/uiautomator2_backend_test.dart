@@ -30,6 +30,17 @@ File _fixture() {
   );
 }
 
+File _sheetFixture() {
+  for (final String p in <String>[
+    'test/fixtures/auth0_android_source_sheet_up.xml',
+    'packages/leonard_native/test/fixtures/auth0_android_source_sheet_up.xml',
+  ]) {
+    final File f = File(p);
+    if (f.existsSync()) return f;
+  }
+  fail('auth0_android_source_sheet_up.xml fixture not found');
+}
+
 NativeNode _byLabel(List<NativeNode> nodes, String label) =>
     nodes.firstWhere((NativeNode n) => n.label == label);
 
@@ -423,6 +434,8 @@ void main() {
       bool valueErrorBody = true,
       String readback = 'user@example.com',
       bool focusedAfterClick = true,
+      String? sourceXml,
+      bool sourceFails = false,
     }) {
       hits = <String>[];
       bodies = <String>[];
@@ -430,6 +443,9 @@ void main() {
         final String path = req.url.path;
         hits.add('${req.method} $path');
         bodies.add(req.body);
+        if (sourceFails && path == '/session/s1/source') {
+          return http.Response('upstream exploded', 500);
+        }
         final bool isValueWrite =
             req.method == 'POST' && path == '/session/s1/element/E/value';
         if (isValueWrite && !valueErrorBody) {
@@ -463,6 +479,8 @@ void main() {
           value = 'true';
         } else if (path.endsWith('/attribute/text')) {
           value = readback;
+        } else if (path == '/session/s1/source') {
+          value = sourceXml ?? _fixture().readAsStringSync();
         }
         return http.Response(
           jsonEncode(<String, Object?>{'value': value}),
@@ -476,6 +494,167 @@ void main() {
         client: client,
       );
     }
+
+    test('sheet obstruction is detected before click and type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        sourceXml: _sheetFixture().readAsStringSync(),
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>()
+              .having(
+                (NativeException e) => e.code,
+                'code',
+                NativeException.fieldObscuredCode,
+              )
+              .having(
+                (NativeException e) => e.message,
+                'message',
+                contains('Chrome Touch-To-Fill sheet'),
+              ),
+        ),
+      );
+      expect(hits.where((String h) => h.endsWith('/source')), hasLength(1));
+      expect(hits, isNot(contains('POST /session/s1/element/E/click')));
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
+      await b.close();
+    });
+
+    // The obstruction probe is INSERTED into the `invalid element state`
+    // handler, which every prior Android text-entry failure relied on to reach
+    // the click + `mobile: type` fallback deterministically. Reading `/source`
+    // introduces two brand-new ways for that handler to abort: a transport
+    // failure (NativeException) and a malformed body (XmlParserException, which
+    // would also escape the "backends only throw NativeException" invariant).
+    // Detection must therefore fail SAFE toward NOT acting — the same direction
+    // the keyboard gate takes — so an unreadable `/source` reads as "nothing
+    // obstructing" and the pre-existing fallback still runs.
+    test(
+      'a /source transport failure still falls back to click + type',
+      () async {
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceFails: true,
+        );
+        await b.connect();
+        final ({String readback, bool masked}) r = await b.enterText(
+          const NativeTarget(elementId: 'E', via: 'xpath'),
+          'user@example.com',
+        );
+        expect(r.readback, 'user@example.com');
+        expect(hits, contains('POST /session/s1/element/E/click'));
+        expect(hits, contains('POST /session/s1/execute/sync'));
+        await b.close();
+      },
+    );
+
+    test('a malformed /source body still falls back to click + type', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        // Truncated mid-node: XmlDocument.parse throws XmlParserException,
+        // which is NOT a NativeException and would escape the tool layer's
+        // `on NativeException catch` entirely.
+        sourceXml: '<hierarchy><node class="android.widget.EditText"',
+      );
+      await b.connect();
+      final ({String readback, bool masked}) r = await b.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'user@example.com',
+      );
+      expect(r.readback, 'user@example.com');
+      expect(hits, contains('POST /session/s1/element/E/click'));
+      expect(hits, contains('POST /session/s1/execute/sync'));
+      await b.close();
+    });
+
+    test(
+      'sheet detection ignores localized text and content description',
+      () async {
+        final String localized = _sheetFixture()
+            .readAsStringSync()
+            .replaceAll('Use saved password?', '保存したパスワードを使用？')
+            .replaceAll(
+              'List of credentials to be filled on touch.',
+              'タッチで入力する認証情報の一覧。',
+            );
+        expect(localized, isNot(contains('Use saved password?')));
+        expect(
+          localized,
+          isNot(
+            contains(
+              'content-desc="List of credentials to be filled on touch."',
+            ),
+          ),
+        );
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceXml: localized,
+        );
+        await b.connect();
+        await expectLater(
+          b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.code,
+              'code',
+              NativeException.fieldObscuredCode,
+            ),
+          ),
+        );
+        await b.close();
+      },
+    );
+
+    test(
+      'dismiss_overlay is positively gated and checked every time',
+      () async {
+        final UiAutomator2Backend sheet = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceXml: _sheetFixture().readAsStringSync(),
+        );
+        await sheet.connect();
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await expectLater(
+            sheet.enterText(
+              const NativeTarget(elementId: 'E', via: 'xpath'),
+              'abc',
+            ),
+            throwsA(
+              isA<NativeException>().having(
+                (NativeException e) => e.code,
+                'code',
+                NativeException.fieldObscuredCode,
+              ),
+            ),
+          );
+          await sheet.press('dismiss_overlay');
+        }
+        expect(
+          hits.where((String h) => h.endsWith('/source')),
+          hasLength(4),
+          reason: 'each write and each dismissal must independently detect',
+        );
+        expect(
+          hits.where((String h) => h == 'POST /session/s1/back'),
+          hasLength(2),
+        );
+        await sheet.close();
+
+        final UiAutomator2Backend noSheet = backendWhereValueFails(
+          sourceXml: _fixture().readAsStringSync(),
+        );
+        await noSheet.connect();
+        await expectLater(
+          noSheet.press('dismiss_overlay'),
+          throwsA(isA<NativeException>()),
+        );
+        expect(hits, isNot(contains('POST /session/s1/back')));
+        await noSheet.close();
+      },
+    );
 
     test('invalid element state falls back to click + mobile: type', () async {
       final UiAutomator2Backend b = backendWhereValueFails(
@@ -496,6 +675,7 @@ void main() {
         'POST /session',
         'POST /session/s1/element/E/clear',
         'POST /session/s1/element/E/value',
+        'GET /session/s1/source',
         'POST /session/s1/element/E/click',
         'GET /session/s1/element/E/attribute/focused',
         'POST /session/s1/execute/sync',

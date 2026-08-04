@@ -506,6 +506,15 @@ class UiAutomator2Backend implements NativeBackend {
       // reworded remote message must not be able to silently disable this.
       if (e.code != 'invalid element state') rethrow;
 
+      final String? obstruction = await _detectObstruction();
+      if (obstruction != null) {
+        throw NativeException(
+          'enter_text field is obscured by $obstruction; automatic recovery may '
+          'dismiss it and retry once.',
+          code: NativeException.fieldObscuredCode,
+        );
+      }
+
       // NOT `/keys`. Measured on a real device (SM-M225FV, Android 13,
       // Chrome 150, Appium 3.5.2 / uiautomator2 8.2.2): `POST /keys` with
       // arbitrary text routes to the SAME SendKeysToElement ->
@@ -568,6 +577,43 @@ class UiAutomator2Backend implements NativeBackend {
     // Per-platform keyboard dismiss, INSIDE the backend (kept off the seam).
     await _dismissKeyboard();
     return (readback: readback, masked: masked);
+  }
+
+  static const String _chromeBottomSheetId =
+      'com.android.chrome:id/bottom_sheet';
+  static const String _touchToFillTitleId =
+      'com.android.chrome:id/touch_to_fill_sheet_title';
+
+  String? _obstructionName(NativeSnapshot source) {
+    final bool hasBottomSheet = source.nodes.any(
+      (NativeNode node) => node.resourceId == _chromeBottomSheetId,
+    );
+    if (!hasBottomSheet) return null;
+    final bool isTouchToFill = source.nodes.any(
+      (NativeNode node) => node.resourceId == _touchToFillTitleId,
+    );
+    return isTouchToFill ? 'Chrome Touch-To-Fill sheet' : 'Chrome bottom sheet';
+  }
+
+  /// The obstruction probe, which reads a fresh `/source`.
+  ///
+  /// Fails SAFE toward NOT reporting an obstruction — the same direction the
+  /// keyboard gate takes. This runs inside the `invalid element state` handler,
+  /// which before this probe existed ALWAYS reached the click + `mobile: type`
+  /// fallback. Reading `/source` adds two new ways for that handler to abort: a
+  /// transport failure ([NativeException]) and a malformed body, where
+  /// `XmlDocument.parse` throws an `XmlParserException` that is not a
+  /// [NativeException] at all and would escape the tool layer's
+  /// `on NativeException catch`. Swallowing both restores the prior guarantee
+  /// exactly: an unreadable `/source` reads as "nothing obstructing", the write
+  /// still attempts its fallback, and the readback check remains the thing that
+  /// catches a silently-empty write.
+  Future<String?> _detectObstruction() async {
+    try {
+      return _obstructionName(await snapshot());
+    } on Object {
+      return null;
+    }
   }
 
   /// FN4 (Android): the field value is `attribute/text`.
@@ -648,6 +694,12 @@ class UiAutomator2Backend implements NativeBackend {
   @override
   Future<void> press(String key) async {
     switch (key) {
+      case 'dismiss_overlay':
+        if (await _detectObstruction() == null) {
+          throw NativeException('no dismissible platform overlay is present');
+        }
+        await press('back');
+        return;
       case 'back':
         await _post('/session/$_sid/back', const <String, Object?>{});
         return;

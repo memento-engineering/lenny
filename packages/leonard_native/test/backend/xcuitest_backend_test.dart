@@ -235,6 +235,34 @@ void main() {
         expect(hits, isNot(contains('POST /session/s1/back')));
         await b.close();
       });
+
+      test('dismiss_overlay is rejected without performing I/O', () async {
+        final XcuiTestBackend b = backend(alertOpen: true);
+        await b.connect();
+        final List<String> before = List<String>.of(hits);
+        await expectLater(
+          () => b.press('dismiss_overlay'),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              'unknown press key: dismiss_overlay',
+            ),
+          ),
+        );
+        expect(hits, before);
+        expect(
+          hits.where(
+            (String hit) =>
+                hit.contains('/alert/') ||
+                hit.contains('/back') ||
+                hit.contains('/source') ||
+                hit.contains('/element'),
+          ),
+          isEmpty,
+        );
+        await b.close();
+      });
     },
   );
 }

@@ -363,6 +363,194 @@ void main() {
     expect(secVal['readback'], isNot('hunter2'));
   });
 
+  test(
+    'enter_text dismisses, re-resolves, and retries with a fresh target',
+    () async {
+      final FakeNativeBackend fake = _fake();
+      final NativeExtension ext = await _initialized(fake);
+      addTearDown(ext.dispose);
+      fake.calls.clear();
+      var resolveCount = 0;
+      var writeCount = 0;
+      fake.resolver = (NativeSelector selector, NativeSnapshot? cached) async {
+        resolveCount++;
+        return NativeTarget(
+          elementId: resolveCount == 1 ? 'stale-E' : 'fresh-E',
+          via: resolveCount == 1 ? 'stale-via' : 'fresh-via',
+        );
+      };
+      fake.enterTextHandler = (NativeTarget target, String text) async {
+        writeCount++;
+        if (writeCount == 1) {
+          throw NativeException(
+            'original obstruction',
+            code: NativeException.fieldObscuredCode,
+          );
+        }
+        expect(target.elementId, 'fresh-E');
+        return (readback: 'fresh readback', masked: false);
+      };
+      fake.pressHandler = (String key) async {
+        expect(key, 'dismiss_overlay');
+      };
+
+      final LeonardTool tool = ext.tools.firstWhere(
+        (t) => t.name == 'enter_text',
+      );
+      final result = await tool.call(<String, Object?>{
+        'id': 'Email address',
+        'text': 'hello',
+      });
+
+      expect(result.ok, isTrue);
+      expect((result.value! as Map)['via'], 'fresh-via');
+      expect((result.value! as Map)['readback'], 'fresh readback');
+      expect(fake.calls.map((FakeNativeCall c) => c.name), <String>[
+        'resolve',
+        'enterText',
+        'press',
+        'snapshot',
+        'resolve',
+        'enterText',
+        'snapshot',
+      ]);
+      final List<String?> writtenIds = fake.calls
+          .where((FakeNativeCall c) => c.name == 'enterText')
+          .map(
+            (FakeNativeCall c) =>
+                (c.detail! as ({NativeTarget target, String text}))
+                    .target
+                    .elementId,
+          )
+          .toList();
+      expect(writtenIds, <String?>['stale-E', 'fresh-E']);
+    },
+  );
+
+  group('enter_text obstruction recovery failures', () {
+    Future<({FakeNativeBackend fake, LeonardTool tool, NativeExtension ext})>
+    setup({
+      required Future<({String readback, bool masked})> Function(
+        NativeTarget target,
+        String text,
+      )
+      write,
+      Future<void> Function(String key)? press,
+      Future<NativeTarget?> Function(
+        NativeSelector selector,
+        NativeSnapshot? cached,
+      )?
+      resolver,
+    }) async {
+      final FakeNativeBackend fake = _fake();
+      final NativeExtension ext = await _initialized(fake);
+      fake.calls.clear();
+      fake.enterTextHandler = write;
+      fake.pressHandler = press;
+      if (resolver != null) fake.resolver = resolver;
+      return (
+        fake: fake,
+        tool: ext.tools.firstWhere((t) => t.name == 'enter_text'),
+        ext: ext,
+      );
+    }
+
+    test('non-obstruction failure stays single-attempt', () async {
+      final state = await setup(
+        write: (NativeTarget target, String text) async =>
+            throw NativeException('ordinary failure'),
+      );
+      addTearDown(state.ext.dispose);
+      final result = await state.tool.call(<String, Object?>{
+        'id': 'Email address',
+        'text': 'hello',
+      });
+      expect(result.error, 'ordinary failure');
+      expect(state.fake.calls.map((c) => c.name), <String>[
+        'resolve',
+        'enterText',
+      ]);
+    });
+
+    test('dismiss failure preserves the original obstruction', () async {
+      final state = await setup(
+        write: (NativeTarget target, String text) async =>
+            throw NativeException(
+              'original obstruction',
+              code: NativeException.fieldObscuredCode,
+            ),
+        press: (String key) async => throw NativeException('dismiss failed'),
+      );
+      addTearDown(state.ext.dispose);
+      final result = await state.tool.call(<String, Object?>{
+        'id': 'Email address',
+        'text': 'hello',
+      });
+      expect(result.error, 'original obstruction');
+      expect(state.fake.calls.map((c) => c.name), <String>[
+        'resolve',
+        'enterText',
+        'press',
+      ]);
+    });
+
+    test('missing fresh target stops after one recovery sequence', () async {
+      var resolves = 0;
+      final state = await setup(
+        write: (NativeTarget target, String text) async =>
+            throw NativeException(
+              'original obstruction',
+              code: NativeException.fieldObscuredCode,
+            ),
+        press: (String key) async {},
+        resolver: (NativeSelector selector, NativeSnapshot? cached) async {
+          resolves++;
+          return resolves == 1
+              ? const NativeTarget(elementId: 'stale-E', via: 'xpath')
+              : null;
+        },
+      );
+      addTearDown(state.ext.dispose);
+      final result = await state.tool.call(<String, Object?>{
+        'id': 'Email address',
+        'text': 'hello',
+      });
+      expect(result.error, 'element disappeared after obstruction dismissal');
+      expect(state.fake.calls.map((c) => c.name), <String>[
+        'resolve',
+        'enterText',
+        'press',
+        'snapshot',
+        'resolve',
+      ]);
+    });
+
+    test('retry failure is returned without recursive recovery', () async {
+      var writes = 0;
+      final state = await setup(
+        write: (NativeTarget target, String text) async {
+          writes++;
+          throw NativeException(
+            writes == 1 ? 'first obstruction' : 'second obstruction',
+            code: NativeException.fieldObscuredCode,
+          );
+        },
+        press: (String key) async {},
+      );
+      addTearDown(state.ext.dispose);
+      final result = await state.tool.call(<String, Object?>{
+        'id': 'Email address',
+        'text': 'hello',
+      });
+      expect(result.error, 'second obstruction');
+      expect(state.fake.calls.where((c) => c.name == 'press'), hasLength(1));
+      expect(
+        state.fake.calls.where((c) => c.name == 'enterText'),
+        hasLength(2),
+      );
+    });
+  });
+
   test('refresh-after-act reflects the post-tap snapshot; '
       'refreshNow is a no-op after dispose', () async {
     final FakeNativeBackend fake = _fake();

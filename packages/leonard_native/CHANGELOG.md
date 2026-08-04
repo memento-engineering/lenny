@@ -1,5 +1,17 @@
 ## 0.2.2
 
+- **Behaviour change — Chrome credential sheets auto-recover:** `enter_text`
+  now detects a positively identified Chrome bottom sheet after an obstructed
+  write, dismisses it, re-resolves the invalidated element handle, and retries
+  once. Remove consumer-owned Touch-To-Fill dismissal logic: it is redundant.
+  Any transitional consumer dismissal must remain positively gated because a
+  second bare Android `back` navigates the Custom Tab away. If detection or
+  dismissal fails, the existing cause-bearing error remains the final result.
+  The detection probe itself fails safe toward NOT acting: an unreadable or
+  malformed `/source` reads as "nothing obstructing", so an obstructed write
+  still falls through to the pre-existing click + `mobile: type` fallback
+  rather than aborting on a transient read.
+
 - **Fix (destructive):** `UiAutomator2Backend`'s keyboard dismiss no longer
   fires a bare `POST /back`. It now probes
   `appium/device/is_keyboard_shown` first and presses nothing when no soft

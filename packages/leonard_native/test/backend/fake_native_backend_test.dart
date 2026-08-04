@@ -58,6 +58,39 @@ void main() {
     expect(await backend.snapshot(), same(_snapshot));
   });
 
+  test('scripts enterText after recording the call', () async {
+    final FakeNativeBackend backend = FakeNativeBackend();
+    const NativeTarget target = NativeTarget(elementId: 'E', via: 'xpath');
+    backend.enterTextHandler = (NativeTarget actual, String text) async {
+      expect(backend.calls.single.name, 'enterText');
+      expect(actual, same(target));
+      if (text == 'throw') throw NativeException('scripted write failure');
+      return (readback: 'scripted:$text', masked: true);
+    };
+
+    expect(await backend.enterText(target, 'ok'), (
+      readback: 'scripted:ok',
+      masked: true,
+    ));
+    backend.calls.clear();
+    await expectLater(
+      backend.enterText(target, 'throw'),
+      throwsA(isA<NativeException>()),
+    );
+  });
+
+  test('scripts press after recording the call', () async {
+    final FakeNativeBackend backend = FakeNativeBackend();
+    backend.pressHandler = (String key) async {
+      expect(backend.calls.single.name, 'press');
+      if (key == 'throw') throw NativeException('scripted press failure');
+    };
+
+    await backend.press('dismiss_overlay');
+    backend.calls.clear();
+    await expectLater(backend.press('throw'), throwsA(isA<NativeException>()));
+  });
+
   test(
     'built-in resolver honors tier priority and stable target format',
     () async {
