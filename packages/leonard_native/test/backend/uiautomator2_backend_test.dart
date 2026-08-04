@@ -90,6 +90,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
       await backend.connect();
@@ -126,6 +127,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'pixel',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
 
@@ -148,6 +150,7 @@ void main() {
         'platformName': 'Android',
         'appium:automationName': 'UiAutomator2',
         'appium:udid': 'pixel',
+        'appium:platformVersion': '13',
         'appium:noReset': true,
         'appium:autoLaunch': false,
         'appium:newCommandTimeout': 180,
@@ -156,6 +159,64 @@ void main() {
         'appium:resetKeyboard': true,
       });
       expect(capabilities['firstMatch'], <Object?>[<String, Object?>{}]);
+    });
+
+    test('retains returned device provenance until close', () async {
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'requested-serial',
+        app: 'com.example.app',
+        platformVersion: '13',
+        client: MockClient((http.Request request) async {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{
+                'sessionId': 'android-session',
+                'capabilities': <String, Object?>{
+                  'appium:udid': 'R58M123',
+                  'platformVersion': '13',
+                  'appium:deviceManufacturer': 'samsung',
+                  'deviceModel': 'SM-M225FV',
+                },
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      await backend.connect();
+      expect(backend.sessionProvenance?.deviceSerial, 'R58M123');
+      expect(backend.sessionProvenance?.androidVersion, '13');
+      expect(backend.sessionProvenance?.manufacturer, 'samsung');
+      expect(backend.sessionProvenance?.model, 'SM-M225FV');
+      await backend.close();
+      expect(backend.sessionProvenance, isNull);
+    });
+
+    test('optional returned provenance may be omitted', () async {
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'requested-serial',
+        app: 'com.example.app',
+        platformVersion: '13',
+        client: MockClient(
+          (http.Request request) async => http.Response(
+            jsonEncode(<String, Object?>{
+              'value': <String, Object?>{
+                'sessionId': 'android-session',
+                'capabilities': <String, Object?>{},
+              },
+            }),
+            200,
+          ),
+        ),
+      );
+
+      await backend.connect();
+      expect(backend.sessionProvenance?.deviceSerial, 'requested-serial');
+      expect(backend.sessionProvenance?.androidVersion, isNull);
+      expect(backend.sessionProvenance?.manufacturer, isNull);
+      expect(backend.sessionProvenance?.model, isNull);
+      await backend.close();
     });
 
     const List<String> deniedKeys = <String>[
@@ -178,6 +239,7 @@ void main() {
         final UiAutomator2Backend backend = UiAutomator2Backend(
           udid: 'pixel',
           app: 'com.example.app',
+          platformVersion: '13',
           client: MockClient((http.Request request) async {
             requests++;
             return http.Response('{}', 200);
@@ -203,6 +265,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'pixel',
         app: 'com.example.app',
+        platformVersion: '13',
         client: MockClient((http.Request request) async {
           requests++;
           return http.Response(
@@ -234,6 +297,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'fixture',
         app: 'com.example.app',
+        platformVersion: '13',
       );
       nodes = backend.parseSource(_fixture().readAsStringSync());
       // Free the http.Client the constructor opened.
@@ -244,6 +308,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'fixture',
         app: 'com.example.app',
+        platformVersion: '13',
       );
       final List<NativeNode> flutterNodes = backend.parseSource(
         _flutterSemanticsFixture().readAsStringSync(),
@@ -406,6 +471,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'fixture',
         app: 'com.example.app',
+        platformVersion: '13',
       );
       final List<NativeNode> parsed = backend.parseSource(xml);
       backend.close();
@@ -436,6 +502,7 @@ void main() {
       return UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
     }
@@ -514,6 +581,7 @@ void main() {
       return UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
     }
@@ -612,6 +680,7 @@ void main() {
       final UiAutomator2Backend b = UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
       await b.connect();
@@ -640,6 +709,7 @@ void main() {
       bool focusedAfterClick = true,
       String? sourceXml,
       bool sourceFails = false,
+      ObstructionResourceIdPolicy? obstructionIds,
     }) {
       hits = <String>[];
       bodies = <String>[];
@@ -695,6 +765,8 @@ void main() {
       return UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
+        obstructionIds: obstructionIds,
         client: client,
       );
     }
@@ -753,6 +825,57 @@ void main() {
       expect(hits, isNot(contains('POST /session/s1/back')));
       await b.close();
     });
+
+    test('Google permission-controller prefix is detected', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        sourceXml: _permissionDialogFixture().readAsStringSync().replaceAll(
+          'com.android.permissioncontroller',
+          'com.google.android.permissioncontroller',
+        ),
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.code,
+            'code',
+            NativeException.fieldObscuredCode,
+          ),
+        ),
+      );
+      await b.close();
+    });
+
+    for (final String packageName in const <String>[
+      'com.android.chrome',
+      'com.chrome.beta',
+      'com.chrome.dev',
+      'com.chrome.canary',
+    ]) {
+      test('$packageName Chrome-family sheet is detected', () async {
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceXml: _sheetFixture().readAsStringSync().replaceAll(
+            'com.android.chrome',
+            packageName,
+          ),
+        );
+        await b.connect();
+        await expectLater(
+          b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.code,
+              'code',
+              NativeException.fieldObscuredCode,
+            ),
+          ),
+        );
+        await b.close();
+      });
+    }
 
     test('permission detection ignores every visible string', () async {
       final String localized = _permissionDialogFixture()
@@ -817,6 +940,9 @@ void main() {
           Object? value;
           if (req.method == 'POST' && req.url.path == '/session') {
             value = <String, Object?>{'sessionId': 's1'};
+          } else if (req.url.path == '/session/s1/source') {
+            value =
+                '<hierarchy><node resource-id="${resourceId.replaceFirst('com.android', 'com.google')}" /></hierarchy>';
           } else if (req.url.path == '/session/s1/element') {
             findBody = (jsonDecode(req.body) as Map).cast<String, Object?>();
             value = <String, Object?>{
@@ -832,11 +958,15 @@ void main() {
         final UiAutomator2Backend b = UiAutomator2Backend(
           udid: 'emulator-5554',
           app: 'com.example.app',
+          platformVersion: '13',
           client: client,
         );
         await b.connect();
         await b.press(key);
-        expect(findBody, <String, Object?>{'using': 'id', 'value': resourceId});
+        expect(findBody, <String, Object?>{
+          'using': 'id',
+          'value': resourceId.replaceFirst('com.android', 'com.google'),
+        });
         expect(hits.where((String h) => h.endsWith('/click')), <String>[
           'POST /session/s1/element/permission-button/click',
         ]);
@@ -848,9 +978,12 @@ void main() {
       hits = <String>[];
       final MockClient client = MockClient((http.Request req) async {
         hits.add('${req.method} ${req.url.path}');
-        final Object? value = req.url.path == '/session'
-            ? <String, Object?>{'sessionId': 's1'}
-            : null;
+        final Object? value = switch (req.url.path) {
+          '/session' => <String, Object?>{'sessionId': 's1'},
+          '/session/s1/source' =>
+            '<hierarchy><node resource-id="com.unrelated:id/permission_allow_button" /></hierarchy>',
+          _ => null,
+        };
         return http.Response(
           jsonEncode(<String, Object?>{'value': value}),
           200,
@@ -860,6 +993,7 @@ void main() {
       final UiAutomator2Backend b = UiAutomator2Backend(
         udid: 'emulator-5554',
         app: 'com.example.app',
+        platformVersion: '13',
         client: client,
       );
       await b.connect();
@@ -874,6 +1008,38 @@ void main() {
         ),
       );
       expect(hits.where((String h) => h.endsWith('/click')), isEmpty);
+      expect(hits.where((String h) => h.endsWith('/element')), isEmpty);
+      await b.close();
+    });
+
+    test('custom policy detects vendor ids without visible text', () async {
+      final ObstructionResourceIdPolicy vendorPolicy =
+          ObstructionResourceIdPolicy(
+            permissionDialogEntries: const <String>{'vendor_grant_surface'},
+            permissionAllowEntries: const <String>{'vendor_allow'},
+            permissionDenyEntries: const <String>{'vendor_deny'},
+            chromeBottomSheetEntries: const <String>{'vendor_sheet'},
+            chromeTouchToFillTitleEntries: const <String>{'vendor_sheet_title'},
+            permissionPackage: (String value) => value == 'com.vendor.security',
+            chromePackage: (String value) => value == 'com.vendor.browser',
+          );
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        obstructionIds: vendorPolicy,
+        sourceXml:
+            '<hierarchy><node text="全く別の表示" content-desc="別" resource-id="com.vendor.security:id/vendor_grant_surface" /></hierarchy>',
+      );
+      await b.connect();
+      await expectLater(
+        b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'abc'),
+        throwsA(
+          isA<NativeException>().having(
+            (NativeException e) => e.code,
+            'code',
+            NativeException.fieldObscuredCode,
+          ),
+        ),
+      );
       await b.close();
     });
 
