@@ -107,9 +107,10 @@ cost a real debugging round:
   discarded here rather than surfaced — log it if you need it, but do not report
   it as the outcome.
 
-Note also that `resolve` retries internally (~10 s per tier, up to three tiers),
-so an outer retry loop multiplies against it — see its dartdoc before sizing
-your own budget.
+Note also that `resolve` retries internally — ~10 s per **populated** tier, so
+~10 s for an xpath-only selector and ~30 s worst case for one carrying an
+a11y-id, a label and an xpath that all miss. An outer retry loop multiplies
+against that; see its dartdoc before sizing your own budget.
 
 ## Mutation-testing pilot
 

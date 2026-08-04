@@ -204,10 +204,20 @@ abstract class NativeBackend {
   /// rect without an extra round-trip.
   ///
   /// THIS ALREADY RETRIES INTERNALLY, and callers must size their own retry
-  /// budgets against that. Tiers 1-3 each run an element find with its own
-  /// ~10 s retry window, so a selector that carries an a11y-id, a label AND an
-  /// xpath and matches none of them can spend **~30 s inside a single call**
-  /// before tier 4 synthesizes a rect-center.
+  /// budgets against that. The cost is **per POPULATED tier**, not per call:
+  /// each tier is skipped when its selector field is null, and each tier that
+  /// does run an element find carries its own ~10 s retry window.
+  ///
+  /// So the budget follows the selector you passed:
+  ///
+  /// - xpath only, no match: **~10 s** — tiers 1-2 are skipped outright.
+  /// - a11y-id + xpath, neither matching: ~20 s.
+  /// - a11y-id + label + xpath, none matching: **~30 s**, the worst case, before
+  ///   tier 4 synthesizes a rect-center.
+  ///
+  /// Two tiers are cheaper than they look: tier 2 only issues a find when
+  /// [cached] already contains a label match, and tier 4 is pure arithmetic
+  /// with no device round-trip at all.
   ///
   /// An outer loop therefore multiplies: 20 attempts around a fully-missing
   /// selector is ~10 minutes, which presents as a hang rather than a failure.

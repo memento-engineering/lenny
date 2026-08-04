@@ -37,13 +37,18 @@
   the cause is hardest to guess. `overlay_recovery_recipe_test.dart` now pins
   this alongside the step order. Reported on
   https://github.com/memento-engineering/lenny/pull/32.
-- **Docs — `NativeBackend.resolve` documents its internal retry.** Tiers 1-3
-  each run an element find with its own ~10 s retry window, so a selector
-  carrying an a11y-id, a label and an xpath that match none of them can spend
-  **~30 s inside a single call**. An outer retry loop multiplies against that —
-  20 attempts is ~10 minutes, which presents as a hang rather than a failure.
-  Callers polling for a condition should detect it directly rather than discover
-  it through a resolve failure, and keep outer counts small.
+- **Docs — `NativeBackend.resolve` documents its internal retry.** The cost is
+  **per populated tier**, not per call: a tier whose selector field is null is
+  skipped outright, and each tier that does issue an element find carries its own
+  ~10 s retry window. So an xpath-only selector that matches nothing costs ~10 s,
+  while one carrying an a11y-id, a label *and* an xpath that all miss costs
+  **~30 s inside a single call** — the worst case. Tier 2 only issues a find when
+  the cached snapshot already has a label match, and tier 4 (rect-center) makes
+  no device round-trip at all. An outer retry loop multiplies against whichever
+  figure applies — 20 attempts against a fully-missing selector is ~10 minutes,
+  which presents as a hang rather than a failure. Callers polling for a condition
+  should detect it directly rather than discover it through a resolve failure,
+  and keep outer counts small.
 
 ## 0.2.2
 
