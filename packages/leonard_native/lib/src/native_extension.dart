@@ -206,19 +206,41 @@ class _EnterTextTool extends LeonardTool {
     if (t == null) {
       return const ToolResult(ok: false, error: 'no element matched selector');
     }
-    final ({String readback, bool masked}) r;
+    NativeTarget target = t;
+    ({String readback, bool masked}) result;
     try {
-      r = await _ext.backend.enterText(t, text);
-    } on NativeException catch (e) {
-      return ToolResult(ok: false, error: e.message);
+      result = await _ext.backend.enterText(target, text);
+    } on NativeException catch (error) {
+      if (error.code != NativeException.fieldObscuredCode) {
+        return ToolResult(ok: false, error: error.message);
+      }
+      try {
+        await _ext.backend.press('dismiss_overlay');
+      } on NativeException {
+        return ToolResult(ok: false, error: error.message);
+      }
+      await _ext.refreshNow();
+      final NativeTarget? freshTarget = await _ext.resolveTarget(args);
+      if (freshTarget == null) {
+        return const ToolResult(
+          ok: false,
+          error: 'element disappeared after obstruction dismissal',
+        );
+      }
+      target = freshTarget;
+      try {
+        result = await _ext.backend.enterText(target, text);
+      } on NativeException catch (retryError) {
+        return ToolResult(ok: false, error: retryError.message);
+      }
     }
     await _ext.refreshNow();
     return ToolResult(
       ok: true,
       value: <String, Object?>{
-        'via': t.via,
-        'readback': r.readback,
-        'masked': r.masked,
+        'via': target.via,
+        'readback': result.readback,
+        'masked': result.masked,
       },
     );
   }

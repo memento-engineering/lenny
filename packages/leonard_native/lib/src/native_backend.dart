@@ -82,8 +82,11 @@ class NativeSwipe {
 /// this and return `ToolResult(ok:false, error:e.message)` — they never
 /// rethrow.
 class NativeException implements Exception {
-  /// Wraps a human-readable [message], optionally tagged with the remote
-  /// error [code] that produced it.
+  /// Backend recovery code for a resolved field hidden by a platform overlay.
+  static const String fieldObscuredCode = 'field obscured';
+
+  /// Wraps a human-readable [message], optionally tagged with a W3C or
+  /// backend-defined recovery [code].
   NativeException(this.message, {this.code});
 
   /// The failure message surfaced to the agent.
@@ -94,9 +97,7 @@ class NativeException implements Exception {
   /// deliberate, so adding [code] did not change what the agent reads.
   final String message;
 
-  /// The W3C WebDriver error code (`invalid element state`,
-  /// `no such element`, ...) when this failure came from a remote error body;
-  /// `null` for transport, decode, and non-2xx-without-body failures.
+  /// A W3C WebDriver error code or a documented backend recovery code.
   ///
   /// Callers branch on this rather than pattern-matching [message], so an
   /// adaptive path cannot be silently disabled by a reworded message.
@@ -115,8 +116,9 @@ class NativeException implements Exception {
 /// Recognized [press] keys are platform-specific and documented on the impl,
 /// NOT enforced by an allowlist on the tool. The shared iOS/Android set is
 /// `enter`/`return`/`done`; the iOS-only set is
-/// `consent_accept`/`alert_dismiss`; the Android-only set is `back`. An
-/// unrecognized key surfaces as a [NativeException] from the impl.
+/// `consent_accept`/`alert_dismiss`; the Android-only set is `back` plus the
+/// internal `dismiss_overlay` recovery action. An unrecognized key surfaces as
+/// a [NativeException] from the impl.
 abstract class NativeBackend {
   /// Open the device session against an ALREADY-RUNNING Appium server and an
   /// ALREADY-BOOTED simulator. The backend does NOT spawn Appium or boot the
@@ -156,11 +158,12 @@ abstract class NativeBackend {
     String text,
   );
 
-  /// A logical key press. Shared by iOS and Android: `enter`|`return`|`done`.
-  /// iOS-only: `consent_accept`|`alert_dismiss`; `consent_accept` issues
+  /// A logical platform action. Shared: `enter`|`return`|`done`. iOS-only:
+  /// `consent_accept`|`alert_dismiss`; `consent_accept` issues
   /// `POST /session/{id}/alert/accept` and `alert_dismiss` issues
-  /// `POST /session/{id}/alert/dismiss`. Android-only: `back`. An unrecognized
-  /// key throws [NativeException]; an alert-endpoint key issued when no alert is
+  /// `POST /session/{id}/alert/dismiss`. Android-only: `back` and the internal
+  /// positively-gated `dismiss_overlay` recovery action. An unrecognized key
+  /// throws [NativeException]; an alert-endpoint key issued when no alert is
   /// open surfaces the W3C "no alert open" error as a [NativeException].
   Future<void> press(String key);
 

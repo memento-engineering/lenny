@@ -56,6 +56,16 @@ class FakeNativeBackend implements NativeBackend {
   /// The masked readback a secure field reports (bullets, ≠ plaintext).
   String maskedReadback = '••••••••';
 
+  /// Optional script for text-entry outcomes.
+  Future<({String readback, bool masked})> Function(
+    NativeTarget target,
+    String text,
+  )?
+  enterTextHandler;
+
+  /// Optional script for logical press outcomes.
+  Future<void> Function(String key)? pressHandler;
+
   /// Optional scripted resolver. When set, it fully decides resolution; when
   /// null, the fake uses its built-in per-tier chain ([_defaultResolve]).
   Future<NativeTarget?> Function(
@@ -158,6 +168,8 @@ class FakeNativeBackend implements NativeBackend {
     String text,
   ) async {
     calls.add(FakeNativeCall('enterText', (target: target, text: text)));
+    final handler = enterTextHandler;
+    if (handler != null) return handler(target, text);
     if (secureFieldValue != null) {
       return (readback: maskedReadback, masked: true);
     }
@@ -167,6 +179,8 @@ class FakeNativeBackend implements NativeBackend {
   @override
   Future<void> press(String key) async {
     calls.add(FakeNativeCall('press', key));
+    final handler = pressHandler;
+    if (handler != null) return handler(key);
     const Set<String> recognized = <String>{
       'enter',
       'return',
@@ -174,6 +188,7 @@ class FakeNativeBackend implements NativeBackend {
       'consent_accept',
       'alert_dismiss',
       'back',
+      'dismiss_overlay',
     };
     if (!recognized.contains(key)) {
       throw NativeException('unknown press key: $key');

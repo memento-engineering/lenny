@@ -506,6 +506,15 @@ class UiAutomator2Backend implements NativeBackend {
       // reworded remote message must not be able to silently disable this.
       if (e.code != 'invalid element state') rethrow;
 
+      final String? obstruction = await _detectObstruction();
+      if (obstruction != null) {
+        throw NativeException(
+          'enter_text field is obscured by $obstruction; automatic recovery may '
+          'dismiss it and retry once.',
+          code: NativeException.fieldObscuredCode,
+        );
+      }
+
       // NOT `/keys`. Measured on a real device (SM-M225FV, Android 13,
       // Chrome 150, Appium 3.5.2 / uiautomator2 8.2.2): `POST /keys` with
       // arbitrary text routes to the SAME SendKeysToElement ->
@@ -569,6 +578,25 @@ class UiAutomator2Backend implements NativeBackend {
     await _dismissKeyboard();
     return (readback: readback, masked: masked);
   }
+
+  static const String _chromeBottomSheetId =
+      'com.android.chrome:id/bottom_sheet';
+  static const String _touchToFillTitleId =
+      'com.android.chrome:id/touch_to_fill_sheet_title';
+
+  String? _obstructionName(NativeSnapshot source) {
+    final bool hasBottomSheet = source.nodes.any(
+      (NativeNode node) => node.resourceId == _chromeBottomSheetId,
+    );
+    if (!hasBottomSheet) return null;
+    final bool isTouchToFill = source.nodes.any(
+      (NativeNode node) => node.resourceId == _touchToFillTitleId,
+    );
+    return isTouchToFill ? 'Chrome Touch-To-Fill sheet' : 'Chrome bottom sheet';
+  }
+
+  Future<String?> _detectObstruction() async =>
+      _obstructionName(await snapshot());
 
   /// FN4 (Android): the field value is `attribute/text`.
   Future<String> _readValue(String eid) async {
@@ -648,6 +676,12 @@ class UiAutomator2Backend implements NativeBackend {
   @override
   Future<void> press(String key) async {
     switch (key) {
+      case 'dismiss_overlay':
+        if (await _detectObstruction() == null) {
+          throw NativeException('no dismissible platform overlay is present');
+        }
+        await press('back');
+        return;
       case 'back':
         await _post('/session/$_sid/back', const <String, Object?>{});
         return;
