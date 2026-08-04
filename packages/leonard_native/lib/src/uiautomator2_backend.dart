@@ -524,6 +524,28 @@ class UiAutomator2Backend implements NativeBackend {
         '/session/$_sid/element/$eid/click',
         const <String, Object?>{},
       );
+
+      // Refuse to type into the void. `mobile: type` reports success
+      // regardless, so without this check an obstructed field yields HTTP 200
+      // and an empty readback — which for a MASKED field is indistinguishable
+      // from a correct write, since Android never reads a secret back.
+      //
+      // `attribute/focused` is a reliable discriminator here (measured: false
+      // after `clear`, true after `click` on a writable field). The known
+      // obstruction is Chrome's Touch-To-Fill "Use saved password?" sheet,
+      // which both makes Chrome refuse ACTION_SET_TEXT and swallows injected
+      // keystrokes — so failing loudly with the cause named beats a silent
+      // no-op the caller has to infer.
+      if (!await _isFocused(eid)) {
+        throw NativeException(
+          'enter_text could not focus the element after click, so the '
+          'keystroke fallback would have typed nothing. The field is likely '
+          'obscured — on Chrome this is usually the Touch-To-Fill "Use saved '
+          'password?" sheet, which also blocks ACTION_SET_TEXT. Dismiss the '
+          'obstruction, then retry.',
+        );
+      }
+
       await _post('/session/$_sid/execute/sync', <String, Object?>{
         'script': 'mobile: type',
         'args': <Object?>[
@@ -549,6 +571,20 @@ class UiAutomator2Backend implements NativeBackend {
       '/session/$_sid/element/$eid/attribute/text',
     );
     return (j['value'] ?? '').toString();
+  }
+
+  /// True iff the element currently holds input focus.
+  ///
+  /// Read by the [enterText] keystroke fallback, which cannot land anything
+  /// on an unfocused element. Unlike [_isSecureField] this does NOT swallow a
+  /// transport failure: the fallback needs to distinguish "not focused" from
+  /// "could not tell", and treating an unreadable attribute as unfocused would
+  /// turn a transient error into a spurious obstruction report.
+  Future<bool> _isFocused(String eid) async {
+    final Map<String, Object?> j = await _get(
+      '/session/$_sid/element/$eid/attribute/focused',
+    );
+    return (j['value'] ?? '').toString() == 'true';
   }
 
   /// True iff the element's `password` attribute is `true` (UiAutomator2's

@@ -323,6 +323,7 @@ void main() {
       String? valueError,
       bool valueErrorBody = true,
       String readback = 'user@example.com',
+      bool focusedAfterClick = true,
     }) {
       hits = <String>[];
       bodies = <String>[];
@@ -357,6 +358,8 @@ void main() {
           value = <String, Object?>{'sessionId': 's1'};
         } else if (path.endsWith('/attribute/password')) {
           value = 'false';
+        } else if (path.endsWith('/attribute/focused')) {
+          value = focusedAfterClick ? 'true' : 'false';
         } else if (path.endsWith('/attribute/text')) {
           value = readback;
         }
@@ -393,6 +396,7 @@ void main() {
         'POST /session/s1/element/E/clear',
         'POST /session/s1/element/E/value',
         'POST /session/s1/element/E/click',
+        'GET /session/s1/element/E/attribute/focused',
         'POST /session/s1/execute/sync',
         'GET /session/s1/element/E/attribute/password',
         'GET /session/s1/element/E/attribute/text',
@@ -468,6 +472,46 @@ void main() {
       expect(hits, isNot(contains('POST /session/s1/execute/sync')));
       await b.close();
     });
+
+    test(
+      'an unfocusable field fails loudly instead of typing into the void',
+      () async {
+        // The obstructed case (measured on device: Chrome's Touch-To-Fill
+        // sheet both refuses ACTION_SET_TEXT and swallows injected
+        // keystrokes). `mobile: type` would report success and write nothing,
+        // and for a MASKED field an empty readback is indistinguishable from a
+        // correct write — so the guard has to fire BEFORE typing.
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          focusedAfterClick: false,
+        );
+        await b.connect();
+        await expectLater(
+          b.enterText(
+            const NativeTarget(elementId: 'E', via: 'xpath'),
+            'user@example.com',
+          ),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              allOf(
+                contains('could not focus'),
+                // The message must name the likely cause; a bare "failed"
+                // leaves the caller with nothing to act on.
+                contains('Touch-To-Fill'),
+              ),
+            ),
+          ),
+        );
+        expect(
+          hits,
+          isNot(contains('POST /session/s1/execute/sync')),
+          reason: 'must not type when the field could not be focused',
+        );
+        await b.close();
+      },
+    );
 
     test('the happy path types nothing extra', () async {
       final UiAutomator2Backend b = backendWhereValueFails(readback: 'hi');
