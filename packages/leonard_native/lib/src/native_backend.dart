@@ -14,8 +14,8 @@ import 'native_snapshot.dart';
 /// Resolved target of a native action — what the selector chain produced.
 ///
 /// [elementId] is the backend's W3C element handle when one resolved
-/// (a11y-id / label / xpath tier); when only rect-center resolved, [elementId]
-/// is null and the backend taps [point].
+/// (resource-id / a11y-id / label / xpath tier); when only rect-center
+/// resolved, [elementId] is null and the backend taps [point].
 @immutable
 class NativeTarget {
   /// Records the resolved [elementId] and/or [point], and which tier [via] won.
@@ -27,7 +27,7 @@ class NativeTarget {
   /// Rect-center fallback coordinate, or null.
   final ({int x, int y})? point;
 
-  /// `a11y-id` | `label` | `xpath` | `rect-center`.
+  /// `resource-id` | `a11y-id` | `label` | `xpath` | `rect-center`.
   final String via;
 }
 
@@ -35,18 +35,27 @@ class NativeTarget {
 @immutable
 class NativeSelector {
   /// Records the per-tier selector args.
-  const NativeSelector({this.a11yId, this.label, this.xpath, this.rect});
+  const NativeSelector({
+    this.resourceId,
+    this.a11yId,
+    this.label,
+    this.xpath,
+    this.rect,
+  });
 
-  /// Tier 1: a11y identifier.
+  /// Android tier 1: exact layout resource-id. Skipped on iOS.
+  final String? resourceId;
+
+  /// Android tier 2 / iOS tier 1: a11y identifier.
   final String? a11yId;
 
-  /// Tier 2: visible label (matched against `node.label`).
+  /// Android tier 3 / iOS tier 2: visible label (matched against `node.label`).
   final String? label;
 
-  /// Tier 3: XPath (load-bearing for anonymous Auth0 fields).
+  /// Android tier 4 / iOS tier 3: XPath (load-bearing for anonymous fields).
   final String? xpath;
 
-  /// Tier 4: `[l,t,r,b]`; tap at center `((l+r)/2, (t+b)/2)`.
+  /// Android tier 5 / iOS tier 4: `[l,t,r,b]`; tap at its center.
   final List<int>? rect;
 }
 
@@ -198,7 +207,9 @@ abstract class NativeBackend {
   Future<NativeSnapshot> snapshot();
 
   /// Resolve [selector] against the device into a [NativeTarget], walking the
-  /// chain a11y-id -> label -> xpath -> rect-center. Returns null when nothing
+  /// Android walks resource-id -> a11y-id -> label -> xpath -> rect-center.
+  /// iOS has no resource-id lookup and skips that field, walking a11y-id ->
+  /// label -> xpath -> rect-center. Returns null when nothing
   /// resolves. [cached] is the current snapshot (for label-match and
   /// rect-center synthesis) — pass it so resolution can fall back to a node
   /// rect without an extra round-trip.
@@ -210,13 +221,14 @@ abstract class NativeBackend {
   ///
   /// So the budget follows the selector you passed:
   ///
-  /// - xpath only, no match: **~10 s** — tiers 1-2 are skipped outright.
+  /// - xpath only, no match: **~10 s** — earlier null tiers are skipped outright.
   /// - a11y-id + xpath, neither matching: ~20 s.
-  /// - a11y-id + label + xpath, none matching: **~30 s**, the worst case, before
-  ///   tier 4 synthesizes a rect-center.
+  /// - a11y-id + label + xpath, none matching: **~30 s** before rect-center.
+  /// - Android resource-id + a11y-id + label + xpath, none matching: **~40 s**
+  ///   before rect-center, the maximum when every find tier is populated.
   ///
-  /// Two tiers are cheaper than they look: tier 2 only issues a find when
-  /// [cached] already contains a label match, and tier 4 is pure arithmetic
+  /// Two tiers are cheaper than they look: label only issues a find when
+  /// [cached] already contains a label match, and rect-center is pure arithmetic
   /// with no device round-trip at all.
   ///
   /// An outer loop therefore multiplies: 20 attempts around a fully-missing

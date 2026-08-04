@@ -15,6 +15,46 @@ import 'package:leonard_native/leonard_native.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('resource-id is skipped and resolution continues at a11y-id', () async {
+    final List<Map<String, Object?>> elementBodies = <Map<String, Object?>>[];
+    final MockClient client = MockClient((http.Request req) async {
+      Object? value;
+      if (req.url.path == '/session') {
+        value = <String, Object?>{'sessionId': 's1'};
+      } else if (req.url.path == '/session/s1/element') {
+        elementBodies.add(
+          (jsonDecode(req.body) as Map).cast<String, Object?>(),
+        );
+        value = <String, Object?>{
+          'element-6066-11e4-a52e-4f735466cecf': 'E-a11y',
+        };
+      }
+      return http.Response(
+        jsonEncode(<String, Object?>{'value': value}),
+        200,
+        headers: const <String, String>{'content-type': 'application/json'},
+      );
+    });
+    final XcuiTestBackend backend = XcuiTestBackend(
+      udid: 'U',
+      app: '/x/Runner.app',
+      client: client,
+    );
+    await backend.connect();
+    final NativeTarget? target = await backend.resolve(
+      const NativeSelector(
+        resourceId: 'android:id/button1',
+        a11yId: 'Continue',
+      ),
+      null,
+    );
+    expect(target?.via, 'a11y-id');
+    expect(elementBodies, <Map<String, Object?>>[
+      <String, Object?>{'using': 'accessibility id', 'value': 'Continue'},
+    ]);
+    await backend.close();
+  });
+
   test('platform is fixed to ios', () async {
     final XcuiTestBackend b = XcuiTestBackend(udid: 'U', app: '/x/Runner.app');
     expect(b.platform, 'ios');

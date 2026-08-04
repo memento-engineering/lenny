@@ -45,6 +45,50 @@ NativeNode _byLabel(List<NativeNode> nodes, String label) =>
     nodes.firstWhere((NativeNode n) => n.label == label);
 
 void main() {
+  test(
+    'resource-id resolves first through W3C id with verbatim value',
+    () async {
+      final List<Map<String, Object?>> findBodies = <Map<String, Object?>>[];
+      final MockClient client = MockClient((http.Request req) async {
+        Object? value;
+        if (req.url.path == '/session') {
+          value = <String, Object?>{'sessionId': 's1'};
+        } else if (req.url.path == '/session/s1/element') {
+          findBodies.add((jsonDecode(req.body) as Map).cast<String, Object?>());
+          value = <String, Object?>{
+            'element-6066-11e4-a52e-4f735466cecf': 'E-resource',
+          };
+        }
+        return http.Response(
+          jsonEncode(<String, Object?>{'value': value}),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
+        );
+      });
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'emulator-5554',
+        app: 'com.example.app',
+        client: client,
+      );
+      await backend.connect();
+      final NativeTarget? target = await backend.resolve(
+        const NativeSelector(
+          resourceId: "com.example:id/owner's_button",
+          a11yId: 'must-not-run',
+        ),
+        null,
+      );
+      expect(target?.via, 'resource-id');
+      expect(findBodies, <Map<String, Object?>>[
+        <String, Object?>{
+          'using': 'id',
+          'value': "com.example:id/owner's_button",
+        },
+      ]);
+      await backend.close();
+    },
+  );
+
   group('UiAutomator2Backend.parseSource', () {
     late List<NativeNode> nodes;
 

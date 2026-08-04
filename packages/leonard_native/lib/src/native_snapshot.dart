@@ -19,7 +19,8 @@ import 'package:meta/meta.dart';
 class NativeNode {
   /// Records one perceived node. [id]/[role]/[rect] are always present; the
   /// rest are optional. [a11yId] is the OS accessibility identifier — used as
-  /// resolver tier 1 AND surfaced on the wire as `identifier` (the stable,
+  /// resolver tier 2 on Android / tier 1 on iOS AND surfaced on the wire as
+  /// `identifier` (the stable,
   /// locale-proof addressing key, mirroring Flutter's `Semantics(identifier:)`).
   /// [xpath] stays selector-internal (never wired).
   const NativeNode({
@@ -60,13 +61,15 @@ class NativeNode {
   /// Carried for schema parity with Flutter; null in m2 iOS.
   final Map<String, Object?>? scroll;
 
-  /// Raw OS accessibility identifier — selector tier 1, and the source of the
+  /// Raw OS accessibility identifier — selector tier 2 on Android / tier 1 on
+  /// iOS, and the source of the
   /// wire `identifier` field ([toRecord]). On iOS this is what
   /// `Semantics(identifier:)` lowers to, giving the brain the same stable,
   /// locale-proof addressing key on the native channel as on Flutter.
   final String? a11yId;
 
-  /// Node's synthesized/derived XPath — selector tier 3.
+  /// Node's synthesized/derived XPath — selector tier 4 on Android / tier 3 on
+  /// iOS.
   final String? xpath;
 
   /// Android `resource-id` (e.g. `com.android.chrome:id/bottom_sheet`), or null

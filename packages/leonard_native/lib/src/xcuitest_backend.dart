@@ -323,7 +323,8 @@ class XcuiTestBackend implements NativeBackend {
   }
 
   // ---------------------------------------------------------------------------
-  // Resolution: the 4-tier selector chain (m2-spec §5.4).
+  // Resolution: the iOS 4-tier chain. resourceId is Android-only and is
+  // deliberately skipped without synthesizing an id, predicate, or XPath.
   // ---------------------------------------------------------------------------
 
   @override

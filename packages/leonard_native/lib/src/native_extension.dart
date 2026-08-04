@@ -100,9 +100,10 @@ class NativeExtension extends LeonardExtension with PerceptionExtension {
 
   /// Shared selector resolution: builds a [NativeSelector] from the tool args
   /// and delegates to [NativeBackend.resolve], which walks the chain
-  /// a11y-id -> label -> xpath -> rect-center.
+  /// resource-id (Android only) -> a11y-id -> label -> xpath -> rect-center.
   Future<NativeTarget?> resolveTarget(Map<String, Object?> args) {
     final NativeSelector sel = NativeSelector(
+      resourceId: args['resource-id'] as String?,
       a11yId: args['id'] as String?,
       label: args['label'] as String?,
       xpath: args['xpath'] as String?,
@@ -114,24 +115,29 @@ class NativeExtension extends LeonardExtension with PerceptionExtension {
 
 /// Shared selector-arg schema properties for the three selector-based tools.
 const Map<String, Object?> _selectorProps = <String, Object?>{
+  'resource-id': <String, Object?>{
+    'type': 'string',
+    'description': 'Android resource-id (tier 1; skipped on iOS)',
+  },
   'id': <String, Object?>{
     'type': 'string',
-    'description': 'a11y identifier (tier 1)',
+    'description': 'a11y identifier (Android tier 2; iOS tier 1)',
   },
   'label': <String, Object?>{
     'type': 'string',
-    'description': 'visible label (tier 2)',
+    'description': 'visible label (Android tier 3; iOS tier 2)',
   },
   'xpath': <String, Object?>{
     'type': 'string',
     'description':
         "XPath, e.g. //XCUIElementTypeTextField[@name='Email address'] "
-        '(tier 3)',
+        '(Android tier 4; iOS tier 3)',
   },
   'rect': <String, Object?>{
     'type': 'array',
     'items': <String, Object?>{'type': 'integer'},
-    'description': '[l,t,r,b]; taps the center (tier 4, last resort)',
+    'description':
+        '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, last resort)',
   },
 };
 
@@ -145,7 +151,8 @@ class _TapTool extends LeonardTool {
 
   @override
   String get description =>
-      'Tap a native element. Resolve it by a11y id, label, XPath, or rect '
+      'Tap a native element. Resolve it by Android resource-id, a11y id, '
+      'label, XPath, or rect '
       '(tried in that order; the winning tier is reported as `via`).';
 
   @override

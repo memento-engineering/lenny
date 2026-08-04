@@ -97,6 +97,27 @@ void main() {
       final FakeNativeBackend backend = FakeNativeBackend();
       addTearDown(backend.close);
 
+      final FakeNativeBackend androidBackend = FakeNativeBackend(
+        platform: 'android',
+      );
+      addTearDown(androidBackend.close);
+      final NativeTarget? android = await androidBackend.resolve(
+        const NativeSelector(
+          resourceId: "com.example:id/owner's_button",
+          a11yId: 'fallback',
+          xpath: '//fallback',
+        ),
+        _snapshot,
+      );
+      expect(android?.via, 'resource-id');
+      expect(android?.elementId, "el-com.example:id/owner's_button");
+
+      final NativeTarget? ios = await backend.resolve(
+        const NativeSelector(resourceId: 'android:id/button1', a11yId: 'login'),
+        _snapshot,
+      );
+      expect(ios?.via, 'a11y-id');
+
       final NativeTarget? a11y = await backend.resolve(
         const NativeSelector(
           a11yId: 'login',
