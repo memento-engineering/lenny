@@ -40,6 +40,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
+import 'appium_capabilities.dart';
 import 'native_backend.dart';
 import 'native_snapshot.dart';
 
@@ -152,21 +153,26 @@ class UiAutomator2Backend implements NativeBackend {
   // ---------------------------------------------------------------------------
 
   @override
-  Future<void> connect() async {
-    if (_sessionId != null) return; // idempotent
+  Future<void> connect({
+    Map<String, Object?> extraCapabilities = const <String, Object?>{},
+  }) async {
     // Attach to the foreground app (the running `flutter run` process) WITHOUT
     // relaunching it: UiAutomator2 with `autoLaunch:false` and no app/appPackage
     // cap starts a session against whatever is on screen. This is the Android
     // analogue of iOS's "never terminate the Flutter process" invariant — a
     // relaunch would drop the flutter_ws channel the dual round-trip needs.
-    final Map<String, Object?> caps = <String, Object?>{
-      'platformName': 'Android',
-      'appium:automationName': 'UiAutomator2',
-      'appium:udid': udid,
-      'appium:noReset': true,
-      'appium:autoLaunch': false,
-      'appium:newCommandTimeout': 0,
-    };
+    final Map<String, Object?> caps = mergeAppiumCapabilities(
+      defaults: <String, Object?>{
+        'platformName': 'Android',
+        'appium:automationName': 'UiAutomator2',
+        'appium:udid': udid,
+        'appium:noReset': true,
+        'appium:autoLaunch': false,
+        'appium:newCommandTimeout': 0,
+      },
+      extraCapabilities: extraCapabilities,
+    );
+    if (_sessionId != null) return; // idempotent
     final Map<String, Object?> j = await _post('/session', <String, Object?>{
       'capabilities': <String, Object?>{
         'alwaysMatch': caps,

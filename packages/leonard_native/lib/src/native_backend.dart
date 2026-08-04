@@ -194,7 +194,13 @@ abstract class NativeBackend {
   /// Open the device session against an ALREADY-RUNNING Appium server and an
   /// ALREADY-BOOTED simulator. The backend does NOT spawn Appium or boot the
   /// sim (that lifecycle is m4). Idempotent.
-  Future<void> connect();
+  ///
+  /// [extraCapabilities] are merged over orthogonal Appium defaults when a new
+  /// session is created. Attach-critical capabilities are rejected with
+  /// [ArgumentError].
+  Future<void> connect({
+    Map<String, Object?> extraCapabilities = const <String, Object?>{},
+  });
 
   /// Out-of-band poll loop: emits a fresh [NativeSnapshot] each tick (reading
   /// `/source` for Appium, parsing the XCUITest XML). This is the watcher's

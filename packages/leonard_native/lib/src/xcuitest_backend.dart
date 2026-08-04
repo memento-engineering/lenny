@@ -23,6 +23,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
+import 'appium_capabilities.dart';
 import 'native_backend.dart';
 import 'native_snapshot.dart';
 
@@ -138,16 +139,21 @@ class XcuiTestBackend implements NativeBackend {
   // ---------------------------------------------------------------------------
 
   @override
-  Future<void> connect() async {
+  Future<void> connect({
+    Map<String, Object?> extraCapabilities = const <String, Object?>{},
+  }) async {
+    final Map<String, Object?> caps = mergeAppiumCapabilities(
+      defaults: <String, Object?>{
+        'platformName': 'iOS',
+        'appium:automationName': 'XCUITest',
+        'appium:udid': udid,
+        'appium:app': app,
+        'appium:forceSimulatorSoftwareKeyboardPresence': true,
+        'appium:noReset': true,
+      },
+      extraCapabilities: extraCapabilities,
+    );
     if (_sessionId != null) return; // idempotent
-    final Map<String, Object?> caps = <String, Object?>{
-      'platformName': 'iOS',
-      'appium:automationName': 'XCUITest',
-      'appium:udid': udid,
-      'appium:app': app,
-      'appium:forceSimulatorSoftwareKeyboardPresence': true,
-      'appium:noReset': true,
-    };
     final Map<String, Object?> j = await _post('/session', <String, Object?>{
       'capabilities': <String, Object?>{
         'alwaysMatch': caps,
