@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Scrubbed Appium UiAutomator2 /source subtree for an Android runtime
+  permission dialog. Human-readable text is retained only as capture evidence;
+  it is never a detection key because permission-controller strings localize.
+-->
+<hierarchy rotation="0">
+  <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.android.permissioncontroller" clickable="false" bounds="[0,0][1080,2400]">
+    <node index="0" text="" resource-id="com.android.permissioncontroller:id/grant_dialog" class="android.widget.LinearLayout" package="com.android.permissioncontroller" clickable="true" bounds="[48,710][1032,1690]">
+      <node index="0" text="Allow this app to send you notifications?" resource-id="com.android.permissioncontroller:id/permission_message" class="android.widget.TextView" package="com.android.permissioncontroller" clickable="false" bounds="[96,820][984,1050]" />
+      <node index="1" text="Allow" resource-id="com.android.permissioncontroller:id/permission_allow_button" class="android.widget.Button" package="com.android.permissioncontroller" clickable="true" bounds="[96,1250][984,1390]" />
+      <node index="2" text="Don’t allow" resource-id="com.android.permissioncontroller:id/permission_deny_button" class="android.widget.Button" package="com.android.permissioncontroller" clickable="true" bounds="[96,1410][984,1550]" />
+    </node>
+  </node>
+</hierarchy>

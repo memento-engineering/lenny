@@ -473,6 +473,29 @@ void main() {
         );
         await b.close();
       });
+
+      for (final String key in <String>[
+        'permission_allow',
+        'permission_deny',
+      ]) {
+        test('$key is rejected as Android-only without I/O', () async {
+          final XcuiTestBackend b = backend(alertOpen: true);
+          await b.connect();
+          final List<String> before = List<String>.of(hits);
+          await expectLater(
+            b.press(key),
+            throwsA(
+              isA<NativeException>().having(
+                (NativeException e) => e.message,
+                'message',
+                'unknown press key: $key (Android-only)',
+              ),
+            ),
+          );
+          expect(hits, before);
+          await b.close();
+        });
+      }
     },
   );
 }

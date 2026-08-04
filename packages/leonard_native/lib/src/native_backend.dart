@@ -206,9 +206,10 @@ class NativeException implements Exception {
 /// Recognized [press] keys are platform-specific and documented on the impl,
 /// NOT enforced by an allowlist on the tool. The shared iOS/Android set is
 /// `enter`/`return`/`done`; the iOS-only set is
-/// `consent_accept`/`alert_dismiss`; the Android-only set is `back` plus the
-/// internal `dismiss_overlay` recovery action. An unrecognized key surfaces as
-/// a [NativeException] from the impl.
+/// `consent_accept`/`alert_dismiss`; the Android-only set is `back`, the
+/// internal `dismiss_overlay` recovery action, and
+/// `permission_allow`/`permission_deny`. An unrecognized key surfaces as a
+/// [NativeException] from the impl.
 abstract class NativeBackend {
   /// Open the device session against an ALREADY-RUNNING Appium server and an
   /// ALREADY-BOOTED simulator. The backend does NOT spawn Appium or boot the
@@ -289,10 +290,16 @@ abstract class NativeBackend {
   /// A logical platform action. Shared: `enter`|`return`|`done`. iOS-only:
   /// `consent_accept`|`alert_dismiss`; `consent_accept` issues
   /// `POST /session/{id}/alert/accept` and `alert_dismiss` issues
-  /// `POST /session/{id}/alert/dismiss`. Android-only: `back` and the internal
-  /// positively-gated `dismiss_overlay` recovery action. An unrecognized key
-  /// throws [NativeException]; an alert-endpoint key issued when no alert is
-  /// open surfaces the W3C "no alert open" error as a [NativeException].
+  /// `POST /session/{id}/alert/dismiss`. Android-only: `back`, the internal
+  /// positively-gated `dismiss_overlay` recovery action, and
+  /// `permission_allow`/`permission_deny`.
+  ///
+  /// `dismiss_overlay` refuses an Android permission dialog because Android
+  /// Back denies permission. Denial persistently changes application behavior;
+  /// granting is still less reversible and was not requested. Consumers must
+  /// express either intent through its explicit permission key. An unrecognized
+  /// key throws [NativeException]; an alert-endpoint key issued when no alert
+  /// is open surfaces the W3C "no alert open" error as a [NativeException].
   Future<void> press(String key);
 
   /// Swipe gesture (W3C actions / `mobile: swipe`).

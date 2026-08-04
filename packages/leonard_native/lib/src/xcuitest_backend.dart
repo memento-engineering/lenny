@@ -586,6 +586,9 @@ class XcuiTestBackend implements NativeBackend {
           'value': <String>['\n'],
         });
         return;
+      case 'permission_allow':
+      case 'permission_deny':
+        throw NativeException('unknown press key: $key (Android-only)');
       default:
         throw NativeException('unknown press key: $key');
     }

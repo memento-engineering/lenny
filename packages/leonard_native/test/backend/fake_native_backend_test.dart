@@ -109,6 +109,16 @@ void main() {
     await expectLater(backend.press('throw'), throwsA(isA<NativeException>()));
   });
 
+  test('recognizes explicit Android permission press keys', () async {
+    final FakeNativeBackend backend = FakeNativeBackend();
+    await backend.press('permission_allow');
+    await backend.press('permission_deny');
+    expect(backend.calls.map((FakeNativeCall call) => call.detail), <String>[
+      'permission_allow',
+      'permission_deny',
+    ]);
+  });
+
   test(
     'built-in resolver honors tier priority and stable target format',
     () async {

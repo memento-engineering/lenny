@@ -23,10 +23,11 @@
 ///     handoff) reject `ACTION_SET_TEXT` while accepting injected key events.
 ///     `/keys` is NOT the fallback: it shares the ACTION_SET_TEXT handler for
 ///     arbitrary text and fails identically (see the note at the call site);
-///   * [press] recognizes `back` (`POST /back`) and `enter`/`return`/`done`
-///     (a newline via `/keys`); the iOS-only alert keys `consent_accept` /
-///     `alert_dismiss` throw [NativeException] (Android's Auth0 handoff is a
-///     Chrome Custom Tab with no SpringBoard consent/save-password alert).
+///   * [press] recognizes `back` (`POST /back`), explicit permission decisions,
+///     and `enter`/`return`/`done` (a newline via `/keys`); the iOS-only alert
+///     keys `consent_accept` / `alert_dismiss` throw [NativeException]
+///     (Android's Auth0 handoff is a Chrome Custom Tab with no SpringBoard
+///     consent/save-password alert).
 ///
 /// All device latency lives here so `buildPerception()` stays synchronous —
 /// the pull-free build invariant. The backend does NOT boot the emulator or
@@ -43,6 +44,18 @@ import 'package:xml/xml.dart';
 import 'appium_capabilities.dart';
 import 'native_backend.dart';
 import 'native_snapshot.dart';
+
+enum _Obstruction {
+  androidPermissionDialog,
+  chromeTouchToFillSheet,
+  chromeBottomSheet;
+
+  String get name => switch (this) {
+    _Obstruction.androidPermissionDialog => 'Android permission dialog',
+    _Obstruction.chromeTouchToFillSheet => 'Chrome Touch-To-Fill sheet',
+    _Obstruction.chromeBottomSheet => 'Chrome bottom sheet',
+  };
+}
 
 /// The W3C element key returned by every successful `find`.
 const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
@@ -518,10 +531,10 @@ class UiAutomator2Backend implements NativeBackend {
       // reworded remote message must not be able to silently disable this.
       if (e.code != 'invalid element state') rethrow;
 
-      final String? obstruction = await _detectObstruction();
+      final _Obstruction? obstruction = await _detectObstruction();
       if (obstruction != null) {
         throw NativeException(
-          'enter_text field is obscured by $obstruction; automatic recovery may '
+          'enter_text field is obscured by ${obstruction.name}; automatic recovery may '
           'dismiss it and retry once.',
           code: NativeException.fieldObscuredCode,
         );
@@ -595,8 +608,19 @@ class UiAutomator2Backend implements NativeBackend {
       'com.android.chrome:id/bottom_sheet';
   static const String _touchToFillTitleId =
       'com.android.chrome:id/touch_to_fill_sheet_title';
+  static const String _permissionDialogId =
+      'com.android.permissioncontroller:id/grant_dialog';
+  static const String _permissionAllowButtonId =
+      'com.android.permissioncontroller:id/permission_allow_button';
+  static const String _permissionDenyButtonId =
+      'com.android.permissioncontroller:id/permission_deny_button';
 
-  String? _obstructionName(NativeSnapshot source) {
+  _Obstruction? _obstruction(NativeSnapshot source) {
+    if (source.nodes.any(
+      (NativeNode node) => node.resourceId == _permissionDialogId,
+    )) {
+      return _Obstruction.androidPermissionDialog;
+    }
     final bool hasBottomSheet = source.nodes.any(
       (NativeNode node) => node.resourceId == _chromeBottomSheetId,
     );
@@ -604,7 +628,9 @@ class UiAutomator2Backend implements NativeBackend {
     final bool isTouchToFill = source.nodes.any(
       (NativeNode node) => node.resourceId == _touchToFillTitleId,
     );
-    return isTouchToFill ? 'Chrome Touch-To-Fill sheet' : 'Chrome bottom sheet';
+    return isTouchToFill
+        ? _Obstruction.chromeTouchToFillSheet
+        : _Obstruction.chromeBottomSheet;
   }
 
   /// The obstruction probe, which reads a fresh `/source`.
@@ -620,9 +646,9 @@ class UiAutomator2Backend implements NativeBackend {
   /// exactly: an unreadable `/source` reads as "nothing obstructing", the write
   /// still attempts its fallback, and the readback check remains the thing that
   /// catches a silently-empty write.
-  Future<String?> _detectObstruction() async {
+  Future<_Obstruction?> _detectObstruction() async {
     try {
-      return _obstructionName(await snapshot());
+      return _obstruction(await snapshot());
     } on Object {
       return null;
     }
@@ -707,10 +733,25 @@ class UiAutomator2Backend implements NativeBackend {
   Future<void> press(String key) async {
     switch (key) {
       case 'dismiss_overlay':
-        if (await _detectObstruction() == null) {
-          throw NativeException('no dismissible platform overlay is present');
+        final _Obstruction? obstruction = await _detectObstruction();
+        switch (obstruction) {
+          case null:
+            throw NativeException('no dismissible platform overlay is present');
+          case _Obstruction.androidPermissionDialog:
+            throw NativeException(
+              'Android permission dialog requires an explicit '
+              'permission_allow or permission_deny press key',
+            );
+          case _Obstruction.chromeTouchToFillSheet:
+          case _Obstruction.chromeBottomSheet:
+            await press('back');
+            return;
         }
-        await press('back');
+      case 'permission_allow':
+        await _pressPermissionButton(key, _permissionAllowButtonId);
+        return;
+      case 'permission_deny':
+        await _pressPermissionButton(key, _permissionDenyButtonId);
         return;
       case 'back':
         await _post('/session/$_sid/back', const <String, Object?>{});
@@ -733,6 +774,19 @@ class UiAutomator2Backend implements NativeBackend {
       default:
         throw NativeException('unknown press key: $key');
     }
+  }
+
+  Future<void> _pressPermissionButton(String key, String resourceId) async {
+    final String? elementId = await _find('id', resourceId);
+    if (elementId == null) {
+      throw NativeException(
+        'Android permission dialog button is not present: $key',
+      );
+    }
+    await _post(
+      '/session/$_sid/element/$elementId/click',
+      const <String, Object?>{},
+    );
   }
 
   @override

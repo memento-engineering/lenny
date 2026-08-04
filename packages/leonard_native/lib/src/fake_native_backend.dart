@@ -203,6 +203,8 @@ class FakeNativeBackend implements NativeBackend {
       'alert_dismiss',
       'back',
       'dismiss_overlay',
+      'permission_allow',
+      'permission_deny',
     };
     if (!recognized.contains(key)) {
       throw NativeException('unknown press key: $key');
