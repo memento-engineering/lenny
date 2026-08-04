@@ -100,22 +100,52 @@ class NativeException implements Exception {
   ///   result = await backend.enterText(target, text);
   /// } on NativeException catch (e) {
   ///   if (e.code != NativeException.fieldObscuredCode) rethrow;
-  ///   // Positively gated inside the backend: this THROWS rather than pressing
-  ///   // back when nothing is actually obstructing, so it cannot navigate a
-  ///   // Chrome Custom Tab away.
-  ///   await backend.press('dismiss_overlay');
+  ///   try {
+  ///     // Positively gated inside the backend: this THROWS rather than
+  ///     // pressing back when nothing is actually obstructing, so it cannot
+  ///     // navigate a Chrome Custom Tab away.
+  ///     await backend.press('dismiss_overlay');
+  ///   } on NativeException {
+  ///     // That gate makes a FAILED dismissal an expected race — the overlay
+  ///     // can clear on its own between the write failing and this call — so
+  ///     // keep `e` as the reported cause. Letting the dismissal failure
+  ///     // replace it reports "no dismissible platform overlay is present",
+  ///     // which reads as broken recovery rather than as the real obstruction.
+  ///     throw e;
+  ///   }
   ///   // Dismissal INVALIDATES the handle — re-resolve, never reuse `target`.
   ///   final NativeTarget? fresh = await backend.resolve(selector, cached);
   ///   if (fresh == null) {
-  ///     throw NativeException('element gone after obstruction dismissal');
+  ///     throw NativeException(
+  ///       'element disappeared after obstruction dismissal',
+  ///       code: NativeException.elementGoneAfterDismissalCode,
+  ///     );
   ///   }
   ///   result = await backend.enterText(fresh, text);
   /// }
   /// ```
   ///
+  /// This mirrors `_EnterTextTool` exactly, including which error survives a
+  /// failed dismissal — the two must not diverge, because the recipe is the
+  /// migration path for consumers who cannot use the tool.
+  ///
   /// Branch on this code, never on [message] — the message is model-facing
   /// prose and may be reworded.
   static const String fieldObscuredCode = 'field obscured';
+
+  /// Recovery code for "the obstruction cleared, but the element is gone".
+  ///
+  /// Carried by the [fieldObscuredCode] recipe above when the post-dismissal
+  /// re-resolve finds nothing. It exists so that outcome is distinguishable
+  /// from a generic resolve failure WITHOUT string-matching [message] — the
+  /// habit [code] was introduced to retire.
+  ///
+  /// A caller seeing this knows dismissal SUCCEEDED and the screen then moved
+  /// on (a navigation, a re-render), so retrying the write against a fresh
+  /// lookup of the same selector is unlikely to help; re-observe instead of
+  /// looping.
+  static const String elementGoneAfterDismissalCode =
+      'element gone after dismissal';
 
   /// Wraps a human-readable [message], optionally tagged with a W3C or
   /// backend-defined recovery [code].
@@ -174,10 +204,20 @@ abstract class NativeBackend {
   /// rect without an extra round-trip.
   ///
   /// THIS ALREADY RETRIES INTERNALLY, and callers must size their own retry
-  /// budgets against that. Tiers 1-3 each run an element find with its own
-  /// ~10 s retry window, so a selector that carries an a11y-id, a label AND an
-  /// xpath and matches none of them can spend **~30 s inside a single call**
-  /// before tier 4 synthesizes a rect-center.
+  /// budgets against that. The cost is **per POPULATED tier**, not per call:
+  /// each tier is skipped when its selector field is null, and each tier that
+  /// does run an element find carries its own ~10 s retry window.
+  ///
+  /// So the budget follows the selector you passed:
+  ///
+  /// - xpath only, no match: **~10 s** — tiers 1-2 are skipped outright.
+  /// - a11y-id + xpath, neither matching: ~20 s.
+  /// - a11y-id + label + xpath, none matching: **~30 s**, the worst case, before
+  ///   tier 4 synthesizes a rect-center.
+  ///
+  /// Two tiers are cheaper than they look: tier 2 only issues a find when
+  /// [cached] already contains a label match, and tier 4 is pure arithmetic
+  /// with no device round-trip at all.
   ///
   /// An outer loop therefore multiplies: 20 attempts around a fully-missing
   /// selector is ~10 minutes, which presents as a hang rather than a failure.

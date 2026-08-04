@@ -24,10 +24,17 @@ Future<({String readback, bool masked})> writeWithOverlayRecovery(
     result = await backend.enterText(target, text);
   } on NativeException catch (e) {
     if (e.code != NativeException.fieldObscuredCode) rethrow;
-    await backend.press('dismiss_overlay');
+    try {
+      await backend.press('dismiss_overlay');
+    } on NativeException {
+      throw e;
+    }
     final NativeTarget? fresh = await backend.resolve(selector, cached);
     if (fresh == null) {
-      throw NativeException('element gone after obstruction dismissal');
+      throw NativeException(
+        'element disappeared after obstruction dismissal',
+        code: NativeException.elementGoneAfterDismissalCode,
+      );
     }
     result = await backend.enterText(fresh, text);
   }
@@ -80,6 +87,71 @@ void main() {
           'with no overlay present navigates a Custom Tab away',
     );
   });
+
+  // The tool has pinned this since exj2
+  // (native_extension_test.dart: 'dismiss failure preserves the original
+  // obstruction'). The RECIPE did not, and shipped diverging from it — the gap
+  // this case closes.
+  test('a failed dismissal surfaces the obstruction, not the press '
+      'failure', () async {
+    final _DismissFailsBackend backend = _DismissFailsBackend();
+    await expectLater(
+      writeWithOverlayRecovery(
+        backend,
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        const NativeSelector(a11yId: 'Email'),
+        null,
+        'x',
+      ),
+      throwsA(
+        isA<NativeException>()
+            .having(
+              (NativeException e) => e.code,
+              'code',
+              NativeException.fieldObscuredCode,
+            )
+            .having(
+              (NativeException e) => e.message,
+              'message',
+              'field is obscured by Chrome Touch-To-Fill sheet',
+            ),
+      ),
+      reason:
+          'dismiss_overlay is positively gated, so it throws when the overlay '
+          'has already cleared on its own — a real race. Reporting that as the '
+          'outcome inverts the diagnostic exactly in the confusing case: the '
+          'caller reads "no dismissible platform overlay is present" (recovery '
+          'looks broken) instead of the obstruction that actually blocked them.',
+    );
+    expect(
+      backend.trace,
+      <String>['enterText:E', 'press:dismiss_overlay'],
+      reason: 'a failed dismissal must not go on to re-resolve or retry',
+    );
+  });
+
+  test('a vanished element is reported with a branchable code', () async {
+    final _ElementGoneBackend backend = _ElementGoneBackend();
+    await expectLater(
+      writeWithOverlayRecovery(
+        backend,
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        const NativeSelector(a11yId: 'Email'),
+        null,
+        'x',
+      ),
+      throwsA(
+        isA<NativeException>().having(
+          (NativeException e) => e.code,
+          'code',
+          NativeException.elementGoneAfterDismissalCode,
+        ),
+      ),
+      reason:
+          'a code-less throw here sends consumers who were just taught to '
+          'branch on code back to string-matching the message',
+    );
+  });
 }
 
 class _ObscuredOnceBackend extends FakeNativeBackend {
@@ -113,6 +185,53 @@ class _ObscuredOnceBackend extends FakeNativeBackend {
     trace.add('resolve');
     return const NativeTarget(elementId: 'FRESH', via: 'a11y-id');
   }
+}
+
+/// The overlay clears itself between the failed write and the dismissal, so
+/// `dismiss_overlay`'s positive gate refuses. Mirrors what the real backend
+/// does at uiautomator2_backend.dart's `dismiss_overlay` case.
+class _DismissFailsBackend extends FakeNativeBackend {
+  final List<String> trace = <String>[];
+
+  @override
+  Future<({String readback, bool masked})> enterText(
+    NativeTarget target,
+    String text,
+  ) async {
+    trace.add('enterText:${target.elementId}');
+    throw NativeException(
+      'field is obscured by Chrome Touch-To-Fill sheet',
+      code: NativeException.fieldObscuredCode,
+    );
+  }
+
+  @override
+  Future<void> press(String key) async {
+    trace.add('press:$key');
+    throw NativeException('no dismissible platform overlay is present');
+  }
+}
+
+/// Dismissal succeeds, then the screen moves on and the selector no longer
+/// matches anything.
+class _ElementGoneBackend extends FakeNativeBackend {
+  @override
+  Future<({String readback, bool masked})> enterText(
+    NativeTarget target,
+    String text,
+  ) async => throw NativeException(
+    'field is obscured by Chrome Touch-To-Fill sheet',
+    code: NativeException.fieldObscuredCode,
+  );
+
+  @override
+  Future<void> press(String key) async {}
+
+  @override
+  Future<NativeTarget?> resolve(
+    NativeSelector selector,
+    NativeSnapshot? cached,
+  ) async => null;
 }
 
 class _AlwaysFailsBackend extends FakeNativeBackend {
