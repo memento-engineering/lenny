@@ -1,5 +1,17 @@
 ## 0.2.2
 
+- `NativeNode` gains `resourceId`, the Android `resource-id` (null on iOS,
+  where XCUITest has no analogue — its `identifier` is already carried by
+  `a11yId`). It is the only stable, non-localising way for a Dart consumer to
+  identify a platform overlay: Chrome's Touch-To-Fill sheet is matched by
+  `touch_to_fill_sheet_title` / `bottom_sheet`, while its title text,
+  content-desc and per-row summary all localise, so string matching breaks on a
+  non-English device.
+  Deliberately NOT added to `toRecord()`: that record is the canonical
+  cross-host schema and stays byte-identical to `leonard_flutter`'s semantics
+  fragment, which has no resource-id to emit. The model addresses nodes by
+  `identifier`/`label`, so the wire shape is unchanged and no snapshot
+  expectations move.
 - Fix: `UiAutomator2Backend.enterText` now types into Chrome web-content
   inputs. UiAutomator2 implements `POST /element/{id}/value` as
   `AccessibilityNodeInfo.performAction(ACTION_SET_TEXT)`, which Chrome's web

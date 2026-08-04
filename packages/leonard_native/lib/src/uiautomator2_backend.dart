@@ -312,6 +312,9 @@ class UiAutomator2Backend implements NativeBackend {
           // Tier-1 accessibility id on UiAutomator2 IS `content-desc`.
           a11yId: desc,
           xpath: _xpathFor(el, cls, rid, classIndex, ridCountByClass),
+          // For Dart consumers needing a stable, non-localising key (overlay
+          // detection). Deliberately NOT wired — see NativeNode.resourceId.
+          resourceId: rid,
         ),
       );
     }
