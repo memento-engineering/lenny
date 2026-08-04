@@ -66,20 +66,29 @@ try {
   result = await backend.enterText(target, text);
 } on NativeException catch (e) {
   if (e.code != NativeException.fieldObscuredCode) rethrow;
-  // Positively gated inside the backend: it THROWS rather than pressing back
-  // when nothing is obstructing, so it cannot navigate a Custom Tab away.
-  await backend.press('dismiss_overlay');
+  try {
+    // Positively gated inside the backend: it THROWS rather than pressing back
+    // when nothing is obstructing, so it cannot navigate a Custom Tab away.
+    await backend.press('dismiss_overlay');
+  } on NativeException {
+    // Keep `e` as the cause — see "preserve the original error" below.
+    throw e;
+  }
   // Dismissal INVALIDATES the handle — re-resolve, never reuse `target`.
   final NativeTarget? fresh = await backend.resolve(selector, cached);
   if (fresh == null) {
-    throw NativeException('element gone after obstruction dismissal');
+    throw NativeException(
+      'element disappeared after obstruction dismissal',
+      code: NativeException.elementGoneAfterDismissalCode,
+    );
   }
   result = await backend.enterText(fresh, text);
 }
 ```
 
-Three things that are easy to get wrong here, each of which cost a real
-debugging round:
+This mirrors `_EnterTextTool` step for step, including which error survives a
+failed dismissal. Four things that are easy to get wrong here, each of which
+cost a real debugging round:
 
 - **Branch on `code`, never on the message.** The message is model-facing prose
   and may be reworded; `fieldObscuredCode` is the contract.
@@ -88,6 +97,15 @@ debugging round:
 - **Never issue a bare `back` yourself to dismiss.** With no overlay present it
   is plain navigation and will close a Custom Tab. `press('dismiss_overlay')`
   is gated on positive detection; hand-rolled dismissal is not.
+- **Preserve the original error when dismissal fails.** That same positive gate
+  means `dismiss_overlay` throws `no dismissible platform overlay is present`
+  when the overlay has already cleared — a real race, since Chrome dismisses the
+  sheet on its own timers and the sheet is once-per-page, not once-per-field. If
+  you let that replace the obstruction error, the report inverts exactly in the
+  confusing case: you get a message that reads like the recovery machinery is
+  broken instead of the actionable cause. The dismissal failure is deliberately
+  discarded here rather than surfaced — log it if you need it, but do not report
+  it as the outcome.
 
 Note also that `resolve` retries internally (~10 s per tier, up to three tiers),
 so an outer retry loop multiplies against it — see its dartdoc before sizing

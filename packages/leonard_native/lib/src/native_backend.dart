@@ -100,22 +100,52 @@ class NativeException implements Exception {
   ///   result = await backend.enterText(target, text);
   /// } on NativeException catch (e) {
   ///   if (e.code != NativeException.fieldObscuredCode) rethrow;
-  ///   // Positively gated inside the backend: this THROWS rather than pressing
-  ///   // back when nothing is actually obstructing, so it cannot navigate a
-  ///   // Chrome Custom Tab away.
-  ///   await backend.press('dismiss_overlay');
+  ///   try {
+  ///     // Positively gated inside the backend: this THROWS rather than
+  ///     // pressing back when nothing is actually obstructing, so it cannot
+  ///     // navigate a Chrome Custom Tab away.
+  ///     await backend.press('dismiss_overlay');
+  ///   } on NativeException {
+  ///     // That gate makes a FAILED dismissal an expected race — the overlay
+  ///     // can clear on its own between the write failing and this call — so
+  ///     // keep `e` as the reported cause. Letting the dismissal failure
+  ///     // replace it reports "no dismissible platform overlay is present",
+  ///     // which reads as broken recovery rather than as the real obstruction.
+  ///     throw e;
+  ///   }
   ///   // Dismissal INVALIDATES the handle — re-resolve, never reuse `target`.
   ///   final NativeTarget? fresh = await backend.resolve(selector, cached);
   ///   if (fresh == null) {
-  ///     throw NativeException('element gone after obstruction dismissal');
+  ///     throw NativeException(
+  ///       'element disappeared after obstruction dismissal',
+  ///       code: NativeException.elementGoneAfterDismissalCode,
+  ///     );
   ///   }
   ///   result = await backend.enterText(fresh, text);
   /// }
   /// ```
   ///
+  /// This mirrors `_EnterTextTool` exactly, including which error survives a
+  /// failed dismissal — the two must not diverge, because the recipe is the
+  /// migration path for consumers who cannot use the tool.
+  ///
   /// Branch on this code, never on [message] — the message is model-facing
   /// prose and may be reworded.
   static const String fieldObscuredCode = 'field obscured';
+
+  /// Recovery code for "the obstruction cleared, but the element is gone".
+  ///
+  /// Carried by the [fieldObscuredCode] recipe above when the post-dismissal
+  /// re-resolve finds nothing. It exists so that outcome is distinguishable
+  /// from a generic resolve failure WITHOUT string-matching [message] — the
+  /// habit [code] was introduced to retire.
+  ///
+  /// A caller seeing this knows dismissal SUCCEEDED and the screen then moved
+  /// on (a navigation, a re-render), so retrying the write against a fresh
+  /// lookup of the same selector is unlikely to help; re-observe instead of
+  /// looping.
+  static const String elementGoneAfterDismissalCode =
+      'element gone after dismissal';
 
   /// Wraps a human-readable [message], optionally tagged with a W3C or
   /// backend-defined recovery [code].

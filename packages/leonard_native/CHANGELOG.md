@@ -18,8 +18,25 @@
   `press('dismiss_overlay')`, which is positively gated inside the backend, so
   the destructive bare-`back` hazard is handled upstream instead of in each
   consumer's gating discipline.
-  No behaviour changed in this release. Reported on
+  No runtime behaviour changed in this release. Reported on
   https://github.com/memento-engineering/lenny/issues/26.
+- **`NativeException.elementGoneAfterDismissalCode`** — a documented code for
+  "the obstruction cleared, but the element is gone". The recovery recipe threw
+  that outcome as a bare, code-less `NativeException`, which pushed consumers who
+  had just been taught to branch on `code` back to string-matching the message.
+  Additive; nothing existing changes.
+- **Docs — the recovery recipe now preserves the original cause when dismissal
+  fails.** As first drafted, the recipe left `press('dismiss_overlay')`
+  unwrapped, so a failed dismissal replaced the obstruction error. That diverged
+  from `_EnterTextTool`, which deliberately keeps the original. It matters
+  because `dismiss_overlay` is positively gated and throws `no dismissible
+  platform overlay is present` when the overlay has already cleared — reachable
+  as a race, since Chrome dismisses the sheet on its own timers and the sheet is
+  once-per-page rather than once-per-field. The unwrapped form therefore reported
+  broken-looking recovery instead of the real cause, precisely in the case where
+  the cause is hardest to guess. `overlay_recovery_recipe_test.dart` now pins
+  this alongside the step order. Reported on
+  https://github.com/memento-engineering/lenny/pull/32.
 - **Docs — `NativeBackend.resolve` documents its internal retry.** Tiers 1-3
   each run an element find with its own ~10 s retry window, so a selector
   carrying an a11y-id, a label and an xpath that match none of them can spend
