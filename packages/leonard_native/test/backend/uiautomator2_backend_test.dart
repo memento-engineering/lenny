@@ -274,6 +274,7 @@ void main() {
     UiAutomator2Backend backendReporting({
       required String password,
       required String text,
+      String keyboardShown = 'true',
     }) {
       hits = <String>[];
       final MockClient client = MockClient((http.Request req) async {
@@ -284,6 +285,8 @@ void main() {
           value = <String, Object?>{'sessionId': 's1'};
         } else if (path.endsWith('/attribute/password')) {
           value = password;
+        } else if (path.endsWith('/is_keyboard_shown')) {
+          value = keyboardShown;
         } else if (path.endsWith('/attribute/text')) {
           value = text;
         }
@@ -345,6 +348,64 @@ void main() {
         await b.close();
       },
     );
+
+    test('NO back is issued when no soft keyboard is up', () async {
+      // THE REGRESSION. `back` is Android's dismiss gesture only while a
+      // keyboard holds focus; with none up it is plain navigation. setValue /
+      // mobile: type do not raise the keyboard, so on a Chrome page an
+      // unconditional back navigated the Custom Tab away and stranded the
+      // whole flow — every later field lookup 404'd against a page that was
+      // no longer showing.
+      final UiAutomator2Backend b = backendReporting(
+        password: 'false',
+        text: 'hi',
+        keyboardShown: 'false',
+      );
+      await b.connect();
+      await b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'hi');
+      expect(hits, contains('GET /session/s1/appium/device/is_keyboard_shown'));
+      expect(
+        hits,
+        isNot(contains('POST /session/s1/back')),
+        reason: 'a bare back with no keyboard up is navigation, not a dismiss',
+      );
+      await b.close();
+    });
+
+    test('an unreadable keyboard state presses nothing (fail safe)', () async {
+      // The probe itself failing must NOT fall through to a press. A keyboard
+      // left up is trivially recoverable; a spurious back is not. Without this
+      // the existing `on Object` catch-all would silently restore the old
+      // destructive behaviour on any transport hiccup.
+      hits = <String>[];
+      final MockClient client = MockClient((http.Request req) async {
+        final String path = req.url.path;
+        hits.add('${req.method} $path');
+        if (path.endsWith('/is_keyboard_shown')) {
+          return http.Response('gateway exploded', 502);
+        }
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'value': req.method == 'POST' && path == '/session'
+                ? <String, Object?>{'sessionId': 's1'}
+                : '',
+          }),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
+        );
+      });
+      final UiAutomator2Backend b = UiAutomator2Backend(
+        udid: 'emulator-5554',
+        app: 'com.example.app',
+        client: client,
+      );
+      await b.connect();
+      // The type itself must still succeed — dismiss is best-effort (B6).
+      await b.enterText(const NativeTarget(elementId: 'E', via: 'xpath'), 'hi');
+      expect(hits, contains('GET /session/s1/appium/device/is_keyboard_shown'));
+      expect(hits, isNot(contains('POST /session/s1/back')));
+      await b.close();
+    });
   });
 
   group('UiAutomator2Backend.enterText ACTION_SET_TEXT fallback', () {
@@ -398,6 +459,8 @@ void main() {
           value = 'false';
         } else if (path.endsWith('/attribute/focused')) {
           value = focusedAfterClick ? 'true' : 'false';
+        } else if (path.endsWith('/is_keyboard_shown')) {
+          value = 'true';
         } else if (path.endsWith('/attribute/text')) {
           value = readback;
         }
@@ -438,6 +501,7 @@ void main() {
         'POST /session/s1/execute/sync',
         'GET /session/s1/element/E/attribute/password',
         'GET /session/s1/element/E/attribute/text',
+        'GET /session/s1/appium/device/is_keyboard_shown',
         'POST /session/s1/back',
       ]);
       // The text must reach `mobile: type` verbatim.
