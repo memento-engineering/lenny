@@ -1,3 +1,33 @@
+## 0.2.3
+
+- **Docs — CORRECTION to 0.2.2's migration note, which was wrong for one
+  consumer shape.** 0.2.2 said, unqualified: *"Remove consumer-owned
+  Touch-To-Fill dismissal logic: it is redundant."* That holds only for
+  consumers driving the Leonard **tool** surface, where `enter_text` owns
+  recovery. A consumer holding a `NativeBackend` **directly** gets only a throw:
+  `UiAutomator2Backend.enterText` detects the obstruction and raises
+  `NativeException` with `NativeException.fieldObscuredCode`, and never
+  recovers — at that seam it holds an already-resolved `NativeTarget` and cannot
+  re-resolve the handle that dismissal invalidates. Recovery lives in
+  `_EnterTextTool`, the layer that holds the selector.
+  If you deleted your dismissal on 0.2.2's advice and drive the backend
+  directly, reinstate it — the recipe is now in the dartdoc on
+  `NativeException.fieldObscuredCode` and in the README. Your reinstated version
+  should be strictly better than what you deleted: branch on
+  `fieldObscuredCode` rather than message text, and dismiss via
+  `press('dismiss_overlay')`, which is positively gated inside the backend, so
+  the destructive bare-`back` hazard is handled upstream instead of in each
+  consumer's gating discipline.
+  No behaviour changed in this release. Reported on
+  https://github.com/memento-engineering/lenny/issues/26.
+- **Docs — `NativeBackend.resolve` documents its internal retry.** Tiers 1-3
+  each run an element find with its own ~10 s retry window, so a selector
+  carrying an a11y-id, a label and an xpath that match none of them can spend
+  **~30 s inside a single call**. An outer retry loop multiplies against that —
+  20 attempts is ~10 minutes, which presents as a hang rather than a failure.
+  Callers polling for a condition should detect it directly rather than discover
+  it through a resolve failure, and keep outer counts small.
+
 ## 0.2.2
 
 - **Behaviour change — Chrome credential sheets auto-recover:** `enter_text`

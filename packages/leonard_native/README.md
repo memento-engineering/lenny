@@ -43,6 +43,56 @@ Args:
 - `--app <path>` — path to the `.app` bundle (required)
 - `--platform ios` — target platform (default `ios`)
 
+## Recovering from platform overlays (backend-direct consumers)
+
+A system overlay can hide a field you have already resolved. The commonest is
+Chrome's Touch-To-Fill "Use saved password?" sheet, which appears over any
+credential form whose origin has a saved password — so every OAuth/Auth0 login
+driven through a Chrome Custom Tab hits it. While it is up, **no write path
+works**: Chrome refuses `ACTION_SET_TEXT` *and* swallows injected keystrokes.
+
+`enterText` detects it and throws `NativeException` with
+`NativeException.fieldObscuredCode`. It does **not** recover, because at that
+seam it holds an already-resolved `NativeTarget` and cannot re-resolve the
+handle that dismissal invalidates.
+
+**Recovery is automatic only through the Leonard tool surface** — the
+`enter_text` tool owns it, being the layer that holds the selector. If you drive
+a `NativeBackend` directly, implement this:
+
+```dart
+({String readback, bool masked}) result;
+try {
+  result = await backend.enterText(target, text);
+} on NativeException catch (e) {
+  if (e.code != NativeException.fieldObscuredCode) rethrow;
+  // Positively gated inside the backend: it THROWS rather than pressing back
+  // when nothing is obstructing, so it cannot navigate a Custom Tab away.
+  await backend.press('dismiss_overlay');
+  // Dismissal INVALIDATES the handle — re-resolve, never reuse `target`.
+  final NativeTarget? fresh = await backend.resolve(selector, cached);
+  if (fresh == null) {
+    throw NativeException('element gone after obstruction dismissal');
+  }
+  result = await backend.enterText(fresh, text);
+}
+```
+
+Three things that are easy to get wrong here, each of which cost a real
+debugging round:
+
+- **Branch on `code`, never on the message.** The message is model-facing prose
+  and may be reworded; `fieldObscuredCode` is the contract.
+- **Re-resolve after dismissing.** Reusing the pre-dismissal handle fails in a
+  way that looks exactly like the overlay never went away.
+- **Never issue a bare `back` yourself to dismiss.** With no overlay present it
+  is plain navigation and will close a Custom Tab. `press('dismiss_overlay')`
+  is gated on positive detection; hand-rolled dismissal is not.
+
+Note also that `resolve` retries internally (~10 s per tier, up to three tiers),
+so an outer retry loop multiplies against it — see its dartdoc before sizing
+your own budget.
+
 ## Mutation-testing pilot
 
 Mutation score is this pilot's primary test-quality metric: it measures the
