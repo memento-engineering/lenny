@@ -3,14 +3,14 @@
 ///
 /// The Android sibling of `XcuiTestBackend` (seam contract,
 /// `native_backend.dart`). The generic W3C transport (session, `/element` find,
-/// the 4-tier resolve chain, pointer-action tap/swipe) is identical to the iOS
-/// impl; only the Android divergences live here, per the seam's "all platform
+/// the resolve chain, pointer-action tap/swipe) is identical to the iOS impl;
+/// only the Android divergences live here, per the seam's "all platform
 /// quirks inside the impl" rule:
 ///
 ///   * `/source` is a UiAutomator2 tree (`<hierarchy>` of `android.widget.*` /
 ///     `android.view.*` elements) — a different parser from XCUITest;
-///   * the tier-1 accessibility id on UiAutomator2 is the element's
-///     `content-desc` (NOT `resource-id`), so [NativeNode.a11yId] carries
+///   * resource-id is Android-only tier 1; accessibility id is tier 2 and maps
+///     to the element's `content-desc`, so [NativeNode.a11yId] carries
 ///     `content-desc` and the resolver's `_find('accessibility id', …)` matches;
 ///   * [enterText] masks from `GET .../attribute/password == 'true'` (Android
 ///     has no `SecureTextField` type), and reads back via `GET .../attribute/
@@ -357,7 +357,7 @@ class UiAutomator2Backend implements NativeBackend {
   }
 
   // ---------------------------------------------------------------------------
-  // Resolution: the 4-tier selector chain (identical to iOS).
+  // Resolution: the Android 5-tier selector chain.
   // ---------------------------------------------------------------------------
 
   @override
@@ -365,13 +365,19 @@ class UiAutomator2Backend implements NativeBackend {
     NativeSelector selector,
     NativeSnapshot? cached,
   ) async {
-    // Tier 1: a11y-id (on UiAutomator2, the element's content-desc).
+    // Tier 1: exact resource-id. JSON transport owns quoting.
+    if (selector.resourceId != null) {
+      final String? eid = await _find('id', selector.resourceId!);
+      if (eid != null) return NativeTarget(elementId: eid, via: 'resource-id');
+    }
+
+    // Tier 2: a11y-id (on UiAutomator2, the element's content-desc).
     if (selector.a11yId != null) {
       final String? eid = await _find('accessibility id', selector.a11yId!);
       if (eid != null) return NativeTarget(elementId: eid, via: 'a11y-id');
     }
 
-    // Tier 2: label -> the matched cached node's a11yId / synthesized xpath.
+    // Tier 3: label -> the matched cached node's a11yId / synthesized xpath.
     if (selector.label != null) {
       final NativeNode? node = _matchLabel(cached, selector.label!);
       if (node != null) {
@@ -385,13 +391,13 @@ class UiAutomator2Backend implements NativeBackend {
       }
     }
 
-    // Tier 3: explicit xpath (load-bearing for anonymous web-form fields).
+    // Tier 4: explicit xpath (load-bearing for anonymous web-form fields).
     if (selector.xpath != null) {
       final String? eid = await _find('xpath', selector.xpath!);
       if (eid != null) return NativeTarget(elementId: eid, via: 'xpath');
     }
 
-    // Tier 4: rect-center — from the selector rect, or a cached node rect.
+    // Tier 5: rect-center — from the selector rect, or a cached node rect.
     final List<int>? rect = selector.rect ?? _cachedRect(cached, selector);
     if (rect != null && rect.length == 4) {
       return NativeTarget(

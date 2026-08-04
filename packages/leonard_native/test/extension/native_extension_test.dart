@@ -83,31 +83,37 @@ void main() {
         <String, Object?>{
           'name': 'tap',
           'description':
-              'Tap a native element. Resolve it by a11y id, label, XPath, or '
+              'Tap a native element. Resolve it by Android resource-id, a11y '
+              'id, label, XPath, or '
               'rect (tried in that order; the winning tier is reported as '
               '`via`).',
           'inputSchema': <String, Object?>{
             'type': 'object',
             'properties': <String, Object?>{
+              'resource-id': <String, Object?>{
+                'type': 'string',
+                'description': 'Android resource-id (tier 1; skipped on iOS)',
+              },
               'id': <String, Object?>{
                 'type': 'string',
-                'description': 'a11y identifier (tier 1)',
+                'description': 'a11y identifier (Android tier 2; iOS tier 1)',
               },
               'label': <String, Object?>{
                 'type': 'string',
-                'description': 'visible label (tier 2)',
+                'description': 'visible label (Android tier 3; iOS tier 2)',
               },
               'xpath': <String, Object?>{
                 'type': 'string',
                 'description':
                     "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
-                    "address'] (tier 3)",
+                    "address'] (Android tier 4; iOS tier 3)",
               },
               'rect': <String, Object?>{
                 'type': 'array',
                 'items': <String, Object?>{'type': 'integer'},
                 'description':
-                    '[l,t,r,b]; taps the center (tier 4, last resort)',
+                    '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, '
+                    'last resort)',
               },
             },
             'additionalProperties': false,
@@ -124,25 +130,30 @@ void main() {
           'inputSchema': <String, Object?>{
             'type': 'object',
             'properties': <String, Object?>{
+              'resource-id': <String, Object?>{
+                'type': 'string',
+                'description': 'Android resource-id (tier 1; skipped on iOS)',
+              },
               'id': <String, Object?>{
                 'type': 'string',
-                'description': 'a11y identifier (tier 1)',
+                'description': 'a11y identifier (Android tier 2; iOS tier 1)',
               },
               'label': <String, Object?>{
                 'type': 'string',
-                'description': 'visible label (tier 2)',
+                'description': 'visible label (Android tier 3; iOS tier 2)',
               },
               'xpath': <String, Object?>{
                 'type': 'string',
                 'description':
                     "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
-                    "address'] (tier 3)",
+                    "address'] (Android tier 4; iOS tier 3)",
               },
               'rect': <String, Object?>{
                 'type': 'array',
                 'items': <String, Object?>{'type': 'integer'},
                 'description':
-                    '[l,t,r,b]; taps the center (tier 4, last resort)',
+                    '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, '
+                    'last resort)',
               },
               'text': <String, Object?>{'type': 'string'},
             },
@@ -275,25 +286,35 @@ void main() {
   });
 
   test('selector chain resolves each tier with the right `via`', () async {
-    final FakeNativeBackend fake = _fake();
+    final FakeNativeBackend fake = FakeNativeBackend(
+      platform: 'android',
+      snapshotPayload: _populatedSnapshot(),
+    );
     final NativeExtension ext = await _initialized(fake);
     addTearDown(ext.dispose);
 
     final LeonardTool tap = ext.tools.firstWhere((t) => t.name == 'tap');
 
-    // tier 1: a11y-id
+    final resource = await tap.call(<String, Object?>{
+      'resource-id': "com.example:id/owner's_button",
+      'id': 'must-not-win',
+    });
+    expect(resource.ok, isTrue);
+    expect((resource.value! as Map)['via'], 'resource-id');
+
+    // Android tier 2: a11y-id
     final res1 = await tap.call(<String, Object?>{'id': 'Log in'});
     expect(res1.ok, isTrue);
     expect((res1.value! as Map)['via'], 'a11y-id');
 
-    // tier 3: xpath
+    // Android tier 4: xpath
     final res3 = await tap.call(<String, Object?>{
       'xpath': "//XCUIElementTypeTextField[@name='Email address']",
     });
     expect(res3.ok, isTrue);
     expect((res3.value! as Map)['via'], 'xpath');
 
-    // tier 4: rect-center
+    // Android tier 5: rect-center
     final res4 = await tap.call(<String, Object?>{
       'rect': <int>[40, 376, 362, 428],
     });

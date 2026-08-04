@@ -4,7 +4,8 @@
 ///
 /// It records every call, lets the test push snapshots (including error events)
 /// onto the [watch] stream, exposes a settable one-shot [snapshot] payload, and
-/// resolves selectors per-tier (a11y-id / label / xpath / rect-center,
+/// resolves selectors per-tier (Android resource-id / a11y-id / label / xpath /
+/// rect-center,
 /// including the anonymous-label -> positional-xpath case). A secure field is
 /// scripted via [secureFieldValue]: its [enterText] returns
 /// `(readback: <masked bullets>, masked: true)`.
@@ -121,13 +122,19 @@ class FakeNativeBackend implements NativeBackend {
     return t;
   }
 
-  /// Built-in per-tier resolver walking a11y-id -> label -> xpath ->
-  /// rect-center. The label tier resolves an anonymous cached node (no a11yId)
+  /// Built-in resolver. Android starts with resource-id; iOS skips that field
+  /// and starts with a11y-id. The label tier resolves an anonymous cached node
   /// through a synthesized positional xpath, recording `via:'label'`.
   NativeTarget? _defaultResolve(
     NativeSelector selector,
     NativeSnapshot? cached,
   ) {
+    if (platform == 'android' && selector.resourceId != null) {
+      return NativeTarget(
+        elementId: 'el-${selector.resourceId}',
+        via: 'resource-id',
+      );
+    }
     if (selector.a11yId != null) {
       return NativeTarget(elementId: 'el-${selector.a11yId}', via: 'a11y-id');
     }
