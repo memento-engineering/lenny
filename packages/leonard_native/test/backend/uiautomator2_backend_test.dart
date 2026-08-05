@@ -113,6 +113,38 @@ void main() {
   );
 
   group('UiAutomator2Backend.connect capabilities', () {
+    test(
+      'omits an unknown version and records the explicit sentinel',
+      () async {
+        Map<String, Object?>? alwaysMatch;
+        final UiAutomator2Backend backend = UiAutomator2Backend(
+          udid: 'pixel',
+          app: 'com.example.app',
+          client: MockClient((http.Request request) async {
+            final Map<String, Object?> body =
+                jsonDecode(request.body) as Map<String, Object?>;
+            final Map<String, Object?> capabilities =
+                body['capabilities']! as Map<String, Object?>;
+            alwaysMatch = capabilities['alwaysMatch']! as Map<String, Object?>;
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'value': <String, Object?>{'sessionId': 'android-session'},
+              }),
+              200,
+            );
+          }),
+        );
+
+        await backend.connect();
+        expect(alwaysMatch, isNot(contains('appium:platformVersion')));
+        expect(
+          backend.sessionProvenance?.androidVersion,
+          AndroidSessionProvenance.unknownAndroidVersion,
+        );
+        await backend.close();
+      },
+    );
+
     test('merges safe extras into the complete session request', () async {
       http.Request? sessionRequest;
       final MockClient client = MockClient((http.Request request) async {
@@ -165,7 +197,7 @@ void main() {
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'requested-serial',
         app: 'com.example.app',
-        platformVersion: '13',
+        platformVersion: '12',
         client: MockClient((http.Request request) async {
           return http.Response(
             jsonEncode(<String, Object?>{
@@ -193,31 +225,34 @@ void main() {
       expect(backend.sessionProvenance, isNull);
     });
 
-    test('optional returned provenance may be omitted', () async {
-      final UiAutomator2Backend backend = UiAutomator2Backend(
-        udid: 'requested-serial',
-        app: 'com.example.app',
-        platformVersion: '13',
-        client: MockClient(
-          (http.Request request) async => http.Response(
-            jsonEncode(<String, Object?>{
-              'value': <String, Object?>{
-                'sessionId': 'android-session',
-                'capabilities': <String, Object?>{},
-              },
-            }),
-            200,
+    test(
+      'requested version supplies provenance when Appium omits it',
+      () async {
+        final UiAutomator2Backend backend = UiAutomator2Backend(
+          udid: 'requested-serial',
+          app: 'com.example.app',
+          platformVersion: '13',
+          client: MockClient(
+            (http.Request request) async => http.Response(
+              jsonEncode(<String, Object?>{
+                'value': <String, Object?>{
+                  'sessionId': 'android-session',
+                  'capabilities': <String, Object?>{},
+                },
+              }),
+              200,
+            ),
           ),
-        ),
-      );
+        );
 
-      await backend.connect();
-      expect(backend.sessionProvenance?.deviceSerial, 'requested-serial');
-      expect(backend.sessionProvenance?.androidVersion, isNull);
-      expect(backend.sessionProvenance?.manufacturer, isNull);
-      expect(backend.sessionProvenance?.model, isNull);
-      await backend.close();
-    });
+        await backend.connect();
+        expect(backend.sessionProvenance?.deviceSerial, 'requested-serial');
+        expect(backend.sessionProvenance?.androidVersion, '13');
+        expect(backend.sessionProvenance?.manufacturer, isNull);
+        expect(backend.sessionProvenance?.model, isNull);
+        await backend.close();
+      },
+    );
 
     const List<String> deniedKeys = <String>[
       'appium:app',

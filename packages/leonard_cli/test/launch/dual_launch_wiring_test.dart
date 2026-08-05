@@ -139,9 +139,62 @@ void main() {
           containsAllInOrder(<String>['--udid', udid]),
           reason: 'native --udid must be the same shared udid',
         );
+        expect(nativeExtraArgs, isNot(contains('--platform-version')));
         expect(h.deviceId, udid);
         expect(h.flutterWsUri.toString(), 'ws://127.0.0.1:1111/ws');
         expect(h.nativeEndpoint.toString(), 'ws://127.0.0.1:2222/ws');
+      },
+    );
+
+    test(
+      'forwards a supplied platform version to the ready-gated host',
+      () async {
+        final HttpServer appium = await _fakeAppium();
+        addTearDown(() => appium.close(force: true));
+        List<String>? nativeExtraArgs;
+
+        Future<LaunchChannel> fakeSpawn({
+          required TargetRunner runner,
+          required String entrypoint,
+          String? device,
+          bool disableAuthCodes = false,
+          List<String> extraArgs = const <String>[],
+          String? readyLine,
+          required void Function(String) onLog,
+          required Duration timeout,
+        }) async {
+          if (runner == TargetRunner.dart) {
+            nativeExtraArgs = extraArgs;
+            expect(readyLine, 'LEONARD_HOST_READY');
+          }
+          return _FakeLaunchChannel(
+            runner == TargetRunner.flutter
+                ? 'ws://127.0.0.1:1111/ws'
+                : 'ws://127.0.0.1:2222/ws',
+          );
+        }
+
+        await launchDualTarget(
+          flutterEntrypoint: 'lib/main.dart',
+          udid: 'ANDROID-UDID',
+          app: 'com.example.app',
+          nativeHostPath: 'bin/leonard_native_host.dart',
+          appiumServer: Uri.parse('http://127.0.0.1:${appium.port}'),
+          platform: 'android',
+          platformVersion: '13',
+          onLog: (_) {},
+          spawn: fakeSpawn,
+        );
+
+        expect(
+          nativeExtraArgs,
+          containsAllInOrder(<String>[
+            '--platform',
+            'android',
+            '--platform-version',
+            '13',
+          ]),
+        );
       },
     );
 
