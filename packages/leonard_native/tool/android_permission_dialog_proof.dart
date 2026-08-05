@@ -15,6 +15,24 @@ const List<List<String>> trigger = <List<String>>[
   <String>['shell', 'am', 'force-stop', packageName],
   <String>['shell', 'monkey', '-p', packageName, '1'],
 ];
+final List<List<String>> expectedResetArgv = <List<String>>[
+  <String>[adb, '-s', serial, 'shell', 'pm', 'clear', packageName],
+  <String>[adb, '-s', serial, 'shell', 'pm', 'revoke', packageName, permission],
+  <String>[
+    adb,
+    '-s',
+    serial,
+    'shell',
+    'pm',
+    'clear-permission-flags',
+    packageName,
+    permission,
+    'user-set',
+    'user-fixed',
+  ],
+  <String>[adb, '-s', serial, ...trigger[0]],
+  <String>[adb, '-s', serial, ...trigger[1]],
+];
 
 typedef ProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
@@ -95,12 +113,17 @@ final class AndroidPermissionDialogProof {
     this.runProcess = Process.run,
     http.Client Function()? clientFactory,
     Directory? packageRoot,
+    Future<void> Function()? actionSettleDelay,
   }) : clientFactory = clientFactory ?? http.Client.new,
-       packageRoot = packageRoot ?? Directory.current;
+       packageRoot = packageRoot ?? Directory.current,
+       actionSettleDelay =
+           actionSettleDelay ??
+           (() => Future<void>.delayed(const Duration(seconds: 2)));
 
   final ProcessRunner runProcess;
   final http.Client Function() clientFactory;
   final Directory packageRoot;
+  final Future<void> Function() actionSettleDelay;
 
   File get fixture => File(
     '${packageRoot.path}/test/fixtures/android_permission_dialog_source.xml',
@@ -266,6 +289,7 @@ final class AndroidPermissionDialogProof {
           rethrow;
         }
       }
+      if (result == 'returned') await actionSettleDelay();
       dialogAfter = permissionDialogPresent(await backend.snapshot());
     } finally {
       await backend.close();
@@ -277,43 +301,6 @@ final class AndroidPermissionDialogProof {
       dialogAfter: dialogAfter,
       grantedAfter: await permissionIsGranted(),
       backPosted: client.hits.any((String hit) => hit.endsWith('/back')),
-    );
-  }
-
-  Future<ActionEvidence> exerciseConnected(
-    String key,
-    UiAutomator2Backend backend,
-    RecordingClient client,
-  ) async {
-    await resetAndTrigger();
-    final bool dialogBefore = permissionDialogPresent(
-      await waitForPermissionDialog(backend),
-    );
-    final int firstRecord = client.records.length;
-    String result = 'returned';
-    try {
-      await backend.press(key);
-    } on NativeException catch (error) {
-      result = 'refused: ${error.message}';
-      if (key != 'dismiss_overlay' ||
-          !error.message.contains('permission_allow') ||
-          !error.message.contains('permission_deny')) {
-        rethrow;
-      }
-    }
-    if (result == 'returned') {
-      await Future<void>.delayed(const Duration(seconds: 2));
-    }
-    final bool dialogAfter = permissionDialogPresent(await backend.snapshot());
-    return (
-      key: key,
-      result: result,
-      dialogBefore: dialogBefore,
-      dialogAfter: dialogAfter,
-      grantedAfter: await permissionIsGranted(),
-      backPosted: client.records
-          .skip(firstRecord)
-          .any((RequestEvidence value) => value.path.endsWith('/back')),
     );
   }
 
@@ -340,48 +327,124 @@ final class AndroidPermissionDialogProof {
     }
   }
 
-  void validateReceipt(Map<String, Object?> value, String fixtureHash) {
+  void validateCommand(
+    Object? raw, {
+    required List<String> argv,
+    String? stdout,
+  }) {
+    if (raw is! Map ||
+        (raw['argv'] as List?)
+                ?.map((Object? value) => value.toString())
+                .join('\u0000') !=
+            argv.join('\u0000') ||
+        raw['exitCode'] != 0 ||
+        raw['stdout'] is! String ||
+        raw['stderr'] is! String ||
+        (stdout != null && raw['stdout'] != stdout)) {
+      throw StateError('invalid command evidence: $raw');
+    }
+  }
+
+  Future<void> validateReceipt(
+    Map<String, Object?> value,
+    String fixtureHash, {
+    String expectedAndroidVersion = '13',
+    String expectedManufacturer = 'samsung',
+    String expectedModel = 'SM-M225FV',
+    String expectedAppiumVersion = '3.5.2',
+    String expectedUiAutomator2Version = '8.2.2',
+  }) async {
     if (value['schemaVersion'] != 1 ||
         value['rawSourceSha256'] != fixtureHash) {
       throw StateError('receipt schema or fixture hash mismatch');
     }
-    for (final String key in <String>[
-      'serial',
-      'androidVersion',
-      'manufacturer',
-      'model',
-      'appiumVersion',
-      'uiautomator2Version',
-      'capturedAtUtc',
-    ]) {
-      if (value[key]?.toString().isEmpty ?? true) {
-        throw StateError('receipt field is empty: $key');
-      }
-    }
     if (value['serial'] != serial ||
+        value['androidVersion'] != expectedAndroidVersion ||
+        value['manufacturer'] != expectedManufacturer ||
+        value['model'] != expectedModel ||
         value['package'] != packageName ||
-        value['permission'] != permission) {
+        value['permission'] != permission ||
+        value['appiumVersion'] != expectedAppiumVersion ||
+        value['uiautomator2Version'] != expectedUiAutomator2Version ||
+        value['capturedAtUtc'] is! String ||
+        (value['capturedAtUtc'] as String).isEmpty ||
+        jsonEncode(value['trigger']) != jsonEncode(trigger)) {
       throw StateError('receipt fixed inputs mismatch');
     }
-    for (final String key in <String>[
-      'appiumEvidence',
-      'uiautomator2Evidence',
-    ]) {
-      final Object? evidence = value[key];
-      if (evidence is! Map || evidence['exitCode'] != 0) {
-        throw StateError('non-zero or missing command evidence: $key');
-      }
+    validateCommand(
+      value['appiumEvidence'],
+      argv: const <String>['/opt/homebrew/bin/appium', '--version'],
+    );
+    if ((value['appiumEvidence'] as Map)['stdout'].toString().trim() !=
+        expectedAppiumVersion) {
+      throw StateError('Appium evidence version mismatch');
+    }
+    validateCommand(
+      value['uiautomator2Evidence'],
+      argv: const <String>[
+        '/opt/homebrew/bin/appium',
+        'driver',
+        'list',
+        '--installed',
+        '--json',
+      ],
+    );
+    final Object? drivers = jsonDecode(
+      (value['uiautomator2Evidence'] as Map)['stdout'] as String,
+    );
+    if (drivers is! Map ||
+        drivers['uiautomator2'] is! Map ||
+        (drivers['uiautomator2'] as Map)['version'] !=
+            expectedUiAutomator2Version) {
+      throw StateError('UiAutomator2 evidence version mismatch');
+    }
+    final Object? resets = value['resetAndTriggerEvidence'];
+    if (resets is! List || resets.length != expectedResetArgv.length) {
+      throw StateError('invalid reset evidence: $resets');
+    }
+    for (int index = 0; index < expectedResetArgv.length; index += 1) {
+      validateCommand(resets[index], argv: expectedResetArgv[index]);
     }
     final Object? requests = value['appiumRequests'];
-    if (requests is! List ||
-        !requests.whereType<Map<Object?, Object?>>().any(
-          (Map<Object?, Object?> record) =>
-              record['method'] == 'GET' &&
+    if (requests is! List) {
+      throw StateError('receipt has no successful raw /source request');
+    }
+    final List<Map<Object?, Object?>> sources = requests
+        .whereType<Map<Object?, Object?>>()
+        .where((Map<Object?, Object?> record) {
+          return record['method'] == 'GET' &&
               record['path'].toString().endsWith('/source') &&
               record['status'] == 200 &&
-              record['value'] is String,
+              record['value'] is String;
+        })
+        .toList();
+    if (sources.length != 1) {
+      throw StateError('receipt must have exactly one successful /source');
+    }
+    final Map<Object?, Object?> source = sources.single;
+    final String sourcePath = source['path'] as String;
+    final String sessionPath = sourcePath.substring(
+      0,
+      sourcePath.length - '/source'.length,
+    );
+    final int sourceIndex = requests.indexOf(source);
+    if (!requests
+        .skip(sourceIndex + 1)
+        .whereType<Map<Object?, Object?>>()
+        .any(
+          (Map<Object?, Object?> record) =>
+              record['method'] == 'DELETE' &&
+              record['path'] == sessionPath &&
+              record['status'] == 200,
         )) {
-      throw StateError('receipt has no successful raw /source request');
+      throw StateError('receipt has no capture-session deletion');
+    }
+    final String recordedRaw = (source['value'] as String).replaceFirst(
+      RegExp(r'^\s*<\?xml[^?]*\?>\s*'),
+      '',
+    );
+    if (await _sha256(recordedRaw) != value['rawSourceSha256']) {
+      throw StateError('recorded source hash mismatch');
     }
     final Object? rawActions = value['actions'];
     if (rawActions is! List) throw StateError('receipt actions are missing');
@@ -454,6 +517,15 @@ final class AndroidPermissionDialogProof {
         (driverJson['uiautomator2'] as Map)['version']?.toString() ?? '';
     if (driverVersion.isEmpty) throw StateError('empty UiAutomator2 version');
 
+    final List<ActionEvidence> actions = <ActionEvidence>[
+      for (final String key in <String>[
+        'dismiss_overlay',
+        'permission_allow',
+        'permission_deny',
+      ])
+        await exercise(key, version),
+    ];
+    validateActions(actions);
     final List<CommandEvidence> resetEvidence = await resetAndTrigger();
     final RecordingClient client = RecordingClient(clientFactory());
     final UiAutomator2Backend backend = UiAutomator2Backend(
@@ -465,7 +537,6 @@ final class AndroidPermissionDialogProof {
     );
     late AndroidSessionProvenance provenance;
     late String source;
-    late List<ActionEvidence> actions;
     try {
       await backend.connect(
         extraCapabilities: const <String, Object?>{
@@ -492,14 +563,6 @@ final class AndroidPermissionDialogProof {
       if (!permissionDialogPresent(await _snapshotFromSource(source))) {
         throw StateError('captured /source has no permission dialog');
       }
-      actions = <ActionEvidence>[
-        for (final String key in <String>[
-          'dismiss_overlay',
-          'permission_allow',
-          'permission_deny',
-        ])
-          await exerciseConnected(key, backend, client),
-      ];
     } finally {
       await backend.close();
     }
@@ -508,7 +571,6 @@ final class AndroidPermissionDialogProof {
       '',
     );
     final String digest = await _sha256(raw);
-    validateActions(actions);
     final String capturedAt = DateTime.now().toUtc().toIso8601String();
     final Map<String, Object?> json = <String, Object?>{
       'schemaVersion': 1,
@@ -612,8 +674,16 @@ final class AndroidPermissionDialogProof {
         .substring(fixtureSource.indexOf('-->') + 3)
         .trimLeft();
     final String fixtureHash = await _sha256(raw);
-    validateReceipt(recorded, fixtureHash);
     final Map<String, Object?> fresh = await _capture(writeArtifacts: false);
+    await validateReceipt(
+      recorded,
+      fixtureHash,
+      expectedAndroidVersion: fresh['androidVersion']! as String,
+      expectedManufacturer: fresh['manufacturer']! as String,
+      expectedModel: fresh['model']! as String,
+      expectedAppiumVersion: fresh['appiumVersion']! as String,
+      expectedUiAutomator2Version: fresh['uiautomator2Version']! as String,
+    );
     for (final String key in <String>[
       'serial',
       'androidVersion',
@@ -621,10 +691,11 @@ final class AndroidPermissionDialogProof {
       'model',
       'package',
       'permission',
+      'trigger',
       'appiumVersion',
       'uiautomator2Version',
     ]) {
-      if (recorded[key] != fresh[key]) {
+      if (jsonEncode(recorded[key]) != jsonEncode(fresh[key])) {
         throw StateError('$key differs from receipt');
       }
     }
