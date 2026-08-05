@@ -9,7 +9,7 @@
 ///
 ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
 ///     bin/leonard_native_host.dart --udid DEVICE_UDID --app /path/to/app \
-///     [--platform ios|android]
+///     [--platform ios|android] [--platform-version 13]
 ///
 /// Prints `LEONARD_HOST_READY` once installed. SIGTERM/SIGINT dispose the
 /// extension (cancelling the watcher + tearing down the device session) and
@@ -36,7 +36,8 @@ Future<void> main(List<String> args) async {
   if (udid == null || app == null) {
     stderr.writeln(
       'usage: leonard_native_host --udid <sim-udid> '
-      '--app <path-to-.app|.apk> [--server <url>] [--platform ios|android]',
+      '--app <path-to-.app|.apk> [--server <url>] [--platform ios|android] '
+      '[--platform-version <version>]',
     );
     exit(64);
   }
@@ -48,6 +49,7 @@ Future<void> main(List<String> args) async {
       server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
       udid: udid,
       app: app,
+      platformVersion: o['platform-version'],
     );
   } on ArgumentError catch (e) {
     stderr.writeln('error: ${e.message}');

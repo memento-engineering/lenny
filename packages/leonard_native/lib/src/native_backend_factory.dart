@@ -20,10 +20,22 @@ NativeBackend backendForPlatform({
   required String platform,
   required String udid,
   required String app,
+  String? platformVersion,
   Uri? server,
 }) => switch (platform) {
   'ios' => XcuiTestBackend(server: server, udid: udid, app: app),
-  'android' => UiAutomator2Backend(server: server, udid: udid, app: app),
+  'android' => UiAutomator2Backend(
+    server: server,
+    udid: udid,
+    app: app,
+    platformVersion: platformVersion == null || platformVersion.isEmpty
+        ? throw ArgumentError.value(
+            platformVersion,
+            'platformVersion',
+            'Android requires --platform-version',
+          )
+        : platformVersion,
+  ),
   _ => throw ArgumentError.value(
     platform,
     'platform',

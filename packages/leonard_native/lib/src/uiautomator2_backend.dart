@@ -63,6 +63,77 @@ const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
 /// `bounds="[l,t][r,b]"` — the UiAutomator2 rect encoding.
 final RegExp _boundsRe = RegExp(r'\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]');
 
+/// Decides whether a package may own an obstruction resource ID.
+typedef ResourceIdPackagePredicate = bool Function(String packageName);
+
+/// Resource-ID entries and package predicates for Android obstructions.
+class ObstructionResourceIdPolicy {
+  ObstructionResourceIdPolicy({
+    required Set<String> permissionDialogEntries,
+    required Set<String> permissionAllowEntries,
+    required Set<String> permissionDenyEntries,
+    required Set<String> chromeBottomSheetEntries,
+    required Set<String> chromeTouchToFillTitleEntries,
+    required this.permissionPackage,
+    required this.chromePackage,
+  }) : permissionDialogEntries = Set.unmodifiable(permissionDialogEntries),
+       permissionAllowEntries = Set.unmodifiable(permissionAllowEntries),
+       permissionDenyEntries = Set.unmodifiable(permissionDenyEntries),
+       chromeBottomSheetEntries = Set.unmodifiable(chromeBottomSheetEntries),
+       chromeTouchToFillTitleEntries = Set.unmodifiable(
+         chromeTouchToFillTitleEntries,
+       );
+
+  factory ObstructionResourceIdPolicy.defaults() => ObstructionResourceIdPolicy(
+    permissionDialogEntries: const <String>{'grant_dialog'},
+    permissionAllowEntries: const <String>{'permission_allow_button'},
+    permissionDenyEntries: const <String>{'permission_deny_button'},
+    chromeBottomSheetEntries: const <String>{'bottom_sheet'},
+    chromeTouchToFillTitleEntries: const <String>{'touch_to_fill_sheet_title'},
+    permissionPackage: (String value) =>
+        value.isNotEmpty && value.endsWith('permissioncontroller'),
+    chromePackage: const <String>{
+      'com.android.chrome',
+      'com.chrome.beta',
+      'com.chrome.dev',
+      'com.chrome.canary',
+    }.contains,
+  );
+
+  final Set<String> permissionDialogEntries;
+  final Set<String> permissionAllowEntries;
+  final Set<String> permissionDenyEntries;
+  final Set<String> chromeBottomSheetEntries;
+  final Set<String> chromeTouchToFillTitleEntries;
+  final ResourceIdPackagePredicate permissionPackage;
+  final ResourceIdPackagePredicate chromePackage;
+}
+
+/// Device identity returned by an Appium Android session.
+class AndroidSessionProvenance {
+  const AndroidSessionProvenance({
+    required this.deviceSerial,
+    required this.androidVersion,
+    required this.manufacturer,
+    required this.model,
+  });
+
+  final String deviceSerial;
+  final String? androidVersion;
+  final String? manufacturer;
+  final String? model;
+}
+
+({String packageName, String entry})? _resourceIdParts(String? value) {
+  if (value == null) return null;
+  const String separator = ':id/';
+  final int index = value.indexOf(separator);
+  if (index <= 0) return null;
+  final String entry = value.substring(index + separator.length);
+  if (entry.isEmpty || entry.contains(separator)) return null;
+  return (packageName: value.substring(0, index), entry: entry);
+}
+
 /// Drives a native Android app over a local Appium server (W3C WebDriver +
 /// UiAutomator2).
 class UiAutomator2Backend implements NativeBackend {
@@ -73,9 +144,13 @@ class UiAutomator2Backend implements NativeBackend {
     Uri? server,
     required this.udid,
     required this.app,
+    required this.platformVersion,
+    ObstructionResourceIdPolicy? obstructionIds,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
   }) : server = server ?? Uri.parse('http://127.0.0.1:4723'),
+       obstructionIds =
+           obstructionIds ?? ObstructionResourceIdPolicy.defaults(),
        _client = client ?? http.Client();
 
   /// The local Appium server URL.
@@ -90,6 +165,12 @@ class UiAutomator2Backend implements NativeBackend {
   /// `flutter run` process is NOT relaunched.
   final String app;
 
+  /// Android version requested from Appium (for example, `13`).
+  final String platformVersion;
+
+  /// Resource-ID matching policy used for platform obstructions.
+  final ObstructionResourceIdPolicy obstructionIds;
+
   /// The watcher poll cadence.
   final Duration pollInterval;
 
@@ -100,6 +181,11 @@ class UiAutomator2Backend implements NativeBackend {
 
   /// The active W3C session id, or null before [connect] / after [close].
   String? _sessionId;
+
+  AndroidSessionProvenance? _sessionProvenance;
+
+  /// Provenance for the active session, or null when disconnected.
+  AndroidSessionProvenance? get sessionProvenance => _sessionProvenance;
 
   // ---------------------------------------------------------------------------
   // Transport (the platform-neutral W3C machinery, with the B5 hardening).
@@ -179,6 +265,7 @@ class UiAutomator2Backend implements NativeBackend {
         'platformName': 'Android',
         'appium:automationName': 'UiAutomator2',
         'appium:udid': udid,
+        'appium:platformVersion': platformVersion,
         'appium:noReset': true,
         'appium:autoLaunch': false,
         'appium:newCommandTimeout': 0,
@@ -200,12 +287,33 @@ class UiAutomator2Backend implements NativeBackend {
       throw NativeException('session open returned no sessionId');
     }
     _sessionId = sid;
+    final Map<Object?, Object?> returnedCapabilities = value is Map
+        ? (value['capabilities'] is Map
+              ? value['capabilities'] as Map<Object?, Object?>
+              : const <Object?, Object?>{})
+        : const <Object?, Object?>{};
+    _sessionProvenance = AndroidSessionProvenance(
+      deviceSerial: _returnedCapability(returnedCapabilities, 'udid') ?? udid,
+      androidVersion: _returnedCapability(
+        returnedCapabilities,
+        'platformVersion',
+      ),
+      manufacturer: _returnedCapability(
+        returnedCapabilities,
+        'deviceManufacturer',
+      ),
+      model: _returnedCapability(returnedCapabilities, 'deviceModel'),
+    );
   }
+
+  String? _returnedCapability(Map<Object?, Object?> caps, String name) =>
+      (caps[name] ?? caps['appium:$name'])?.toString();
 
   @override
   Future<void> close() async {
     final String? sid = _sessionId;
     _sessionId = null;
+    _sessionProvenance = null;
     if (sid != null) {
       try {
         await _client.delete(_u('/session/$sid'));
@@ -604,30 +712,48 @@ class UiAutomator2Backend implements NativeBackend {
     return (readback: readback, masked: masked);
   }
 
-  static const String _chromeBottomSheetId =
-      'com.android.chrome:id/bottom_sheet';
-  static const String _touchToFillTitleId =
-      'com.android.chrome:id/touch_to_fill_sheet_title';
-  static const String _permissionDialogId =
-      'com.android.permissioncontroller:id/grant_dialog';
-  static const String _permissionAllowButtonId =
-      'com.android.permissioncontroller:id/permission_allow_button';
-  static const String _permissionDenyButtonId =
-      'com.android.permissioncontroller:id/permission_deny_button';
+  String? _matchingResourceId(
+    Iterable<NativeNode> nodes,
+    Set<String> entries,
+    ResourceIdPackagePredicate packagePredicate,
+  ) {
+    for (final NativeNode node in nodes) {
+      final ({String packageName, String entry})? parts = _resourceIdParts(
+        node.resourceId,
+      );
+      if (parts != null &&
+          entries.contains(parts.entry) &&
+          packagePredicate(parts.packageName)) {
+        return node.resourceId;
+      }
+    }
+    return null;
+  }
 
   _Obstruction? _obstruction(NativeSnapshot source) {
-    if (source.nodes.any(
-      (NativeNode node) => node.resourceId == _permissionDialogId,
-    )) {
+    if (_matchingResourceId(
+          source.nodes,
+          obstructionIds.permissionDialogEntries,
+          obstructionIds.permissionPackage,
+        ) !=
+        null) {
       return _Obstruction.androidPermissionDialog;
     }
-    final bool hasBottomSheet = source.nodes.any(
-      (NativeNode node) => node.resourceId == _chromeBottomSheetId,
-    );
+    final bool hasBottomSheet =
+        _matchingResourceId(
+          source.nodes,
+          obstructionIds.chromeBottomSheetEntries,
+          obstructionIds.chromePackage,
+        ) !=
+        null;
     if (!hasBottomSheet) return null;
-    final bool isTouchToFill = source.nodes.any(
-      (NativeNode node) => node.resourceId == _touchToFillTitleId,
-    );
+    final bool isTouchToFill =
+        _matchingResourceId(
+          source.nodes,
+          obstructionIds.chromeTouchToFillTitleEntries,
+          obstructionIds.chromePackage,
+        ) !=
+        null;
     return isTouchToFill
         ? _Obstruction.chromeTouchToFillSheet
         : _Obstruction.chromeBottomSheet;
@@ -748,10 +874,13 @@ class UiAutomator2Backend implements NativeBackend {
             return;
         }
       case 'permission_allow':
-        await _pressPermissionButton(key, _permissionAllowButtonId);
+        await _pressPermissionButton(
+          key,
+          obstructionIds.permissionAllowEntries,
+        );
         return;
       case 'permission_deny':
-        await _pressPermissionButton(key, _permissionDenyButtonId);
+        await _pressPermissionButton(key, obstructionIds.permissionDenyEntries);
         return;
       case 'back':
         await _post('/session/$_sid/back', const <String, Object?>{});
@@ -776,7 +905,18 @@ class UiAutomator2Backend implements NativeBackend {
     }
   }
 
-  Future<void> _pressPermissionButton(String key, String resourceId) async {
+  Future<void> _pressPermissionButton(String key, Set<String> entries) async {
+    final NativeSnapshot source = await snapshot();
+    final String? resourceId = _matchingResourceId(
+      source.nodes,
+      entries,
+      obstructionIds.permissionPackage,
+    );
+    if (resourceId == null) {
+      throw NativeException(
+        'Android permission dialog button is not present: $key',
+      );
+    }
     final String? elementId = await _find('id', resourceId);
     if (elementId == null) {
       throw NativeException(

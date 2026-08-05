@@ -14,9 +14,21 @@ void main() {
       platform: 'android',
       udid: 'emulator-5554',
       app: 'com.example.app',
+      platformVersion: '13',
     );
     expect(b, isA<UiAutomator2Backend>());
     b.close();
+  });
+
+  test('android requires a platform version', () {
+    expect(
+      () => backendForPlatform(
+        platform: 'android',
+        udid: 'emulator-5554',
+        app: 'com.example.app',
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 
   test('ios -> XcuiTestBackend', () {
@@ -42,6 +54,7 @@ void main() {
       platform: 'android',
       udid: 'emulator-5554',
       app: 'com.example.app',
+      platformVersion: '13',
       server: Uri.parse('http://127.0.0.1:4999'),
     );
     expect((b as UiAutomator2Backend).server.port, 4999);
