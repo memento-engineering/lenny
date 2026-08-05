@@ -192,8 +192,15 @@ class UiAutomator2Backend implements NativeBackend {
 
   AndroidSessionProvenance? _sessionProvenance;
 
+  Map<String, Object?>? _sessionCapabilities;
+
   /// Provenance for the active session, or null when disconnected.
   AndroidSessionProvenance? get sessionProvenance => _sessionProvenance;
+
+  /// The immutable capabilities Appium returned for the active session.
+  ///
+  /// Null before [connect] and after [close].
+  Map<String, Object?>? get sessionCapabilities => _sessionCapabilities;
 
   // ---------------------------------------------------------------------------
   // Transport (the platform-neutral W3C machinery, with the B5 hardening).
@@ -305,6 +312,11 @@ class UiAutomator2Backend implements NativeBackend {
               ? value['capabilities'] as Map<Object?, Object?>
               : const <Object?, Object?>{})
         : const <Object?, Object?>{};
+    _sessionCapabilities = Map<String, Object?>.unmodifiable(
+      returnedCapabilities.map(
+        (Object? key, Object? value) => MapEntry(key.toString(), value),
+      ),
+    );
     _sessionProvenance = AndroidSessionProvenance(
       deviceSerial: _returnedCapability(returnedCapabilities, 'udid') ?? udid,
       androidVersion:
@@ -327,6 +339,7 @@ class UiAutomator2Backend implements NativeBackend {
     final String? sid = _sessionId;
     _sessionId = null;
     _sessionProvenance = null;
+    _sessionCapabilities = null;
     if (sid != null) {
       try {
         await _client.delete(_u('/session/$sid'));
