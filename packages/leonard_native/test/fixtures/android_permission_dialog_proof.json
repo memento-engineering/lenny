@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-08-05T05:36:26.602885Z",
+  "rawSourceSha256": "db512b164a68db5a6cdfd61087f0c001c088a619e388f5f492c9133a562000e5",
+  "serial": "RF8RB21P6LN",
+  "androidVersion": "13",
+  "manufacturer": "samsung",
+  "model": "SM-M225FV",
+  "package": "com.epi",
+  "permission": "android.permission.POST_NOTIFICATIONS",
+  "trigger": [
+    [
+      "shell",
+      "am",
+      "force-stop",
+      "com.epi"
+    ],
+    [
+      "shell",
+      "monkey",
+      "-p",
+      "com.epi",
+      "1"
+    ]
+  ],
+  "appiumVersion": "3.5.2",
+  "uiautomator2Version": "8.2.2",
+  "appiumEvidence": {
+    "argv": [
+      "/opt/homebrew/bin/appium",
+      "--version"
+    ],
+    "exitCode": 0,
+    "stdout": "3.5.2\n",
+    "stderr": ""
+  },
+  "uiautomator2Evidence": {
+    "argv": [
+      "/opt/homebrew/bin/appium",
+      "driver",
+      "list",
+      "--installed",
+      "--json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\n    \"xcuitest\": {\n        \"pkgName\": \"appium-xcuitest-driver\",\n        \"version\": \"11.12.2\",\n        \"installType\": \"npm\",\n        \"installSpec\": \"xcuitest\",\n        \"installPath\": \"/Users/nico/.appium/node_modules/appium-xcuitest-driver\",\n        \"appiumVersion\": \"^3.0.0-rc.2\",\n        \"automationName\": \"XCUITest\",\n        \"platformNames\": [\n            \"iOS\",\n            \"tvOS\"\n        ],\n        \"mainClass\": \"XCUITestDriver\",\n        \"scripts\": {\n            \"build-wda\": \"./scripts/build-wda.mjs\",\n            \"open-wda\": \"./scripts/open-wda.mjs\",\n            \"tunnel-creation\": \"./scripts/tunnel-creation.mjs\",\n            \"download-wda\": \"./scripts/download-wda.mjs\",\n            \"download-wda-sim\": \"./scripts/download-wda-sim.mjs\",\n            \"sign-wda\": \"./scripts/sign-wda.mjs\",\n            \"image-mounter\": \"./scripts/image-mounter.mjs\",\n            \"list-real-devices\": \"./scripts/list-real-devices.mjs\",\n            \"cleanup-videos\": \"./scripts/cleanup-videos.mjs\",\n            \"pair-appletv\": \"./scripts/pair-appletv.mjs\"\n        },\n        \"schema\": {\n            \"$schema\": \"http://json-schema.org/draft-07/schema\",\n            \"type\": \"object\",\n            \"properties\": {\n                \"webdriveragent-port\": {\n                    \"appiumCliDest\": \"wdaLocalPort\",\n                    \"default\": 8100,\n                    \"description\": \"Local port used for communication with WebDriverAgent\",\n                    \"maximum\": 65535,\n                    \"minimum\": 1,\n                    \"type\": \"integer\"\n                }\n            },\n            \"additionalProperties\": false,\n            \"title\": \"XCUITest Driver Configuration\",\n            \"description\": \"Appium configuration schema for the XCUITest driver.\",\n            \"$id\": \"driver-xcuitest.json\"\n        },\n        \"doctor\": {\n            \"checks\": [\n                \"./build/lib/doctor/required-checks.js\",\n                \"./build/lib/doctor/optional-checks.js\"\n            ]\n        },\n        \"installed\": true,\n        \"repositoryUrl\": \"https://github.com/appium/appium-xcuitest-driver\"\n    },\n    \"uiautomator2\": {\n        \"pkgName\": \"appium-uiautomator2-driver\",\n        \"version\": \"8.2.2\",\n        \"installType\": \"npm\",\n        \"installSpec\": \"uiautomator2\",\n        \"installPath\": \"/Users/nico/.appium/node_modules/appium-uiautomator2-driver\",\n        \"appiumVersion\": \"^3.0.0-rc.2\",\n        \"automationName\": \"UiAutomator2\",\n        \"platformNames\": [\n            \"Android\"\n        ],\n        \"mainClass\": \"AndroidUiautomator2Driver\",\n        \"scripts\": {\n            \"reset\": \"scripts/reset.mjs\"\n        },\n        \"doctor\": {\n            \"checks\": [\n                \"./build/lib/doctor/required-checks.js\",\n                \"./build/lib/doctor/optional-checks.js\"\n            ]\n        },\n        \"installed\": true,\n        \"repositoryUrl\": \"https://github.com/appium/appium-uiautomator2-driver\"\n    }\n}\n",
+    "stderr": ""
+  },
+  "resetAndTriggerEvidence": [
+    {
+      "argv": [
+        "/opt/homebrew/share/android-commandlinetools/platform-tools/adb",
+        "-s",
+        "RF8RB21P6LN",
+        "shell",
+        "pm",
+        "clear",
+        "com.epi"
+      ],
+      "exitCode": 0,
+      "stdout": "Success\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/opt/homebrew/share/android-commandlinetools/platform-tools/adb",
+        "-s",
+        "RF8RB21P6LN",
+        "shell",
+        "pm",
+        "revoke",
+        "com.epi",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/opt/homebrew/share/android-commandlinetools/platform-tools/adb",
+        "-s",
+        "RF8RB21P6LN",
+        "shell",
+        "pm",
+        "clear-permission-flags",
+        "com.epi",
+        "android.permission.POST_NOTIFICATIONS",
+        "user-set",
+        "user-fixed"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/opt/homebrew/share/android-commandlinetools/platform-tools/adb",
+        "-s",
+        "RF8RB21P6LN",
+        "shell",
+        "am",
+        "force-stop",
+        "com.epi"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/opt/homebrew/share/android-commandlinetools/platform-tools/adb",
+        "-s",
+        "RF8RB21P6LN",
+        "shell",
+        "monkey",
+        "-p",
+        "com.epi",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "  bash arg: -p\n  bash arg: com.epi\n  bash arg: 1\nEvents injected: 1\n## Network stats: elapsed time=62ms (0ms mobile, 0ms wifi, 62ms not connected)\n",
+      "stderr": "args: [-p, com.epi, 1]\n arg: \"-p\"\n arg: \"com.epi\"\n arg: \"1\"\ndata=\"com.epi\"\n"
+    }
+  ],
+  "appiumRequests": [
+    {
+      "method": "POST",
+      "path": "/session",
+      "status": 200,
+      "value": {
+        "capabilities": {
+          "platformName": "Android",
+          "automationName": "UiAutomator2",
+          "udid": "RF8RB21P6LN",
+          "platformVersion": "13",
+          "noReset": true,
+          "autoLaunch": false,
+          "newCommandTimeout": 0,
+          "autoGrantPermissions": false,
+          "platform": "LINUX",
+          "webStorageEnabled": false,
+          "takesScreenshot": true,
+          "javascriptEnabled": true,
+          "databaseEnabled": false,
+          "networkConnectionEnabled": true,
+          "locationContextEnabled": false,
+          "warnings": {},
+          "desired": {
+            "platformName": "Android",
+            "automationName": "UiAutomator2",
+            "udid": "RF8RB21P6LN",
+            "platformVersion": "13",
+            "noReset": true,
+            "autoLaunch": false,
+            "newCommandTimeout": 0,
+            "autoGrantPermissions": false
+          },
+          "deviceName": "RF8RB21P6LN",
+          "deviceUDID": "RF8RB21P6LN",
+          "pixelRatio": "1.875",
+          "statBarHeight": 53,
+          "viewportRect": {
+            "left": 0,
+            "top": 53,
+            "width": 720,
+            "height": 1547
+          },
+          "deviceApiLevel": 33,
+          "deviceManufacturer": "samsung",
+          "deviceModel": "SM-M225FV",
+          "deviceScreenSize": "720x1600",
+          "deviceScreenDensity": 300
+        },
+        "sessionId": "397804e4-57c8-4ca5-8116-1ad8238e9a98"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/session/397804e4-57c8-4ca5-8116-1ad8238e9a98/source",
+      "status": 200,
+      "value": "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\r\n<hierarchy index=\"0\" class=\"hierarchy\" rotation=\"0\" width=\"720\" height=\"1452\">\r\n  <android.widget.FrameLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.FrameLayout\" text=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"true\" screen-reader-focusable=\"false\" drawing-order=\"0\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n    <android.widget.FrameLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.FrameLayout\" text=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n      <android.widget.FrameLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.FrameLayout\" text=\"\" resource-id=\"android:id/content\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n        <android.widget.ScrollView index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.ScrollView\" text=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"true\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"true\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n          <android.widget.LinearLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.LinearLayout\" text=\"\" resource-id=\"com.android.permissioncontroller:id/grant_singleton\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n            <android.widget.LinearLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.LinearLayout\" text=\"\" resource-id=\"com.android.permissioncontroller:id/grant_dialog\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[0,1045][720,1510]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n              <android.widget.LinearLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.LinearLayout\" text=\"\" resource-id=\"com.android.permissioncontroller:id/content_container\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[18,1075][702,1269]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n                <android.widget.LinearLayout index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.LinearLayout\" text=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[63,1120][657,1269]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n                  <android.widget.ImageView index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.ImageView\" text=\"\" resource-id=\"com.android.permissioncontroller:id/permission_icon\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[326,1120][394,1188]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"1\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\" />\r\n                  <android.widget.TextView index=\"1\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.TextView\" text=\"Allow Báo Mới to send you notifications?\" resource-id=\"com.android.permissioncontroller:id/permission_message\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[63,1203][657,1239]\" displayed=\"true\" a11y-important=\"true\" screen-reader-focusable=\"false\" drawing-order=\"2\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"true\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\" />\r\n                </android.widget.LinearLayout>\r\n              </android.widget.LinearLayout>\r\n              <android.widget.LinearLayout index=\"1\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.LinearLayout\" text=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[18,1269][702,1480]\" displayed=\"true\" a11y-important=\"false\" screen-reader-focusable=\"false\" drawing-order=\"4\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\">\r\n                <android.widget.Button index=\"0\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.Button\" text=\"Allow\" resource-id=\"com.android.permissioncontroller:id/permission_allow_button\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[44,1269][676,1337]\" displayed=\"true\" a11y-important=\"true\" screen-reader-focusable=\"false\" drawing-order=\"2\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\" />\r\n                <android.widget.Button index=\"1\" package=\"com.google.android.permissioncontroller\" class=\"android.widget.Button\" text=\"Don't allow\" resource-id=\"com.android.permissioncontroller:id/permission_deny_button\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" long-clickable=\"false\" password=\"false\" scrollable=\"false\" selected=\"false\" bounds=\"[44,1367][676,1435]\" displayed=\"true\" a11y-important=\"true\" screen-reader-focusable=\"false\" drawing-order=\"7\" showing-hint=\"false\" text-entry-key=\"false\" dismissable=\"false\" a11y-focused=\"false\" heading=\"false\" live-region=\"0\" context-clickable=\"false\" content-invalid=\"false\" window-id=\"708\" />\r\n              </android.widget.LinearLayout>\r\n            </android.widget.LinearLayout>\r\n          </android.widget.LinearLayout>\r\n        </android.widget.ScrollView>\r\n      </android.widget.FrameLayout>\r\n    </android.widget.FrameLayout>\r\n  </android.widget.FrameLayout>\r\n</hierarchy>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/session/397804e4-57c8-4ca5-8116-1ad8238e9a98",
+      "status": 200,
+      "value": null
+    }
+  ],
+  "actions": [
+    {
+      "key": "dismiss_overlay",
+      "result": "refused: Android permission dialog requires an explicit permission_allow or permission_deny press key",
+      "dialogBefore": true,
+      "dialogAfter": true,
+      "grantedAfter": false,
+      "backPosted": false
+    },
+    {
+      "key": "permission_allow",
+      "result": "returned",
+      "dialogBefore": true,
+      "dialogAfter": false,
+      "grantedAfter": true,
+      "backPosted": false
+    },
+    {
+      "key": "permission_deny",
+      "result": "returned",
+      "dialogBefore": true,
+      "dialogAfter": false,
+      "grantedAfter": false,
+      "backPosted": false
+    }
+  ]
+}

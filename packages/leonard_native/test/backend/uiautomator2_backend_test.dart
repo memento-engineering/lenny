@@ -742,6 +742,7 @@ void main() {
       bool valueErrorBody = true,
       String readback = 'user@example.com',
       bool focusedAfterClick = true,
+      String keyboardShown = 'true',
       String? sourceXml,
       bool sourceFails = false,
       ObstructionResourceIdPolicy? obstructionIds,
@@ -785,7 +786,7 @@ void main() {
         } else if (path.endsWith('/attribute/focused')) {
           value = focusedAfterClick ? 'true' : 'false';
         } else if (path.endsWith('/is_keyboard_shown')) {
-          value = 'true';
+          value = keyboardShown;
         } else if (path.endsWith('/attribute/text')) {
           value = readback;
         } else if (path == '/session/s1/source') {
@@ -913,11 +914,18 @@ void main() {
     }
 
     test('permission detection ignores every visible string', () async {
-      final String localized = _permissionDialogFixture()
-          .readAsStringSync()
-          .replaceAll('Allow this app to send you notifications?', '通知を送信しますか？')
-          .replaceAll('Allow', '許可')
-          .replaceAll('Don’t allow', '許可しない');
+      final String sourceXml = _permissionDialogFixture().readAsStringSync();
+      final List<String> visibleTextValues = RegExp(r'text="([^"]+)"')
+          .allMatches(sourceXml)
+          .map((RegExpMatch match) => match.group(1)!)
+          .where((String value) => value.isNotEmpty)
+          .toList();
+      String localized = sourceXml;
+      for (final String value in visibleTextValues) {
+        localized = localized.replaceAll('text="$value"', 'text="ローカライズ済み"');
+      }
+      expect(visibleTextValues, isNotEmpty);
+      expect(localized, isNot(sourceXml));
       final UiAutomator2Backend b = backendWhereValueFails(
         valueError: 'invalid element state',
         sourceXml: localized,
@@ -933,8 +941,47 @@ void main() {
           ),
         ),
       );
+      expect(hits.where((String hit) => hit.endsWith('/click')), isEmpty);
+      expect(hits, isNot(contains('POST /session/s1/back')));
+      expect(hits, isNot(contains('POST /session/s1/execute/sync')));
       await b.close();
     });
+
+    test(
+      'a malformed real permission source never clicks a permission button',
+      () async {
+        final String captured = _permissionDialogFixture().readAsStringSync();
+        const String buttonMarker = 'permission_allow_button';
+        final int buttonEnd =
+            captured.indexOf(buttonMarker) + buttonMarker.length;
+        expect(buttonEnd, greaterThan(buttonMarker.length - 1));
+        final String malformed = captured.substring(0, buttonEnd);
+        expect(malformed, contains('com.google.android.permissioncontroller'));
+        expect(malformed, contains(buttonMarker));
+
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceXml: malformed,
+          keyboardShown: 'false',
+        );
+        await b.connect();
+        final ({String readback, bool masked}) result = await b.enterText(
+          const NativeTarget(elementId: 'E', via: 'xpath'),
+          'user@example.com',
+        );
+        expect(result.readback, 'user@example.com');
+        expect(hits.where((String hit) => hit.endsWith('/click')), <String>[
+          'POST /session/s1/element/E/click',
+        ]);
+        expect(hits, isNot(contains('POST /session/s1/element')));
+        expect(hits, isNot(contains('POST /session/s1/back')));
+        expect(
+          hits.where((String hit) => hit.endsWith('/execute/sync')),
+          <String>['POST /session/s1/execute/sync'],
+        );
+        await b.close();
+      },
+    );
 
     test('permission dialog dismissal refuses without posting Back', () async {
       final UiAutomator2Backend b = backendWhereValueFails(
