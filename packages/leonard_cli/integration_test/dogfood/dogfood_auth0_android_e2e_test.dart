@@ -33,18 +33,19 @@
 ///
 ///   * a reachable Appium server with the UiAutomator2 driver (default
 ///     `http://127.0.0.1:4723`, override via `LEONARD_NATIVE_APPIUM_SERVER`);
-///   * an already-booted Android emulator id in `LEONARD_NATIVE_ANDROID_UDID`
-///     (e.g. `emulator-5554`);
+///   * an already-booted Android device id in `LEONARD_NATIVE_ANDROID_UDID`
+///     (e.g. `RF8RB21P6LN` or `emulator-5554`);
 ///   * a built `.apk` path in `LEONARD_NATIVE_ANDROID_APK`;
 ///   * the app package id in `LEONARD_NATIVE_ANDROID_PACKAGE`;
 ///   * the Flutter project root in `LEONARD_NATIVE_FLUTTER_PROJECT`;
 ///   * a Flutter entrypoint in `LEONARD_NATIVE_FLUTTER_TARGET`;
 ///   * the Auth0 credentials in `AUTH0_EMAIL` / `AUTH0_PASSWORD`.
 ///
-/// The Auth0 form xpaths default to the Auth0 universal-login Android shape and
-/// are overridable via `LEONARD_NATIVE_ANDROID_EMAIL_XPATH`,
-/// `LEONARD_NATIVE_ANDROID_PW_XPATH`, `LEONARD_NATIVE_ANDROID_SUBMIT_XPATH`, so
-/// a tenant with a different template retunes without editing this file.
+/// The email field uses Auth0's stable `username` Android resource id. The
+/// password and submit xpaths default to the Auth0 universal-login Android
+/// shape and are overridable via `LEONARD_NATIVE_ANDROID_PW_XPATH` and
+/// `LEONARD_NATIVE_ANDROID_SUBMIT_XPATH`, so a tenant with a different template
+/// retunes those selectors without editing this file.
 ///
 /// CREDENTIALS VIA ENV ONLY — never hardcoded, never logged, never committed.
 /// `AUTH0_PASSWORD` rides `--args` (visible in `ps`): run only on trusted
@@ -56,6 +57,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:leonard_native/leonard_native.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -68,13 +70,12 @@ const String _flutterTargetEnv = 'LEONARD_NATIVE_FLUTTER_TARGET';
 const String _emailEnv = 'AUTH0_EMAIL';
 const String _passwordEnv = 'AUTH0_PASSWORD';
 const String _clearChromeEnv = 'LEONARD_NATIVE_ANDROID_CLEAR_CHROME';
+const String _platformVersionEnv = 'LEONARD_NATIVE_ANDROID_PLATFORM_VERSION';
 
 const String _defaultServer = 'http://127.0.0.1:4723';
 
 /// Auth0 universal-login on Android renders in a Chrome Custom Tab; the web
 /// inputs surface in the UiAutomator2 tree as `android.widget.EditText`.
-const String _defaultEmailXpath =
-    '//android.widget.EditText[@resource-id="username"]';
 const String _defaultPwXpath =
     '//android.widget.EditText[@resource-id="password"]';
 const String _defaultSubmitXpath = '//android.widget.Button[@text="Continue"]';
@@ -133,7 +134,7 @@ String? _envSkipReason() {
       flutterTarget == null ||
       flutterTarget.isEmpty) {
     return '$_udidEnv + $_apkEnv + $_packageEnv + $_flutterProjectEnv + '
-        '$_flutterTargetEnv must point at a booted Android emulator + a built '
+        '$_flutterTargetEnv must point at a booted Android device + a built '
         '.apk + its package id + a Flutter project root + an entrypoint — '
         'live Android Auth0 dogfood e2e skipped';
   }
@@ -325,10 +326,6 @@ void main() {
     final String flutterTarget = Platform.environment[_flutterTargetEnv]!;
     final String email = Platform.environment[_emailEnv]!;
     final String password = Platform.environment[_passwordEnv]!;
-    final String emailXpath = _env(
-      'LEONARD_NATIVE_ANDROID_EMAIL_XPATH',
-      _defaultEmailXpath,
-    );
     final String pwXpath = _env(
       'LEONARD_NATIVE_ANDROID_PW_XPATH',
       _defaultPwXpath,
@@ -338,6 +335,30 @@ void main() {
       _defaultSubmitXpath,
     );
     final String nativeHost = _hostScript(packageRoot);
+
+    final UiAutomator2Backend capabilityBackend = UiAutomator2Backend(
+      server: Uri.parse(server),
+      udid: udid,
+      app: apk,
+      platformVersion: Platform.environment[_platformVersionEnv],
+    );
+    try {
+      await capabilityBackend.connect(
+        extraCapabilities: const <String, Object?>{
+          'appium:autoGrantPermissions': true,
+        },
+      );
+      expect(
+        capabilityBackend.sessionProvenance?.deviceSerial,
+        udid,
+        reason: 'the injected-capability session attached to another device',
+      );
+      stdout.writeln(
+        'HARDWARE_ASSERT lenny-2d9z injected_capability udid=$udid',
+      );
+    } finally {
+      await capabilityBackend.close();
+    }
 
     // Step 0: fresh-state prep BEFORE up — best-effort `pm clear` (NOT a
     // force-stop of a running app; `up` has not started it yet). Clearing the
@@ -375,7 +396,7 @@ void main() {
 
     // `up` with --platform android: launchDualTarget forwards it to the native
     // host, whose backendForPlatform selects the UiAutomator2Backend. One
-    // --udid (the emulator id) drives BOTH `flutter run -d` and the host.
+    // --udid (the device id) drives BOTH `flutter run -d` and the host.
     final Process up =
         await Process.start(Platform.resolvedExecutable, <String>[
           'run',
@@ -485,16 +506,18 @@ void main() {
         flutterWs,
         nativeEndpoint,
         'native.enter_text',
-        jsonEncode(<String, Object?>{'xpath': emailXpath, 'text': email}),
+        jsonEncode(<String, Object?>{'resource-id': 'username', 'text': email}),
       );
       result = (emailRes['result'] as Map).cast<String, dynamic>();
       expect(
         result['ok'],
         isTrue,
-        reason: 'email enter_text ($emailXpath): ${result['error']}',
+        reason: 'email enter_text (resource-id=username): ${result['error']}',
       );
       final Map<String, dynamic> emailValue = (result['value'] as Map)
           .cast<String, dynamic>();
+      expect(emailValue['via'], 'resource-id');
+      stdout.writeln('HARDWARE_ASSERT lenny-bv7y resource_id udid=$udid');
       expect(emailValue['readback'], email);
       expect(emailValue['masked'], isFalse);
 
@@ -647,6 +670,8 @@ void main() {
       final Map<String, dynamic> exts = (resumeObservation['extensions'] as Map)
           .cast<String, dynamic>();
       expect(exts.containsKey('native'), isTrue, reason: 'exts: ${exts.keys}');
+      stdout.writeln('HARDWARE_ASSERT dashboard_logged_in udid=$udid');
+      stdout.writeln('LOGGED_IN');
 
       // Tear BOTH channels down via the single pid-file.
       final ProcessResult down = await Process.run(
