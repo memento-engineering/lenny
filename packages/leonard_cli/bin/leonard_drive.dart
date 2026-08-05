@@ -131,6 +131,10 @@ ArgParser _parser() => ArgParser()
     defaultsTo: 'ios',
     help: 'up (native): target platform (default ios).',
   )
+  ..addOption(
+    'platform-version',
+    help: 'up (native): optional target platform version for provenance.',
+  )
   ..addFlag(
     'boot-sim',
     negatable: false,
@@ -666,6 +670,7 @@ Future<int> _upDual(ArgResults res) async {
     return 64;
   }
   final String platform = res['platform'] as String;
+  final String? platformVersion = res['platform-version'] as String?;
   final bool bootSim = res['boot-sim'] as bool;
 
   final DualLaunchHandle handle;
@@ -677,6 +682,7 @@ Future<int> _upDual(ArgResults res) async {
       nativeHostPath: nativeHost!,
       appiumServer: appiumServer,
       platform: platform,
+      platformVersion: platformVersion,
       bootSim: bootSim,
       onLog: stderr.writeln,
       timeout: Duration(seconds: timeoutSecs),

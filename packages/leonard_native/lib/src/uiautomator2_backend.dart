@@ -111,6 +111,10 @@ class ObstructionResourceIdPolicy {
 
 /// Device identity returned by an Appium Android session.
 class AndroidSessionProvenance {
+  /// Sentinel recorded when neither the request nor Appium identifies the
+  /// Android version used by the session.
+  static const String unknownAndroidVersion = 'unknown';
+
   const AndroidSessionProvenance({
     required this.deviceSerial,
     required this.androidVersion,
@@ -119,7 +123,10 @@ class AndroidSessionProvenance {
   });
 
   final String deviceSerial;
-  final String? androidVersion;
+
+  /// Android version reported by Appium or requested by the caller, otherwise
+  /// [unknownAndroidVersion].
+  final String androidVersion;
   final String? manufacturer;
   final String? model;
 }
@@ -144,7 +151,7 @@ class UiAutomator2Backend implements NativeBackend {
     Uri? server,
     required this.udid,
     required this.app,
-    required this.platformVersion,
+    this.platformVersion,
     ObstructionResourceIdPolicy? obstructionIds,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
@@ -165,8 +172,9 @@ class UiAutomator2Backend implements NativeBackend {
   /// `flutter run` process is NOT relaunched.
   final String app;
 
-  /// Android version requested from Appium (for example, `13`).
-  final String platformVersion;
+  /// Optional Android version requested from Appium (for example, `13`).
+  /// When absent or empty, the session request omits the version capability.
+  final String? platformVersion;
 
   /// Resource-ID matching policy used for platform obstructions.
   final ObstructionResourceIdPolicy obstructionIds;
@@ -255,6 +263,10 @@ class UiAutomator2Backend implements NativeBackend {
   Future<void> connect({
     Map<String, Object?> extraCapabilities = const <String, Object?>{},
   }) async {
+    final String? requestedVersion =
+        platformVersion == null || platformVersion!.isEmpty
+        ? null
+        : platformVersion;
     // Attach to the foreground app (the running `flutter run` process) WITHOUT
     // relaunching it: UiAutomator2 with `autoLaunch:false` and no app/appPackage
     // cap starts a session against whatever is on screen. This is the Android
@@ -265,7 +277,8 @@ class UiAutomator2Backend implements NativeBackend {
         'platformName': 'Android',
         'appium:automationName': 'UiAutomator2',
         'appium:udid': udid,
-        'appium:platformVersion': platformVersion,
+        if (requestedVersion != null)
+          'appium:platformVersion': requestedVersion,
         'appium:noReset': true,
         'appium:autoLaunch': false,
         'appium:newCommandTimeout': 0,
@@ -294,10 +307,10 @@ class UiAutomator2Backend implements NativeBackend {
         : const <Object?, Object?>{};
     _sessionProvenance = AndroidSessionProvenance(
       deviceSerial: _returnedCapability(returnedCapabilities, 'udid') ?? udid,
-      androidVersion: _returnedCapability(
-        returnedCapabilities,
-        'platformVersion',
-      ),
+      androidVersion:
+          _returnedCapability(returnedCapabilities, 'platformVersion') ??
+          requestedVersion ??
+          AndroidSessionProvenance.unknownAndroidVersion,
       manufacturer: _returnedCapability(
         returnedCapabilities,
         'deviceManufacturer',

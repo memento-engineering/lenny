@@ -20,16 +20,22 @@ void main() {
     b.close();
   });
 
-  test('android requires a platform version', () {
-    expect(
-      () => backendForPlatform(
+  for (final String? version in <String?>[null, '']) {
+    test('android accepts ${version == null ? 'null' : 'empty'} version', () {
+      final NativeBackend backend = backendForPlatform(
         platform: 'android',
         udid: 'emulator-5554',
         app: 'com.example.app',
-      ),
-      throwsA(isA<ArgumentError>()),
-    );
-  });
+        platformVersion: version,
+      );
+      expect(backend, isA<UiAutomator2Backend>());
+      expect(
+        (backend as UiAutomator2Backend).obstructionIds.permissionDialogEntries,
+        ObstructionResourceIdPolicy.defaults().permissionDialogEntries,
+      );
+      backend.close();
+    });
+  }
 
   test('ios -> XcuiTestBackend', () {
     final NativeBackend b = backendForPlatform(

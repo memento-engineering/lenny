@@ -28,13 +28,7 @@ NativeBackend backendForPlatform({
     server: server,
     udid: udid,
     app: app,
-    platformVersion: platformVersion == null || platformVersion.isEmpty
-        ? throw ArgumentError.value(
-            platformVersion,
-            'platformVersion',
-            'Android requires --platform-version',
-          )
-        : platformVersion,
+    platformVersion: platformVersion,
   ),
   _ => throw ArgumentError.value(
     platform,

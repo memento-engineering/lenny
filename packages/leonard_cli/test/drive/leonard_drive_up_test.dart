@@ -23,6 +23,7 @@ void main() {
       expect(r.exitCode, 0, reason: 'stderr: ${r.stderr}');
       expect(r.stdout as String, contains('up'));
       expect(r.stdout as String, contains('down'));
+      expect(r.stdout as String, contains('--platform-version'));
     });
 
     test('up without --target exits 64', () async {
@@ -215,6 +216,30 @@ void main() {
           expect(r.stderr, contains('http://127.0.0.1:1'));
         },
       );
+
+      test('--platform-version reaches the Appium preflight', () async {
+        final ProcessResult r = await run(<String>[
+          'up',
+          '--runner',
+          'flutter',
+          '-t',
+          'bin/main.dart',
+          '--udid',
+          'SIM-UDID',
+          '--app',
+          fixtureApp,
+          '--native-host',
+          realHost,
+          '--platform',
+          'android',
+          '--platform-version',
+          '13',
+          '--appium-server',
+          'http://127.0.0.1:1',
+        ]);
+        expect(r.exitCode, 1);
+        expect(r.stderr, contains('Appium'));
+      });
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );

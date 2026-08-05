@@ -462,6 +462,7 @@ Future<DualLaunchHandle> launchDualTarget({
   required String nativeHostPath,
   Uri? appiumServer,
   String platform = 'ios',
+  String? platformVersion,
   bool bootSim = false,
   required void Function(String) onLog,
   Duration timeout = const Duration(seconds: 180),
@@ -502,6 +503,10 @@ Future<DualLaunchHandle> launchDualTarget({
         app,
         '--platform',
         platform,
+        if (platformVersion != null && platformVersion.isNotEmpty) ...<String>[
+          '--platform-version',
+          platformVersion,
+        ],
       ],
       readyLine: 'LEONARD_HOST_READY',
       onLog: onLog,
