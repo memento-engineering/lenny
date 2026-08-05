@@ -3,17 +3,20 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:leonard_flutter/test_support/observation_equivalence.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leonard_flutter_test/leonard_flutter_test.dart';
 
 File _goldenFile(String name) {
   const String relativePath = 'test/goldens';
-  for (final String prefix in <String>['', 'packages/leonard_flutter/']) {
-    final File f = File('$prefix$relativePath/$name.observation.json');
-    if (f.existsSync()) return f;
+  for (final String prefix in <String>[
+    '../leonard_flutter/',
+    'packages/leonard_flutter/',
+  ]) {
+    final File file = File('$prefix$relativePath/$name.observation.json');
+    if (file.existsSync()) return file;
   }
   throw FileSystemException(
-    'Cannot locate golden fixture — run from package or workspace root',
+    'Cannot locate leonard_flutter golden fixture',
     '$relativePath/$name.observation.json',
   );
 }

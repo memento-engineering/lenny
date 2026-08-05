@@ -13,6 +13,8 @@
 //   - B8: make bundleId/appPackage/appActivity REQUIRED args (no hardcoded defaults).
 import 'dart:convert';
 import 'dart:io';
+// This standalone design spike intentionally has no package manifest.
+// ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 
 class AppiumError implements Exception {

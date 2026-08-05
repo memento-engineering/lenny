@@ -1,8 +1,7 @@
-import 'package:leonard_flutter/test_support/perception_serializer.dart';
+import 'package:genesis_perception/genesis_perception.dart';
 import 'package:leonard_router/leonard_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
 
 /// Harvest the router extension's observation fragment via the perception path,
 /// exactly as the binding's single observation loop does.

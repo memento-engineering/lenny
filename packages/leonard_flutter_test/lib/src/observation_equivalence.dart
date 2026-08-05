@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// Asserts that the stable legacy and perception observation fields agree.
 void assertObservationEquivalent(
   Map<String, Object?> legacy,
   Map<String, Object?> perception,

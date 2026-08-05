@@ -36,7 +36,7 @@ import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:leonard_flutter/test_support/binding_vm_service_fake.dart';
+import 'package:leonard_flutter_test/leonard_flutter_test.dart';
 
 /// File-backed [TrajectorySink] used by the CLI shim. Inlined here to
 /// avoid `leonard_cli` becoming a runtime dependency.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Breaking: test helpers no longer ship from `leonard_flutter`. Add
+  `leonard_flutter_test: ^0.1.0` to `dev_dependencies` and import its barrel
+  instead. Imports of the deleted
+  `package:leonard_flutter/test_support/perception_serializer.dart` must use
+  `package:genesis_perception/genesis_perception.dart` directly.
+
 ## 0.2.2
 
 - feat: on-demand `ext.leonard.core.get_diagnostics_tree` diagnostics

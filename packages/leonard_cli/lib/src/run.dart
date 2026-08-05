@@ -13,7 +13,6 @@ import 'package:leonard_agent/leonard_agent.dart';
 
 import 'cli_args.dart';
 import 'file_trajectory_sink.dart';
-import 'extension_tools.dart';
 import 'launcher.dart';
 import 'provider_factory.dart';
 

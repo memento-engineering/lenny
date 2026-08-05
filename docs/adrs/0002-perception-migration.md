@@ -143,6 +143,13 @@ Net effect on the migration sequence: ADR step "extract the core" is replaced by
 external edge" (this bead). The dual-path coexistence strategy (below) is unchanged — it now runs
 against an imported `genesis_perception` instead of an in-repo one.
 
+## Addendum — test-support package extraction (lenny-yj3b, 2026-08-04)
+
+- **Observation-equivalence barrel rename:** the conversion-gate helper now imports from
+  `package:leonard_flutter_test/leonard_flutter_test.dart` (the old path was
+  `package:leonard_flutter/test_support/observation_equivalence.dart`). The helper behavior and
+  committed golden baselines remain unchanged.
+
 ## Consequences
 
 - `lenny-0d6v` (sink) becomes `PerceptionElement.markNeedsHarvest` — first-class, not bolted on.

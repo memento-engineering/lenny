@@ -6,6 +6,7 @@ workspace:
   - packages/leonard_contract
   - packages/leonard_host
   - packages/leonard_flutter
+  - packages/leonard_flutter_test
   - packages/leonard_flutter/example/diagnostic_fixture
   - packages/leonard_flutter/example/sample_app
   - packages/leonard_agent
@@ -35,8 +36,9 @@ melos:
         `melos`, which only resolves when melos is also globally activated --
         otherwise the script dies with "melos: command not found".
       run: >-
-        dart run melos exec --no-flutter -- dart test &&
-        dart run melos exec --flutter -- flutter test
+        dart run melos exec --no-flutter --ignore=leonard_flutter_test -- dart test &&
+        dart run melos exec --flutter -- flutter test &&
+        dart run melos exec --scope=leonard_flutter_test -- flutter test
 
     analyze:
       description: >-

@@ -1,6 +1,6 @@
 name: leonard_router
 description: "Reference extension: Router/Navigator observation and navigate tool."
-version: 0.2.1
+version: 0.3.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -12,9 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
   genesis_perception: ^0.2.0
-  leonard_flutter: ^0.2.0
+  leonard_flutter: ^0.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  leonard_flutter_test: ^0.1.0
   lints: ^5.1.0

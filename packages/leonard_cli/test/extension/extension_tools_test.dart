@@ -3,7 +3,6 @@
 library;
 
 import 'package:leonard_agent/leonard_agent.dart';
-import 'package:leonard_cli/src/extension_tools.dart';
 import 'package:test/test.dart';
 
 void main() {

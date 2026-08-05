@@ -8,7 +8,6 @@ import 'package:leonard_flutter/src/observation/core_perception.dart';
 import 'package:leonard_flutter/src/observation/stability_metadata.dart';
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:leonard_flutter/src/errors/error_ring_buffer.dart';
-import 'package:leonard_flutter/test_support/observation_equivalence.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_perception/genesis_perception.dart';
 
@@ -96,7 +95,7 @@ void main() {
     );
 
     // Legacy vs perception: deep equality on the four core keys.
-    assertObservationEquivalent(_wrap(legacy), _wrap(perception));
+    expect(_wrap(perception), equals(_wrap(legacy)));
 
     // Lock key order: byte-identical JSON encodings.
     expect(
@@ -180,7 +179,7 @@ void main() {
         ),
       );
 
-      assertObservationEquivalent(_wrap(legacy), _wrap(perception));
+      expect(_wrap(perception), equals(_wrap(legacy)));
       expect(
         jsonEncode(legacy),
         equals(jsonEncode(perception)),

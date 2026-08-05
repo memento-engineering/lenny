@@ -1,7 +1,7 @@
 // packages/leonard_agent/test/support/leonard_vm_service_fake.dart
 /// Pure-Dart [VmService] fake for leonard_agent tests.
 ///
-/// Replaces [BindingVmServiceFake] (from leonard_flutter/test_support/)
+/// Replaces [BindingVmServiceFake] (from `leonard_flutter_test`)
 /// for tests that only need scripted RPC responses — no real Flutter binding,
 /// no dart:ui, no flutter_test.
 ///
