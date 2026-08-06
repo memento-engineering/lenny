@@ -1,3 +1,19 @@
+## 0.3.1
+
+- **Fixed: the `resourceId` tier can now resolve Chrome web-content fields
+  (bare HTML ids).** UiAutomator2's `using=id` locator only consults real
+  view resource names (`pkg:id/name`); the `resource-id` you see on a web
+  `<input>` is synthesized from its HTML `id` when the tree is serialized, so
+  it was present in `/source` yet invisible to the live selector — and since
+  `resourceId` is tier 1 and often the only populated tier, the miss consumed
+  the full retry window and read as a device timeout rather than a wrong
+  locator. On a `using=id` miss, a BARE value (no `:id/`) now falls through
+  to `//*[@resource-id='…']` over the serialized tree and reports
+  `via: 'resource-id-xpath'`; a missed `pkg:id/name` is a genuine miss and
+  does not fall through. Verified live against real Chrome on device
+  (SM-M225FV) alongside an unchanged native-id resolution. Reported on
+  https://github.com/memento-engineering/lenny/issues/51.
+
 ## 0.3.0
 
 - **Breaking — `NativeBackend.connect()` takes `extraCapabilities`.** The
