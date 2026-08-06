@@ -1,4 +1,36 @@
-## 0.2.3
+## 0.3.0
+
+- **Breaking — `NativeBackend.connect()` takes `extraCapabilities`.** The
+  abstract contract is now
+  `Future<void> connect({Map<String, Object?> extraCapabilities = const {}})`
+  on both `UiAutomator2Backend` and `XcuiTestBackend`: the map is merged over
+  the orthogonal Appium defaults when a new session is created, and
+  attach-critical capabilities are rejected with `ArgumentError`. Migration:
+  an external `NativeBackend` implementer adds the named parameter (a
+  delegating implementation only changes its signature); existing call sites
+  are source-compatible.
+- **Breaking — `XcuiTestBackend` gains attach-by-bundle-id and stops forcing
+  `appium:app`.** `XcuiTestBackend.attach(udid: …, bundleId: …)` attaches to
+  an already-running app instead of always launching from an `.app` path; the
+  default constructor keeps launch mode. Migration: code that relied on
+  `appium:app` being unconditionally present must use launch mode explicitly.
+- `NativeSelector` gains a `resourceId` tier — on Android it resolves first
+  (`resource-id` is the strongest handle the platform offers); on iOS, which
+  has no analogue, the tier is skipped. Additive.
+- `NativeSelector.flutterIdentifier('x')` selects a Flutter
+  `Semantics(identifier:)` widget through the Android channel. It expands to
+  `//*[@resource-id='x']/ancestor-or-self::*[@clickable="true"][1]`, which is
+  correct on BOTH measured projection shapes — Pixel 7a / Android 16 puts the
+  identifier on a non-clickable wrapper, an SM-M225FV / Android 13 projects it
+  clickable-self; both captures are recorded in the README so neither gets
+  hardcoded. Additive.
+- **Android permission dialogs are a first-class obstruction.**
+  `press('dismiss_overlay')` REFUSES them, because Android Back denies the
+  permission — denial persistently changes application behaviour, and granting
+  was not requested either. Consumers state intent explicitly with the new
+  `permission_allow` / `permission_deny` press keys. Behaviour change with
+  additive API; proven against a live device
+  (`android_permission_dialog_proof.dart`).
 
 - **Docs — CORRECTION to 0.2.2's migration note, which was wrong for one
   consumer shape.** 0.2.2 said, unqualified: *"Remove consumer-owned
