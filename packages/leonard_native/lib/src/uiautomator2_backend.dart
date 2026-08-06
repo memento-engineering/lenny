@@ -514,8 +514,26 @@ class UiAutomator2Backend implements NativeBackend {
   ) async {
     // Tier 1: exact resource-id. JSON transport owns quoting.
     if (selector.resourceId != null) {
-      final String? eid = await _find('id', selector.resourceId!);
+      final String resourceId = selector.resourceId!;
+      final String? eid = await _find('id', resourceId);
       if (eid != null) return NativeTarget(elementId: eid, via: 'resource-id');
+      // A BARE id (no `:id/`) can be Chrome web content: its resource-id is
+      // synthesized from the HTML `id` when the tree is serialized, so it is
+      // matchable by XPath over that tree but INVISIBLE to `using=id`, which
+      // only consults real view resource names (GitHub #51, measured on a
+      // Pixel 7a / Chrome 150). Fall through to the serialized tree — but
+      // ONLY for the bare form: a missed `pkg:id/name` is a genuine miss,
+      // and reinterpreting it would make every native-id typo cost a second
+      // find and mean something else.
+      if (_resourceIdParts(resourceId) == null) {
+        final String? webEid = await _find(
+          'xpath',
+          '//*[@resource-id=${xpathLiteral(resourceId)}]',
+        );
+        if (webEid != null) {
+          return NativeTarget(elementId: webEid, via: 'resource-id-xpath');
+        }
+      }
     }
 
     // Tier 2: a11y-id (on UiAutomator2, the element's content-desc).

@@ -112,6 +112,100 @@ void main() {
     },
   );
 
+  group('resource-id web-content fallback (GitHub #51)', () {
+    // One MockClient shape for the group: `using=id` finds miss (a 200 with
+    // a null value — _find's immediate-miss path), `using=xpath` finds hit.
+    (UiAutomator2Backend, List<Map<String, Object?>>) rig() {
+      final List<Map<String, Object?>> findBodies = <Map<String, Object?>>[];
+      final MockClient client = MockClient((http.Request req) async {
+        Object? value;
+        if (req.url.path == '/session') {
+          value = <String, Object?>{'sessionId': 's1'};
+        } else if (req.url.path == '/session/s1/element') {
+          final Map<String, Object?> body = (jsonDecode(req.body) as Map)
+              .cast<String, Object?>();
+          findBodies.add(body);
+          value = body['using'] == 'xpath'
+              ? <String, Object?>{
+                  'element-6066-11e4-a52e-4f735466cecf': 'E-web',
+                }
+              : null;
+        }
+        return http.Response(
+          jsonEncode(<String, Object?>{'value': value}),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
+        );
+      });
+      return (
+        UiAutomator2Backend(
+          udid: 'emulator-5554',
+          app: 'com.example.app',
+          platformVersion: '13',
+          client: client,
+        ),
+        findBodies,
+      );
+    }
+
+    test('a bare id that misses on using=id falls through to xpath and '
+        'resolves via resource-id-xpath', () async {
+      final (UiAutomator2Backend backend, List<Map<String, Object?>> finds) =
+          rig();
+      await backend.connect();
+      final NativeTarget? target = await backend.resolve(
+        const NativeSelector(resourceId: 'email'),
+        null,
+      );
+      expect(target?.elementId, 'E-web');
+      expect(target?.via, 'resource-id-xpath');
+      expect(finds, <Map<String, Object?>>[
+        <String, Object?>{'using': 'id', 'value': 'email'},
+        <String, Object?>{
+          'using': 'xpath',
+          'value': "//*[@resource-id='email']",
+        },
+      ]);
+      await backend.close();
+    });
+
+    test('a pkg:id/name value that misses does NOT issue the xpath '
+        'fallback — a missed native id is a genuine miss', () async {
+      final (UiAutomator2Backend backend, List<Map<String, Object?>> finds) =
+          rig();
+      await backend.connect();
+      final NativeTarget? target = await backend.resolve(
+        const NativeSelector(resourceId: 'com.android.chrome:id/email'),
+        null,
+      );
+      expect(target, isNull);
+      expect(finds, <Map<String, Object?>>[
+        <String, Object?>{
+          'using': 'id',
+          'value': 'com.android.chrome:id/email',
+        },
+      ]);
+      await backend.close();
+    });
+
+    test('the fallback xpath literal is correctly quoted for a value '
+        'carrying both quote kinds', () async {
+      final (UiAutomator2Backend backend, List<Map<String, Object?>> finds) =
+          rig();
+      await backend.connect();
+      final NativeTarget? target = await backend.resolve(
+        const NativeSelector(resourceId: 'a\'b"c'),
+        null,
+      );
+      expect(target?.via, 'resource-id-xpath');
+      expect(finds.last, <String, Object?>{
+        'using': 'xpath',
+        'value': '//*[@resource-id=concat(\'a\', "\'", \'b"c\')]',
+      });
+      await backend.close();
+    });
+  });
+
   group('UiAutomator2Backend.connect capabilities', () {
     test(
       'omits an unknown version and records the explicit sentinel',

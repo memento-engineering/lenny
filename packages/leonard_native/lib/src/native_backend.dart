@@ -58,11 +58,27 @@ class NativeSelector {
   /// Android-specific; it does not reinterpret a missed [a11yId].
   factory NativeSelector.flutterIdentifier(String identifier) => NativeSelector(
     xpath:
-        '//*[@resource-id=${_xpathLiteral(identifier)}]'
+        '//*[@resource-id=${xpathLiteral(identifier)}]'
         '/ancestor-or-self::*[@clickable="true"][1]',
   );
 
-  /// Android tier 1: exact layout resource-id. Skipped on iOS.
+  /// Android tier 1: exact `resource-id`. Skipped on iOS.
+  ///
+  /// The a11y tree carries TWO kinds of `resource-id`, and they resolve
+  /// differently (measured on a Pixel 7a / Android 16 / Chrome 150, Appium
+  /// uiautomator2 8.2.2 — GitHub #51):
+  ///
+  /// * a NATIVE view's resource name (`pkg:id/name`, e.g.
+  ///   `android:id/content`) — the live `using=id` locator matches it;
+  /// * a WEB-CONTENT id synthesized from the HTML `id` attribute of an
+  ///   element inside Chrome (bare, e.g. `email`) — present in the serialized
+  ///   tree and matchable by XPath over it, but INVISIBLE to `using=id`,
+  ///   which only consults real view resource names.
+  ///
+  /// The backend resolves both: `using=id` first, and on a miss a bare value
+  /// (no `:id/`) falls through to `//*[@resource-id='…']` over the serialized
+  /// tree (`via: 'resource-id-xpath'`). A `pkg:id/name` value that misses is
+  /// a genuine miss and does NOT fall through.
   final String? resourceId;
 
   /// Android tier 2 / iOS tier 1: a11y identifier.
@@ -78,7 +94,12 @@ class NativeSelector {
   final List<int>? rect;
 }
 
-String _xpathLiteral(String value) {
+/// Quotes [value] as an XPath 1.0 string literal, taking the `concat()` path
+/// when it carries both quote kinds. Package-internal (not exported by the
+/// barrel): shared by [NativeSelector.flutterIdentifier] and
+/// `UiAutomator2Backend`'s bare-resource-id fallback — one quoting
+/// implementation, not two.
+String xpathLiteral(String value) {
   if (!value.contains("'")) return "'$value'";
   if (!value.contains('"')) return '"$value"';
   final List<String> parts = value.split("'");
