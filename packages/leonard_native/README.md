@@ -59,10 +59,22 @@ View    resource-id='PrimaryFooterButtonKey' clickable=false  <- outer wrapper
       View content-desc='Allow'              clickable=false  <- Semantics(label:)
 ```
 
-Three details matter for selection: `Semantics(identifier:)` becomes Android
-`resource-id`, not `content-desc` (the label becomes `content-desc`); the node
-carrying the identifier is non-interactive; and its clickable `Button` ancestor
-is anonymous, with neither a resource-id nor a content-desc of its own.
+One detail is INVARIANT and load-bearing: `Semantics(identifier:)` becomes
+Android `resource-id`, not `content-desc` (the label becomes `content-desc`).
+
+**Where the identifier lands is NOT invariant — it varies by device and OS
+version.** The Pixel 7a / Android 16 capture above puts the identifier on a
+non-interactive node whose clickable `Button` ancestor is anonymous. A Samsung
+SM-M225FV (m22) on Android 13 projects the SAME widget differently: the node
+carrying the identifier is itself clickable, so there is no wrapper to climb.
+Measured live on `RF8RB21P6LN`:
+
+```text
+HARDWARE_ASSERT lenny-f0rq flutter_identifier projection=clickable-self via=xpath
+```
+
+Do not write selection logic against either tree shape. The two measurements are
+recorded here precisely so that nobody hardcodes one of them.
 
 Consequently, the iOS-working `NativeSelector(a11yId: 'allow')` matches nothing
 on Android and returns no error. Use the explicit Android selector instead:
@@ -72,8 +84,11 @@ final NativeSelector selector = NativeSelector.flutterIdentifier('allow');
 ```
 
 It expands to
-`//*[@resource-id='allow']/ancestor-or-self::*[@clickable="true"][1]`, selecting
-the actionable ancestor rather than stopping at the identifier wrapper.
+`//*[@resource-id='allow']/ancestor-or-self::*[@clickable="true"][1]`, which is
+robust to BOTH shapes by construction: `ancestor-or-self` climbs to the
+actionable `Button` on the Pixel and stops at the identifier node itself on the
+m22. That is why the selector needs no per-device branch — the variance is in
+the tree, not in the API.
 `resolve` intentionally does not auto-retry a missed `a11yId` as this XPath:
 doing so would make every legitimate accessibility-id miss silently mean
 something else.

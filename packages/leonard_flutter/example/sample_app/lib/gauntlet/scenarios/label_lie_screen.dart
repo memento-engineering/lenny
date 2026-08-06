@@ -45,6 +45,7 @@ class LabelLieScreen extends StatelessWidget {
               _LiarButton(
                 visible: 'Continue',
                 semantic: 'Submit',
+                identifier: 'gauntlet_submit',
                 onTap: () => markGoalReached(scenarioId),
               ),
             ],
@@ -63,16 +64,19 @@ class _LiarButton extends StatelessWidget {
     required this.visible,
     required this.semantic,
     required this.onTap,
+    this.identifier,
   });
 
   final String visible;
   final String semantic;
+  final String? identifier;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     return Semantics(
+      identifier: identifier,
       button: true,
       label: semantic,
       onTap: onTap,

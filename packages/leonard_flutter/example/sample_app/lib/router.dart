@@ -40,11 +40,14 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 GoRouter buildRouter(ProviderContainer container) {
   // Notify GoRouter when auth toggles so redirect re-evaluates.
   final authListenable = _AuthListenable(container);
+  final String launchRoute =
+      WidgetsBinding.instance.platformDispatcher.defaultRouteName;
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/login',
+    initialLocation: launchRoute == '/' ? '/login' : launchRoute,
     refreshListenable: authListenable,
     redirect: (BuildContext context, GoRouterState state) {
+      if (state.matchedLocation.startsWith('/g/')) return null;
       final loggedIn = container.read(authProvider) != null;
       final atLogin = state.matchedLocation == '/login';
       if (!loggedIn && !atLogin) return '/login';

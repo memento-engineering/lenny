@@ -226,6 +226,47 @@ void main() {
     });
 
     test(
+      'retains immutable returned capabilities only while connected',
+      () async {
+        final UiAutomator2Backend backend = UiAutomator2Backend(
+          udid: 'RF8RB21P6LN',
+          app: 'com.example.sample_app',
+          client: MockClient((http.Request request) async {
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'value': <String, Object?>{
+                  'sessionId': 'android-session',
+                  'capabilities': <String, Object?>{
+                    'appium:udid': 'RF8RB21P6LN',
+                    'printPageSourceOnFindFailure': true,
+                  },
+                },
+              }),
+              200,
+            );
+          }),
+        );
+
+        expect(backend.sessionCapabilities, isNull);
+        await backend.connect(
+          extraCapabilities: const <String, Object?>{
+            'appium:printPageSourceOnFindFailure': true,
+          },
+        );
+        expect(
+          backend.sessionCapabilities,
+          containsPair('printPageSourceOnFindFailure', true),
+        );
+        expect(
+          () => backend.sessionCapabilities!['new'] = true,
+          throwsUnsupportedError,
+        );
+        await backend.close();
+        expect(backend.sessionCapabilities, isNull);
+      },
+    );
+
+    test(
       'requested version supplies provenance when Appium omits it',
       () async {
         final UiAutomator2Backend backend = UiAutomator2Backend(

@@ -43,12 +43,19 @@ class NativeSelector {
     this.rect,
   });
 
-  /// Selects the clickable Android ancestor of Flutter's
+  /// Selects the clickable Android node for Flutter's
   /// `Semantics(identifier:)` projection.
   ///
-  /// Flutter projects the identifier onto a non-clickable `resource-id` node,
-  /// while the actionable node is an anonymous ancestor. This explicit helper
-  /// is Android-specific; it does not reinterpret a missed [a11yId].
+  /// Flutter projects the identifier onto a `resource-id` node. WHETHER that
+  /// node is itself clickable VARIES BY DEVICE AND OS VERSION: a Pixel 7a on
+  /// Android 16 puts it on a non-clickable node whose actionable parent is an
+  /// anonymous ancestor, while a Samsung SM-M225FV on Android 13 makes the
+  /// identifier node clickable itself (measured live on RF8RB21P6LN). The
+  /// `ancestor-or-self` axis below is what makes this helper correct on both —
+  /// it climbs when it must and stops at self when it need not, so no caller
+  /// needs a per-device branch.
+  ///
+  /// Android-specific; it does not reinterpret a missed [a11yId].
   factory NativeSelector.flutterIdentifier(String identifier) => NativeSelector(
     xpath:
         '//*[@resource-id=${_xpathLiteral(identifier)}]'
