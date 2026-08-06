@@ -206,14 +206,33 @@ void main() {
       });
       expect(loggedIn['ok'], isTrue, reason: 'tap Log in: $loggedIn');
 
-      // 2) Accept the SpringBoard consent popup via the W3C alert/accept path.
-      //    (The consent dialog is a SEPARATE process — NOT in /source — so this
-      //    is the alert endpoint, not an xpath find.)
+      // 2) Accept the SpringBoard consent popup via the W3C alert/accept path,
+      //    IF the OS presents one. (The consent dialog is a SEPARATE process —
+      //    NOT in /source — so this is the alert endpoint, not an xpath find.)
+      //    Whether it appears is the OS's choice, not the app's contract:
+      //    measured 2026-08-06 on the iOS 26.5 simulator runtime,
+      //    ASWebAuthenticationSession presents NO consent alert and lands
+      //    directly on the Auth0 form (screenshot receipt in lenny-ho12's
+      //    close), where iOS <26 always interposed it. A missing alert is the
+      //    documented W3C "no such alert" error and means step 2 is a no-op;
+      //    any OTHER consent failure still fails the test.
       final Map<String, dynamic> consent = await session.act(<String, dynamic>{
         'name': 'native.press',
         'args': <String, dynamic>{'key': 'consent_accept'},
       });
-      expect(consent['ok'], isTrue, reason: 'consent_accept: $consent');
+      if (consent['ok'] != true) {
+        expect(
+          consent['error'],
+          contains('no such alert'),
+          reason:
+              'consent_accept failed for a reason other than an absent '
+              'alert: $consent',
+        );
+        stdout.writeln(
+          'HARDWARE_NOTE consent alert absent on this OS — '
+          'ASWebAuthenticationSession presented no SpringBoard consent',
+        );
+      }
 
       // 3) Type the email into the Auth0 "Email address" field. The XPath tier
       //    is load-bearing for the (possibly anonymous) web form field.
