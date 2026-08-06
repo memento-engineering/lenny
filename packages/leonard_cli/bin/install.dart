@@ -1,15 +1,17 @@
 /// `dart run leonard_cli:install` — install Leonard's consumer-facing
-/// coding-agent assets (the `drive-with-leonard` skill + `leonard-driver`/
-/// `leonard-pilot` agents) into the current repo.
+/// coding-agent assets (the `drive-with-leonard` skill + the `leonard-drive`
+/// agent) into the current repo.
 ///
 /// The canonical copy always lands in `.agents/` (the cross-client agentskills
-/// convention). Harness flags then overlay that single source into each
-/// harness's native location as **symlinks** (falling back to copies where the
-/// platform doesn't support symlinks), so there's one source of truth to edit:
+/// convention). `.agents/skills/` is itself a first-class skill location for
+/// GitHub Copilot, Cursor, Codex, and friends, so skills need no overlay at
+/// all. Harness flags then overlay the remaining pieces into each harness's
+/// native location as **symlinks** (falling back to copies where the platform
+/// doesn't support symlinks), so there's one source of truth to edit:
 ///
 ///   dart run leonard_cli:install                 # .agents/ only (cross-client)
 ///   dart run leonard_cli:install --claude        # + .claude/{agents,skills} symlinks
-///   dart run leonard_cli:install --copilot       # + root agents/ skills/ (Copilot CLI plugin)
+///   dart run leonard_cli:install --copilot       # + .github/agents/ symlinks
 ///   dart run leonard_cli:install --all           # every harness
 ///   dart run leonard_cli:install --dir DIR       # target DIR instead of cwd
 ///   dart run leonard_cli:install --force         # overwrite existing entries
@@ -50,8 +52,8 @@ Future<void> main(List<String> argv) async {
         stdout.writeln(
           'Usage: dart run leonard_cli:install '
           '[--dir DIR] [--claude] [--copilot] [--all] [--force]\n'
-          'Installs the drive-with-leonard skill + leonard-driver/leonard-pilot '
-          'agents into DIR/.agents/ (default cwd), with optional harness '
+          'Installs the drive-with-leonard skill + the leonard-drive agent '
+          'into DIR/.agents/ (default cwd), with optional harness '
           'overlays (--claude, --copilot).',
         );
         return;
@@ -120,11 +122,18 @@ Future<void> main(List<String> argv) async {
     }
   }
   if (copilot) {
-    // GitHub Copilot CLI plugin layout: agents/*.agent.md + skills/<name>/ at
-    // the plugin (repo) root. Point them at the canonical .agents/.
-    _log('\nGitHub Copilot CLI overlay (repo-root plugin layout):');
-    _overlay('$targetRoot/agents', '.agents/agents', force: force);
-    _overlay('$targetRoot/skills', '.agents/skills', force: force);
+    // Copilot reads custom agents from .github/agents/*.agent.md (CLI, coding
+    // agent, and VS Code all scan it). Skills need no overlay: .agents/skills/
+    // is already one of Copilot's first-class skill locations.
+    _log('\nGitHub Copilot overlay (.github/agents/):');
+    for (final String base in agentBaseNames) {
+      _overlay(
+        '$targetRoot/.github/agents/$base.agent.md',
+        '../../.agents/agents/$base.agent.md',
+        force: force,
+      );
+    }
+    _log('  note   skills: Copilot reads .agents/skills/ directly — no link');
   }
 
   _log(
@@ -132,7 +141,7 @@ Future<void> main(List<String> argv) async {
     '${skipped > 0 ? ' ($skipped skipped)' : ''}'
     '${claude || copilot ? ' + harness overlays' : ''}.\n'
     'Your coding agent can now use the "drive-with-leonard" skill and the\n'
-    'leonard-driver / leonard-pilot agents. See the skill for setup.',
+    'leonard-drive agent. See the skill for setup.',
   );
 }
 

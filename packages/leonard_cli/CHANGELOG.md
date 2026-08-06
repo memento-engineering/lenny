@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+- `install --copilot` now overlays `.github/agents/` — the location GitHub
+  Copilot (CLI, coding agent, VS Code) actually scans — instead of the retired
+  repo-root `agents/`+`skills/` plugin layout. Skills need no overlay:
+  `.agents/skills/` is a first-class Copilot skill location, and
+  `gh skill install memento-engineering/lenny drive-with-leonard` installs
+  straight from this package's vendored assets.
+- The vended `leonard-drive` agent's tools list carries both harness
+  vocabularies (`Bash, Read, execute`), so the same file drives Claude Code
+  and Copilot unchanged.
+
 ## 0.2.0
 
 - Breaking: `leonard_drive` speaks the `ext.leonard.*` VM-service namespace

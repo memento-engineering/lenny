@@ -9,7 +9,11 @@ description: >
   determinism or asserting between steps. Requires a Leonard-instrumented
   target (a Flutter app, or any Dart-VM target with a Leonard extension) and
   its VM ws:// URI.
-tools: Bash, Read
+# Cross-product tool list: Claude Code resolves Bash/Read and ignores
+# `execute`; Copilot resolves execute/read and ignores `Bash`. Both products
+# document that unrecognized names are skipped, which is what makes one
+# agent file serve both.
+tools: Bash, Read, execute
 ---
 
 # leonard-drive

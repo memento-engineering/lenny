@@ -78,6 +78,24 @@ void main() {
     }
   });
 
+  test('the drive agent carries both harness tool vocabularies', () {
+    final String agent = assets.entries
+        .firstWhere(
+          (MapEntry<String, String> e) =>
+              e.key.endsWith('leonard-drive.agent.md'),
+        )
+        .value;
+    final String tools = agent
+        .split('\n')
+        .firstWhere((String l) => l.startsWith('tools:'));
+    // One file serves Claude Code AND Copilot because each ignores the other's
+    // names: Claude resolves Bash/Read, Copilot resolves execute/read. Losing
+    // either vocabulary silently strips the shell from that harness's agent.
+    expect(tools, contains('Bash'), reason: 'Claude Code shell tool');
+    expect(tools, contains('execute'), reason: 'Copilot shell alias');
+    expect(tools, contains('Read'));
+  });
+
   test('the tool reference lives in the skill, not an agent', () {
     final String skill = assets.entries
         .firstWhere(
