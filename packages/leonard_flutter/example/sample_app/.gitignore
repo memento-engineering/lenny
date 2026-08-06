@@ -25,10 +25,17 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
-# Generated native runners for the example fixture — only macos/ is tracked
-# (the dev platform); ios/ is regenerated on demand and must not be committed
-# or swept into the published leonard_flutter archive.
-/ios/
+# Generated native runners for the example fixture — android/, ios/ and macos/
+# are ALL tracked (Nico, 2026-08-05). This reverses the earlier "only macos/ is
+# tracked; ios/ is regenerated on demand" rule: the fixture is what the gauntlet
+# runs on real hardware, so a device run must not depend on one machine having
+# happened to `flutter create` the right platform. Tracking them is what makes
+# the run reproducible from a clean checkout.
+#
+# Cost, measured before the change: the platform runners add ~240 KB (ios/) to
+# the published leonard_flutter archive, which stayed at 15 MB with android/
+# already tracked. Each runner keeps its own .gitignore, so build output and
+# Pods stay out.
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
