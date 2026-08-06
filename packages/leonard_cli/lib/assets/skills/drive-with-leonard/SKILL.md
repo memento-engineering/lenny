@@ -87,24 +87,44 @@ Observations expose each node's `id`, `role`, `label`, `actions`, `rect`, and �
 on scrollables — `scroll: {pos, min?, max?}`. Non-core extensions contribute
 their own tools/fragments under their namespace.
 
+## Tool reference (turn-by-turn driving)
+
+For manual driving (via `leonard_drive`) or scripting a device:
+
+- Target nodes by **integer** `node_id` from the CURRENT observation whose
+  `actions` permit it. Core tools + required args: `core.tap {node_id}`,
+  `core.long_press {node_id}`, `core.enter_text {node_id, text}`,
+  `core.scroll {node_id, axis:"vertical"|"horizontal", delta_pixels}`
+  (read the node's `scroll` — move ~`max - pos` further; `pos == max` = at the
+  bottom), `core.gesture {node_id, kind}`, `core.inspect_widget {node_id}`,
+  `core.wait {seconds}`, `core.system_back {}`, `core.done {reason}`.
+- **Never repeat an action that just failed** — read `result.error` (it names
+  the bad field) and change something. One `invoke` per turn; `observe`
+  between actions.
+- Trim observe output with jq to keep context small, e.g. only actionable
+  nodes:
+  `... observe ... | jq -c '{route:.observation.core.routeStack, nodes:[.observation.core.nodes|to_entries[].value|select((.actions//[])|length>0)|{id,role,label,actions,state,scroll}]}'`
+
 ## Verify
 
-`--output` trajectory: `footer.outcome == done` = goal reached
-(`agent_stuck`/`budget_exhausted` = not). Check per-turn `result.ok` and the
-target's route/state.
+`--output` trajectory: `footer.outcome` is one of three wire values —
+`done` = goal reached; `budget_exhausted` = ran out of turns before reaching
+it; `harness_error` = the run itself broke (the footer's `harness_error`
+field carries the cause — do not read a harness failure as "goal not
+reached"). Check per-turn `result.ok` and the target's route/state.
 
 ```bash
 grep -oE '"outcome":"[^"]*"' /tmp/run.jsonl | tail -1
 ```
 
-## Non-Flutter targets (current state)
+## Non-Flutter targets
 
-The extension/perception model is target-agnostic — `leonard_tmux` is the proof
-(pure Dart, observes an external process). **Today the live VM-service host
-that exposes `ext.leonard.*` for `leonard_cli` to drive ships in
-`leonard_flutter` (`LeonardBinding`).** A pure-Dart host (so a non-Flutter
-program can be driven live by `leonard_cli`) is the next piece; until then,
-non-Flutter extensions are used as a **library** (call `extension.observe()` /
-`extension.executeAction(...)` directly — see `leonard_tmux/example/main.dart`).
-Don't assume `dart run leonard_cli` drives a non-Flutter target over the VM
-service yet.
+The extension/perception model is target-agnostic, and the **pure-Dart live
+host ships today**: `leonard_host` (`ExplorationHost`) serves any Dart-VM
+target's extensions over the VM service — no Flutter anywhere in the stack.
+`leonard_native`'s host runner (`bin/leonard_native_host.dart`) is a shipping
+example: it hosts the `native` extension and is driven live by
+`leonard_cli`/`leonard_drive` exactly like a Flutter app (proven end-to-end in
+its `native_host_e2e_test.dart`). Extensions can still be used as a plain
+library (`extension.observe()` / `extension.executeAction(...)` — see
+`leonard_tmux/example/main.dart`) when you don't need live driving.
