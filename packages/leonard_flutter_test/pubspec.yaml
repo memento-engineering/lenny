@@ -1,6 +1,6 @@
 name: leonard_flutter_test
 description: Test support for applications and extensions built with leonard_flutter.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -9,6 +9,8 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
+  flutter:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   leonard_flutter: ^0.3.0

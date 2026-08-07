@@ -36,9 +36,8 @@ melos:
         `melos`, which only resolves when melos is also globally activated --
         otherwise the script dies with "melos: command not found".
       run: >-
-        dart run melos exec --no-flutter --ignore=leonard_flutter_test -- dart test &&
-        dart run melos exec --flutter -- flutter test &&
-        dart run melos exec --scope=leonard_flutter_test -- flutter test
+        dart run melos exec --no-flutter -- dart test &&
+        dart run melos exec --flutter -- flutter test
 
     analyze:
       description: >-
