@@ -13,6 +13,37 @@ import '../support/vended_assets.dart';
 
 void main() {
   final Map<String, String> assets = vendedMarkdown();
+  final Map<String, String> allAssets = vendedFiles();
+
+  test('the portable mutation tools are package-visible', () {
+    final String runner = allAssets.entries
+        .singleWhere((e) => e.key.endsWith('tools/leonard/run_mutation.sh'))
+        .value;
+    final String rules = allAssets.entries
+        .singleWhere(
+          (e) => e.key.endsWith('tools/leonard/custom_rules.example.xml'),
+        )
+        .value;
+    expect(runner, startsWith('#!/usr/bin/env bash'));
+    expect(runner, contains(' -b)'));
+    final List<String> ids = RegExp(
+      r'<regex id="(M[1-8]\.[^"]+)"',
+    ).allMatches(rules).map((m) => m.group(1)!).toList();
+    expect(ids.toSet(), hasLength(8));
+    expect(ids.map((id) => id.split('.').first), <String>[
+      'M1',
+      'M2',
+      'M3',
+      'M4',
+      'M5',
+      'M6',
+      'M7',
+      'M8',
+    ]);
+    expect(RegExp(r'<mutation\b').allMatches(rules), hasLength(8));
+    expect(rules, isNot(contains('<commands>')));
+    expect(rules, isNot(contains('threshold')));
+  });
 
   test('the vended surface is non-empty and carries the collapsed agent', () {
     expect(assets, isNotEmpty);
@@ -128,5 +159,6 @@ void main() {
     // ships an installer that installs nothing.
     expect(Directory('${vendedAssetsDir().path}/agents').existsSync(), isTrue);
     expect(Directory('${vendedAssetsDir().path}/skills').existsSync(), isTrue);
+    expect(Directory('${vendedAssetsDir().path}/tools').existsSync(), isTrue);
   });
 }

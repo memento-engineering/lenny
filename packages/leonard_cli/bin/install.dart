@@ -1,6 +1,5 @@
 /// `dart run leonard_cli:install` — install Leonard's consumer-facing
-/// coding-agent assets (the `drive-with-leonard` skill + the `leonard-drive`
-/// agent) into the current repo.
+/// coding-agent assets and Leonard's mutation runner into the current repo.
 ///
 /// The canonical copy always lands in `.agents/` (the cross-client agentskills
 /// convention). `.agents/skills/` is itself a first-class skill location for
@@ -52,7 +51,8 @@ Future<void> main(List<String> argv) async {
         stdout.writeln(
           'Usage: dart run leonard_cli:install '
           '[--dir DIR] [--claude] [--copilot] [--all] [--force]\n'
-          'Installs the drive-with-leonard skill + the leonard-drive agent '
+          'Installs the drive-with-leonard skill, leonard-drive agent, and '
+          'mutation runner '
           'into DIR/.agents/ (default cwd), with optional harness '
           'overlays (--claude, --copilot).',
         );
@@ -100,6 +100,7 @@ Future<void> main(List<String> argv) async {
       added++;
     }
   }
+  added += _installTools(assets, targetRoot, force: force);
 
   // 2. Harness overlays — symlink the canonical .agents/ entries into each
   // harness's native location (single source of truth).
@@ -141,8 +142,40 @@ Future<void> main(List<String> argv) async {
     '${skipped > 0 ? ' ($skipped skipped)' : ''}'
     '${claude || copilot ? ' + harness overlays' : ''}.\n'
     'Your coding agent can now use the "drive-with-leonard" skill and the\n'
-    'leonard-drive agent. See the skill for setup.',
+    'leonard-drive agent, plus tool/leonard/run_mutation.sh.',
   );
+}
+
+int _installTools(Directory assets, String targetRoot, {required bool force}) {
+  final Directory source = Directory('${assets.path}tools');
+  if (!source.existsSync()) return 0;
+  int added = 0;
+  for (final FileSystemEntity entity in source.listSync(recursive: true)) {
+    if (entity is! File) continue;
+    final String relative = entity.path.substring(source.path.length + 1);
+    final String destination = '$targetRoot/tool/$relative';
+    if (_exists(destination) && !force) {
+      _log('  skip   tool/$relative (exists; --force to overwrite)');
+      continue;
+    }
+    Directory(File(destination).parent.path).createSync(recursive: true);
+    entity.copySync(destination);
+    if (destination.endsWith('.sh') && !Platform.isWindows) {
+      final ProcessResult chmod = Process.runSync('chmod', <String>[
+        '+x',
+        destination,
+      ]);
+      if (chmod.exitCode != 0) {
+        throw FileSystemException(
+          'could not mark tool executable',
+          destination,
+        );
+      }
+    }
+    _log('  add    tool/$relative');
+    added++;
+  }
+  return added;
 }
 
 /// Resolve the bundled `lib/assets/` dir from the pub cache.

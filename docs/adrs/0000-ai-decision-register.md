@@ -30,3 +30,12 @@ Entry format: `A<n> (date) — title` · Decision · Why · Affects · **Status:
 **The moat (no first-party equivalent — keep):** **semantics-FIRST perception** (we perceive the semantics tree = meaning, not the widget/inspector tree = dev structure — a deliberate, defensible divergence), **stability-gated observation** (`FrameStabilityTracker` / wait-for-settle), budgeted/curated/diffed agent-JSON, the **autonomous perception-action loop** (+ budgets, failure modes, trajectory), the extension contract (observation fragments + busy-state + 3-strike isolation).
 **Recommendation:** adopt `ext.flutter.inspector.screenshot` (delete the hack); **ride DTD** for discovery; optionally add an element-tree/layout channel (keep semantics primary); **speak MCP at the boundary** as interop (tool shape already MCP-identical) so any MCP client drives a lenny-instrumented app + the loop can consume `dart_mcp_server` tools — without rewriting the loop; **keep the perception layer**. Maturity gate: inspector extensions + DTD are **mature → adopt now**; `dart_mcp`/`dart_mcp_server` are **experimental → track-and-align**. Credit: lenny already correctly adopted `devtools_extensions` + `vm_service`.
 **Affects:** `leonard_flutter` (screenshot, transport, optional element-tree); `leonard_agent` (DTD discovery, MCP interop); the semantics-first stance (now `genesis_perception`). **Status:** pending.
+
+---
+
+## A3 (2026-08-09) — Mutation strategy vends through Leonard assets
+
+**Decision:** The org's pure-Dart mutation runner is a deterministic tool asset bundled by `leonard_cli` and installed at `tool/leonard/run_mutation.sh`. Consumers pass package, repository, coverage, and repeatable semantic-rule paths; builtin generated rules remain enabled. Runs size first, report every format under the consumer repository, and do not gate scores unless requested.
+**Why:** This reuses the working package-asset install channel, avoids copy drift, and does not couple the runner to the deferred `leonard_grid_assets` Command/Seed package. A published runner package remains unnecessary while the implementation is shell orchestration over each consumer's `mutation_test` dev dependency.
+**Affects:** `leonard_cli` vended assets, `tool/run_mutation_pilot.sh`, and pure-Dart consumers such as grid_engine. Flutter compatibility remains unverified.
+**Status:** pending.
