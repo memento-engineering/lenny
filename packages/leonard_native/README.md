@@ -173,7 +173,8 @@ From the workspace root, size the run before spending the full mutation cost:
     ./tool/run_mutation_pilot.sh dry
 
 The measured mutant count is recorded in
-`artifacts/mutation/leonard_native/dry/console.txt`. Then run the calibration:
+`artifacts/mutation/leonard_native/dry/console.txt`. Then run the calibration,
+which repeats dry sizing before its baseline and full mutation phases:
 
     ./tool/run_mutation_pilot.sh full
 
@@ -183,16 +184,27 @@ remain eligible. The human report is
 `artifacts/mutation/leonard_native/full/mutation-test-report.html`. The stable
 machine-readable score and survivor data are in
 `artifacts/mutation/leonard_native/full/mutation-test-report.xml`; JUnit,
-XUnit, and Markdown reports are emitted beside it.
+XUnit, and Markdown reports are emitted beside it. The portable entry point
+installed in any repository is:
 
-This pilot is informational. It defines no score threshold and is not a pull
-request gate. Future pull-request experiments may pass changed production Dart
-files as positional inputs, while a fuller sweep rotates separately. Parsing
-the XML into the external `tg-5drf.2` ledger projection is owned by that metrics
-work and is outside this pilot.
+    ./tool/leonard/run_mutation.sh full path/to/pure_dart_package \
+      --repo-root . --coverage artifacts/coverage/package.lcov \
+      --rules tool/leonard/custom_rules.xml \
+      --rules tool/team/another_rules.xml
 
-`leonard_native` is pure Dart. An arbitrary test command can be configured in
-XML, but `flutter test` compatibility has not been verified, so this result
-does not establish mutation testing for Flutter packages. The deferred
-`lenny-mab` flake is outside this package and does not corrupt this baseline;
-it must be cleared before mutation expands to `leonard_devtools`.
+Custom documents add semantic rules alongside the enabled builtin rules.
+
+The vended runner at `tool/leonard/run_mutation.sh` supports pure Dart only
+and rejects Flutter SDK dependencies. Lenny's compatibility pilot at
+`tool/run_mutation_pilot.sh` preserves existing Flutter mutation coverage by
+forking Flutter packages to its local `flutter test` path; pure-Dart packages
+delegate to the vended runner.
+
+Run `./tool/run_mutation_pilot.sh dry` for sizing before
+`./tool/run_mutation_pilot.sh full` calibration. Portable consumers may pass
+repeatable `--rules XML` arguments; custom rules add to builtins. Full runs
+emit HTML, stable XML, JUnit, XUnit, and Markdown reports. Score gating remains
+opt-in through `--gate` or `MUTATION_GATE=1`.
+
+The deferred `lenny-mab` flake must be cleared before mutation expands to
+`leonard_devtools`.

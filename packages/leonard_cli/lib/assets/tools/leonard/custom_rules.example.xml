@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Portable demonstration modeled on tg-1fa2.5. These patterns and
+     replacements do not claim to match grid_engine until that repository
+     installs and specializes this example against its live provider source. -->
+<mutations version="1.2">
+  <rules>
+    <regex id="M1.providerMounted.noop" pattern="providerMounted\(([^)]*)\);"><mutation text="/* providerMounted($1); */" /></regex>
+    <regex id="M2.providerUnmounted.noop" pattern="providerUnmounted\(([^)]*)\);"><mutation text="/* providerUnmounted($1); */" /></regex>
+    <regex id="M3.readAsWatch" pattern="\.read\(([^)]*)\)"><mutation text=".watch($1)" /></regex>
+    <regex id="M4.dropPending.empty" pattern="void _dropPending\([^)]*\) \{[^}]*\}"><mutation text="void _dropPending() {}" /></regex>
+    <regex id="M5.lifecycleAssert.delete" pattern="assert\(([^;]*)\);"><mutation text="/* assert($1); */" /></regex>
+    <regex id="M6.mountGuard.drop" pattern="if \(!mounted\) return;"><mutation text="/* mount guard removed */" /></regex>
+    <regex id="M7.pendingGuard.drop" pattern="if \(!pending\) return;"><mutation text="/* pending guard removed */" /></regex>
+    <regex id="M8.unmountGuard.drop" pattern="if \(unmounted\) return;"><mutation text="/* unmount guard removed */" /></regex>
+  </rules>
+</mutations>

@@ -36,12 +36,21 @@ Directory vendedAssetsDir() {
 
 /// All vended markdown assets (agents + skills), path -> contents.
 Map<String, String> vendedMarkdown() {
+  final Map<String, String> out = <String, String>{};
+  for (final MapEntry<String, String> e in vendedFiles().entries) {
+    if (e.key.endsWith('.md')) {
+      out[e.key] = e.value;
+    }
+  }
+  return out;
+}
+
+/// Every regular file bundled below `lib/assets`, path -> contents.
+Map<String, String> vendedFiles() {
   final Directory root = vendedAssetsDir();
   final Map<String, String> out = <String, String>{};
   for (final FileSystemEntity e in root.listSync(recursive: true)) {
-    if (e is File && e.path.endsWith('.md')) {
-      out[e.path] = e.readAsStringSync();
-    }
+    if (e is File) out[e.path] = e.readAsStringSync();
   }
   return out;
 }
