@@ -98,10 +98,9 @@ exit 70
       expect(log.readAsLinesSync(), hasLength(3));
       expect(log.readAsLinesSync().first, contains('--dry --format none'));
       expect(log.readAsStringSync(), isNot(contains('--coverage')));
-      final File coverage =
-          File('${sandbox.path}/artifacts/coverage/leonard_native.lcov')
-            ..createSync(recursive: true)
-            ..writeAsStringSync('SF:packages/leonard_native/lib/a.dart\n');
+      File('${sandbox.path}/artifacts/coverage/leonard_native.lcov')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('SF:packages/leonard_native/lib/a.dart\n');
       log.writeAsStringSync('');
       expect((await run(const <String>[])).exitCode, 0);
       expect(log.readAsStringSync(), contains('--coverage'));
@@ -194,8 +193,9 @@ exit 70
 Directory _workspaceRoot() {
   Directory current = Directory.current.absolute;
   while (!File('${current.path}/tool/run_mutation_pilot.sh').existsSync()) {
-    if (current.parent.path == current.path)
+    if (current.parent.path == current.path) {
       throw StateError('workspace not found');
+    }
     current = current.parent;
   }
   return current;
