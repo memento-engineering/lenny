@@ -46,7 +46,7 @@ void main() {
     log = File('${sandbox.path}/calls.txt');
     final File dart = File('${bin.path}/dart')
       ..writeAsStringSync(r'''#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$MUTATION_LOG"
+printf 'dart %s\n' "$*" >> "$MUTATION_LOG"
 if [[ "${1:-}" == test ]]; then exit "${BASELINE_EXIT:-0}"; fi
 if [[ "${1:-}" == run ]]; then
   [[ " $* " == *" --format all "* ]] && exit "${MUTATION_EXIT:-0}"
@@ -54,7 +54,25 @@ if [[ "${1:-}" == run ]]; then
 fi
 exit 70
 ''');
-    for (final File executable in <File>[pilot, portable, dart]) {
+    final File flutter = File('${bin.path}/flutter')
+      ..writeAsStringSync(r'''#!/usr/bin/env bash
+printf 'flutter %s\n' "$*" >> "$MUTATION_LOG"
+if [[ "${1:-}" == test ]]; then exit "${BASELINE_EXIT:-0}"; fi
+exit 70
+''');
+    final File flutterRunner =
+        File('${sandbox.path}/tool/run_mutation_flutter.sh')..writeAsStringSync(
+          File(
+            '${source.path}/tool/run_mutation_flutter.sh',
+          ).readAsStringSync(),
+        );
+    for (final File executable in <File>[
+      pilot,
+      portable,
+      flutterRunner,
+      dart,
+      flutter,
+    ]) {
       expect(
         Process.runSync('chmod', <String>['+x', executable.path]).exitCode,
         0,
@@ -127,7 +145,7 @@ exit 70
     'portable validation covers invalid mode, package, and empty pr',
     () async {
       expect((await run(<String>['nope'])).exitCode, 64);
-      expect((await run(<String>['full', 'missing'])).exitCode, 66);
+      expect((await run(<String>['full', 'missing'])).exitCode, 64);
       expect((await run(<String>['pr', 'leonard_native'])).exitCode, 64);
     },
   );
@@ -141,11 +159,35 @@ exit 70
     expect(log.readAsLinesSync(), hasLength(2));
   });
 
-  test('Flutter packages are explicitly rejected', () async {
+  test('Flutter packages retain the local flutter mutation path', () async {
     package('leonard_flutter', flutter: true);
     final ProcessResult result = await run(<String>['full', 'leonard_flutter']);
-    expect(result.exitCode, 65);
-    expect(result.stderr, contains('pure Dart only'));
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    expect(log.readAsLinesSync().first, 'flutter test');
+    expect(log.readAsStringSync(), contains('dart run mutation_test'));
+    expect(
+      File(
+        '${sandbox.path}/artifacts/mutation/leonard_flutter/full/'
+        'mutation_rules.xml',
+      ).readAsStringSync(),
+      contains('flutter test'),
+    );
+
+    final Map<String, String> failing = <String, String>{
+      ...environment,
+      'MUTATION_EXIT': '27',
+    };
+    expect(
+      (await run(<String>['full', 'leonard_flutter'], env: failing)).exitCode,
+      0,
+    );
+    expect(
+      (await run(
+        <String>['full', 'leonard_flutter'],
+        env: <String, String>{...failing, 'MUTATION_GATE': '1'},
+      )).exitCode,
+      27,
+    );
   });
 }
 

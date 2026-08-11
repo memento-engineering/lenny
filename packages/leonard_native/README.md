@@ -194,14 +194,17 @@ installed in any repository is:
 
 Custom documents add semantic rules alongside the enabled builtin rules.
 
-This pilot is informational by default. Mutation score gating is opt-in via
-`--gate` on the portable runner or `MUTATION_GATE=1` on the compatibility
-delegate. Pull-request runs pass changed production Dart files after `--`,
-while a fuller sweep rotates separately. Parsing
-the XML into the external `tg-5drf.2` ledger projection is owned by that metrics
-work and is outside this pilot.
+The vended runner at `tool/leonard/run_mutation.sh` supports pure Dart only
+and rejects Flutter SDK dependencies. Lenny's compatibility pilot at
+`tool/run_mutation_pilot.sh` preserves existing Flutter mutation coverage by
+forking Flutter packages to its local `flutter test` path; pure-Dart packages
+delegate to the vended runner.
 
-`leonard_native` is pure Dart. The runner supports pure Dart only; Flutter
-compatibility is unverified and Flutter SDK dependencies are rejected. The deferred
-`lenny-mab` flake is outside this package and does not corrupt this baseline;
-it must be cleared before mutation expands to `leonard_devtools`.
+Run `./tool/run_mutation_pilot.sh dry` for sizing before
+`./tool/run_mutation_pilot.sh full` calibration. Portable consumers may pass
+repeatable `--rules XML` arguments; custom rules add to builtins. Full runs
+emit HTML, stable XML, JUnit, XUnit, and Markdown reports. Score gating remains
+opt-in through `--gate` or `MUTATION_GATE=1`.
+
+The deferred `lenny-mab` flake must be cleared before mutation expands to
+`leonard_devtools`.
