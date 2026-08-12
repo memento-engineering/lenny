@@ -77,7 +77,7 @@ it:
 | Package | Maturity | Fit for swift-infer | Note |
 |---|---|---|---|
 | **`dartantic_ai`** | **`3.4.1`, post-1.0**, 58 likes, 8k dl, verified pub | **Best candidate.** Multi-provider (OpenAI/Anthropic/Google/Mistral/Ollama/OpenRouter/xAI) + explicit **OpenAI-compat passthrough** | The credible "adopt the wire." Post-1.0 beats Genkit's 0.14. |
-| `genkit` + `genkit_anthropic` | `0.14.1` / `0.2.9`, pre-1.0, 1 like | Plugin via `defineModel`, or baseUrl if exposed (unconfirmed) | Google-blessed, plugin-native, but Dart=Preview, TS-only plugin docs |
+| `genkit` + `genkit_anthropic` | `0.14.1` / `0.2.9`, pre-1.0, 1 like | Plugin via `defineModel`, or baseUrl if exposed (unconfirmed) | Google-endorsed, plugin-native, but Dart=Preview, TS-only plugin docs |
 | `langchain.dart` (`langchain_anthropic`/`_openai`) | Mature, widely used | ChatOpenAI/ChatAnthropic generally take baseUrl overrides | Heavy framework surface for what we need |
 | `dart_agent_core` | Newer | Unified `LLMClient` (OpenAI/Gemini/Bedrock) | It's an *agent loop* too — overlaps our loop, not just the wire |
 | `flutter_ai_toolkit` | Google/Flutter team | Abstract provider API, Firebase-leaning, Flutter-coupled | Wrong altitude (UI toolkit) |
