@@ -1,12 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Fix semantics capture dropping valid controls in `SliverAppBar.flexibleSpace`
-  when a later scrollable semantics node contains their rectangles. Leonard now
-  trusts Flutter's semantics blocking instead of inferring occlusion from node
-  order and geometry.
-
 ## 0.3.0
 
 - Breaking: test helpers no longer ship from `leonard_flutter`. Add
