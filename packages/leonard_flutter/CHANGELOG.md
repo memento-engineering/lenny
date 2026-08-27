@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Fix: `core.enter_text` now enters text through
+  `EditableTextState.userUpdateTextEditingValue` (the same path a physical
+  keystroke uses) instead of assigning `controller.value` directly. `onChanged`
+  was never fired before, leaving app state that depends on it — button
+  enablement, `Form` validation, `onFieldSubmitted` — stale after
+  `enter_text`. No API changes.
+
 ## 0.3.0
 
 - Breaking: test helpers no longer ship from `leonard_flutter`. Add

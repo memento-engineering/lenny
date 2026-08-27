@@ -15,7 +15,8 @@ class EnterTextTool extends CoreTool {
   @override
   String get description =>
       'Resolve the EditableText widget under the target semantics node '
-      'and set its controller value directly.';
+      'and enter the text through the same path as keyboard input, so '
+      'TextField.onChanged, Form validation, and onFieldSubmitted fire.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
@@ -61,9 +62,18 @@ class EnterTextTool extends CoreTool {
             'matching EditableText in the widget tree',
       );
     }
-    editable.widget.controller.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+    // Route through the same path a physical keystroke uses. Assigning
+    // controller.value directly syncs the rendered text but bypasses
+    // EditableTextState._formatAndSetValue, so TextField.onChanged never
+    // fires and app state gated on it (button enablement, validation)
+    // stays stale. userUpdateTextEditingValue(userInteraction: true)
+    // fires onChanged, Form validation, and onFieldSubmitted.
+    editable.userUpdateTextEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      ),
+      SelectionChangedCause.keyboard,
     );
     return const ToolResult(ok: true, value: <String, Object?>{});
   }
