@@ -120,6 +120,7 @@ class AcpModelProvider implements ModelProvider {
       waitStrategy: decoded['wait_strategy'] as String?,
       modelMetadata: <String, dynamic>{
         'acp_agent': _session.spec.label,
+        'acp_model': _session.modelId,
         'acp_stop_reason': turn.stopReason.name,
         'acp_denied_tools': turn.deniedTools,
       },

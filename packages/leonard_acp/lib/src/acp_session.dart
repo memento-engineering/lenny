@@ -14,6 +14,7 @@ import 'package:acp_dart/acp_dart.dart';
 
 import 'acp_agent_spec.dart';
 import 'deny_all_client.dart';
+import 'model_pin.dart';
 
 /// ACP major protocol version this client speaks.
 const int kAcpProtocolVersion = 1;
@@ -50,6 +51,7 @@ class AcpSession {
 
   InitializeResponse? _initialize;
   String? _sessionId;
+  String? _modelId;
 
   final StringBuffer _message = StringBuffer();
   final StringBuffer _thought = StringBuffer();
@@ -67,6 +69,10 @@ class AcpSession {
 
   /// Current ACP session id. Null until [newSession] completes.
   String? get sessionId => _sessionId;
+
+  /// The model this session is actually running, after any pin was applied.
+  /// Null when the agent reports no model state at all.
+  String? get modelId => _modelId;
 
   /// The spec this session was spawned from.
   AcpAgentSpec get spec => _spec;
@@ -136,7 +142,55 @@ class AcpSession {
       NewSessionRequest(cwd: cwd, mcpServers: mcpServers),
     );
     _sessionId = response.sessionId;
+    _modelId = response.models?.currentModelId;
+
+    await _applyModelPin(response.models);
     return response.sessionId;
+  }
+
+  /// Apply [AcpAgentSpec.model] over `session/set_model`.
+  ///
+  /// Refuses LOUD when the agent offers nothing matching the pin, so a bad pin
+  /// fails at session setup instead of 400-ing mid-work — the same boot-eager
+  /// posture the grid's harness validation takes. The pin exists because
+  /// claude's tier names 400 on codex under ChatGPT auth (bead `pow-a9o`).
+  ///
+  /// The pin may be a BASE name. codex-acp qualifies every model id with a
+  /// reasoning effort (`gpt-5.6-sol[high]`, `[max]`, ...), so the bare
+  /// `gpt-5.6-sol` that power_station's one-shot environment passes to
+  /// `codex exec --model` is not itself a valid ACP model id. Resolution
+  /// order: exact id wins; else, if the session's current model already has
+  /// the pinned base, keep it (the agent's own effort default is respected);
+  /// else, a single matching variant is taken; anything else throws with the
+  /// variants listed so the operator picks an effort explicitly.
+  Future<void> _applyModelPin(SessionModelState? models) async {
+    final String? want = _spec.model;
+    if (want == null || want == _modelId) return;
+
+    final String? resolved = models == null
+        ? want
+        : resolveModelId(
+            want: want,
+            available: models.availableModels
+                .map((ModelInfo m) => m.modelId)
+                .toList(),
+            current: _modelId,
+          );
+    if (resolved == null) {
+      final String offered =
+          models?.availableModels.map((ModelInfo m) => m.modelId).join(', ') ??
+          '(agent reported no model state)';
+      throw StateError(
+        'ACP agent ${_spec.label} does not offer pinned model "$want" '
+        '(available: $offered)',
+      );
+    }
+    if (resolved == _modelId) return;
+
+    await _connection.setSessionModel(
+      SetSessionModelRequest(sessionId: _sessionId!, modelId: resolved),
+    );
+    _modelId = resolved;
   }
 
   /// Send [text] as one prompt turn and collect the agent's reply.

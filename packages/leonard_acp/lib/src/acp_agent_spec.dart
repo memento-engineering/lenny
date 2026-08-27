@@ -9,6 +9,12 @@ library;
 
 import 'package:meta/meta.dart';
 
+/// The model power_station's builtin `codex` environment pins, and the reason
+/// it does: claude's tier names (opus/sonnet/haiku) return 400 on codex under
+/// ChatGPT auth (bead `pow-a9o`). Kept in sync with `kBuiltinEnvironments`
+/// in power_station `grid_assets`.
+const String kCodexPinnedModel = 'gpt-5.6-sol';
+
 /// How to spawn one ACP agent over stdio.
 @immutable
 class AcpAgentSpec {
@@ -17,6 +23,7 @@ class AcpAgentSpec {
     required this.command,
     required this.args,
     this.env = const <String, String>{},
+    this.model,
   });
 
   /// OpenAI Codex via the ACP adapter.
@@ -31,18 +38,21 @@ class AcpAgentSpec {
   /// ACP -> Claude Agent SDK -> Anthropic API would be a longer path to the
   /// same model with nothing gained.
   ///
-  /// NOTE on model selection: power_station's builtin `codex` environment pins
-  /// `gpt-5.6-sol` because claude's tier names 400 on codex under ChatGPT auth
-  /// (bead `pow-a9o`). ACP exposes `session/set_model`; if this graduates past
-  /// the spike, honour that pin rather than assuming a default.
+  /// The model pin is NOT cosmetic: power_station's builtin `codex`
+  /// environment pins `gpt-5.6-sol` because claude's tier names 400 on codex
+  /// under ChatGPT auth (bead `pow-a9o`). [AcpSession.newSession] applies it
+  /// over `session/set_model` and refuses loud if the agent does not offer it,
+  /// so a bad pin fails at session setup rather than mid-work.
   factory AcpAgentSpec.codex({
     String package = '@agentclientprotocol/codex-acp',
     Map<String, String> env = const <String, String>{},
+    String? model = kCodexPinnedModel,
   }) => AcpAgentSpec(
     label: 'codex-acp',
     command: 'npx',
     args: <String>['-y', package],
     env: env,
+    model: model,
   );
 
   /// GitHub Copilot CLI's built-in ACP server (public preview).
@@ -71,6 +81,12 @@ class AcpAgentSpec {
   /// Extra environment entries merged over the inherited environment.
   final Map<String, String> env;
 
+  /// Model id to pin over `session/set_model`, or null to accept whatever the
+  /// agent defaults to. See [kCodexPinnedModel].
+  final String? model;
+
   @override
-  String toString() => 'AcpAgentSpec($label: $command ${args.join(' ')})';
+  String toString() =>
+      'AcpAgentSpec($label: $command ${args.join(' ')}'
+      '${model == null ? '' : ' model=$model'})';
 }

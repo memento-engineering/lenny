@@ -75,7 +75,8 @@ Future<void> main(List<String> argv) async {
     stdout
       ..writeln('')
       ..writeln('== Q2 deny-all text-only turn ==')
-      ..writeln('  sessionId: ${session.sessionId}');
+      ..writeln('  sessionId: ${session.sessionId}')
+      ..writeln('  model:     ${session.modelId ?? "(agent default)"}');
 
     sw.reset();
     final AcpTurn turn = await session.prompt(

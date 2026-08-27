@@ -71,9 +71,11 @@ Future<void> main(List<String> argv) async {
   final Stopwatch wall = Stopwatch()..start();
   SessionTermination? termination;
   Object? failure;
+  String? sessionModel;
 
   try {
     await session.newSession(cwd: cwd.path);
+    sessionModel = session.modelId;
 
     await writer.writeHeader(
       SessionHeader(
@@ -126,6 +128,7 @@ Future<void> main(List<String> argv) async {
   stdout
     ..writeln('')
     ..writeln('== result ==')
+    ..writeln('  model:          ${sessionModel ?? '(agent default)'}')
     ..writeln('  outcome:        ${termination?.outcome.name ?? 'THREW'}')
     ..writeln('  harnessError:   ${termination?.harnessError?.wireName ?? '-'}')
     ..writeln('  counter:        ${host.counter} / $target')
