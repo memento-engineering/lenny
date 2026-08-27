@@ -81,6 +81,152 @@ void main() {
     h.dispose();
   });
 
+  testWidgets(
+    'SliverAppBar flexible-space semantics coexist with the scrollable node',
+    (WidgetTester tester) async {
+      final SemanticsHandle h = tester.ensureSemantics();
+      final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            key: scaffoldKey,
+            drawer: Drawer(
+              child: CustomScrollView(
+                slivers: <Widget>[
+                  SliverAppBar(
+                    expandedHeight: 180,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Column(
+                        children: <Widget>[
+                          Semantics(
+                            identifier: 'drawer_close',
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: const Text('Close'),
+                            ),
+                          ),
+                          Semantics(
+                            identifier: 'drawer_account',
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: const Text('My Account'),
+                            ),
+                          ),
+                          Semantics(
+                            identifier: 'drawer_sign_out',
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: const Text('Sign Out'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverList(
+                    delegate: SliverChildListDelegate(
+                      List<Widget>.generate(
+                        20,
+                        (int index) => Text('Item $index'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      scaffoldKey.currentState!.openDrawer();
+      await tester.pumpAndSettle();
+
+      final SemanticsCapture capture = SemanticsCapture();
+      final List<Map<String, Object>> recs = await capture.captureAsync();
+
+      for (final String identifier in <String>[
+        'drawer_close',
+        'drawer_account',
+        'drawer_sign_out',
+      ]) {
+        expect(
+          recs.where(
+            (Map<String, Object> record) => record['identifier'] == identifier,
+          ),
+          hasLength(1),
+        );
+      }
+      expect(
+        recs.where(
+          (Map<String, Object> record) => record['label'] == 'Sign Out',
+        ),
+        isNotEmpty,
+      );
+      expect(
+        recs.where(
+          (Map<String, Object> record) => record.containsKey('scroll'),
+        ),
+        isNotEmpty,
+        reason:
+            'the flexible-space controls and containing scroll semantics node '
+            'must coexist',
+      );
+
+      capture.dispose();
+      h.dispose();
+    },
+  );
+
+  testWidgets('BlockSemantics remains owned by Flutter', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: <Widget>[
+              Semantics(
+                identifier: 'blocked_button',
+                button: true,
+                label: 'Blocked',
+                child: const SizedBox.expand(),
+              ),
+              BlockSemantics(
+                child: Semantics(
+                  identifier: 'modal',
+                  label: 'Modal',
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final SemanticsCapture capture = SemanticsCapture();
+    final List<Map<String, Object>> recs = capture.capture();
+
+    expect(
+      recs.where(
+        (Map<String, Object> record) => record['identifier'] == 'modal',
+      ),
+      hasLength(1),
+    );
+    expect(
+      recs.where(
+        (Map<String, Object> record) =>
+            record['identifier'] == 'blocked_button',
+      ),
+      isEmpty,
+      reason: 'Flutter should remove semantics blocked by the later sibling',
+    );
+
+    capture.dispose();
+    h.dispose();
+  });
+
   testWidgets('Semantics(identifier:) is captured; absent omits the key', (
     WidgetTester tester,
   ) async {
@@ -293,14 +439,13 @@ void main() {
       final Map<String, Object> dark = sw('Dark Theme');
       final Map<String, Object> notif = sw('Notifications');
 
-      // Both switches must be actionable, not dropped or demoted to text.
+      // Both switches must remain actionable.
       expect(dark['actions'], contains('tap'));
       expect(notif['actions'], contains('tap'));
 
-      // The defect (applying only the node's own transform) collapsed every
-      // row to its parent-local origin, so both switches shared one rect and
-      // _filterObscured dropped them. With ancestor transforms accumulated,
-      // Notifications sits strictly below Dark Theme.
+      // Applying only the node's own transform collapses every row to its
+      // parent-local origin, so both switches share one rect. With ancestor
+      // transforms accumulated, Notifications sits strictly below Dark Theme.
       final List<int> dr = (dark['rect']! as List).cast<int>();
       final List<int> nr = (notif['rect']! as List).cast<int>();
       expect(

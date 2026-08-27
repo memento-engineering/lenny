@@ -24,10 +24,10 @@ import 'package:flutter/widgets.dart';
 /// captures within one binding lifetime. Ids are not guaranteed stable
 /// across sessions (PRD section 11.1, 12.3).
 ///
-/// Filtering: off-screen nodes (rect outside the device viewport),
-/// nodes flagged `isHidden`, nodes excluded from the merged tree via
-/// `ExcludeSemantics`, and nodes fully obscured by a later-painted node
-/// with the same or larger bounding rect are omitted by default.
+/// Filtering: off-screen nodes (rect outside the device viewport) and nodes
+/// flagged `isHidden` are omitted. Leonard otherwise follows the semantics tree
+/// produced by Flutter, including exclusions and blocking applied by widgets
+/// such as `ExcludeSemantics` and `BlockSemantics`.
 class SemanticsCapture {
   /// Creates a new capture instance. The stable-id map is per instance.
   SemanticsCapture();
@@ -77,11 +77,7 @@ class SemanticsCapture {
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
     _walk(root, recs, viewport, v.devicePixelRatio);
-    _filterObscured(recs);
-    return recs
-        .where((_Rec r) => !r.dropped)
-        .map((_Rec r) => r.toJson())
-        .toList(growable: false);
+    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
   }
 
   /// Retained for backward compat; races the initial semantics flush.
@@ -101,11 +97,7 @@ class SemanticsCapture {
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
     _walk(root, recs, viewport, v.devicePixelRatio);
-    _filterObscured(recs);
-    return recs
-        .where((_Rec r) => !r.dropped)
-        .map((_Rec r) => r.toJson())
-        .toList(growable: false);
+    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
   }
 
   /// Walks the [PipelineOwner] tree rooted at
@@ -177,8 +169,7 @@ class SemanticsCapture {
   }
 }
 
-/// Internal record that pairs an emitted JSON map with a `dropped` flag so
-/// the obscured filter can suppress entries without rebuilding the list.
+/// Internal representation of an emitted semantics record.
 class _Rec {
   _Rec(
     this.id,
@@ -209,7 +200,6 @@ class _Rec {
   /// Null for non-scrollable nodes. Lets the agent see how far a list can
   /// scroll and whether it is already at the end, instead of guessing.
   final Map<String, Object>? scroll;
-  bool dropped = false;
 
   Map<String, Object> toJson() {
     final Map<String, Object> m = <String, Object>{
@@ -245,9 +235,8 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     // SemanticsNode.transform maps a node's local rect into its PARENT's
     // space, not the device's. Applying only the node's own transform
     // collapses every nested row to its parent-local origin — e.g. all
-    // list rows resolve to [0,0,w,56], so sibling SwitchListTiles share one
-    // rect and _filterObscured drops the actionable ones.
-    // Accumulate ancestor transforms to get true device-space rects,
+    // list rows resolve to [0,0,w,56]. Accumulate ancestor transforms to get
+    // true device-space rects,
     // matching globalRectOf (dispatch.dart).
     final Matrix4 global = (parentTransform ?? Matrix4.identity()).multiplied(
       n.transform ?? Matrix4.identity(),
@@ -271,25 +260,6 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
       _walk(c, out, viewport, dpr, global);
       return true;
     });
-  }
-
-  void _filterObscured(List<_Rec> ns) {
-    for (int i = 0; i < ns.length; i++) {
-      if (ns[i].dropped) continue;
-      final Rect a = ns[i].rect;
-      for (int j = i + 1; j < ns.length; j++) {
-        if (ns[j].dropped) continue;
-        final Rect b = ns[j].rect;
-        if (b != a &&
-            b.left <= a.left &&
-            b.top <= a.top &&
-            b.right >= a.right &&
-            b.bottom >= a.bottom) {
-          ns[i].dropped = true;
-          break;
-        }
-      }
-    }
   }
 
   String _role(SemanticsData d) {
