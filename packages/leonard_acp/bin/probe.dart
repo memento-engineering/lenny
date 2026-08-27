@@ -9,7 +9,7 @@
 ///      or does the agent hard-fail / retry-loop when every tool is refused?
 ///
 /// Usage:
-///   dart run leonard_acp:probe                 # claude via the ACP adapter
+///   dart run leonard_acp:probe                 # codex via the ACP adapter
 ///   dart run leonard_acp:probe --agent copilot
 library;
 
@@ -24,8 +24,8 @@ Future<void> main(List<String> argv) async {
   final ArgParser parser = ArgParser()
     ..addOption(
       'agent',
-      allowed: <String>['claude', 'copilot'],
-      defaultsTo: 'claude',
+      allowed: <String>['codex', 'copilot'],
+      defaultsTo: 'codex',
       help: 'Which ACP agent to probe.',
     )
     ..addFlag('verbose', abbr: 'v', help: 'Echo the agent stderr.');
@@ -33,7 +33,7 @@ Future<void> main(List<String> argv) async {
 
   final AcpAgentSpec spec = args['agent'] == 'copilot'
       ? AcpAgentSpec.copilot()
-      : AcpAgentSpec.claudeAgent();
+      : AcpAgentSpec.codex();
 
   stdout.writeln('probing: $spec');
   final Stopwatch sw = Stopwatch()..start();

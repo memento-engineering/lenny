@@ -33,8 +33,8 @@ Future<void> main(List<String> argv) async {
   final ArgParser parser = ArgParser()
     ..addOption(
       'agent',
-      allowed: <String>['claude', 'copilot'],
-      defaultsTo: 'claude',
+      allowed: <String>['codex', 'copilot'],
+      defaultsTo: 'codex',
     )
     ..addOption('turns', defaultsTo: '20', help: 'Max turns for the session.')
     ..addOption('target', defaultsTo: '3', help: 'Counter value to reach.')
@@ -47,7 +47,7 @@ Future<void> main(List<String> argv) async {
 
   final AcpAgentSpec spec = args['agent'] == 'copilot'
       ? AcpAgentSpec.copilot()
-      : AcpAgentSpec.claudeAgent();
+      : AcpAgentSpec.codex();
 
   stdout
     ..writeln('harness: $spec')

@@ -1,8 +1,8 @@
 /// Launch description for an ACP-compatible agent process.
 ///
 /// This is the whole of leonard_acp's agent-specific knowledge: a command,
-/// its arguments, and its environment. `claude`, `copilot`, `gemini` and
-/// `codex` are VALUES of this type, never branches in the provider. Keep it
+/// its arguments, and its environment. `codex`, `copilot`, `opencode` and
+/// `gemini` are VALUES of this type, never branches in the provider. Keep it
 /// that way — the point of riding ACP is that adding an agent is a config
 /// line, not a code path.
 library;
@@ -19,20 +19,27 @@ class AcpAgentSpec {
     this.env = const <String, String>{},
   });
 
-  /// Claude Code via the official ACP adapter.
+  /// OpenAI Codex via the ACP adapter.
   ///
-  /// `claude` itself has NO `--acp` flag (verified against 2.1.246); ACP is
-  /// served by an adapter package that wraps the Claude Agent SDK.
-  /// Authentication rides the SDK — existing Claude Code credentials or
-  /// `ANTHROPIC_API_KEY` — so this costs Claude usage, not Copilot credits.
+  /// `codex` serves no ACP itself; the adapter starts the Codex App Server and
+  /// translates ACP requests into Codex operations. Authentication rides the
+  /// operator's existing Codex config (ChatGPT auth), which is why this is the
+  /// default: no separate credential and no borrowed org credits.
   ///
-  /// The adapter was renamed from `@zed-industries/claude-code-acp`, which is
-  /// deprecated at 0.16.2. Do not take the old name from older docs.
-  factory AcpAgentSpec.claudeAgent({
-    String package = '@agentclientprotocol/claude-agent-acp',
+  /// There is deliberately NO `claudeAgent` factory. Anthropic is reachable in
+  /// one hop through `AnthropicBackend`, so routing Claude through
+  /// ACP -> Claude Agent SDK -> Anthropic API would be a longer path to the
+  /// same model with nothing gained.
+  ///
+  /// NOTE on model selection: power_station's builtin `codex` environment pins
+  /// `gpt-5.6-sol` because claude's tier names 400 on codex under ChatGPT auth
+  /// (bead `pow-a9o`). ACP exposes `session/set_model`; if this graduates past
+  /// the spike, honour that pin rather than assuming a default.
+  factory AcpAgentSpec.codex({
+    String package = '@agentclientprotocol/codex-acp',
     Map<String, String> env = const <String, String>{},
   }) => AcpAgentSpec(
-    label: 'claude-agent-acp',
+    label: 'codex-acp',
     command: 'npx',
     args: <String>['-y', package],
     env: env,
@@ -40,8 +47,9 @@ class AcpAgentSpec {
 
   /// GitHub Copilot CLI's built-in ACP server (public preview).
   ///
-  /// Unlike [AcpAgentSpec.claudeAgent] this needs no adapter — `copilot`
-  /// serves ACP itself.
+  /// Unlike [AcpAgentSpec.codex] this needs no adapter — `copilot` serves ACP
+  /// itself. Named in the org's D-4 ruling as one of the two agents the first
+  /// ACP adapter must prove (`the_grid/docs/SCRATCH-third-party-harnesses.md`).
   factory AcpAgentSpec.copilot({
     Map<String, String> env = const <String, String>{},
   }) => AcpAgentSpec(

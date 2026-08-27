@@ -12,10 +12,17 @@
 /// executes nothing — so `LoopDriver`'s validate → act → notify → persist
 /// ordering still runs. See [AcpSession.newSession].
 ///
-/// NOTE: for Claude specifically this is a strictly longer path to the same
-/// model than `AnthropicBackend`, which reaches it in one hop. The value here
-/// is the SEAM — once it holds, copilot/gemini/codex are [AcpAgentSpec]
-/// values. Do not let this quietly become the default Claude provider.
+/// PRIOR ART: the org has decision-complete design for this seam —
+/// `the_grid/docs/SCRATCH-third-party-harnesses.md` D-4 ("structured channels
+/// are the PREFERRED transport ... ACP adapter FIRST") and its unfiled bead
+/// B-2, whose home is power_station `grid_assets`. This package is a leonard-
+/// side early proof of B-2's core claim, not a competing implementation.
+///
+/// Distinct from `federated_grid_assets`' `acp_envelope.dart`, which borrows
+/// ACP's JSON-RPC envelope for the federation bus and deliberately does NOT
+/// use the agent-session methods this file is built on. Same protocol family,
+/// two method surfaces — the SCRATCH doc rules the shared codec "a precedent,
+/// not a dependency", so nothing is imported across.
 library;
 
 import 'dart:async';
@@ -23,7 +30,6 @@ import 'dart:convert';
 
 import 'package:leonard_agent/leonard_agent.dart';
 
-import 'acp_agent_spec.dart';
 import 'acp_session.dart';
 
 /// Conservative defaults — an ACP agent does not advertise a context window.
