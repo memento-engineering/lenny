@@ -14,3 +14,6 @@ export 'src/acp_model_provider.dart'
     show AcpModelProvider, kAcpDefaultCapabilities;
 export 'src/acp_session.dart' show AcpSession, AcpTurn, kAcpProtocolVersion;
 export 'src/deny_all_client.dart' show AcpChunkSink, DenyAllAcpClient;
+export 'src/harness/counting_provider.dart' show CountingModelProvider;
+export 'src/harness/scripted_counter_host.dart'
+    show ScriptedCounterHost, kCounterNodeId, kIncrementNodeId;
