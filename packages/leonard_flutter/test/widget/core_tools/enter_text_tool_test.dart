@@ -112,6 +112,7 @@ void main() {
       // controller.value directly, onChanged never fired, and the button
       // stayed disabled.
       String email = '';
+      int submitted = 0;
       TextButton? nextButton;
       await tester.pumpWidget(
         MaterialApp(
@@ -131,6 +132,7 @@ void main() {
                         controller: ctrl,
                         onChanged: (value) =>
                             set(() => email = value.trim()),
+                        onFieldSubmitted: (_) => submitted++,
                       ),
                     ),
                     nextButton!,
@@ -166,6 +168,13 @@ void main() {
       // The onChanged-gated button is now enabled and tap-able.
       await tester.pump();
       expect(nextButton?.onPressed, isNotNull);
+      // An edit is not a submit: onSubmitted/onFieldSubmitted fire from
+      // _finalizeEditing via performAction, never from _formatAndSetValue.
+      expect(
+        submitted,
+        0,
+        reason: 'enter_text edits the field; it must not submit it',
+      );
       cap.dispose();
       h.dispose();
     },

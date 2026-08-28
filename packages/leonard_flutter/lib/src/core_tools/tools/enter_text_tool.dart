@@ -16,7 +16,8 @@ class EnterTextTool extends CoreTool {
   String get description =>
       'Resolve the EditableText widget under the target semantics node '
       'and enter the text through the same path as keyboard input, so '
-      'TextField.onChanged, Form validation, and onFieldSubmitted fire.';
+      'TextField.onChanged and Form validation fire. Does not submit: '
+      'onSubmitted/onFieldSubmitted need a separate submit action.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
@@ -67,7 +68,9 @@ class EnterTextTool extends CoreTool {
     // EditableTextState._formatAndSetValue, so TextField.onChanged never
     // fires and app state gated on it (button enablement, validation)
     // stays stale. userUpdateTextEditingValue(userInteraction: true)
-    // fires onChanged, Form validation, and onFieldSubmitted.
+    // reaches _formatAndSetValue, which fires onChanged - and with it
+    // TextFormField's didChange, so Form validation follows. It does not
+    // submit: onSubmitted comes from _finalizeEditing via performAction.
     editable.userUpdateTextEditingValue(
       TextEditingValue(
         text: text,

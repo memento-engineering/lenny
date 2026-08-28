@@ -6,8 +6,10 @@
   `EditableTextState.userUpdateTextEditingValue` (the same path a physical
   keystroke uses) instead of assigning `controller.value` directly. `onChanged`
   was never fired before, leaving app state that depends on it — button
-  enablement, `Form` validation, `onFieldSubmitted` — stale after
-  `enter_text`. No API changes.
+  enablement, `Form` validation — stale after `enter_text`. Submission
+  callbacks are unaffected: `onSubmitted`/`onFieldSubmitted` fire from
+  `performAction`, not from an edit, so `enter_text` still does not submit.
+  No API changes.
 
 ## 0.3.0
 
