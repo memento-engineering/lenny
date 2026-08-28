@@ -99,6 +99,87 @@ void main() {
     },
   );
 
+  testWidgets(
+    'core.enter_text fires TextField.onChanged like real typing (regression: '
+    'direct controller.value assignment left onChanged-driven state stale)',
+    (WidgetTester tester) async {
+      final SemanticsHandle h = tester.ensureSemantics();
+      final TextEditingController ctrl = TextEditingController();
+      addTearDown(ctrl.dispose);
+
+      // App state updated only via onChanged — exactly the pattern from the
+      // issue: a button gated on it. Pre-fix, enter_text assigned
+      // controller.value directly, onChanged never fired, and the button
+      // stayed disabled.
+      String email = '';
+      int submitted = 0;
+      TextButton? nextButton;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, set) {
+                nextButton = TextButton(
+                  onPressed: email.contains('@') ? () {} : null,
+                  child: const Text('Next'),
+                );
+                return Column(
+                  children: [
+                    Semantics(
+                      label: 'email',
+                      textField: true,
+                      child: TextFormField(
+                        controller: ctrl,
+                        onChanged: (value) =>
+                            set(() => email = value.trim()),
+                        onFieldSubmitted: (_) => submitted++,
+                      ),
+                    ),
+                    nextButton!,
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final SemanticsCapture cap = SemanticsCapture();
+      final Map<String, Object> wrapper = cap.capture().firstWhere(
+        (Map<String, Object> r) =>
+            r['role'] == 'textfield' && r['label'] == 'email',
+      );
+      final int id = wrapper['id']! as int;
+
+      final CoreExtension plugin = CoreExtension(semantics: cap);
+      final LeonardTool t = plugin.tools.firstWhere(
+        (LeonardTool x) => x.name == 'enter_text',
+      );
+      final ToolResult r = await t.call(<String, Object?>{
+        'node_id': id,
+        'text': 'user@example.com',
+      });
+
+      expect(r.ok, isTrue, reason: r.error);
+      expect(ctrl.text, 'user@example.com');
+      expect(email, 'user@example.com',
+          reason: 'onChanged must fire so app state updates');
+      // The onChanged-gated button is now enabled and tap-able.
+      await tester.pump();
+      expect(nextButton?.onPressed, isNotNull);
+      // An edit is not a submit: onSubmitted/onFieldSubmitted fire from
+      // _finalizeEditing via performAction, never from _formatAndSetValue.
+      expect(
+        submitted,
+        0,
+        reason: 'enter_text edits the field; it must not submit it',
+      );
+      cap.dispose();
+      h.dispose();
+    },
+  );
+
   testWidgets('core.enter_text resolves the EditableText at devicePixelRatio>1 '
       '(regression: physical-px target rect vs logical-px render boxes)', (
     WidgetTester tester,
