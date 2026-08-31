@@ -52,6 +52,18 @@ File _permissionDialogFixture() {
   fail('android_permission_dialog_source.xml fixture not found');
 }
 
+File _locationPermissionDialogFixture() {
+  for (final String p in <String>[
+    'test/fixtures/android_location_permission_source.xml',
+    'packages/leonard_native/test/fixtures/'
+        'android_location_permission_source.xml',
+  ]) {
+    final File f = File(p);
+    if (f.existsSync()) return f;
+  }
+  fail('android_location_permission_source.xml fixture not found');
+}
+
 File _flutterSemanticsFixture() {
   for (final String p in <String>[
     'test/fixtures/flutter_android_semantics_source.xml',
@@ -1231,6 +1243,72 @@ void main() {
         expect(findBody, <String, Object?>{
           'using': 'id',
           'value': resourceId.replaceFirst('com.android', 'com.google'),
+        });
+        expect(hits.where((String h) => h.endsWith('/click')), <String>[
+          'POST /session/s1/element/permission-button/click',
+        ]);
+        await b.close();
+      });
+    }
+
+    for (final (String key, String earlierEntry, String preferredEntry)
+        in <(String, String, String)>[
+          (
+            'permission_allow',
+            'permission_allow_one_time_button',
+            'permission_allow_foreground_only_button',
+          ),
+          (
+            'permission_deny',
+            'permission_deny_and_dont_ask_again_button',
+            'permission_deny_button',
+          ),
+        ]) {
+      test('$key prefers policy order over XML order', () async {
+        const String permissionPackage =
+            'com.google.android.permissioncontroller';
+        final String sourceXml = _locationPermissionDialogFixture()
+            .readAsStringSync();
+        final String earlierResourceId = '$permissionPackage:id/$earlierEntry';
+        final String preferredResourceId =
+            '$permissionPackage:id/$preferredEntry';
+        expect(
+          sourceXml.indexOf('resource-id="$earlierResourceId"'),
+          lessThan(sourceXml.indexOf('resource-id="$preferredResourceId"')),
+        );
+
+        hits = <String>[];
+        Map<String, Object?>? findBody;
+        final MockClient client = MockClient((http.Request req) async {
+          hits.add('${req.method} ${req.url.path}');
+          Object? value;
+          if (req.method == 'POST' && req.url.path == '/session') {
+            value = <String, Object?>{'sessionId': 's1'};
+          } else if (req.url.path == '/session/s1/source') {
+            value = sourceXml;
+          } else if (req.url.path == '/session/s1/element') {
+            findBody = (jsonDecode(req.body) as Map).cast<String, Object?>();
+            value = <String, Object?>{
+              'element-6066-11e4-a52e-4f735466cecf': 'permission-button',
+            };
+          }
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': value}),
+            200,
+            headers: const <String, String>{'content-type': 'application/json'},
+          );
+        });
+        final UiAutomator2Backend b = UiAutomator2Backend(
+          udid: 'emulator-5554',
+          app: 'com.example.app',
+          platformVersion: '16',
+          client: client,
+        );
+        await b.connect();
+        await b.press(key);
+        expect(findBody, <String, Object?>{
+          'using': 'id',
+          'value': preferredResourceId,
         });
         expect(hits.where((String h) => h.endsWith('/click')), <String>[
           'POST /session/s1/element/permission-button/click',
