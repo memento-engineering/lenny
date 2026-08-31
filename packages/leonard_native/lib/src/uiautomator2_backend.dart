@@ -67,29 +67,47 @@ final RegExp _boundsRe = RegExp(r'\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]');
 typedef ResourceIdPackagePredicate = bool Function(String packageName);
 
 /// Resource-ID entries and package predicates for Android obstructions.
+///
+/// Every entry list is immutable and preference-ordered: when more than one
+/// alternative is present, the first entry in the policy wins.
 class ObstructionResourceIdPolicy {
+  /// Creates a policy by copying each ordered entry iterable.
   ObstructionResourceIdPolicy({
-    required Set<String> permissionDialogEntries,
-    required Set<String> permissionAllowEntries,
-    required Set<String> permissionDenyEntries,
-    required Set<String> chromeBottomSheetEntries,
-    required Set<String> chromeTouchToFillTitleEntries,
+    required Iterable<String> permissionDialogEntries,
+    required Iterable<String> permissionAllowEntries,
+    required Iterable<String> permissionDenyEntries,
+    required Iterable<String> chromeBottomSheetEntries,
+    required Iterable<String> chromeTouchToFillTitleEntries,
     required this.permissionPackage,
     required this.chromePackage,
-  }) : permissionDialogEntries = Set.unmodifiable(permissionDialogEntries),
-       permissionAllowEntries = Set.unmodifiable(permissionAllowEntries),
-       permissionDenyEntries = Set.unmodifiable(permissionDenyEntries),
-       chromeBottomSheetEntries = Set.unmodifiable(chromeBottomSheetEntries),
-       chromeTouchToFillTitleEntries = Set.unmodifiable(
+  }) : permissionDialogEntries = List<String>.unmodifiable(
+         permissionDialogEntries,
+       ),
+       permissionAllowEntries = List<String>.unmodifiable(
+         permissionAllowEntries,
+       ),
+       permissionDenyEntries = List<String>.unmodifiable(permissionDenyEntries),
+       chromeBottomSheetEntries = List<String>.unmodifiable(
+         chromeBottomSheetEntries,
+       ),
+       chromeTouchToFillTitleEntries = List<String>.unmodifiable(
          chromeTouchToFillTitleEntries,
        );
 
+  /// Creates the Android permission-controller and Chrome defaults.
   factory ObstructionResourceIdPolicy.defaults() => ObstructionResourceIdPolicy(
-    permissionDialogEntries: const <String>{'grant_dialog'},
-    permissionAllowEntries: const <String>{'permission_allow_button'},
-    permissionDenyEntries: const <String>{'permission_deny_button'},
-    chromeBottomSheetEntries: const <String>{'bottom_sheet'},
-    chromeTouchToFillTitleEntries: const <String>{'touch_to_fill_sheet_title'},
+    permissionDialogEntries: const <String>['grant_dialog'],
+    permissionAllowEntries: const <String>[
+      'permission_allow_button',
+      'permission_allow_foreground_only_button',
+      'permission_allow_one_time_button',
+    ],
+    permissionDenyEntries: const <String>[
+      'permission_deny_button',
+      'permission_deny_and_dont_ask_again_button',
+    ],
+    chromeBottomSheetEntries: const <String>['bottom_sheet'],
+    chromeTouchToFillTitleEntries: const <String>['touch_to_fill_sheet_title'],
     permissionPackage: (String value) =>
         value.isNotEmpty && value.endsWith('permissioncontroller'),
     chromePackage: const <String>{
@@ -100,12 +118,25 @@ class ObstructionResourceIdPolicy {
     }.contains,
   );
 
-  final Set<String> permissionDialogEntries;
-  final Set<String> permissionAllowEntries;
-  final Set<String> permissionDenyEntries;
-  final Set<String> chromeBottomSheetEntries;
-  final Set<String> chromeTouchToFillTitleEntries;
+  /// Entries identifying a permission dialog, in preferred-match order.
+  final List<String> permissionDialogEntries;
+
+  /// Permission-grant button entries, in preferred-click order.
+  final List<String> permissionAllowEntries;
+
+  /// Permission-denial button entries, in preferred-click order.
+  final List<String> permissionDenyEntries;
+
+  /// Chrome bottom-sheet entries, in preferred-match order.
+  final List<String> chromeBottomSheetEntries;
+
+  /// Chrome Touch-To-Fill title entries, in preferred-match order.
+  final List<String> chromeTouchToFillTitleEntries;
+
+  /// Accepts packages allowed to own Android permission-controller entries.
   final ResourceIdPackagePredicate permissionPackage;
+
+  /// Accepts packages allowed to own Chrome obstruction entries.
   final ResourceIdPackagePredicate chromePackage;
 }
 
@@ -758,17 +789,19 @@ class UiAutomator2Backend implements NativeBackend {
 
   String? _matchingResourceId(
     Iterable<NativeNode> nodes,
-    Set<String> entries,
+    Iterable<String> entries,
     ResourceIdPackagePredicate packagePredicate,
   ) {
-    for (final NativeNode node in nodes) {
-      final ({String packageName, String entry})? parts = _resourceIdParts(
-        node.resourceId,
-      );
-      if (parts != null &&
-          entries.contains(parts.entry) &&
-          packagePredicate(parts.packageName)) {
-        return node.resourceId;
+    for (final String entry in entries) {
+      for (final NativeNode node in nodes) {
+        final ({String packageName, String entry})? parts = _resourceIdParts(
+          node.resourceId,
+        );
+        if (parts != null &&
+            parts.entry == entry &&
+            packagePredicate(parts.packageName)) {
+          return node.resourceId;
+        }
       }
     }
     return null;
@@ -949,7 +982,7 @@ class UiAutomator2Backend implements NativeBackend {
     }
   }
 
-  Future<void> _pressPermissionButton(String key, Set<String> entries) async {
+  Future<void> _pressPermissionButton(String key, List<String> entries) async {
     final NativeSnapshot source = await snapshot();
     final String? resourceId = _matchingResourceId(
       source.nodes,
@@ -958,13 +991,15 @@ class UiAutomator2Backend implements NativeBackend {
     );
     if (resourceId == null) {
       throw NativeException(
-        'Android permission dialog button is not present: $key',
+        'Android permission dialog button is not present: $key; '
+        'tried resource-id entries: ${entries.join(', ')}',
       );
     }
     final String? elementId = await _find('id', resourceId);
     if (elementId == null) {
       throw NativeException(
-        'Android permission dialog button is not present: $key',
+        'Android permission dialog button is not present: $key; '
+        'tried resource-id entries: ${entries.join(', ')}',
       );
     }
     await _post(

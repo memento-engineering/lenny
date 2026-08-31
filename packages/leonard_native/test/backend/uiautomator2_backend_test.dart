@@ -68,6 +68,54 @@ NativeNode _byLabel(List<NativeNode> nodes, String label) =>
 
 void main() {
   test(
+    'obstruction resource-id policy keeps ordered immutable alternatives',
+    () {
+      final Iterable<String> permissionDialogEntries = <String>[
+        'vendor_dialog',
+      ].where((String entry) => entry.isNotEmpty);
+      final ObstructionResourceIdPolicy policy = ObstructionResourceIdPolicy(
+        permissionDialogEntries: permissionDialogEntries,
+        permissionAllowEntries: const <String>['vendor_allow', 'vendor_once'],
+        permissionDenyEntries: const <String>['vendor_deny', 'vendor_never'],
+        chromeBottomSheetEntries: const <String>['vendor_sheet'],
+        chromeTouchToFillTitleEntries: const <String>['vendor_sheet_title'],
+        permissionPackage: (String value) => value == 'com.vendor.security',
+        chromePackage: (String value) => value == 'com.vendor.browser',
+      );
+
+      final List<List<String>> entriesByRole = <List<String>>[
+        policy.permissionDialogEntries,
+        policy.permissionAllowEntries,
+        policy.permissionDenyEntries,
+        policy.chromeBottomSheetEntries,
+        policy.chromeTouchToFillTitleEntries,
+      ];
+      expect(entriesByRole, <List<String>>[
+        <String>['vendor_dialog'],
+        <String>['vendor_allow', 'vendor_once'],
+        <String>['vendor_deny', 'vendor_never'],
+        <String>['vendor_sheet'],
+        <String>['vendor_sheet_title'],
+      ]);
+      for (final List<String> entries in entriesByRole) {
+        expect(() => entries.add('mutation'), throwsUnsupportedError);
+      }
+
+      final ObstructionResourceIdPolicy defaults =
+          ObstructionResourceIdPolicy.defaults();
+      expect(defaults.permissionAllowEntries, <String>[
+        'permission_allow_button',
+        'permission_allow_foreground_only_button',
+        'permission_allow_one_time_button',
+      ]);
+      expect(defaults.permissionDenyEntries, <String>[
+        'permission_deny_button',
+        'permission_deny_and_dont_ask_again_button',
+      ]);
+    },
+  );
+
+  test(
     'resource-id resolves first through W3C id with verbatim value',
     () async {
       final List<Map<String, Object?>> findBodies = <Map<String, Object?>>[];
@@ -1191,43 +1239,50 @@ void main() {
       });
     }
 
-    test('a missing permission button throws without clicking', () async {
-      hits = <String>[];
-      final MockClient client = MockClient((http.Request req) async {
-        hits.add('${req.method} ${req.url.path}');
-        final Object? value = switch (req.url.path) {
-          '/session' => <String, Object?>{'sessionId': 's1'},
-          '/session/s1/source' =>
-            '<hierarchy><node resource-id="com.unrelated:id/permission_allow_button" /></hierarchy>',
-          _ => null,
-        };
-        return http.Response(
-          jsonEncode(<String, Object?>{'value': value}),
-          200,
-          headers: const <String, String>{'content-type': 'application/json'},
+    test(
+      'a missing permission button names attempted entries without clicking',
+      () async {
+        hits = <String>[];
+        final MockClient client = MockClient((http.Request req) async {
+          hits.add('${req.method} ${req.url.path}');
+          final Object? value = switch (req.url.path) {
+            '/session' => <String, Object?>{'sessionId': 's1'},
+            '/session/s1/source' =>
+              '<hierarchy><node resource-id="com.unrelated:id/permission_allow_button" /></hierarchy>',
+            _ => null,
+          };
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': value}),
+            200,
+            headers: const <String, String>{'content-type': 'application/json'},
+          );
+        });
+        final UiAutomator2Backend b = UiAutomator2Backend(
+          udid: 'emulator-5554',
+          app: 'com.example.app',
+          platformVersion: '13',
+          client: client,
         );
-      });
-      final UiAutomator2Backend b = UiAutomator2Backend(
-        udid: 'emulator-5554',
-        app: 'com.example.app',
-        platformVersion: '13',
-        client: client,
-      );
-      await b.connect();
-      await expectLater(
-        b.press('permission_allow'),
-        throwsA(
-          isA<NativeException>().having(
-            (NativeException e) => e.message,
-            'message',
-            'Android permission dialog button is not present: permission_allow',
+        await b.connect();
+        await expectLater(
+          b.press('permission_allow'),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              'Android permission dialog button is not present: '
+                  'permission_allow; tried resource-id entries: '
+                  'permission_allow_button, '
+                  'permission_allow_foreground_only_button, '
+                  'permission_allow_one_time_button',
+            ),
           ),
-        ),
-      );
-      expect(hits.where((String h) => h.endsWith('/click')), isEmpty);
-      expect(hits.where((String h) => h.endsWith('/element')), isEmpty);
-      await b.close();
-    });
+        );
+        expect(hits.where((String h) => h.endsWith('/click')), isEmpty);
+        expect(hits.where((String h) => h.endsWith('/element')), isEmpty);
+        await b.close();
+      },
+    );
 
     test('custom policy detects vendor ids without visible text', () async {
       final ObstructionResourceIdPolicy vendorPolicy =
