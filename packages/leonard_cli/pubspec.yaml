@@ -16,6 +16,6 @@ dependencies:
 dev_dependencies:
   leonard_contract: ^0.2.0
   leonard_host: ^0.2.0
-  leonard_native: ^0.3.0
+  leonard_native: ^0.4.0
   lints: ^5.1.0
   test: ^1.25.0

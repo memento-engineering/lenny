@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HAND-SYNTHESIZED TEST FIXTURE — NOT A DEVICE CAPTURE.
+  Base resource-ID entries were reported from a Pixel 7a running Android 16,
+  SDK 36, in memento-engineering/lenny#54.
+  permission_allow_one_time_button intentionally precedes
+  permission_allow_foreground_only_button to prove policy-order selection.
+  permission_deny_and_dont_ask_again_button is an explicit synthetic Android
+  variant, not part of that device report, and intentionally precedes
+  permission_deny_button to prove safe denial preference.
+  The coarse/fine accuracy radio entries are fixture evidence for lenny-obof;
+  selecting an accuracy is outside lenny-xgcy.
+-->
+<hierarchy index="0" class="hierarchy" rotation="0">
+  <node class="android.widget.FrameLayout" resource-id="com.google.android.permissioncontroller:id/grant_dialog">
+    <node class="android.widget.LinearLayout" resource-id="com.google.android.permissioncontroller:id/grant_singleton" />
+    <node class="android.widget.LinearLayout" resource-id="com.google.android.permissioncontroller:id/content_container" />
+    <node class="android.widget.Button" resource-id="com.google.android.permissioncontroller:id/permission_allow_one_time_button" />
+    <node class="android.widget.Button" resource-id="com.google.android.permissioncontroller:id/permission_allow_foreground_only_button" />
+    <node class="android.widget.Button" resource-id="com.google.android.permissioncontroller:id/permission_deny_and_dont_ask_again_button" />
+    <node class="android.widget.Button" resource-id="com.google.android.permissioncontroller:id/permission_deny_button" />
+    <node class="android.widget.ImageView" resource-id="com.google.android.permissioncontroller:id/permission_icon" />
+    <node class="android.widget.TextView" resource-id="com.google.android.permissioncontroller:id/permission_message" />
+    <node class="android.widget.LinearLayout" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy" />
+    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_coarse" />
+    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_fine" />
+  </node>
+</hierarchy>

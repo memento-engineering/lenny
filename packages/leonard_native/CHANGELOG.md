@@ -1,3 +1,15 @@
+## 0.4.0
+
+- **Breaking — `ObstructionResourceIdPolicy` entry fields are ordered
+  `List<String>` values instead of `Set<String>` values.** Constructor
+  parameters now accept any `Iterable<String>`, so existing set-literal
+  construction remains source-compatible; consumers that assigned a public
+  entry field to a `Set<String>` must read it as a `List<String>` or call
+  `.toSet()`. Matching now honors policy order rather than XML node order.
+  Android permission defaults prefer the legacy allow button, then foreground
+  location, then one-time location; denial prefers ordinary denial over
+  deny-and-don't-ask-again. Missing-button errors list every attempted entry.
+
 ## 0.3.1
 
 - **Fixed: the `resourceId` tier can now resolve Chrome web-content fields
