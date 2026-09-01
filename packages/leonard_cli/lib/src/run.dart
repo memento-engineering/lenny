@@ -265,11 +265,15 @@ Future<int> runCli(
     await writer.writeHeader(header);
 
     // ----- run loop -------------------------------------------------
+    final String? doneReasonPattern = args.doneReasonPattern;
     final SessionTermination termination = await session.run(
       host: host,
       provider: provider,
       writer: writer,
       turnBudget: args.turnBudget,
+      validator: doneReasonPattern == null
+          ? const ActionValidator()
+          : ActionValidator(doneReasonPattern: RegExp(doneReasonPattern)),
     );
 
     // ----- translate to exit code -----------------------------------
@@ -317,7 +321,7 @@ void _render(Stdout out, SessionProgressEvent e) {
 }
 
 /// Load the AGENTS.md operating guide that gets pinned to the model's
-/// system prompt (`'<agentsMd>\n\n## Goal\n<goal>'`).
+/// system prompt (`'<agentsMd>\n\n## Mission\n<goal>'`).
 ///
 /// Resolution order: an explicit [path] (`--agents-md`) wins; otherwise
 /// the bundled template is resolved relative to the running script, then a

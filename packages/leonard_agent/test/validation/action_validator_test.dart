@@ -99,6 +99,20 @@ List<ToolDescriptor> _coreToolList() => <ToolDescriptor>[
   }),
 ];
 
+// core.done with a required string `reason` — the shape the CLI's core
+// tool descriptor carries when a done-reason pattern is in force.
+List<ToolDescriptor> _doneReasonToolList() => <ToolDescriptor>[
+  _tool('core.done', <String, dynamic>{
+    r'$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': <String>['reason'],
+    'properties': <String, dynamic>{
+      'reason': <String, dynamic>{'type': 'string'},
+    },
+    'additionalProperties': false,
+  }),
+];
+
 // ---------- Tests ----------
 
 void main() {
@@ -333,6 +347,60 @@ void main() {
           args: const <String, dynamic>{'scrollable_id': 1, 'target_id': 2},
         ),
         obs,
+        _coreToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+  });
+
+  group('done-reason pass', () {
+    final RegExp pattern = RegExp(
+      r'^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$',
+    );
+    final ActionValidator patterned = ActionValidator(
+      doneReasonPattern: pattern,
+    );
+
+    test('rejects a core.done reason that does not match', () {
+      final r = patterned.validate(
+        (tool: 'core.done', args: <String, dynamic>{'reason': 'goal entered'}),
+        _obs(const <SemanticsNode>[]),
+        _doneReasonToolList(),
+      );
+      final reject = r as ValidationReject;
+      expect(reject.reason, 'done_reason_mismatch');
+      expect(reject.pointer, '/reason');
+      expect(reject.expected, <String>[pattern.pattern]);
+      expect(reject.got, 'goal entered');
+    });
+
+    test('accepts a core.done reason that matches', () {
+      final r = patterned.validate(
+        (
+          tool: 'core.done',
+          args: <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 3 tool core.tap',
+          },
+        ),
+        _obs(const <SemanticsNode>[]),
+        _doneReasonToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('a validator without a pattern accepts any core.done reason', () {
+      final r = validator.validate(
+        (tool: 'core.done', args: <String, dynamic>{'reason': 'anything'}),
+        _obs(const <SemanticsNode>[]),
+        _doneReasonToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('the pattern does not constrain other tools', () {
+      final r = patterned.validate(
+        (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+        _obs(<SemanticsNode>[_node(id: 1)]),
         _coreToolList(),
       );
       expect(r, isA<ValidationOk>());

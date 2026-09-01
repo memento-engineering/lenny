@@ -36,6 +36,7 @@ class CliArgs {
     this.turnBudget,
     this.coreBudgetBytes,
     this.probeArtifactPath,
+    this.doneReasonPattern,
   });
 
   /// Goal to drive the app toward, supplied via `--goal`. `null` means use
@@ -99,6 +100,10 @@ class CliArgs {
 
   /// Path to write raw handshake and observation JSON after session start.
   final String? probeArtifactPath;
+
+  /// Scenario-declared regular expression a `core.done` `reason` must match.
+  /// `null` leaves `core.done` reasons unconstrained.
+  final String? doneReasonPattern;
 }
 
 /// Thrown by [parseCliArgs] for any user-facing argument error. The
@@ -190,6 +195,12 @@ ArgParser buildParser() => ArgParser()
   ..addOption(
     'probe-artifact',
     help: 'Write raw handshake and observation JSON after session start.',
+  )
+  ..addOption(
+    'done-reason-pattern',
+    help:
+        'Regular expression a core.done reason must match; a mismatch is '
+        'fed back to the model as a validation error and the turn retries.',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this help.');
 
@@ -317,6 +328,21 @@ CliArgs parseCliArgs(List<String> argv) {
     }
   }
 
+  final String? doneReasonPattern = res['done-reason-pattern'] as String?;
+  if (doneReasonPattern != null) {
+    if (doneReasonPattern.isEmpty) {
+      throw CliUsageError('--done-reason-pattern must not be empty');
+    }
+    try {
+      RegExp(doneReasonPattern);
+    } on FormatException catch (e) {
+      throw CliUsageError(
+        '--done-reason-pattern is not a valid regular expression: '
+        '${e.message}',
+      );
+    }
+  }
+
   return CliArgs(
     goal: res['goal'] as String?,
     goalFile: goalFile,
@@ -334,5 +360,6 @@ CliArgs parseCliArgs(List<String> argv) {
     turnBudget: turnBudget,
     coreBudgetBytes: coreBudgetBytes,
     probeArtifactPath: res['probe-artifact'] as String?,
+    doneReasonPattern: doneReasonPattern,
   );
 }

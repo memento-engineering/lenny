@@ -376,7 +376,7 @@ class MultiHostSession implements SessionSurface {
       conversation:
           conversation ??
           ConversationBuilder(
-            systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+            systemMessage: '${host.agentsMd}\n\n## Mission\n${host.goal}',
             tools: host.mergedTools(),
           ),
       validator: validator ?? const ActionValidator(),

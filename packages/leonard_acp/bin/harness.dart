@@ -93,7 +93,7 @@ Future<void> main(List<String> argv) async {
       host: host,
       provider: provider,
       conversation: ConversationBuilder(
-        systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+        systemMessage: '${host.agentsMd}\n\n## Mission\n${host.goal}',
         tools: host.mergedTools(),
       ),
       validator: const ActionValidator(),

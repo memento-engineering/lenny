@@ -203,6 +203,38 @@ void main() {
       });
     });
 
+    test('--done-reason-pattern parses and rejects an invalid regex', () {
+      const String pattern =
+          r'^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$';
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'x',
+        '--done-reason-pattern',
+        pattern,
+      ]);
+      expect(args.doneReasonPattern, pattern);
+
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--goal',
+          'x',
+          '--done-reason-pattern',
+          '([unclosed',
+        ]),
+        throwsA(
+          isA<CliUsageError>().having(
+            (error) => error.message,
+            'message',
+            contains('valid regular expression'),
+          ),
+        ),
+      );
+    });
+
     group('--launch', () {
       test('parses with --target; vmUri is null', () {
         final args = parseCliArgs(<String>[

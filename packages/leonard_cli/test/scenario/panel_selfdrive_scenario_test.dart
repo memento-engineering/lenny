@@ -38,6 +38,9 @@ void main() {
       r'core.scroll {"node_id": 1, "axis": "vertical", "delta_pixels": 200}',
       'never invent a node id',
       'Correct any failed action before continuing',
+      'the INNER goal for the panel',
+      'never completion',
+      'done-reason-pattern:',
       'Test connection',
       'OK (N models)',
       'Start',
@@ -67,7 +70,13 @@ void main() {
     }
     expect(source, contains(r'--probe-artifact "$PANEL_PROBE"'));
     expect(source, contains(r'--core-budget-bytes "$CORE_BUDGET_BYTES"'));
-    expect(source, contains('PANEL_SELFDRIVE_ROUND=4'));
+    final RegExpMatch? roundMarker = RegExp(
+      r"ROUND_MARKER='PANEL_SELFDRIVE_ROUND=([0-9]+)'",
+    ).firstMatch(source);
+    expect(roundMarker, isNotNull, reason: 'runner declares no ROUND_MARKER');
+    expect(int.parse(roundMarker!.group(1)!), greaterThanOrEqualTo(6));
+    expect(source, contains(r'grep -Fq "$ROUND_MARKER"'));
+    expect(source, contains(r'--done-reason-pattern "$DONE_REASON_PATTERN"'));
     expect(source, contains('--append-notes'));
     expect(source, contains('bd read-back'));
     expect(source, isNot(contains('PANEL_SELFDRIVE_PROBE_BIN')));
@@ -102,7 +111,7 @@ void main() {
   });
 
   test(
-    'receipt verifier accepts checkpoints and rejects a secret leak',
+    'receipt verifier redacts a token leak and treats the endpoint as configuration',
     () async {
       final Directory temp = await Directory.systemTemp.createTemp(
         'panel-selfdrive-receipt-',
@@ -148,12 +157,21 @@ void main() {
         },
       );
       expect(leak.exitCode, 2);
+      expect(
+        leak.stdout,
+        contains('CAPTURED_OUTPUT_SECRET_SCAN=leak-redacted'),
+      );
       expect(leak.stdout, isNot(contains(fixtureSecret)));
       expect(leak.stderr, isNot(contains(fixtureSecret)));
+      final String redactedDriverLog = await driverLog.readAsString();
+      expect(redactedDriverLog, contains('<REDACTED:SWIFT_INFER_AGENT_TOKEN>'));
+      expect(redactedDriverLog, isNot(contains(fixtureSecret)));
 
+      // The endpoint is configuration, not a credential: the scenario types
+      // it into the panel, so it legitimately appears in captures.
       const String fixtureEndpoint = 'https://private-swift.example';
       await panelLog.writeAsString('$fixtureEndpoint\n');
-      final ProcessResult endpointLeak = await Process.run(
+      final ProcessResult endpointPresent = await Process.run(
         Platform.resolvedExecutable,
         arguments,
         workingDirectory: repositoryRoot,
@@ -161,9 +179,16 @@ void main() {
           'SWIFT_INFER_ENDPOINT': fixtureEndpoint,
         },
       );
-      expect(endpointLeak.exitCode, 2);
-      expect(endpointLeak.stdout, isNot(contains(fixtureEndpoint)));
-      expect(endpointLeak.stderr, isNot(contains(fixtureEndpoint)));
+      expect(
+        endpointPresent.exitCode,
+        0,
+        reason: 'stderr: ${endpointPresent.stderr}',
+      );
+      expect(
+        endpointPresent.stdout,
+        contains('CAPTURED_OUTPUT_SECRET_SCAN=clean'),
+      );
+      expect(await panelLog.readAsString(), contains(fixtureEndpoint));
     },
   );
 }

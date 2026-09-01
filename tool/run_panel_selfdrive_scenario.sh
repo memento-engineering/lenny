@@ -11,7 +11,7 @@ STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
 BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
 BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
-ROUND_MARKER='PANEL_SELFDRIVE_ROUND=5'
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=6'
 
 if (( $# > 1 )); then
   printf 'usage: %s [sample-app-device-id]\n' "$0" >&2
@@ -43,6 +43,13 @@ command -v "$BD_BIN" >/dev/null 2>&1 || {
 }
 [[ -f "$SCENARIO" && -f "$VERIFY" ]] || {
   printf '%s\n' 'run_panel_selfdrive_scenario: scenario assets are missing' >&2
+  exit 1
+}
+DONE_REASON_PATTERN="$(sed -n 's/^done-reason-pattern: //p' "$SCENARIO" |
+  head -n 1)"
+[[ -n "$DONE_REASON_PATTERN" ]] || {
+  printf '%s\n' \
+    'run_panel_selfdrive_scenario: scenario declares no done-reason-pattern' >&2
   exit 1
 }
 
@@ -100,6 +107,7 @@ DRIVER_ARGS=(
   --model qwen-mlx
   --output "$TRAJECTORY"
   --turn-budget 180
+  --done-reason-pattern "$DONE_REASON_PATTERN"
   --core-budget-bytes "$CORE_BUDGET_BYTES"
   --probe-artifact "$PANEL_PROBE"
   --action-env SWIFT_INFER_ENDPOINT
@@ -148,7 +156,7 @@ persist_receipt() {
   "$BD_BIN" show "$BEAD_ID" >"$RUN_DIR/bead.readback"
   grep -Fq "$ROUND_MARKER" "$RUN_DIR/bead.readback" || {
     printf '%s\n' \
-      'run_panel_selfdrive_scenario: round-5 receipt missing after bd read-back' \
+      "run_panel_selfdrive_scenario: $ROUND_MARKER missing after bd read-back" \
       >&2
     return 1
   }

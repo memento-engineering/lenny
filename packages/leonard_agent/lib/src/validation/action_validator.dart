@@ -47,7 +47,11 @@ const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
   'core.gesture': <String>['node_id'],
 };
 
-/// Three-pass validator for candidate actions.
+/// Tool the model calls to declare voluntary success. Only this tool is
+/// subject to the done-reason pass.
+const String _kCoreDoneTool = 'core.done';
+
+/// Four-pass validator for candidate actions.
 ///
 /// Passes, in order — first match wins:
 ///   1. **Tool exists** in the merged tool list. Rejects with
@@ -56,7 +60,13 @@ const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
 ///   2. **Args validate** against the tool's `inputSchema`
 ///      (draft-07). Rejects with `schema_invalid` (carries `pointer` and
 ///      `description` from the first reported error).
-///   3. **Semantic-node check** for core tools that target node ids.
+///   3. **Done-reason form.** When [doneReasonPattern] is non-null and the
+///      action is `core.done`, the `reason` argument must match it. Rejects
+///      with `done_reason_mismatch` (carries `pointer = '/reason'`,
+///      `expected = [pattern source]`, `got = the reason`). A validator
+///      built without a pattern skips this pass entirely, which is the
+///      historical behaviour.
+///   4. **Semantic-node check** for core tools that target node ids.
 ///      Looks up each id in `observation.core.nodes`. Rejects with
 ///      `node_not_found` if absent, `node_disabled` if `node.state`
 ///      contains the literal token `'disabled'`. Extension-namespaced tools
@@ -66,7 +76,13 @@ const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
 /// Stateless and pure: same `(action, observation, tools)` always
 /// produces structurally equal output.
 class ActionValidator {
-  const ActionValidator();
+  /// Creates a validator. [doneReasonPattern] is the scenario-declared form
+  /// a `core.done` `reason` must match; `null` leaves `core.done` reasons
+  /// unconstrained.
+  const ActionValidator({this.doneReasonPattern});
+
+  /// Compiled reason form for `core.done`, or `null` when unconstrained.
+  final RegExp? doneReasonPattern;
 
   /// Validate [action] against [tools] and the live UI in [observation].
   ValidationResult validate(
@@ -109,10 +125,30 @@ class ActionValidator {
       );
     }
 
-    // Pass 3: core-tool semantic-node check.
+    // Pass 3: scenario-declared core.done reason form.
+    final RegExp? donePattern = doneReasonPattern;
+    if (donePattern != null && action.tool == _kCoreDoneTool) {
+      final Object? rawReason = action.args['reason'];
+      final String reason = rawReason is String ? rawReason : '';
+      if (!donePattern.hasMatch(reason)) {
+        return ValidationReject(
+          tool: action.tool,
+          reason: 'done_reason_mismatch',
+          pointer: '/reason',
+          expected: <String>[donePattern.pattern],
+          got: reason,
+          description:
+              'core.done reason must match ${donePattern.pattern}; copy the '
+              'index and tool from the row you actually observed, and keep '
+              'acting until you have observed it',
+        );
+      }
+    }
+
+    // Pass 4: core-tool semantic-node check.
     if (!_coreNodeTools.contains(action.tool)) {
       // Extension tools and node-less core tools (system_back / wait /
-      // done) only need passes 1+2.
+      // done) need no semantic-node check.
       return const ValidationOk();
     }
 
