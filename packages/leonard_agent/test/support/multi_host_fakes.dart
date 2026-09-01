@@ -83,10 +83,7 @@ class RecordingVmService extends VmService {
       if (observeDelay > Duration.zero) {
         await Future<void>.delayed(observeDelay);
       }
-      r.json = <String, dynamic>{
-        'type': 'Observation',
-        'value': <String, dynamic>{'semantics': <dynamic>[], ...observation},
-      };
+      r.json = <String, dynamic>{'type': 'Observation', 'value': observation};
     } else {
       // A routed per-tool action: echo which method/args landed here.
       r.json = <String, dynamic>{'ok': true, 'method': method};

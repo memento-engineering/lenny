@@ -164,6 +164,7 @@ class MultiHostSession implements SessionSurface {
   HandshakeResult? _merged;
   bool _started = false;
   bool _ended = false;
+  int? _coreBudgetBytes;
   Observation _prevObservation = Observation.empty();
 
   /// Live progress events (mirrors [LeonardSession.progress]).
@@ -203,6 +204,7 @@ class MultiHostSession implements SessionSurface {
     if (_started) {
       throw StateError('Session already started');
     }
+    _storeCoreBudget(config);
     // Rebuild routing from scratch: a prior start() that threw a collision
     // mid-loop (below) leaves _started false but _route partially populated, so
     // a retry-after-detach must not route against stale entries.
@@ -390,7 +392,8 @@ class MultiHostSession implements SessionSurface {
     // One policy, all hosts, join-on-all (Future.wait). The list preserves
     // attach order so index 0 (Flutter) is the merge primary.
     final List<Observation> perHost = await Future.wait(<Future<Observation>>[
-      for (final _HostChannel ch in _channels) ch.puller.pull(policy: policy),
+      for (final _HostChannel ch in _channels)
+        ch.puller.pull(policy: policy, coreBudgetBytes: _coreBudgetBytes),
     ]);
     return mergeObservations(perHost);
   }
@@ -399,6 +402,18 @@ class MultiHostSession implements SessionSurface {
     if (!_started) {
       throw StateError('start() must complete before $op().');
     }
+  }
+
+  void _storeCoreBudget(LeonardConfig config) {
+    final int? value = config.coreBudgetBytes;
+    if (value != null && value <= 0) {
+      throw ArgumentError.value(
+        value,
+        'config.coreBudgetBytes',
+        'must be a positive integer',
+      );
+    }
+    _coreBudgetBytes = value;
   }
 
   void _emit(SessionProgressEvent event) {

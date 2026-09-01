@@ -168,6 +168,41 @@ void main() {
       expect(args.turnBudget, isNull);
     });
 
+    group('--core-budget-bytes / --probe-artifact', () {
+      test('both are null when absent', () {
+        final args = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);
+        expect(args.coreBudgetBytes, isNull);
+        expect(args.probeArtifactPath, isNull);
+      });
+
+      test('parses a positive byte budget and artifact path', () {
+        final args = parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://h/ws',
+          '--core-budget-bytes',
+          '131072',
+          '--probe-artifact',
+          '/tmp/p.json',
+        ]);
+        expect(args.coreBudgetBytes, 131072);
+        expect(args.probeArtifactPath, '/tmp/p.json');
+      });
+
+      test('rejects non-positive and non-numeric budgets', () {
+        for (final String raw in <String>['0', '-1', 'lots']) {
+          expect(
+            () => parseCliArgs(<String>[
+              '--vm-uri',
+              'ws://h/ws',
+              '--core-budget-bytes',
+              raw,
+            ]),
+            throwsA(isA<CliUsageError>()),
+          );
+        }
+      });
+    });
+
     group('--launch', () {
       test('parses with --target; vmUri is null', () {
         final args = parseCliArgs(<String>[

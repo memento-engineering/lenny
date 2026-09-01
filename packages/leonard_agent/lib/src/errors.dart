@@ -41,8 +41,8 @@ class ObservationEnvelopeError extends StateError {
   ObservationEnvelopeError._(this.isolateId, this.topLevelKeys)
     : super(
         'Malformed Observation envelope from isolate "$isolateId"; '
-        'top-level keys: [${topLevelKeys.join(', ')}]. Expected type '
-        '"Observation" and value.semantics to be a list.',
+        'top-level keys: [${topLevelKeys.join(', ')}]. Expected value to '
+        'contain either a semantics list or an extensions map.',
       );
 
   /// Isolate pinned by [VmServiceClient] for the failing extension call.

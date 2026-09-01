@@ -159,6 +159,76 @@ void main() {
       expect(obs.stability.terminatedBy, equals('idle'));
     });
 
+    test(
+      'raw probe and observations share the pinned budgeted client',
+      () async {
+        final List<
+          ({String method, String? isolateId, Map<String, dynamic>? args})
+        >
+        calls =
+            <
+              ({String method, String? isolateId, Map<String, dynamic>? args})
+            >[];
+        final client = _clientWith((method, iso, args) async {
+          calls.add((method: method, isolateId: iso, args: args));
+          if (method == 'ext.leonard.core.handshake') {
+            return _resp(<String, dynamic>{
+              'contractVersion': '2',
+              'extensions': <Map<String, dynamic>>[],
+            });
+          }
+          return _resp(<String, dynamic>{
+            'type': 'Response',
+            'value': <String, dynamic>{
+              'semantics': <Object>[],
+              'routes': <String>[],
+              'errors': <Object>[],
+              'stability': <String, dynamic>{
+                'policy': 'action_relative',
+                'terminated_by': 'idle',
+                'duration_ms': 1,
+                'framework_busy': <String, dynamic>{'anyBusy': false},
+                'extensions_busy': <Object>[],
+              },
+              'extensions': <String, dynamic>{},
+            },
+          });
+        });
+        final session = LeonardSession.forTest(client);
+        await session.start(
+          'goal',
+          const LeonardConfig(coreBudgetBytes: 131072),
+        );
+
+        final Map<String, Object?> probe = await session.captureRawProbe();
+        await session.observe();
+
+        expect(probe['isolate_id'], 'iso-test');
+        expect(probe['handshake'], <String, dynamic>{
+          'contractVersion': '2',
+          'extensions': <Map<String, dynamic>>[],
+        });
+        expect(
+          (probe['observation']! as Map<String, dynamic>)['value'],
+          isA<Map<String, dynamic>>(),
+        );
+        final observationCalls = calls.where(
+          (call) => call.method == 'ext.leonard.core.get_stable_observation',
+        );
+        expect(observationCalls, hasLength(2));
+        for (final call in observationCalls) {
+          expect(call.isolateId, 'iso-test');
+          expect(call.args, containsPair('coreBudgetBytes', '131072'));
+        }
+
+        final invalid = LeonardSession.forTest(_handshakeOnlyClient());
+        await expectLater(
+          invalid.start('goal', const LeonardConfig(coreBudgetBytes: 0)),
+          throwsArgumentError,
+        );
+      },
+    );
+
     test('act delegates to the client after start', () async {
       String? lastMethod;
       Map<String, dynamic>? lastArgs;

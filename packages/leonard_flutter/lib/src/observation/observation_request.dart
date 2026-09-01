@@ -1,5 +1,7 @@
 import 'dart:developer' as developer;
 
+import 'budgeted_json.dart' show kCoreBudgetBytes;
+
 /// Stability policy selector for [getStableObservation] (PRD §9.1).
 ///
 /// - [actionRelative] (default): terminate on the first of route change,
@@ -46,6 +48,7 @@ class ObservationRequest {
     this.quietFrameN = kDefaultQuietFrameN,
     this.boundedStabilityBudgetMs = kDefaultBoundedStabilityBudgetMs,
     this.includeScreenshot = false,
+    this.coreBudgetBytes = kCoreBudgetBytes,
     this.extensionBudgets = const <String, int>{},
     this.errorCursor,
   });
@@ -64,6 +67,12 @@ class ObservationRequest {
 
   /// When `true`, the response includes `screenshot_png_b64`.
   final bool includeScreenshot;
+
+  /// Serialized byte budget for the top-level core fragment.
+  ///
+  /// A non-positive or malformed override falls back to
+  /// [kCoreBudgetBytes] rather than starving the observation.
+  final int coreBudgetBytes;
 
   /// Per-namespace extension observation budget overrides, in bytes. Extensions
   /// not present in the map fall back to the 1024-byte default. The sum
@@ -104,6 +113,11 @@ class ObservationRequest {
         ? rawScreenshot
         : false;
 
+    final int coreBudget = _positiveByteBudget(
+      j['coreBudgetBytes'],
+      kCoreBudgetBytes,
+    );
+
     final Map<String, int> extensionBudgets = _parseExtensionBudgets(
       j['extensionBudgets'],
     );
@@ -119,6 +133,7 @@ class ObservationRequest {
       quietFrameN: qn,
       boundedStabilityBudgetMs: bs,
       includeScreenshot: includeScreenshot,
+      coreBudgetBytes: coreBudget,
       extensionBudgets: extensionBudgets,
       errorCursor: errorCursor,
     );
@@ -154,6 +169,11 @@ class ObservationRequest {
     final int value = _toInt(raw, kDefaultQuietFrameN);
     if (value < 1) return 1;
     return value;
+  }
+
+  static int _positiveByteBudget(dynamic raw, int fallback) {
+    final int value = _toInt(raw, fallback);
+    return value > 0 ? value : fallback;
   }
 
   static int _toInt(dynamic raw, int fallback) {

@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_agent/leonard_agent.dart';
@@ -195,7 +196,20 @@ Future<int> runCli(
 
   try {
     // ----- start session --------------------------------------------
-    await session.start(goal, const LeonardConfig());
+    await session.start(
+      goal,
+      LeonardConfig(coreBudgetBytes: args.coreBudgetBytes),
+    );
+
+    final String? probeArtifactPath = args.probeArtifactPath;
+    if (probeArtifactPath != null) {
+      final File artifact = File(probeArtifactPath);
+      await artifact.parent.create(recursive: true);
+      final Map<String, Object?> probe = await session.captureRawProbe(
+        policy: args.policy,
+      );
+      await artifact.writeAsString('${jsonEncode(probe)}\n', flush: true);
+    }
 
     // ----- extension warning block (unchanged) ----------------------------------
     final List<String> unknown = unknownExtensionNamespaces(
@@ -238,6 +252,8 @@ Future<int> runCli(
         'policy': args.policy.wireName,
         'requested_extensions': args.extensions,
         'action_environment_names': args.actionEnvironmentNames,
+        if (args.coreBudgetBytes != null)
+          'core_budget_bytes': args.coreBudgetBytes,
       },
     );
     final LoopHost host = actionEnvironment.isEmpty

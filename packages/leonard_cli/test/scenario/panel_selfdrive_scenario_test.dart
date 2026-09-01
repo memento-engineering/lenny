@@ -60,12 +60,18 @@ void main() {
       '--action-env SWIFT_INFER_AGENT_TOKEN',
       '--action-env PANEL_SELFDRIVE_MODEL_ID',
       'tool/verify_panel_selfdrive_receipt.dart',
-      'packages/leonard_agent/tool/panel_selfdrive_probe.dart',
       'PANEL_SELFDRIVE_ARTIFACT_DIR',
       'panel_probe.json',
     ]) {
       expect(source, contains(expected), reason: 'missing $expected');
     }
+    expect(source, contains(r'--probe-artifact "$PANEL_PROBE"'));
+    expect(source, contains(r'--core-budget-bytes "$CORE_BUDGET_BYTES"'));
+    expect(source, contains('PANEL_SELFDRIVE_ROUND=4'));
+    expect(source, contains('--append-notes'));
+    expect(source, contains('bd read-back'));
+    expect(source, isNot(contains('PANEL_SELFDRIVE_PROBE_BIN')));
+    expect(source, isNot(contains('panel_selfdrive_probe.dart')));
   });
 
   test('manual smoke retains only genuine manual work', () {

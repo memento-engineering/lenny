@@ -34,6 +34,8 @@ class CliArgs {
     this.target,
     this.agentsMdPath,
     this.turnBudget,
+    this.coreBudgetBytes,
+    this.probeArtifactPath,
   });
 
   /// Goal to drive the app toward, supplied via `--goal`. `null` means use
@@ -90,6 +92,13 @@ class CliArgs {
   /// Optional `--turn-budget` override. `null` means use the LoopDriver
   /// default (120 s).
   final Duration? turnBudget;
+
+  /// Positive core-observation byte budget forwarded on every pull.
+  /// `null` uses the binding default.
+  final int? coreBudgetBytes;
+
+  /// Path to write raw handshake and observation JSON after session start.
+  final String? probeArtifactPath;
 }
 
 /// Thrown by [parseCliArgs] for any user-facing argument error. The
@@ -173,6 +182,14 @@ ArgParser buildParser() => ArgParser()
   ..addOption(
     'turn-budget',
     help: 'Per-turn inference timeout in seconds (default: 120).',
+  )
+  ..addOption(
+    'core-budget-bytes',
+    help: 'Positive core-observation byte budget sent on every pull.',
+  )
+  ..addOption(
+    'probe-artifact',
+    help: 'Write raw handshake and observation JSON after session start.',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this help.');
 
@@ -288,6 +305,18 @@ CliArgs parseCliArgs(List<String> argv) {
     turnBudget = Duration(seconds: secs);
   }
 
+  final String? rawCoreBudgetBytes = res['core-budget-bytes'] as String?;
+  int? coreBudgetBytes;
+  if (rawCoreBudgetBytes != null) {
+    coreBudgetBytes = int.tryParse(rawCoreBudgetBytes);
+    if (coreBudgetBytes == null || coreBudgetBytes <= 0) {
+      throw CliUsageError(
+        '--core-budget-bytes must be a positive integer; '
+        'got "$rawCoreBudgetBytes"',
+      );
+    }
+  }
+
   return CliArgs(
     goal: res['goal'] as String?,
     goalFile: goalFile,
@@ -303,5 +332,7 @@ CliArgs parseCliArgs(List<String> argv) {
     target: target,
     agentsMdPath: res['agents-md'] as String?,
     turnBudget: turnBudget,
+    coreBudgetBytes: coreBudgetBytes,
+    probeArtifactPath: res['probe-artifact'] as String?,
   );
 }

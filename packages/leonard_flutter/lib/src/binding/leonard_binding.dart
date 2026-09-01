@@ -607,6 +607,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         case 'actionRelativeBudgetMs':
         case 'quietFrameN':
         case 'boundedStabilityBudgetMs':
+        case 'coreBudgetBytes':
         case 'errorCursor':
           j[e.key] = int.tryParse(e.value) ?? e.value;
           break;
@@ -701,9 +702,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     );
     final Map<String, Object?> core = serializePerceptionFragment(coreRoot);
 
-    // Enforce the 4KB core budget: on overrun, replace with the
-    // truncation marker (still as a JSON object) and warn.
-    final BudgetedJson coreEnc = encodeWithBudget(core, kCoreBudgetBytes);
+    // Enforce the core budget: on overrun, drop semantics from the tail while
+    // preserving routes, errors, and stability, and warn.
+    final BudgetedJson coreEnc = encodeCoreWithBudget(
+      core,
+      req.coreBudgetBytes,
+    );
     Map<String, Object?> coreOut;
     if (coreEnc.truncated) {
       developer.log(

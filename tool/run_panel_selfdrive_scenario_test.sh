@@ -11,8 +11,8 @@ bash -n "$SCRIPT"
 
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/run-panel-selfdrive-scenario-test.XXXXXX")"
 FAKE_HARNESS="$TEST_ROOT/fake_harness"
-FAKE_PROBE="$TEST_ROOT/fake_probe"
 FAKE_DRIVER="$TEST_ROOT/fake_driver"
+FAKE_BD="$TEST_ROOT/fake_bd"
 cleanup() {
   rm -rf -- "$TEST_ROOT"
 }
@@ -39,23 +39,14 @@ while :; do
 done
 FAKE_HARNESS
 
-cat >"$FAKE_PROBE" <<'FAKE_PROBE'
-#!/usr/bin/env bash
-set -euo pipefail
-printf '%s\n' "$@" >"$FAKE_STATE_DIR/probe_args"
-printf '%s\n' '{"isolate_ids":["panel-1"],"isolate_id":"panel-1","handshake":{"protocolVersion":"2"},"observation":{"type":"Observation","value":{"semantics":[]}}}'
-: >"$FAKE_STATE_DIR/probe_completed"
-if [[ "${FAKE_PROBE_FAIL:-0}" == 1 ]]; then exit 7; fi
-FAKE_PROBE
-
 cat >"$FAKE_DRIVER" <<'FAKE_DRIVER'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -f "$FAKE_STATE_DIR/probe_completed" ]]
 : >"$FAKE_STATE_DIR/driver_started"
 printf '%s\n' "$@" >"$FAKE_STATE_DIR/driver_args"
 output=''
 goal_file=''
+probe_artifact=''
 while (( $# > 0 )); do
   case "$1" in
     --output)
@@ -66,11 +57,22 @@ while (( $# > 0 )); do
       goal_file="$2"
       shift 2
       ;;
+    --probe-artifact)
+      probe_artifact="$2"
+      shift 2
+      ;;
+    --core-budget-bytes)
+      printf '%s\n' "$2" >"$FAKE_STATE_DIR/core_budget_bytes"
+      shift 2
+      ;;
     *) shift ;;
   esac
 done
-[[ -n "$output" && -n "$goal_file" ]]
+[[ -n "$output" && -n "$goal_file" && -n "$probe_artifact" ]]
 cp -f "$goal_file" "$FAKE_STATE_DIR/goal_file_content"
+printf '%s\n' \
+  '{"isolate_id":"panel-1","handshake":{"contractVersion":"2"},"observation":{"type":"Response","value":{"semantics":[]}}}' \
+  >"$probe_artifact"
 cat >"$output" <<'JSONL'
 {"type":"turn","index":0,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_ENDPOINT}"}}}
 {"type":"turn","index":1,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_AGENT_TOKEN}"}}}
@@ -82,8 +84,50 @@ JSONL
 if [[ "${FAKE_DRIVER_LEAK:-0}" == 1 ]]; then
   printf '%s\n' "$SWIFT_INFER_AGENT_TOKEN" >&2
 fi
+if [[ "${FAKE_DRIVER_FAIL:-0}" == 1 ]]; then
+  printf '%s\n' 'driver fixture failure' >&2
+  exit 3
+fi
 FAKE_DRIVER
-chmod +x "$FAKE_HARNESS" "$FAKE_PROBE" "$FAKE_DRIVER"
+
+cat >"$FAKE_BD" <<'FAKE_BD'
+#!/usr/bin/env bash
+set -euo pipefail
+command_name="${1:-}"
+shift || true
+case "$command_name" in
+  update)
+    note=''
+    while (( $# > 0 )); do
+      case "$1" in
+        --append-notes)
+          note="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    if [[ "${FAKE_BD_DROP_APPEND:-0}" != 1 ]]; then
+      printf '%s\n' "$note" >>"$FAKE_STATE_DIR/bd_notes"
+    fi
+    ;;
+  show)
+    if [[ -f "$FAKE_STATE_DIR/bd_notes" ]]; then
+      cat "$FAKE_STATE_DIR/bd_notes"
+    fi
+    ;;
+  *)
+    printf 'fake_bd: unsupported command: %s\n' "$command_name" >&2
+    exit 64
+    ;;
+esac
+FAKE_BD
+
+chmod +x "$FAKE_HARNESS" "$FAKE_DRIVER" "$FAKE_BD"
+
+run_dir_from_stderr() {
+  sed -n 's/^PANEL_SELFDRIVE_RUN_DIR=//p' "$1" | tail -n 1
+}
 
 HAPPY_STATE="$TEST_ROOT/happy-state"
 mkdir -p "$HAPPY_STATE"
@@ -91,22 +135,28 @@ SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_STATE_DIR="$HAPPY_STATE" \
 PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
 PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
-PANEL_SELFDRIVE_OUTPUT_ROOT="$TEST_ROOT/output" \
-  "$SCRIPT" macos >"$TEST_ROOT/happy.stdout" 2>"$TEST_ROOT/happy.stderr"
-grep -F 'TRAJECTORY_PATH=' "$TEST_ROOT/happy.stdout" >/dev/null
-grep -Fx 'OBSERVED_TURN_INDEX=0' "$TEST_ROOT/happy.stdout" >/dev/null
-grep -Fx 'OBSERVED_TURN_TOOL=core.done' "$TEST_ROOT/happy.stdout" >/dev/null
-grep -Fx 'PROMPT_FORM=enabled' "$TEST_ROOT/happy.stdout" >/dev/null
-grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=clean' "$TEST_ROOT/happy.stdout" >/dev/null
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$HAPPY_STATE/output" \
+  "$SCRIPT" macos >"$HAPPY_STATE/stdout" 2>"$HAPPY_STATE/stderr"
+HAPPY_RUN_DIR="$(run_dir_from_stderr "$HAPPY_STATE/stderr")"
+grep -F 'TRAJECTORY_PATH=' "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'OBSERVED_TURN_INDEX=0' "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'OBSERVED_TURN_TOOL=core.done' "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'PROMPT_FORM=enabled' "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=clean' "$HAPPY_STATE/stdout" >/dev/null
 grep -Fx -- '--goal-file' "$HAPPY_STATE/driver_args" >/dev/null
 grep -Fx -- '--action-env' "$HAPPY_STATE/driver_args" >/dev/null
-grep -Fx -- 'ws://127.0.0.1:7000/panel=/ws' "$HAPPY_STATE/probe_args" >/dev/null
-[[ -f "$HAPPY_STATE/probe_completed" ]]
+grep -Fx -- '--probe-artifact' "$HAPPY_STATE/driver_args" >/dev/null
+grep -Fx '131072' "$HAPPY_STATE/core_budget_bytes" >/dev/null
+[[ ! -e "$HAPPY_STATE/probe_args" ]]
 [[ -f "$HAPPY_STATE/driver_started" ]]
+[[ -f "$HAPPY_RUN_DIR/bead.note" ]]
+[[ -f "$HAPPY_RUN_DIR/bead.readback" ]]
+grep -Fx 'PANEL_SELFDRIVE_ROUND=4' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -F 'SWIFT_INFER_AGENT_TOKEN' "$HAPPY_STATE/goal_file_content" >/dev/null
-! grep -R -F 'fixture-secret-never-written' "$TEST_ROOT/output"
+! grep -R -F 'fixture-secret-never-written' "$HAPPY_STATE/output"
 
 run_missing_case() {
   local missing_name="$1"
@@ -119,8 +169,8 @@ run_missing_case() {
       SWIFT_INFER_AGENT_TOKEN='fixture-token' \
       FAKE_STATE_DIR="$case_dir" \
       PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-      PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
       PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+      PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
       PANEL_SELFDRIVE_OUTPUT_ROOT="$case_dir/output" \
       "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
   else
@@ -128,8 +178,8 @@ run_missing_case() {
       SWIFT_INFER_ENDPOINT='https://swift.example' \
       FAKE_STATE_DIR="$case_dir" \
       PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-      PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
       PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+      PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
       PANEL_SELFDRIVE_OUTPUT_ROOT="$case_dir/output" \
       "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
   fi
@@ -143,27 +193,50 @@ run_missing_case() {
 run_missing_case SWIFT_INFER_ENDPOINT
 run_missing_case SWIFT_INFER_AGENT_TOKEN
 
-PROBE_FAILURE_STATE="$TEST_ROOT/probe-failure-state"
-mkdir -p "$PROBE_FAILURE_STATE"
+DRIVER_FAILURE_STATE="$TEST_ROOT/driver-failure-state"
+mkdir -p "$DRIVER_FAILURE_STATE"
 set +e
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
-FAKE_PROBE_FAIL=1 \
-FAKE_STATE_DIR="$PROBE_FAILURE_STATE" \
+FAKE_DRIVER_FAIL=1 \
+FAKE_STATE_DIR="$DRIVER_FAILURE_STATE" \
 PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
 PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
-PANEL_SELFDRIVE_OUTPUT_ROOT="$PROBE_FAILURE_STATE/output" \
-  "$SCRIPT" macos >"$PROBE_FAILURE_STATE/stdout" 2>"$PROBE_FAILURE_STATE/stderr"
-probe_failure_status=$?
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$DRIVER_FAILURE_STATE/output" \
+  "$SCRIPT" macos >"$DRIVER_FAILURE_STATE/stdout" 2>"$DRIVER_FAILURE_STATE/stderr"
+driver_failure_status=$?
 set -e
-[[ "$probe_failure_status" == 7 ]]
-[[ ! -e "$PROBE_FAILURE_STATE/driver_started" ]]
-probe_failure_run_dir="$(sed -n 's/^PANEL_SELFDRIVE_RUN_DIR=//p' \
-  "$PROBE_FAILURE_STATE/stderr" | tail -n 1)"
-[[ -s "$probe_failure_run_dir/panel_probe.json" ]]
-[[ -s "$probe_failure_run_dir/panel.log" ]]
-[[ -s "$probe_failure_run_dir/sample_app.log" ]]
+[[ "$driver_failure_status" == 3 ]]
+DRIVER_FAILURE_RUN_DIR="$(run_dir_from_stderr "$DRIVER_FAILURE_STATE/stderr")"
+[[ -s "$DRIVER_FAILURE_RUN_DIR/panel_probe.json" ]]
+[[ -s "$DRIVER_FAILURE_RUN_DIR/panel.log" ]]
+[[ -s "$DRIVER_FAILURE_RUN_DIR/sample_app.log" ]]
+grep -Fx 'PANEL_SELFDRIVE_RECEIPT=failed' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'FURTHEST_POINT=outer trajectory turn 5, proposed_action.tool=core.done' \
+  "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_PROBE_TOP_LEVEL_KEYS=isolate_id,handshake,observation' \
+  "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_LOG_LAST_20_BEGIN' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'panel fixture log' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_LOG_LAST_20_END' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+
+READBACK_STATE="$TEST_ROOT/readback-state"
+mkdir -p "$READBACK_STATE"
+set +e
+SWIFT_INFER_ENDPOINT='https://swift.example' \
+SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
+FAKE_BD_DROP_APPEND=1 \
+FAKE_STATE_DIR="$READBACK_STATE" \
+PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
+PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$READBACK_STATE/output" \
+  "$SCRIPT" macos >"$READBACK_STATE/stdout" 2>"$READBACK_STATE/stderr"
+readback_status=$?
+set -e
+(( readback_status != 0 ))
+grep -F 'bd read-back' "$READBACK_STATE/stderr" >/dev/null
 
 LEAK_STATE="$TEST_ROOT/leak-state"
 mkdir -p "$LEAK_STATE"
@@ -173,8 +246,8 @@ SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_DRIVER_LEAK=1 \
 FAKE_STATE_DIR="$LEAK_STATE" \
 PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
 PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
 PANEL_SELFDRIVE_OUTPUT_ROOT="$LEAK_STATE/output" \
   "$SCRIPT" macos >"$LEAK_STATE/stdout" 2>"$LEAK_STATE/stderr"
 leak_status=$?
@@ -182,6 +255,8 @@ set -e
 (( leak_status != 0 ))
 [[ -d "$LEAK_STATE/output" ]]
 [[ -z "$(find "$LEAK_STATE/output" -mindepth 1 -maxdepth 1 -print -quit)" ]]
+grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-detected' "$LEAK_STATE/bd_notes" >/dev/null
+! grep -F 'fixture-secret-never-written' "$LEAK_STATE/bd_notes"
 ! grep -F 'fixture-secret-never-written' "$LEAK_STATE/stdout"
 ! grep -F 'fixture-secret-never-written' "$LEAK_STATE/stderr"
 
@@ -193,8 +268,8 @@ SWIFT_INFER_AGENT_TOKEN='fixture-token' \
 FAKE_PANEL_ENDPOINT_LEAK=1 \
 FAKE_STATE_DIR="$ENDPOINT_LEAK_STATE" \
 PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
-PANEL_SELFDRIVE_PROBE_BIN="$FAKE_PROBE" \
 PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
 PANEL_SELFDRIVE_OUTPUT_ROOT="$ENDPOINT_LEAK_STATE/output" \
   "$SCRIPT" macos >"$ENDPOINT_LEAK_STATE/stdout" 2>"$ENDPOINT_LEAK_STATE/stderr"
 endpoint_leak_status=$?
@@ -202,6 +277,9 @@ set -e
 (( endpoint_leak_status != 0 ))
 [[ -d "$ENDPOINT_LEAK_STATE/output" ]]
 [[ -z "$(find "$ENDPOINT_LEAK_STATE/output" -mindepth 1 -maxdepth 1 -print -quit)" ]]
+grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-detected' \
+  "$ENDPOINT_LEAK_STATE/bd_notes" >/dev/null
+! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/bd_notes"
 ! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/stdout"
 ! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/stderr"
 
