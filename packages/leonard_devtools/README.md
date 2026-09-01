@@ -58,6 +58,18 @@ in the loop.
 - CLI equivalent: `flutter run -d chrome --dart-define=use_simulated_environment=true`
   from `packages/leonard_devtools/`.
 
+To make the standalone panel itself observable through Leonard, use the
+development-only entrypoint. It installs `LeonardBinding` before mounting the
+same `LeonardDevToolsExtension` shell as `lib/main.dart`. Run it only through
+`flutter run`, which keeps the DDC debugger attached:
+
+```sh
+flutter run -t dev/selfdrive_main.dart -d chrome --dart-define=use_simulated_environment=true
+```
+
+The entrypoint lives outside `lib/`; the shipped release extension continues to
+build `lib/main.dart` and does not include `leonard_flutter`.
+
 ### In-DevTools (real handshake)
 
 Use to verify the real binding handshake, real `/v1/models` calls, and
