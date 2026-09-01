@@ -45,13 +45,14 @@ Two ways to run the panel while developing it:
 
 ### Standalone web (fast iteration)
 
-Use for widget work, layout, and form behavior — anything that does not
-depend on real DTD or real VM-service traffic. The
-`devtools_extensions` simulated environment supplies a fake DTD and a
-fake VM service, so `lib/main.dart` runs as a plain `flutter run -d
-chrome` web app: hot reload on save and source-level breakpoints both
-work, with **no** bundle rebuild (`tool/build_devtools_extension.sh`)
-in the loop.
+The `devtools_extensions` simulated environment hosts the extension UI for standalone development.
+"Simulated" describes the DevTools host, not its
+connections: it accepts real Dart VM Service and DTD connections from an app
+launched with `--print-dtd`. Connect interactively with the URI controls, or
+supply the percent-encoded `uri` and `dtdUri` query parameters; the extension
+manager connects to both real services on load. The standalone panel still has
+hot reload and source-level breakpoints with no bundle rebuild
+(`tool/build_devtools_extension.sh`) in the loop.
 
 - VS Code: launch the **`leonard_devtools (standalone web)`** config
   (group `4_devtools` in `.vscode/launch.json`).
@@ -69,6 +70,18 @@ flutter run -t dev/selfdrive_main.dart -d chrome --dart-define=use_simulated_env
 
 The entrypoint lives outside `lib/`; the shipped release extension continues to
 build `lib/main.dart` and does not include `leonard_flutter`.
+
+For the fully wired self-drive setup, run this from the repository root:
+
+```sh
+./tool/run_panel_selfdrive.sh [sample-app-device-id]
+```
+
+The device id defaults to `macos`. The harness launches `sample_app`, serves
+`dev/selfdrive_main.dart` with `-d web-server` on fixed port `9101`, opens Chrome
+with both real connection URIs percent-encoded into `uri` and `dtdUri`, and
+writes the panel's own DWDS VM-service URI to stdout for the outer Leonard
+process. It remains attached until the panel exits or you interrupt it.
 
 ### In-DevTools (real handshake)
 

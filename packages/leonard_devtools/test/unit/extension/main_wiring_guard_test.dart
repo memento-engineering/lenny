@@ -204,7 +204,7 @@ void main() {
     expect(source, isNot(contains('dev/selfdrive_main.dart')));
   });
 
-  test('standalone README documents self-drive invocation', () {
+  test('standalone README documents real self-drive connections', () {
     final source = _readme().readAsStringSync();
     final standaloneStart = source.indexOf(
       '### Standalone web (fast iteration)',
@@ -222,9 +222,34 @@ void main() {
     expect(
       standalone,
       contains(
+        'simulated environment hosts the extension UI for '
+        'standalone development',
+      ),
+    );
+    expect(
+      standalone,
+      contains('it accepts real Dart VM Service and DTD connections'),
+    );
+    expect(
+      standalone,
+      contains('`uri` and `dtdUri` query parameters'),
+    );
+    expect(
+      standalone,
+      contains('./tool/run_panel_selfdrive.sh [sample-app-device-id]'),
+    );
+    expect(standalone, contains('fixed port `9101`'));
+    expect(
+      standalone,
+      contains(
         'flutter run -t dev/selfdrive_main.dart -d chrome '
         '--dart-define=use_simulated_environment=true',
       ),
+    );
+    expect(standalone.toLowerCase(), isNot(contains('fake dtd')));
+    expect(
+      standalone.toLowerCase(),
+      isNot(contains('fake vm service')),
     );
   });
 }
