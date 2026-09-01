@@ -16,6 +16,7 @@ import 'panels/prompt_panel_controller.dart'
     show PromptPanelController, SessionFactory;
 import 'panels/prompt_tab_mount.dart';
 import 'panels/provider_config_store.dart';
+import 'panels/timeline_panel_mount.dart';
 
 /// The visible content of the extension: panel host + tabbed Scaffold.
 ///
@@ -160,11 +161,12 @@ class _LeonardShellState extends State<LeonardShell> {
       manifestProbe: widget.manifestProbe,
       sessionFactory: widget.sessionFactory,
       child: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           appBar: const TabBar(
             tabs: <Tab>[
               Tab(text: 'Conversation'),
+              Tab(text: 'Timeline'),
               Tab(text: 'Diagnostics'),
             ],
           ),
@@ -172,6 +174,11 @@ class _LeonardShellState extends State<LeonardShell> {
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
               _conversationBody(),
+              ValueListenableBuilder<Stream<TrajectoryRecord>?>(
+                valueListenable: _trajectory,
+                builder: (context, stream, _) =>
+                    TimelinePanelMount(trajectoryStream: stream),
+              ),
               DiagnosticsPanel(loader: widget.diagnosticsSnapshotLoader),
             ],
           ),
