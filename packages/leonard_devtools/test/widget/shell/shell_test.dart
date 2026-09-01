@@ -147,6 +147,33 @@ void main() {
     expect(find.byKey(const Key('runStatus.idle')), findsOneWidget);
   });
 
+  testWidgets('builds with ambient start tab alignment', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Theme(
+          data: ThemeData(
+            tabBarTheme: const TabBarThemeData(
+              tabAlignment: TabAlignment.start,
+            ),
+          ),
+          child: LeonardShell(
+            manifestProbe: _staticProbe(const <ExtensionManifestEntry>[]),
+            sessionFactory: _noSession,
+            diagnosticsSnapshotLoader: _noDiagnostics,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    final TabBar tabBar = tester.widget<TabBar>(find.byType(TabBar));
+    expect(tabBar.isScrollable, isTrue);
+    expect(find.text('Conversation'), findsOneWidget);
+    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Diagnostics'), findsOneWidget);
+  });
+
   testWidgets('offers conversation, timeline, and diagnostics modes', (
     tester,
   ) async {

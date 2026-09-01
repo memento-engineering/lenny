@@ -164,6 +164,7 @@ class _LeonardShellState extends State<LeonardShell> {
         length: 3,
         child: Scaffold(
           appBar: const TabBar(
+            isScrollable: true,
             tabs: <Tab>[
               Tab(text: 'Conversation'),
               Tab(text: 'Timeline'),
