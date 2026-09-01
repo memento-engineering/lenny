@@ -1,11 +1,17 @@
 import 'dart:async';
 
 import 'package:leonard_agent/leonard_agent.dart'
-    show BindingNotInitializedError, LeonardSession, ExtensionManifestEntry;
+    show
+        BindingNotInitializedError,
+        ExtensionManifestEntry,
+        LeonardSession,
+        TrajectoryRecord,
+        TurnRecord;
 import 'package:leonard_devtools/src/diagnostics/diagnostics_panel.dart';
 import 'package:leonard_devtools/src/diagnostics/diagnostics_snapshot.dart';
 import 'package:leonard_devtools/src/leonard_shell.dart';
 import 'package:leonard_devtools/src/manifest_probe.dart';
+import 'package:leonard_devtools/src/panels/timeline_panel_mount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genesis_foundation/genesis_foundation.dart';
@@ -23,6 +29,23 @@ Future<LeonardSession> _noSession() async =>
 
 Future<TreeSnapshot> _noDiagnostics() async =>
     throw StateError('no diagnostics in this test');
+
+const TurnRecord _liveTurn = TurnRecord(
+  index: 0,
+  observation: <String, dynamic>{
+    'core': <String, dynamic>{},
+    'extensions': <String, dynamic>{},
+  },
+  stability: <String, dynamic>{},
+  proposedAction: <String, dynamic>{'tool': 'core.done'},
+  validation: <String, dynamic>{'ok': true},
+  executedAction: <String, dynamic>{
+    'tool': 'core.done',
+    'args': <String, dynamic>{},
+  },
+  diff: <String, dynamic>{},
+  modelMetadata: <String, dynamic>{},
+);
 
 void main() {
   testWidgets('binding missing renders prompt.bindingNotDetected', (
@@ -124,7 +147,9 @@ void main() {
     expect(find.byKey(const Key('runStatus.idle')), findsOneWidget);
   });
 
-  testWidgets('offers conversation and diagnostics modes', (tester) async {
+  testWidgets('offers conversation, timeline, and diagnostics modes', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: LeonardShell(
@@ -137,7 +162,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsOneWidget);
     expect(find.text('Conversation'), findsOneWidget);
+    expect(find.text('Timeline'), findsOneWidget);
     expect(find.text('Diagnostics'), findsOneWidget);
+    await tester.tap(find.text('Timeline'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TimelinePanelMount), findsOneWidget);
+  });
+
+  testWidgets('TimelinePanelMount rebinds to a post-Start stream', (
+    tester,
+  ) async {
+    final ValueNotifier<Stream<TrajectoryRecord>?> trajectory =
+        ValueNotifier<Stream<TrajectoryRecord>?>(null);
+    final StreamController<TrajectoryRecord> controller =
+        StreamController<TrajectoryRecord>.broadcast();
+    addTearDown(trajectory.dispose);
+    addTearDown(controller.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<Stream<TrajectoryRecord>?>(
+            valueListenable: trajectory,
+            builder: (context, stream, _) =>
+                TimelinePanelMount(trajectoryStream: stream),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    trajectory.value = controller.stream;
+    await tester.pump();
+    controller.add(_liveTurn);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('#0 core.done()'), findsOneWidget);
   });
 
   testWidgets('goal field is visible in the composer', (tester) async {

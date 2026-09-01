@@ -17,8 +17,7 @@ enum ModelTier { qwenMlx, claude, openai }
 enum LaunchRunner { flutter, dart }
 
 /// Parsed CLI arguments. The `goal` may still be `null` here when
-/// `--goal` was omitted; the caller (`runCli`) reads stdin as a
-/// fallback when stdin is not a TTY.
+/// `--goal` was omitted; the caller (`runCli`) reads [goalFile] or stdin.
 class CliArgs {
   const CliArgs({
     required this.goal,
@@ -27,6 +26,8 @@ class CliArgs {
     required this.outputPath,
     required this.policy,
     required this.extensions,
+    this.goalFile,
+    this.actionEnvironmentNames = const <String>[],
     this.launch = false,
     this.runner = LaunchRunner.flutter,
     this.device,
@@ -35,9 +36,12 @@ class CliArgs {
     this.turnBudget,
   });
 
-  /// Goal to drive the app toward, supplied via `--goal`. `null` means
-  /// "read from stdin if stdin is not a TTY".
+  /// Goal to drive the app toward, supplied via `--goal`. `null` means use
+  /// [goalFile], or read from stdin when that is also absent.
   final String? goal;
+
+  /// UTF-8 goal file loaded by `runCli`; mutually exclusive with [goal].
+  final String? goalFile;
 
   /// Flutter VM service ws:// URI. `null` when `--launch` is set (the URI is
   /// discovered at runtime by booting the target); non-null otherwise.
@@ -73,6 +77,10 @@ class CliArgs {
   /// supplied.
   final List<String> extensions;
 
+  /// Environment names whose exact `${NAME}` action arguments are resolved
+  /// immediately before target dispatch.
+  final List<String> actionEnvironmentNames;
+
   /// Optional `--agents-md` path override for the system-prompt operating
   /// guide. When `null` the CLI loads the bundled template (resolved
   /// relative to the running script); a missing bundled template falls
@@ -98,6 +106,10 @@ class CliUsageError implements Exception {
 /// reuse from tests.
 ArgParser buildParser() => ArgParser()
   ..addOption('goal', help: 'Goal to drive the app toward (or pipe via stdin).')
+  ..addOption(
+    'goal-file',
+    help: 'Read the goal from a UTF-8 file; mutually exclusive with --goal.',
+  )
   ..addOption(
     'vm-uri',
     help: 'Flutter VM service ws:// URI (required unless --launch).',
@@ -146,6 +158,12 @@ ArgParser buildParser() => ArgParser()
     defaultsTo: '',
     help: 'Comma-separated extension namespaces (e.g. router,riverpod,dio).',
   )
+  ..addMultiOption(
+    'action-env',
+    help:
+        'Resolve exact \${NAME} action arguments from NAME at dispatch; '
+        'the model and trajectory retain the placeholder.',
+  )
   ..addOption(
     'agents-md',
     help:
@@ -170,6 +188,22 @@ CliArgs parseCliArgs(List<String> argv) {
     throw CliUsageError(e.message);
   } on FormatException catch (e) {
     throw CliUsageError(e.message);
+  }
+
+  final String? goalFile = res['goal-file'] as String?;
+  if (goalFile != null && goalFile.isNotEmpty && res['goal'] != null) {
+    throw CliUsageError('--goal and --goal-file are mutually exclusive');
+  }
+
+  final List<String> actionEnvironmentNames =
+      (res['action-env'] as List<String>).toSet().toList(growable: false);
+  final RegExp environmentName = RegExp(r'^[A-Z][A-Z0-9_]*$');
+  for (final String name in actionEnvironmentNames) {
+    if (!environmentName.hasMatch(name)) {
+      throw CliUsageError(
+        '--action-env must be an uppercase environment name; got "$name"',
+      );
+    }
   }
 
   // Exactly one source of the VM URI: an explicit --vm-uri, or --launch
@@ -256,11 +290,13 @@ CliArgs parseCliArgs(List<String> argv) {
 
   return CliArgs(
     goal: res['goal'] as String?,
+    goalFile: goalFile,
     vmUri: vmUri,
     tier: tier,
     outputPath: res['output'] as String?,
     policy: policy,
     extensions: extensions,
+    actionEnvironmentNames: actionEnvironmentNames,
     launch: launch,
     runner: runner,
     device: device,

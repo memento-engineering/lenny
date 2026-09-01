@@ -23,10 +23,12 @@ void main() {
       expect(out, contains('leonard_cli/templates/AGENTS.md'));
       expect(out, contains('--vm-uri'));
       expect(out, contains('--goal'));
+      expect(out, contains('--goal-file'));
       expect(out, contains('--model'));
       expect(out, contains('--output'));
       expect(out, contains('--policy'));
       expect(out, contains('--extensions'));
+      expect(out, contains('--action-env'));
     });
 
     test('missing --vm-uri exits 64', () async {
@@ -38,6 +40,41 @@ void main() {
       expect(r.exitCode, 64);
       expect(r.stderr, contains('--vm-uri'));
     });
+
+    test(
+      'missing action environment exits 64 before output or VM access',
+      () async {
+        final Directory temp = await Directory.systemTemp.createTemp(
+          'leonard-action-env-smoke-',
+        );
+        addTearDown(() => temp.delete(recursive: true));
+        final String output = p.join(temp.path, 'must-not-exist.jsonl');
+        const String missingName = 'LEONARD_HELP_SMOKE_MISSING';
+
+        final ProcessResult r = await Process.run(
+          Platform.resolvedExecutable,
+          <String>[
+            'run',
+            entrypoint,
+            '--vm-uri',
+            'ws://127.0.0.1:1/ws',
+            '--goal',
+            'x',
+            '--output',
+            output,
+            '--action-env',
+            missingName,
+          ],
+          workingDirectory: packageRoot,
+          environment: <String, String>{missingName: ''},
+        );
+
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains(missingName));
+        expect(r.stderr, isNot(contains('failed to connect')));
+        expect(File(output).existsSync(), isFalse);
+      },
+    );
   }, timeout: const Timeout(Duration(seconds: 60)));
 }
 

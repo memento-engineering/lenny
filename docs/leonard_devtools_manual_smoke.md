@@ -1,54 +1,48 @@
-# Manual smoke — leonard_devtools panel
+# Smoke — leonard_devtools panel
 
-Steps a human runs by hand for things automated tests cannot reach
-(real network endpoints, real model providers, real binding traffic).
+The provider/session UI half of the former lenny-ch8 manual smoke (old steps
+4-9) is automated by
+[`packages/leonard_cli/scenarios/leonard_devtools_panel.md`](../packages/leonard_cli/scenarios/leonard_devtools_panel.md).
+`tool/run_panel_selfdrive_scenario.sh` starts the two-target
+[`tool/run_panel_selfdrive.sh`](../tool/run_panel_selfdrive.sh) harness, attaches
+the outer `leonard_cli` to the panel's debug DWDS connection, and has the panel
+drive the real `sample_app` connection.
 
-See also: [`../MANUAL_TESTS.md`](../MANUAL_TESTS.md) for the
-provider-shape parity checklists (Anthropic, swift-infer).
+The scenario fills swift-infer provider settings from environment placeholders,
+requires `OK (N models)`, enters the small goal, presses Start, opens Timeline,
+opens a rendered `TurnRecord` and checks its Proposed action tool, then verifies
+the Start button is enabled after Stop or natural SessionEnded. Its receipt
+records the outer trajectory path, inner row index/tool, prompt-form state, and
+a scan of captured trajectory/driver/harness output.
 
-## End-to-end session.run smoke (lenny-ch8)
+## Run the automated operator smoke
 
-Goal: with a configured provider and a connected `sample_app`, pressing
-**Start** in the prompt panel runs at least one turn end-to-end and at
-least one `TurnRecord` is rendered in the Timeline tab.
+This is operator-invoked only: it needs Chrome, a sample-app device, and a live
+provider. It is not a CI lane.
 
-Steps:
+```sh
+export SWIFT_INFER_ENDPOINT='https://your-swift-infer-host'
+export SWIFT_INFER_AGENT_TOKEN='your-runtime-token'
+export PANEL_SELFDRIVE_MODEL_ID='qwen3.6-35b-a3b-8bit' # optional default
+./tool/run_panel_selfdrive_scenario.sh macos
+```
 
-1. Build the extension: `tool/build_devtools_extension.sh` (or
-   equivalent — see `lenny-1l8`).
-2. Launch `packages/sample_app` (`flutter run -d <device>`); it must
-   call `LeonardBinding.ensureInitialized()` in `main()`.
-3. Open DevTools → **Leonard** tab.
-4. In the **Prompt** panel:
-   - Provider: `swift-infer` (or any configured provider).
-   - Endpoint / bearer token: a reachable instance.
-   - Model id: any model the provider lists (e.g.
-     `qwen3.6-35b-a3b-8bit`).
-5. Click **Test connection** — expect "OK (N models)".
-6. Enter a small goal (e.g. "tap the first ListTile and report what
-   you see").
-7. Click **Start**. Wait for the first turn to land.
-8. Switch to the **Timeline** tab. Verify at least one `TurnRecord`
-   row appears with a non-empty `proposed_action.tool` (e.g.
-   `core.tap`).
-9. Either press **Stop**, or wait for `SessionEnded` — the form must
-   re-enable (the Start button returns) when the loop exits.
+The bearer token is read only from the environment. The committed scenario
+contains `${SWIFT_INFER_AGENT_TOKEN}`, and the outer trajectory retains that
+placeholder while the action boundary supplies the runtime value to the panel.
 
-PASS criteria:
+## Manual remainder
 
-- At least one `TurnRecord` rendered in the Timeline tab within the
-  first turn.
-- No bearer token / api key appears in the DevTools console.
-- After the loop terminates (either via Stop or natural exit), the
-  prompt form re-enables.
+1. Build the shipped extension with `tool/build_devtools_extension.sh` and open
+   the real Leonard extension in Dart DevTools against a debug `sample_app`.
+   This remains a release-bundle packaging check: the self-drive scenario uses
+   `packages/leonard_devtools/dev/selfdrive_main.dart` under `flutter run`
+   because the shipped dart2js release bundle is unattachable.
+2. In Chrome DevTools, search the console after the automated run for the actual
+   bearer-token/API-key values. The driver can scan its own trajectory and
+   process logs, but it cannot observe the browser console. PASS requires no
+   credential value there; append `DEVTOOLS_CONSOLE_SECRET_SCAN=clean` beside
+   the scenario receipt in bead `lenny-f7nx.4` notes.
 
-Failure surfaces tracked separately:
-
-- A configured provider but `Start` does nothing (or never reaches the
-  binding): controller wiring regression — see
-  `prompt_panel_controller_test.dart` and
-  `broadcast_trajectory_sink_test.dart`.
-- Timeline tab stays empty during a confirmed run: shell-level
-  trajectory-bridge regression — see the
-  `TimelinePanelMount.trajectoryStream rebuilds …` test in
-  `shell_test.dart`.
+Provider-shape parity checks remain in
+[`packages/leonard_devtools/MANUAL_TESTS.md`](../packages/leonard_devtools/MANUAL_TESTS.md).

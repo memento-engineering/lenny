@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:leonard_agent/leonard_agent.dart';
 
+import 'action_environment_loop_host.dart';
 import 'cli_args.dart';
 import 'file_trajectory_sink.dart';
 import 'launcher.dart';
@@ -53,8 +54,20 @@ Future<int> runCli(
     return 64;
   }
 
-  // ----- resolve goal (flag wins, stdin fallback) --------------------
+  // ----- resolve goal (flag/file wins, stdin fallback) ---------------
   String? goal = args.goal;
+  if (goal == null && args.goalFile != null) {
+    try {
+      goal = await File(args.goalFile!).readAsString();
+    } on FileSystemException {
+      stderr.writeln('error: --goal-file could not be read: ${args.goalFile}');
+      return 64;
+    }
+    if (goal.trim().isEmpty) {
+      stderr.writeln('error: --goal-file is empty: ${args.goalFile}');
+      return 64;
+    }
+  }
   if (goal == null) {
     if (stdin.hasTerminal) {
       stderr.writeln(
@@ -68,6 +81,14 @@ Future<int> runCli(
       stderr.writeln('error: empty goal (provide --goal or pipe a goal)');
       return 64;
     }
+  }
+
+  final Map<String, String> actionEnvironment;
+  try {
+    actionEnvironment = _loadActionEnvironment(args.actionEnvironmentNames);
+  } on CliUsageError catch (e) {
+    stderr.writeln('error: ${e.message}');
+    return 64;
   }
 
   // ----- open trajectory sink ---------------------------------------
@@ -202,7 +223,7 @@ Future<int> runCli(
     );
 
     // ----- shared bring-up helper (replaces header build + host compose) -----
-    final (:header, :host) = await bringUpSession(
+    final (:header, host: baseHost) = await bringUpSession(
       session: session,
       goal: goal,
       policy: args.policy,
@@ -216,8 +237,15 @@ Future<int> runCli(
       extraConfig: <String, dynamic>{
         'policy': args.policy.wireName,
         'requested_extensions': args.extensions,
+        'action_environment_names': args.actionEnvironmentNames,
       },
     );
+    final LoopHost host = actionEnvironment.isEmpty
+        ? baseHost
+        : ActionEnvironmentLoopHost(
+            delegate: baseHost,
+            valuesByName: actionEnvironment,
+          );
     await writer.writeHeader(header);
 
     // ----- run loop -------------------------------------------------
@@ -244,6 +272,18 @@ Future<int> runCli(
     // Tear down a target we booted (no-op when attaching to --vm-uri).
     await launched?.shutdown();
   }
+}
+
+Map<String, String> _loadActionEnvironment(List<String> names) {
+  final Map<String, String> values = <String, String>{};
+  for (final String name in names) {
+    final String? value = Platform.environment[name];
+    if (value == null || value.isEmpty) {
+      throw CliUsageError('Missing required environment variable: $name');
+    }
+    values[name] = value;
+  }
+  return Map<String, String>.unmodifiable(values);
 }
 
 /// Render a [SessionProgressEvent] as a single human-readable line on

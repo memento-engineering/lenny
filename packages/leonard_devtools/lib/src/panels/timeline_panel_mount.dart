@@ -9,9 +9,7 @@ import '../timeline/timeline_source.dart';
 /// Mounts the Timeline tab in [LeonardShell].
 ///
 /// Owns a [LiveTimelineSource] backed by an empty broadcast stream until
-/// the in-panel session loop publishes records (the wiring from
-/// [LeonardSession] to a [TrajectoryWriter] broadcast is tracked in a
-/// follow-up bead — the panel ships now with a documented seam).
+/// the in-panel session loop publishes its live trajectory stream.
 ///
 /// The browse-mode JSONL picker is currently a paste-area dialog that
 /// accepts the JSONL content directly. A real DTD file picker (using
@@ -39,13 +37,10 @@ class TimelinePanelMount extends StatefulWidget {
 }
 
 class _TimelinePanelMountState extends State<TimelinePanelMount> {
-  late final StreamController<TrajectoryRecord>? _ownedController;
-  late final LiveTimelineSource _liveSource;
+  StreamController<TrajectoryRecord>? _ownedController;
+  late LiveTimelineSource _liveSource;
 
-  @override
-  void initState() {
-    super.initState();
-    final provided = widget.trajectoryStream;
+  void _bind(Stream<TrajectoryRecord>? provided) {
     if (provided != null) {
       _ownedController = null;
       _liveSource = LiveTimelineSource(provided);
@@ -53,6 +48,24 @@ class _TimelinePanelMountState extends State<TimelinePanelMount> {
       _ownedController = StreamController<TrajectoryRecord>.broadcast();
       _liveSource = LiveTimelineSource(_ownedController!.stream);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _bind(widget.trajectoryStream);
+  }
+
+  @override
+  void didUpdateWidget(covariant TimelinePanelMount oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.trajectoryStream, widget.trajectoryStream)) return;
+    final LiveTimelineSource previousSource = _liveSource;
+    final StreamController<TrajectoryRecord>? previousController =
+        _ownedController;
+    _bind(widget.trajectoryStream);
+    unawaited(previousSource.close());
+    unawaited(previousController?.close());
   }
 
   @override

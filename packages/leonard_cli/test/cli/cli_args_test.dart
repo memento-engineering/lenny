@@ -31,6 +31,74 @@ void main() {
       expect(args.extensions, <String>['router', 'riverpod', 'dio']);
     });
 
+    test('--goal-file parses when --goal is absent', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal-file',
+        'scenarios/panel.md',
+      ]);
+      expect(args.goal, isNull);
+      expect(args.goalFile, 'scenarios/panel.md');
+    });
+
+    test('--goal and --goal-file are mutually exclusive', () {
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--goal',
+          'x',
+          '--goal-file',
+          'goal.md',
+        ]),
+        throwsA(
+          isA<CliUsageError>().having(
+            (error) => error.message,
+            'message',
+            contains('mutually exclusive'),
+          ),
+        ),
+      );
+    });
+
+    test('repeated --action-env values are de-duplicated in order', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--action-env',
+        'FIRST_NAME',
+        '--action-env',
+        'SECOND_NAME',
+        '--action-env',
+        'FIRST_NAME',
+      ]);
+      expect(args.actionEnvironmentNames, <String>[
+        'FIRST_NAME',
+        'SECOND_NAME',
+      ]);
+    });
+
+    test('lowercase and dashed --action-env names are rejected', () {
+      for (final String name in <String>['lowercase', 'DASHED-NAME']) {
+        expect(
+          () => parseCliArgs(<String>[
+            '--vm-uri',
+            'ws://127.0.0.1/ws',
+            '--action-env',
+            name,
+          ]),
+          throwsA(
+            isA<CliUsageError>().having(
+              (error) => error.message,
+              'message',
+              contains(name),
+            ),
+          ),
+        );
+      }
+    });
+
     test('invalid --model rejected', () {
       expect(
         () => parseCliArgs(<String>[
