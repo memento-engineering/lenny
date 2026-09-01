@@ -23,6 +23,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  leonard_flutter: ^0.3.0
   lints: ^5.1.0
   test: any
 

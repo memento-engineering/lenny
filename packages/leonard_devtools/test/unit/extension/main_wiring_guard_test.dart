@@ -1,31 +1,50 @@
 /// `lib/main.dart` cannot be imported from a VM `flutter test`: it
 /// imports `dart:html`, and `DevToolsExtension` transitively imports
 /// `dart:js_interop` / `package:web`. This test therefore gates the
-/// production wiring at the SOURCE level — `LeonardDevToolsExtension`
-/// must delegate to `LeonardExtensionRoot` and must read no DevTools
-/// global in its own build (the ordering regression). The behavioural
-/// half lives in `test/extension_root_test.dart`.
+/// production wiring at the SOURCE level. It also pins the self-drive
+/// entrypoint outside `lib/`, the dev-only Leonard dependency, and the
+/// production extension build target.
 library;
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Locates `leonard_devtools/lib/main.dart` whether the test runner's
-/// CWD is the package directory or the repo root.
-File _mainDart() {
-  var dir = Directory.current;
+/// Locates the leonard_devtools package whether the test runner's CWD is
+/// the package directory or the repository root.
+Directory _packageRoot() {
+  var dir = Directory.current.absolute;
   for (var i = 0; i < 6; i++) {
-    final local = File('${dir.path}/lib/main.dart');
-    if (dir.path.endsWith('leonard_devtools') && local.existsSync()) {
-      return local;
+    final localPubspec = File('${dir.path}/pubspec.yaml');
+    if (dir.path.endsWith('leonard_devtools') &&
+        localPubspec.existsSync()) {
+      return dir;
     }
-    final nested = File('${dir.path}/packages/leonard_devtools/lib/main.dart');
-    if (nested.existsSync()) return nested;
+
+    final nested = Directory('${dir.path}/packages/leonard_devtools');
+    if (File('${nested.path}/pubspec.yaml').existsSync()) {
+      return nested;
+    }
     dir = dir.parent;
   }
-  throw StateError('could not locate leonard_devtools/lib/main.dart');
+  throw StateError('could not locate the leonard_devtools package');
 }
+
+Directory _repoRoot() => _packageRoot().parent.parent;
+
+Directory _libDirectory() => Directory('${_packageRoot().path}/lib');
+
+File _mainDart() => File('${_packageRoot().path}/lib/main.dart');
+
+File _selfDriveMain() =>
+    File('${_packageRoot().path}/dev/selfdrive_main.dart');
+
+File _pubspec() => File('${_packageRoot().path}/pubspec.yaml');
+
+File _readme() => File('${_packageRoot().path}/README.md');
+
+File _buildScript() =>
+    File('${_repoRoot().path}/tool/build_devtools_extension.sh');
 
 /// Returns the source of the `LeonardDevToolsExtension` declaration:
 /// from its `class` keyword to the start of the next top-level
@@ -83,6 +102,131 @@ void main() {
       expect(body, isNot(contains('vm_service_io.dart')));
     },
   );
+
+  test(
+    'self-drive entrypoint installs LeonardBinding before shared shell',
+    () {
+      final source = _selfDriveMain().readAsStringSync();
+      expect(
+        source,
+        contains(
+          "import 'package:leonard_devtools/main.dart' "
+          'show LeonardDevToolsExtension;',
+        ),
+      );
+      expect(
+        source,
+        contains('extensions: const <LeonardExtension>[]'),
+      );
+
+      final bindingCall = source.indexOf(
+        'LeonardBinding.ensureInitialized(',
+      );
+      final runAppCall = source.indexOf(
+        'runApp(const LeonardDevToolsExtension())',
+      );
+      expect(bindingCall, isNonNegative);
+      expect(runAppCall, greaterThan(bindingCall));
+    },
+  );
+
+  test('leonard_flutter remains a dev dependency', () {
+    final source = _pubspec().readAsStringSync();
+    final dependenciesStart = source.indexOf('\ndependencies:\n');
+    final devDependenciesStart = source.indexOf(
+      '\ndev_dependencies:\n',
+    );
+    final flutterStart = source.indexOf(
+      '\nflutter:\n',
+      devDependenciesStart,
+    );
+    expect(dependenciesStart, isNonNegative);
+    expect(devDependenciesStart, greaterThan(dependenciesStart));
+    expect(flutterStart, greaterThan(devDependenciesStart));
+
+    final dependencies = source.substring(
+      dependenciesStart,
+      devDependenciesStart,
+    );
+    final devDependencies = source.substring(
+      devDependenciesStart,
+      flutterStart,
+    );
+    final leonardFlutter = RegExp(
+      r'^  leonard_flutter: \^0\.3\.0$',
+      multiLine: true,
+    );
+    expect(dependencies, isNot(matches(leonardFlutter)));
+    expect(devDependencies, matches(leonardFlutter));
+  });
+
+  test('production lib imports no leonard_flutter', () {
+    final packageRootPath = _packageRoot().path;
+    final leonardFlutterImport = RegExp(
+      r'''^\s*import\s+['"]package:leonard_flutter/''',
+      multiLine: true,
+    );
+    final offenders = _libDirectory()
+        .listSync(recursive: true, followLinks: false)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.dart'))
+        .where(
+          (file) => leonardFlutterImport.hasMatch(
+            file.readAsStringSync(),
+          ),
+        )
+        .map(
+          (file) => file.path.substring(packageRootPath.length + 1),
+        )
+        .toList()
+      ..sort();
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'lib/ must not import dev-only leonard_flutter: '
+          '$offenders',
+    );
+  });
+
+  test('extension build keeps lib/main.dart entrypoint', () {
+    final source = _buildScript().readAsStringSync();
+    final buildCommands = RegExp(
+      r'^flutter pub run devtools_extensions build_and_copy \\$',
+      multiLine: true,
+    ).allMatches(source);
+    final defaultSources = RegExp(
+      r'^  --source=\. \\$',
+      multiLine: true,
+    ).allMatches(source);
+
+    expect(buildCommands, hasLength(2));
+    expect(defaultSources, hasLength(2));
+    expect(source, isNot(contains('dev/selfdrive_main.dart')));
+  });
+
+  test('standalone README documents self-drive invocation', () {
+    final source = _readme().readAsStringSync();
+    final standaloneStart = source.indexOf(
+      '### Standalone web (fast iteration)',
+    );
+    final inDevToolsStart = source.indexOf(
+      '### In-DevTools (real handshake)',
+    );
+    expect(standaloneStart, isNonNegative);
+    expect(inDevToolsStart, greaterThan(standaloneStart));
+
+    final standalone = source.substring(
+      standaloneStart,
+      inDevToolsStart,
+    );
+    expect(
+      standalone,
+      contains(
+        'flutter run -t dev/selfdrive_main.dart -d chrome '
+        '--dart-define=use_simulated_environment=true',
+      ),
+    );
+  });
 }
 
 /// Returns the source of `_loadDiagnosticsSnapshot`: from its declaration
