@@ -82,6 +82,21 @@ class VmServiceClient {
   /// import / DevTools-supplied `VmService`.
   static Future<VmServiceClient> connect(Uri wsUri) async {
     final VmService vm = await vmServiceConnectUri(wsUri.toString());
+    return _resolveConnectedVmService(vm);
+  }
+
+  /// Exercise the owning connect path with an already-open [vm].
+  ///
+  /// Unlike [forTest], this asks [vm] for its VM/isolate list and therefore
+  /// covers the same isolate-resolution protocol call as [connect].
+  @visibleForTesting
+  static Future<VmServiceClient> connectForTest(VmService vm) {
+    return _resolveConnectedVmService(vm);
+  }
+
+  static Future<VmServiceClient> _resolveConnectedVmService(
+    VmService vm,
+  ) async {
     final VM state = await vm.getVM();
     final List<IsolateRef> isolates = state.isolates ?? const <IsolateRef>[];
     if (isolates.isEmpty) {
