@@ -31,8 +31,11 @@ command -v "$FLUTTER_BIN" >/dev/null 2>&1 ||
 
 RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/lenny-panel-selfdrive.XXXXXX")" ||
   fail 'could not create temporary run directory'
-SAMPLE_LOG="$RUN_DIR/sample_app.log"
-PANEL_LOG="$RUN_DIR/panel.log"
+ARTIFACT_DIR="${PANEL_SELFDRIVE_ARTIFACT_DIR:-$RUN_DIR}"
+[[ -d "$ARTIFACT_DIR" ]] ||
+  fail "artifact directory missing: $ARTIFACT_DIR"
+SAMPLE_LOG="$ARTIFACT_DIR/sample_app.log"
+PANEL_LOG="$ARTIFACT_DIR/panel.log"
 SAMPLE_APP_PID=''
 PANEL_PID=''
 

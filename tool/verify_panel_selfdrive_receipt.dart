@@ -2,16 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 const List<String> _secretNames = <String>[
+  'SWIFT_INFER_ENDPOINT',
   'SWIFT_INFER_AGENT_TOKEN',
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',
 ];
 
 Future<void> main(List<String> args) async {
-  if (args.length != 3) {
+  if (args.length < 3) {
     stderr.writeln(
       'usage: dart run tool/verify_panel_selfdrive_receipt.dart '
-      '<trajectory.jsonl> <driver.log> <harness.log>',
+      '<trajectory.jsonl> <driver.log> <harness.log> [capture ...]',
     );
     exitCode = 64;
     return;
@@ -118,7 +119,7 @@ Future<void> main(List<String> args) async {
   }
 
   stdout.writeln('TRAJECTORY_PATH=${captures.first.absolute.path}');
-  stdout.writeln('OBSERVED_TURN_INDEX=${observedRow!.group(1)}');
+  stdout.writeln('OBSERVED_TURN_INDEX=${observedRow.group(1)}');
   stdout.writeln('OBSERVED_TURN_TOOL=${observedRow.group(2)}');
   stdout.writeln('PROMPT_FORM=enabled');
   stdout.writeln('CAPTURED_OUTPUT_SECRET_SCAN=clean');

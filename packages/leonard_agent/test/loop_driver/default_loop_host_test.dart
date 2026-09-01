@@ -73,6 +73,7 @@ _FakeVmService _fakeVm({
       final obs = observationHandler != null
           ? await observationHandler(method, args)
           : <String, dynamic>{
+              'type': 'Observation',
               'value': <String, dynamic>{
                 'semantics': <Map<String, dynamic>>[
                   <String, dynamic>{
@@ -397,10 +398,7 @@ void main() {
       expect(lastArgs?['id'], equals('42'));
       expect(
         result,
-        equals(<String, dynamic>{
-          'ok': true,
-          'echo': 'ext.leonard.core.tap',
-        }),
+        equals(<String, dynamic>{'ok': true, 'echo': 'ext.leonard.core.tap'}),
       );
 
       await session.end();
@@ -589,6 +587,7 @@ void main() {
           },
         ],
         observationHandler: (method, args) async => <String, dynamic>{
+          'type': 'Observation',
           'value': <String, dynamic>{
             'semantics': <Map<String, dynamic>>[],
             'routes': <String>['/'],

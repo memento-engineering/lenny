@@ -83,6 +83,9 @@ Map<String, dynamic> _bundleB() => <String, dynamic>{
   'extensions': const <String, dynamic>{},
 };
 
+Map<String, dynamic> _envelope(Map<String, dynamic> bundle) =>
+    <String, dynamic>{'type': 'Observation', 'value': bundle};
+
 void main() {
   group('LeonardSession.observeWithDiff', () {
     test('throws StateError before start()', () async {
@@ -109,7 +112,7 @@ void main() {
             'extensions': const <Object>[],
           });
         }
-        return _resp(_bundleA());
+        return _resp(_envelope(_bundleA()));
       });
       final LeonardSession session = LeonardSession.forTest(
         VmServiceClient.forTest(fake, 'iso-1'),
@@ -149,7 +152,7 @@ void main() {
           });
         }
         obsCall++;
-        return _resp(obsCall == 1 ? _bundleA() : _bundleB());
+        return _resp(_envelope(obsCall == 1 ? _bundleA() : _bundleB()));
       });
       final LeonardSession session = LeonardSession.forTest(
         VmServiceClient.forTest(fake, 'iso-1'),
@@ -193,7 +196,7 @@ void main() {
             'extensions': const <Object>[],
           });
         }
-        return _resp(_bundleA());
+        return _resp(_envelope(_bundleA()));
       });
       final LeonardSession session = LeonardSession.forTest(
         VmServiceClient.forTest(fake, 'iso-1'),

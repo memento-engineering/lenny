@@ -60,6 +60,9 @@ void main() {
       '--action-env SWIFT_INFER_AGENT_TOKEN',
       '--action-env PANEL_SELFDRIVE_MODEL_ID',
       'tool/verify_panel_selfdrive_receipt.dart',
+      'packages/leonard_agent/tool/panel_selfdrive_probe.dart',
+      'PANEL_SELFDRIVE_ARTIFACT_DIR',
+      'panel_probe.json',
     ]) {
       expect(source, contains(expected), reason: 'missing $expected');
     }
@@ -102,9 +105,11 @@ void main() {
       final File trajectory = File(p.join(temp.path, 'outer.jsonl'));
       final File driverLog = File(p.join(temp.path, 'driver.log'));
       final File harnessLog = File(p.join(temp.path, 'harness.log'));
+      final File panelLog = File(p.join(temp.path, 'panel.log'));
       await trajectory.writeAsString(_validTrajectoryFixture());
       await driverLog.writeAsString('driver completed\n');
       await harnessLog.writeAsString('harness completed\n');
+      await panelLog.writeAsString('panel completed\n');
 
       const String fixtureSecret = 'LEONARD_TEST_RECEIPT_SECRET';
       final List<String> arguments = <String>[
@@ -113,6 +118,7 @@ void main() {
         trajectory.path,
         driverLog.path,
         harnessLog.path,
+        panelLog.path,
       ];
       final ProcessResult safe = await Process.run(
         Platform.resolvedExecutable,
@@ -138,6 +144,20 @@ void main() {
       expect(leak.exitCode, 2);
       expect(leak.stdout, isNot(contains(fixtureSecret)));
       expect(leak.stderr, isNot(contains(fixtureSecret)));
+
+      const String fixtureEndpoint = 'https://private-swift.example';
+      await panelLog.writeAsString('$fixtureEndpoint\n');
+      final ProcessResult endpointLeak = await Process.run(
+        Platform.resolvedExecutable,
+        arguments,
+        workingDirectory: repositoryRoot,
+        environment: const <String, String>{
+          'SWIFT_INFER_ENDPOINT': fixtureEndpoint,
+        },
+      );
+      expect(endpointLeak.exitCode, 2);
+      expect(endpointLeak.stdout, isNot(contains(fixtureEndpoint)));
+      expect(endpointLeak.stderr, isNot(contains(fixtureEndpoint)));
     },
   );
 }

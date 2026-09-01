@@ -6,6 +6,7 @@ HARNESS="${PANEL_SELFDRIVE_HARNESS:-$ROOT/tool/run_panel_selfdrive.sh}"
 DART_BIN="${PANEL_SELFDRIVE_DART_BIN:-dart}"
 SCENARIO="$ROOT/packages/leonard_cli/scenarios/leonard_devtools_panel.md"
 VERIFY="$ROOT/tool/verify_panel_selfdrive_receipt.dart"
+PROBE="$ROOT/packages/leonard_agent/tool/panel_selfdrive_probe.dart"
 DEVICE="${1:-macos}"
 STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 
@@ -28,7 +29,7 @@ export PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-qwen3.6-35b-a3b-8bi
   printf 'run_panel_selfdrive_scenario: harness is not executable: %s\n' "$HARNESS" >&2
   exit 1
 }
-[[ -f "$SCENARIO" && -f "$VERIFY" ]] || {
+[[ -f "$SCENARIO" && -f "$VERIFY" && -f "$PROBE" ]] || {
   printf '%s\n' 'run_panel_selfdrive_scenario: scenario assets are missing' >&2
   exit 1
 }
@@ -43,6 +44,11 @@ DRIVER_LOG="$RUN_DIR/driver.log"
 HARNESS_LOG="$RUN_DIR/harness.log"
 HARNESS_OUT="$RUN_DIR/panel_dwds.out"
 VERIFY_LOG="$RUN_DIR/verify.log"
+PANEL_PROBE="$RUN_DIR/panel_probe.json"
+PANEL_PROBE_LOG="$RUN_DIR/panel_probe.log"
+PANEL_LOG="$RUN_DIR/panel.log"
+SAMPLE_LOG="$RUN_DIR/sample_app.log"
+printf 'PANEL_SELFDRIVE_RUN_DIR=%s\n' "$RUN_DIR" >&2
 HARNESS_PID=''
 
 cleanup() {
@@ -58,7 +64,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-"$HARNESS" "$DEVICE" >"$HARNESS_OUT" 2>"$HARNESS_LOG" &
+PANEL_SELFDRIVE_ARTIFACT_DIR="$RUN_DIR" \
+  "$HARNESS" "$DEVICE" >"$HARNESS_OUT" 2>"$HARNESS_LOG" &
 HARNESS_PID=$!
 deadline=$((SECONDS + STARTUP_TIMEOUT_SECONDS))
 PANEL_DWDS_URI=''
@@ -75,6 +82,25 @@ done
   printf '%s\n' 'run_panel_selfdrive_scenario: panel DWDS readiness timed out' >&2
   exit 1
 }
+
+run_probe() {
+  if [[ -n "${PANEL_SELFDRIVE_PROBE_BIN:-}" ]]; then
+    "$PANEL_SELFDRIVE_PROBE_BIN" "$PANEL_DWDS_URI"
+  else
+    "$DART_BIN" run "$PROBE" "$PANEL_DWDS_URI"
+  fi
+}
+
+set +e
+run_probe >"$PANEL_PROBE" 2>"$PANEL_PROBE_LOG"
+probe_status=$?
+set -e
+if (( probe_status != 0 )); then
+  sed -n '1,160p' "$PANEL_PROBE_LOG" >&2
+  printf 'run_panel_selfdrive_scenario: panel probe exited %d\n' \
+    "$probe_status" >&2
+  exit "$probe_status"
+fi
 
 DRIVER_ARGS=(
   --vm-uri "$PANEL_DWDS_URI"
@@ -98,9 +124,18 @@ set -e
 
 set +e
 receipt="$("$DART_BIN" run "$VERIFY" \
-  "$TRAJECTORY" "$DRIVER_LOG" "$HARNESS_LOG" 2>"$VERIFY_LOG")"
+  "$TRAJECTORY" \
+  "$DRIVER_LOG" \
+  "$HARNESS_LOG" \
+  "$PANEL_PROBE" \
+  "$PANEL_PROBE_LOG" \
+  "$PANEL_LOG" \
+  "$SAMPLE_LOG" \
+  2>"$VERIFY_LOG")"
 verify_status=$?
 set -e
+printf '%s\n' "$driver_status" >"$RUN_DIR/driver.status"
+printf '%s\n' "$verify_status" >"$RUN_DIR/verify.status"
 if (( verify_status == 2 )); then
   rm -rf -- "$RUN_DIR"
   printf '%s\n' 'run_panel_selfdrive_scenario: secret scan failed; captured files removed' >&2

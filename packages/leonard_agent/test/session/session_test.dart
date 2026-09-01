@@ -133,17 +133,20 @@ void main() {
         }
         // get_stable_observation — return a minimally-valid bundle.
         return _resp(<String, dynamic>{
-          'semantics': const <Object>[],
-          'routes': const <String>[],
-          'errors': const <Object>[],
-          'stability': <String, dynamic>{
-            'policy': 'action_relative',
-            'terminated_by': 'idle',
-            'duration_ms': 1,
-            'framework_busy': <String, dynamic>{'anyBusy': false},
-            'extensions_busy': const <Object>[],
+          'type': 'Observation',
+          'value': <String, dynamic>{
+            'semantics': const <Object>[],
+            'routes': const <String>[],
+            'errors': const <Object>[],
+            'stability': <String, dynamic>{
+              'policy': 'action_relative',
+              'terminated_by': 'idle',
+              'duration_ms': 1,
+              'framework_busy': <String, dynamic>{'anyBusy': false},
+              'extensions_busy': const <Object>[],
+            },
+            'extensions': const <String, dynamic>{},
           },
-          'extensions': const <String, dynamic>{},
         });
       });
       final session = LeonardSession.forTest(client);

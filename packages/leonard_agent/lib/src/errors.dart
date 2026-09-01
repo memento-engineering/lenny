@@ -23,3 +23,31 @@ Add to your app's main():
   }
 ''';
 }
+
+/// Thrown when `get_stable_observation` does not return the binding envelope.
+class ObservationEnvelopeError extends StateError {
+  /// Creates an error for [isolateId] and the response [topLevelKeys].
+  factory ObservationEnvelopeError({
+    required String isolateId,
+    required Iterable<String> topLevelKeys,
+  }) {
+    final List<String> keys = topLevelKeys.toList()..sort();
+    return ObservationEnvelopeError._(
+      isolateId,
+      List<String>.unmodifiable(keys),
+    );
+  }
+
+  ObservationEnvelopeError._(this.isolateId, this.topLevelKeys)
+    : super(
+        'Malformed Observation envelope from isolate "$isolateId"; '
+        'top-level keys: [${topLevelKeys.join(', ')}]. Expected type '
+        '"Observation" and value.semantics to be a list.',
+      );
+
+  /// Isolate pinned by [VmServiceClient] for the failing extension call.
+  final String isolateId;
+
+  /// Sorted keys present on the raw VM-service response.
+  final List<String> topLevelKeys;
+}

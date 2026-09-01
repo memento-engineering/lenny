@@ -11,6 +11,7 @@ library;
 
 import 'package:leonard_contract/leonard_contract.dart';
 
+import '../errors.dart';
 import '../observation/models.dart';
 import '../vm_service_client.dart';
 
@@ -61,9 +62,14 @@ class ObservationPuller {
       <String, dynamic>{'policy': policy.wireName},
     );
     final Object? wrapped = resp['value'];
-    final Map<String, dynamic> bundle = wrapped is Map
-        ? wrapped.cast<String, dynamic>()
-        : resp;
-    return Observation.fromJson(bundle);
+    if (resp['type'] != 'Observation' ||
+        wrapped is! Map ||
+        wrapped['semantics'] is! List) {
+      throw ObservationEnvelopeError(
+        isolateId: _client.isolateId,
+        topLevelKeys: resp.keys,
+      );
+    }
+    return Observation.fromJson(wrapped.cast<String, dynamic>());
   }
 }

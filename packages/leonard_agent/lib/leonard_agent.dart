@@ -1,7 +1,8 @@
 /// Web-compatible harness library. MUST NOT import dart:io.
 library;
 
-export 'src/errors.dart' show BindingNotInitializedError;
+export 'src/errors.dart'
+    show BindingNotInitializedError, ObservationEnvelopeError;
 export 'src/loop_driver/default_loop_host.dart' show DefaultLoopHost;
 export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;

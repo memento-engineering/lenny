@@ -99,13 +99,14 @@ run_case() {
   local missing_value="$2"
   local case_dir="$TEST_ROOT/$case_name"
   local status
-  mkdir -p "$case_dir"
+  mkdir -p "$case_dir/artifacts"
   set +e
   FAKE_STATE_DIR="$case_dir" \
   FAKE_MISSING_VALUE="$missing_value" \
   SELFDRIVE_FLUTTER_BIN="$FAKE_BIN/flutter" \
   SELFDRIVE_CHROME_BIN="$FAKE_BIN/chrome" \
   SELFDRIVE_STARTUP_TIMEOUT_SECONDS="$TEST_STARTUP_TIMEOUT_SECONDS" \
+  PANEL_SELFDRIVE_ARTIFACT_DIR="$case_dir/artifacts" \
     "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
   status=$?
   set -e
@@ -130,6 +131,8 @@ if [[ "$MODE" == all || "$MODE" == happy ]]; then
   grep -F -- \
     'run -d web-server --web-port 9101 -t dev/selfdrive_main.dart --dart-define=use_simulated_environment=true' \
     "$TEST_ROOT/happy/panel_args" >/dev/null
+  [[ -s "$TEST_ROOT/happy/artifacts/sample_app.log" ]]
+  [[ -s "$TEST_ROOT/happy/artifacts/panel.log" ]]
   printf 'run_panel_selfdrive_test: happy PASS\n'
 fi
 
