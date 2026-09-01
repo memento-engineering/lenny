@@ -68,9 +68,11 @@ class LeonardVmServiceFake extends VmService {
   LeonardVmServiceFake({
     required this.handshakeResponse,
     this.observationBundle,
+    List<IsolateRef> vmIsolates = const <IsolateRef>[],
     Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>?)>?
     handlers,
-  }) : handlers =
+  }) : vmIsolates = List<IsolateRef>.unmodifiable(vmIsolates),
+       handlers =
            handlers ??
            <
              String,
@@ -88,6 +90,12 @@ class LeonardVmServiceFake extends VmService {
   /// calls to `core.get_stable_observation` throw RPCError(-32601).
   final Map<String, dynamic>? observationBundle;
 
+  /// Isolates returned by the DWDS-shaped [getVM] response.
+  final List<IsolateRef> vmIsolates;
+
+  /// Number of [getVM] calls received.
+  int getVmCalls = 0;
+
   /// Per-method dispatch table for calls not matched by the handshake or
   /// observation short-circuits. Keys are fully-qualified wire names
   /// (`ext.leonard.<ns>.<tool>`).
@@ -103,6 +111,12 @@ class LeonardVmServiceFake extends VmService {
   static const String _kHandshake = '$kLeonardExtensionPrefix.core.handshake';
   static const String _kObservation =
       '$kLeonardExtensionPrefix.core.get_stable_observation';
+
+  @override
+  Future<VM> getVM() async {
+    getVmCalls++;
+    return VM(isolates: List<IsolateRef>.of(vmIsolates));
+  }
 
   @override
   Future<Response> callServiceExtension(
