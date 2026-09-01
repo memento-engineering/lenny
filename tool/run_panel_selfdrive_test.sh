@@ -4,10 +4,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SCRIPT="$ROOT/tool/run_panel_selfdrive.sh"
 MODE="${1:-all}"
+TEST_STARTUP_TIMEOUT_SECONDS="${SELFDRIVE_TEST_STARTUP_TIMEOUT_SECONDS:-15}"
 case "$MODE" in
   all|happy|failures) ;;
   *) printf 'usage: %s [all|happy|failures]\n' "$0" >&2; exit 64 ;;
 esac
+[[ "$TEST_STARTUP_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || {
+  printf '%s\n' 'run_panel_selfdrive_test: SELFDRIVE_TEST_STARTUP_TIMEOUT_SECONDS must be a positive integer' >&2
+  exit 64
+}
 
 [[ -x "$SCRIPT" ]] || {
   printf 'run_panel_selfdrive_test: script is not executable: %s\n' "$SCRIPT" >&2
@@ -45,12 +50,16 @@ case "$PWD" in
       printf '%s\n' \
         'The Dart Tooling Daemon is available at: ws://127.0.0.1:6000/dtd=/'
     fi
+    if [[ "${FAKE_MISSING_VALUE:-none}" == sample_vm ||
+          "${FAKE_MISSING_VALUE:-none}" == dtd ]]; then
+      exit 94
+    fi
     hold
     ;;
   */packages/leonard_devtools)
     printf '%s\n' "$*" >"$FAKE_STATE_DIR/panel_args"
     if [[ "${FAKE_MISSING_VALUE:-none}" == panel_url ]]; then
-      hold
+      exit 95
     fi
     : >"$FAKE_STATE_DIR/panel_served"
     printf '%s\n' \
@@ -61,7 +70,7 @@ case "$PWD" in
     done
     [[ -f "$FAKE_STATE_DIR/chrome_opened" ]] || exit 92
     if [[ "${FAKE_MISSING_VALUE:-none}" == panel_dwds ]]; then
-      hold
+      exit 96
     fi
     printf '%s\n' \
       'Debug service listening on ws://127.0.0.1:7000/panel=/ws'
@@ -96,7 +105,7 @@ run_case() {
   FAKE_MISSING_VALUE="$missing_value" \
   SELFDRIVE_FLUTTER_BIN="$FAKE_BIN/flutter" \
   SELFDRIVE_CHROME_BIN="$FAKE_BIN/chrome" \
-  SELFDRIVE_STARTUP_TIMEOUT_SECONDS=2 \
+  SELFDRIVE_STARTUP_TIMEOUT_SECONDS="$TEST_STARTUP_TIMEOUT_SECONDS" \
     "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
   status=$?
   set -e
