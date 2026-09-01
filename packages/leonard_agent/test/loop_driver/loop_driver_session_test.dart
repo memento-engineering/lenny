@@ -299,6 +299,34 @@ void main() {
       expect(footer['harness_error'], 'connection_lost');
     });
 
+    test('envelope rejected mid-turn → harness_error '
+        'observation_envelope_rejected; footer carries the keys', () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        tools: <ToolDescriptor>[_coreWait()],
+        observeFn: () async {
+          throw ObservationEnvelopeError(
+            isolateId: 'panel-isolate',
+            topLevelKeys: const <String>['type', 'result'],
+          );
+        },
+      );
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
+      final driver = _newDriver(host: host, provider: provider, writer: writer);
+      final t = await driver.runSession();
+      expect(t.outcome, SessionOutcome.harnessError);
+      expect(t.harnessError, HarnessError.observationEnvelopeRejected);
+      final footer = _lastFooter(sink);
+      expect(footer['outcome'], 'harness_error');
+      expect(footer['harness_error'], 'observation_envelope_rejected');
+      expect(footer['termination_detail'], 'envelope_keys=[result, type]');
+    });
+
     test(
       'core.done(reason) → outcome=done, footer.final_summary==reason',
       () async {

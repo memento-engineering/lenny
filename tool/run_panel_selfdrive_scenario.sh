@@ -11,7 +11,7 @@ STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
 BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
 BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
-ROUND_MARKER='PANEL_SELFDRIVE_ROUND=4'
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=5'
 
 if (( $# > 1 )); then
   printf 'usage: %s [sample-app-device-id]\n' "$0" >&2
@@ -148,7 +148,7 @@ persist_receipt() {
   "$BD_BIN" show "$BEAD_ID" >"$RUN_DIR/bead.readback"
   grep -Fq "$ROUND_MARKER" "$RUN_DIR/bead.readback" || {
     printf '%s\n' \
-      'run_panel_selfdrive_scenario: round-4 receipt missing after bd read-back' \
+      'run_panel_selfdrive_scenario: round-5 receipt missing after bd read-back' \
       >&2
     return 1
   }
@@ -170,15 +170,17 @@ if (( verify_status == 2 )); then
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
-    'SCENARIO_EXIT_STATUS=1' \
+    "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
     'FURTHEST_POINT=secret scan' \
     'FAILING_ASSERTION=no credential value appears in captured output' \
-    "RAW_ERROR=secret scan failed for ${leak_name:-unknown}" \
-    'CAPTURED_OUTPUT_SECRET_SCAN=leak-detected')"
-  persist_receipt "$note" || true
-  rm -rf -- "$RUN_DIR"
-  printf '%s\n' 'run_panel_selfdrive_scenario: secret scan failed; captured files removed' >&2
+    "RAW_ERROR=secret scan redacted ${leak_name:-unknown}" \
+    "$(scrub_guard "$receipt")" \
+    "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)")"
+  persist_receipt "$note"
+  printf '%s\n' \
+    'run_panel_selfdrive_scenario: credential redacted in captured output; evidence retained' >&2
+  printf '%s\n' "$note" >&2
   exit 1
 fi
 
@@ -205,8 +207,8 @@ if (( driver_status != 0 || verify_status != 0 )); then
     "FURTHEST_POINT=outer trajectory turn ${last_index:-unknown}, proposed_action.tool=${last_tool:-unknown}" \
     "FAILING_ASSERTION=$failing" \
     "RAW_ERROR=${raw_error:-none-captured}" \
+    "$(scrub_guard "$receipt")" \
     "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)" \
-    'CAPTURED_OUTPUT_SECRET_SCAN=clean' \
     'PANEL_LOG_LAST_20_BEGIN' \
     "$(scrub_guard "$(tail -n 20 "$PANEL_LOG" 2>/dev/null || true)")" \
     'PANEL_LOG_LAST_20_END')"
@@ -224,7 +226,7 @@ note="$(printf '%s\n' \
   'VERIFIER_EXIT_STATUS=0' \
   "$receipt" \
   'ROOT_CAUSE=core observation exceeded the former 4096-byte all-or-nothing budget' \
-  'REPAIRS=32768-byte default plus coreBudgetBytes request override and graceful core degradation; tools-only envelope acceptance; raw probe folded into the outer session')"
+  'REPAIRS=typed ObservationEnvelopeError surfaced as observation_envelope_rejected; endpoint reclassified as configuration; credential leaks redacted in place instead of deleting the run directory')"
 persist_receipt "$note"
 sed -n '1,160p' "$DRIVER_LOG" >&2
 printf '%s\n' "$note"

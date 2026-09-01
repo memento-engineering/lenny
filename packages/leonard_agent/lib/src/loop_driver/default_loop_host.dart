@@ -14,7 +14,8 @@
 /// `VmService`) are translated into [VmServiceConnectionLost] so the
 /// driver can terminate the session with `harnessError =
 /// connection_lost`. Method-level `RPCError`s — i.e. extension-reported
-/// failures with non-transport codes — propagate unwrapped.
+/// failures with non-transport codes — and [ObservationEnvelopeError]
+/// propagate unwrapped.
 ///
 /// Extension notification (`onActionExecutedAll`) runs *inside* the target
 /// app's `LeonardBinding` during the same `executeAction`
@@ -24,6 +25,7 @@ library;
 
 import 'package:vm_service/vm_service.dart' show RPCError;
 
+import '../errors.dart';
 import '../observation/models.dart';
 import '../provider/types.dart';
 import '../session/observation_puller.dart';
@@ -159,6 +161,11 @@ class DefaultLoopHost implements LoopHost {
           m.contains('connection closed')) {
         throw VmServiceConnectionLost(e);
       }
+      rethrow;
+    } on ObservationEnvelopeError {
+      // A malformed envelope is a contract failure, not a dead socket. The
+      // explicit clause keeps the narrow StateError catch below from ever
+      // swallowing it again, even if the error's supertype changes.
       rethrow;
     } on StateError catch (e) {
       // `package:vm_service` throws StateError after dispose() — treat

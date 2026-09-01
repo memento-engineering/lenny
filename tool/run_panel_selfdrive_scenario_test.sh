@@ -153,7 +153,7 @@ grep -Fx '131072' "$HAPPY_STATE/core_budget_bytes" >/dev/null
 [[ -f "$HAPPY_STATE/driver_started" ]]
 [[ -f "$HAPPY_RUN_DIR/bead.note" ]]
 [[ -f "$HAPPY_RUN_DIR/bead.readback" ]]
-grep -Fx 'PANEL_SELFDRIVE_ROUND=4' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_SELFDRIVE_ROUND=5' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -F 'SWIFT_INFER_AGENT_TOKEN' "$HAPPY_STATE/goal_file_content" >/dev/null
 ! grep -R -F 'fixture-secret-never-written' "$HAPPY_STATE/output"
@@ -215,6 +215,11 @@ DRIVER_FAILURE_RUN_DIR="$(run_dir_from_stderr "$DRIVER_FAILURE_STATE/stderr")"
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=failed' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 grep -Fx 'FURTHEST_POINT=outer trajectory turn 5, proposed_action.tool=core.done' \
   "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'TURN_COUNT=6' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'NON_EMPTY_NODE_TURN_COUNT=3' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'LAST_PROPOSED_ACTION=core.done' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'FOOTER_OUTCOME=absent' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_PROBE_OBSERVATION_KEYS=semantics' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_PROBE_TOP_LEVEL_KEYS=isolate_id,handshake,observation' \
   "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_LOG_LAST_20_BEGIN' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
@@ -253,9 +258,14 @@ PANEL_SELFDRIVE_OUTPUT_ROOT="$LEAK_STATE/output" \
 leak_status=$?
 set -e
 (( leak_status != 0 ))
-[[ -d "$LEAK_STATE/output" ]]
-[[ -z "$(find "$LEAK_STATE/output" -mindepth 1 -maxdepth 1 -print -quit)" ]]
-grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-detected' "$LEAK_STATE/bd_notes" >/dev/null
+LEAK_RUN_DIR="$(run_dir_from_stderr "$LEAK_STATE/stderr")"
+[[ -d "$LEAK_RUN_DIR" ]]
+[[ -s "$LEAK_RUN_DIR/panel.log" ]]
+[[ -s "$LEAK_RUN_DIR/panel_probe.json" ]]
+grep -F '<REDACTED:SWIFT_INFER_AGENT_TOKEN>' "$LEAK_RUN_DIR/driver.log" >/dev/null
+! grep -F 'fixture-secret-never-written' "$LEAK_RUN_DIR/driver.log"
+grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-redacted' "$LEAK_STATE/bd_notes" >/dev/null
+! grep -R -F 'fixture-secret-never-written' "$LEAK_STATE/output"
 ! grep -F 'fixture-secret-never-written' "$LEAK_STATE/bd_notes"
 ! grep -F 'fixture-secret-never-written' "$LEAK_STATE/stdout"
 ! grep -F 'fixture-secret-never-written' "$LEAK_STATE/stderr"
@@ -274,13 +284,11 @@ PANEL_SELFDRIVE_OUTPUT_ROOT="$ENDPOINT_LEAK_STATE/output" \
   "$SCRIPT" macos >"$ENDPOINT_LEAK_STATE/stdout" 2>"$ENDPOINT_LEAK_STATE/stderr"
 endpoint_leak_status=$?
 set -e
-(( endpoint_leak_status != 0 ))
-[[ -d "$ENDPOINT_LEAK_STATE/output" ]]
-[[ -z "$(find "$ENDPOINT_LEAK_STATE/output" -mindepth 1 -maxdepth 1 -print -quit)" ]]
-grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-detected' \
-  "$ENDPOINT_LEAK_STATE/bd_notes" >/dev/null
-! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/bd_notes"
-! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/stdout"
-! grep -F 'https://private-swift.example' "$ENDPOINT_LEAK_STATE/stderr"
+(( endpoint_leak_status == 0 ))
+ENDPOINT_RUN_DIR="$(run_dir_from_stderr "$ENDPOINT_LEAK_STATE/stderr")"
+[[ -d "$ENDPOINT_RUN_DIR" ]]
+grep -F 'https://private-swift.example' "$ENDPOINT_RUN_DIR/panel.log" >/dev/null
+grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=clean' "$ENDPOINT_LEAK_STATE/stdout" >/dev/null
+grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$ENDPOINT_LEAK_STATE/bd_notes" >/dev/null
 
 printf '%s\n' 'run_panel_selfdrive_scenario_test: PASS'

@@ -570,6 +570,48 @@ void main() {
       );
       await session.end();
     });
+
+    test('observe: envelope-less response → ObservationEnvelopeError, '
+        'never VmServiceConnectionLost', () async {
+      final vm = _FakeVmService((method, args) async {
+        if (method == 'ext.leonard.core.handshake') {
+          return _resp(<String, dynamic>{
+            'contractVersion': '1.0.0',
+            'extensions': <Map<String, dynamic>>[],
+          });
+        }
+        // The shape DWDS actually returned in round 3: a Response with no
+        // decodable observation value.
+        return _resp(<String, dynamic>{
+          'type': 'Response',
+          'transport': 'dwds',
+        });
+      });
+      final session = await _newStartedSession(vm);
+      final host = DefaultLoopHost.fromSession(
+        session: session,
+        coreTools: <ToolDescriptor>[_tool('core.tap')],
+        extensionTools: const <String, List<ToolDescriptor>>{},
+        goal: 'g',
+        agentsMd: 'a',
+      );
+
+      await expectLater(
+        host.observe(),
+        throwsA(
+          isA<ObservationEnvelopeError>().having(
+            (ObservationEnvelopeError e) => e.topLevelKeys,
+            'topLevelKeys',
+            <String>['transport', 'type'],
+          ),
+        ),
+      );
+      await expectLater(
+        host.observe(),
+        throwsA(isNot(isA<VmServiceConnectionLost>())),
+      );
+      await session.end();
+    });
   });
 
   group('DefaultLoopHost integration with LoopDriver', () {
