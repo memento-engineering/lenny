@@ -6,6 +6,14 @@ Environment-value contract: when a field below names `${NAME}`, invoke
 harness resolves that exact action argument at dispatch; never ask to see,
 repeat, infer, or report its runtime value.
 
+Outer-action guard for this smoke: every `node_id` is a JSON integer copied
+from the current observation, never a quoted string. When the observation has
+no nodes, call only `core.wait {"seconds": 2}`; never invent a node id or call a
+node-targeted tool. If vertical scrolling is genuinely required, call
+`core.scroll {"node_id": 1, "axis": "vertical", "delta_pixels": 200}`, replacing
+`1` with the visible scrollable node's integer id.
+Correct any failed action before continuing.
+
 1. Stay on Conversation and open Settings when the provider form is hidden.
 2. Select provider `swift-infer`. Set Endpoint to `${SWIFT_INFER_ENDPOINT}`,
    Bearer token to `${SWIFT_INFER_AGENT_TOKEN}`, and Default model id to
