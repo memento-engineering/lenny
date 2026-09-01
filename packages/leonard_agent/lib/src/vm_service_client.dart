@@ -66,6 +66,9 @@ class VmServiceClient {
   final VmService _vm;
   final String _isolateId;
 
+  /// Isolate pinned for every service-extension call.
+  String get isolateId => _isolateId;
+
   /// Whether this client created [_vm] (via [connect]) and therefore owns
   /// its lifetime. Borrowed connections ([fromVmService]) set this false
   /// so [dispose] never tears down a shared connection (e.g. DevTools'

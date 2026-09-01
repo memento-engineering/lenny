@@ -14,7 +14,10 @@ abstract class LoopHost {
   /// PRD §10 steps 1+2+3 — stabilize and deserialize the typed
   /// observation. Must throw [VmServiceConnectionLost] when the
   /// underlying transport is gone, so the driver can terminate the
-  /// session with `harnessError = connection_lost`.
+  /// session with `harnessError = connection_lost`; a payload that is not
+  /// an observation envelope must surface as `ObservationEnvelopeError`
+  /// instead, which terminates with
+  /// `harnessError = observation_envelope_rejected`.
   Future<Observation> observe();
 
   /// PRD §10 step 8 — execute the validated action. Returns the

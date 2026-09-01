@@ -22,6 +22,12 @@ enum HarnessError {
   /// VM-service transport error mid-session (e.g. socket dropped while
   /// the binding was still being driven).
   connectionLost,
+
+  /// `get_stable_observation` returned a payload that is not an
+  /// observation envelope (e.g. leonard_flutter's truncation marker).
+  /// Distinct from [connectionLost]: the transport is healthy, the
+  /// CONTRACT is not.
+  observationEnvelopeRejected,
 }
 
 /// Wire name for [HarnessError] values, as written to the trajectory
@@ -30,6 +36,7 @@ extension HarnessErrorWire on HarnessError {
   String get wireName => switch (this) {
     HarnessError.agentStuck => 'agent_stuck',
     HarnessError.connectionLost => 'connection_lost',
+    HarnessError.observationEnvelopeRejected => 'observation_envelope_rejected',
   };
 }
 

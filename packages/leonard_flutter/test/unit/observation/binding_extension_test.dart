@@ -215,6 +215,27 @@ void main() {
       expect(stability['framework_busy'], isMap);
       expect(stability['extensions_busy'], isList);
     });
+
+    test('small core budget degrades without erasing metadata', () async {
+      if (!kDebugMode) return;
+      final String body = await binding.invokeServiceExtension(
+        _ext,
+        <String, String>{
+          'actionRelativeBudgetMs': '1',
+          'coreBudgetBytes': '256',
+        },
+      );
+      final Map<String, Object?> obs =
+          (jsonDecode(body) as Map<String, Object?>)['value']!
+              as Map<String, Object?>;
+
+      expect(obs['routes'], isList);
+      expect(obs['errors'], isList);
+      expect(obs['stability'], isMap);
+      expect(obs['_truncated'], isTrue);
+      expect(obs['budgetBytes'], 256);
+      expect(obs['droppedNodes'], isA<int>());
+    });
   });
 
   group('ExtensionOrder', () {

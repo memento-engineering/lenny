@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_agent/leonard_agent.dart';
@@ -195,7 +196,20 @@ Future<int> runCli(
 
   try {
     // ----- start session --------------------------------------------
-    await session.start(goal, const LeonardConfig());
+    await session.start(
+      goal,
+      LeonardConfig(coreBudgetBytes: args.coreBudgetBytes),
+    );
+
+    final String? probeArtifactPath = args.probeArtifactPath;
+    if (probeArtifactPath != null) {
+      final File artifact = File(probeArtifactPath);
+      await artifact.parent.create(recursive: true);
+      final Map<String, Object?> probe = await session.captureRawProbe(
+        policy: args.policy,
+      );
+      await artifact.writeAsString('${jsonEncode(probe)}\n', flush: true);
+    }
 
     // ----- extension warning block (unchanged) ----------------------------------
     final List<String> unknown = unknownExtensionNamespaces(
@@ -238,6 +252,8 @@ Future<int> runCli(
         'policy': args.policy.wireName,
         'requested_extensions': args.extensions,
         'action_environment_names': args.actionEnvironmentNames,
+        if (args.coreBudgetBytes != null)
+          'core_budget_bytes': args.coreBudgetBytes,
       },
     );
     final LoopHost host = actionEnvironment.isEmpty
@@ -249,11 +265,15 @@ Future<int> runCli(
     await writer.writeHeader(header);
 
     // ----- run loop -------------------------------------------------
+    final String? doneReasonPattern = args.doneReasonPattern;
     final SessionTermination termination = await session.run(
       host: host,
       provider: provider,
       writer: writer,
       turnBudget: args.turnBudget,
+      validator: doneReasonPattern == null
+          ? const ActionValidator()
+          : ActionValidator(doneReasonPattern: RegExp(doneReasonPattern)),
     );
 
     // ----- translate to exit code -----------------------------------
@@ -301,7 +321,7 @@ void _render(Stdout out, SessionProgressEvent e) {
 }
 
 /// Load the AGENTS.md operating guide that gets pinned to the model's
-/// system prompt (`'<agentsMd>\n\n## Goal\n<goal>'`).
+/// system prompt (`'<agentsMd>\n\n## Mission\n<goal>'`).
 ///
 /// Resolution order: an explicit [path] (`--agents-md`) wins; otherwise
 /// the bundled template is resolved relative to the running script, then a

@@ -46,8 +46,55 @@ BudgetedJson encodeWithBudget(Map<String, Object?> fragment, int budget) {
   );
 }
 
-/// Default core fragment serialized budget, in bytes (PRD §11.4).
-const int kCoreBudgetBytes = 4096;
+/// Default core fragment serialized budget, in bytes.
+///
+/// PRD §11.4's original 4KB default was sized for `sample_app`; real screens
+/// such as the DevTools panel exceed it. The host accepts a per-session
+/// override, and this larger default keeps those observations useful.
+const int kCoreBudgetBytes = 32768;
+
+/// JSON-encode a core observation [fragment] under [budget], degrading rather
+/// than vanishing when the encoded form is too large.
+///
+/// `routes`, `errors`, `stability`, and `screenshot_png_b64` (when present)
+/// are retained. Only `semantics` is pruned, from the tail. Semantics capture
+/// serializes depth-first preorder, so tail removal cannot orphan an ancestor.
+/// Truncation metadata rides alongside the surviving fragment. If the required
+/// metadata alone exceeds an unrealistically small budget, it is still
+/// returned so consumers never lose the core observation entirely.
+BudgetedJson encodeCoreWithBudget(Map<String, Object?> fragment, int budget) {
+  final String raw = jsonEncode(fragment);
+  final int originalBytes = utf8.encode(raw).length;
+  if (originalBytes <= budget) {
+    return BudgetedJson(json: raw, bytes: originalBytes, truncated: false);
+  }
+
+  final Object? rawSemantics = fragment['semantics'];
+  final List<Object?> semantics = rawSemantics is List
+      ? List<Object?>.from(rawSemantics)
+      : <Object?>[];
+  int droppedNodes = 0;
+  final Map<String, Object?> degraded = <String, Object?>{
+    ...fragment,
+    'semantics': semantics,
+    '_truncated': true,
+    'originalBytes': originalBytes,
+    'budgetBytes': budget,
+    'droppedNodes': droppedNodes,
+  };
+  String encoded = jsonEncode(degraded);
+  while (utf8.encode(encoded).length > budget && semantics.isNotEmpty) {
+    semantics.removeLast();
+    droppedNodes++;
+    degraded['droppedNodes'] = droppedNodes;
+    encoded = jsonEncode(degraded);
+  }
+  return BudgetedJson(
+    json: encoded,
+    bytes: utf8.encode(encoded).length,
+    truncated: true,
+  );
+}
 
 /// Default per-extension observation budget, in bytes.
 const int kDefaultExtensionBudgetBytes = 1024;

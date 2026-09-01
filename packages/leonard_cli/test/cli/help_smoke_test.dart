@@ -29,6 +29,8 @@ void main() {
       expect(out, contains('--policy'));
       expect(out, contains('--extensions'));
       expect(out, contains('--action-env'));
+      expect(out, contains('--core-budget-bytes'));
+      expect(out, contains('--probe-artifact'));
     });
 
     test('missing --vm-uri exits 64', () async {

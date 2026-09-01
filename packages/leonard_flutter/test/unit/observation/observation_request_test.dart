@@ -12,8 +12,37 @@ void main() {
       expect(r.quietFrameN, 2);
       expect(r.boundedStabilityBudgetMs, 1500);
       expect(r.includeScreenshot, isFalse);
+      expect(r.coreBudgetBytes, 32768);
       expect(r.extensionBudgets, isEmpty);
       expect(r.errorCursor, isNull);
+    });
+  });
+
+  group('coreBudgetBytes', () {
+    test('accepts positive integer and string overrides', () {
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'coreBudgetBytes': 65536,
+        }).coreBudgetBytes,
+        65536,
+      );
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'coreBudgetBytes': '65536',
+        }).coreBudgetBytes,
+        65536,
+      );
+    });
+
+    test('falls back for non-positive and malformed overrides', () {
+      for (final Object? raw in <Object?>[0, -1, 'nope']) {
+        expect(
+          ObservationRequest.fromJson(<String, dynamic>{
+            'coreBudgetBytes': raw,
+          }).coreBudgetBytes,
+          32768,
+        );
+      }
     });
   });
 

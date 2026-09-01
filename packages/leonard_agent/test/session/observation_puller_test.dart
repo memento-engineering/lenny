@@ -61,6 +61,11 @@ Map<String, dynamic> _bundle() => <String, dynamic>{
   },
 };
 
+Map<String, dynamic> _envelope() => <String, dynamic>{
+  'type': 'Observation',
+  'value': _bundle(),
+};
+
 void main() {
   group('ObservationPuller.pull', () {
     test(
@@ -68,7 +73,7 @@ void main() {
       () async {
         final _FakeVmService fake = _FakeVmService(
           (String method, String? iso, Map<String, dynamic>? args) async =>
-              _resp(_bundle()),
+              _resp(_envelope()),
         );
         final VmServiceClient client = VmServiceClient.forTest(fake, 'iso-1');
         final ObservationPuller puller = ObservationPuller(client);
@@ -93,7 +98,7 @@ void main() {
 
     test('threads non-default policy onto the wire', () async {
       final _FakeVmService fake = _FakeVmService(
-        (_, __, ___) async => _resp(_bundle()),
+        (_, __, ___) async => _resp(_envelope()),
       );
       final VmServiceClient client = VmServiceClient.forTest(fake, 'iso-1');
       final ObservationPuller puller = ObservationPuller(client);
@@ -124,10 +129,7 @@ void main() {
       'unwraps {type, value} envelope when the binding wraps the bundle',
       () async {
         final _FakeVmService fake = _FakeVmService(
-          (_, __, ___) async => _resp(<String, dynamic>{
-            'type': 'Observation',
-            'value': _bundle(),
-          }),
+          (_, __, ___) async => _resp(_envelope()),
         );
         final VmServiceClient client = VmServiceClient.forTest(fake, 'iso-1');
         final ObservationPuller puller = ObservationPuller(client);
@@ -137,5 +139,104 @@ void main() {
         expect(obs.extensions.keys, equals(<String>{'router'}));
       },
     );
+
+    test('accepts a DWDS response type when value contains core', () async {
+      final _FakeVmService fake = _FakeVmService(
+        (_, __, ___) async =>
+            _resp(<String, dynamic>{'type': 'Response', 'value': _bundle()}),
+      );
+      final ObservationPuller puller = ObservationPuller(
+        VmServiceClient.forTest(fake, 'iso-1'),
+      );
+
+      final Observation obs = await puller.pull();
+
+      expect(obs.core.nodes.keys, equals(<int>{1}));
+      expect(obs.extensions.keys, equals(<String>{'router'}));
+    });
+
+    test('accepts a tools-only host envelope', () async {
+      final _FakeVmService fake = _FakeVmService(
+        (_, __, ___) async => _resp(<String, dynamic>{
+          'type': 'Observation',
+          'value': <String, dynamic>{
+            'extensions': <String, dynamic>{
+              'tmux': <String, dynamic>{'pane': 'main'},
+            },
+          },
+        }),
+      );
+      final ObservationPuller puller = ObservationPuller(
+        VmServiceClient.forTest(fake, 'iso-1'),
+      );
+
+      final Observation obs = await puller.pull();
+
+      expect(obs.core.nodes, isEmpty);
+      expect(obs.extensions['tmux']?.data, <String, dynamic>{'pane': 'main'});
+    });
+
+    test('sends an optional core budget as a string', () async {
+      final _FakeVmService fake = _FakeVmService(
+        (_, __, ___) async => _resp(_envelope()),
+      );
+      final ObservationPuller puller = ObservationPuller(
+        VmServiceClient.forTest(fake, 'iso-1'),
+      );
+
+      await puller.pull(coreBudgetBytes: 131072);
+      expect(fake.lastArgs, containsPair('coreBudgetBytes', '131072'));
+
+      await puller.pull();
+      expect(fake.lastArgs, isNot(contains('coreBudgetBytes')));
+    });
+
+    test('rejects an envelope-less response with isolate and keys', () async {
+      final _FakeVmService fake = _FakeVmService(
+        (_, __, ___) async => _resp(<String, dynamic>{
+          'type': 'Observation',
+          'error': 'missing value',
+        }),
+      );
+      final VmServiceClient client = VmServiceClient.forTest(
+        fake,
+        'panel-isolate',
+      );
+      final ObservationPuller puller = ObservationPuller(client);
+
+      await expectLater(
+        puller.pull(),
+        throwsA(
+          isA<ObservationEnvelopeError>()
+              .having(
+                (ObservationEnvelopeError error) => error.isolateId,
+                'isolateId',
+                'panel-isolate',
+              )
+              .having(
+                (ObservationEnvelopeError error) => error.topLevelKeys,
+                'topLevelKeys',
+                <String>['error', 'type'],
+              ),
+        ),
+      );
+    });
+
+    test('rejects value carrying neither supported host shape', () async {
+      final _FakeVmService fake = _FakeVmService(
+        (_, __, ___) async => _resp(<String, dynamic>{
+          'type': 'Observation',
+          'value': <String, dynamic>{'routes': <String>[]},
+        }),
+      );
+      final ObservationPuller puller = ObservationPuller(
+        VmServiceClient.forTest(fake, 'panel-isolate'),
+      );
+
+      await expectLater(
+        puller.pull(),
+        throwsA(isA<ObservationEnvelopeError>()),
+      );
+    });
   });
 }

@@ -52,6 +52,10 @@ void main() {
     test('wireName matches PRD §14 schema', () {
       expect(HarnessError.agentStuck.wireName, 'agent_stuck');
       expect(HarnessError.connectionLost.wireName, 'connection_lost');
+      expect(
+        HarnessError.observationEnvelopeRejected.wireName,
+        'observation_envelope_rejected',
+      );
     });
   });
 }

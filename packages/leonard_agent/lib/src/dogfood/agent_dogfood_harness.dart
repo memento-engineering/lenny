@@ -261,7 +261,7 @@ class AgentDogfoodHarness {
         provider: provider,
         conversation: ConversationBuilder(
           systemMessage:
-              '${countingHost.agentsMd}\n\n## Goal\n${countingHost.goal}',
+              '${countingHost.agentsMd}\n\n## Mission\n${countingHost.goal}',
           tools: countingHost.mergedTools(),
         ),
         validator: const ActionValidator(),

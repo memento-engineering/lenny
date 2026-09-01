@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart' show VmService;
 
@@ -75,6 +76,7 @@ class LeonardSession implements SessionSurface {
   HandshakeResult? _handshake;
   bool _started = false;
   bool _ended = false;
+  int? _coreBudgetBytes;
   Observation _prevObservation = Observation.empty();
 
   /// Live progress events for the DevTools thinking panel and the CLI's
@@ -121,6 +123,7 @@ class LeonardSession implements SessionSurface {
     if (_started) {
       throw StateError('Session already started');
     }
+    _storeCoreBudget(config);
     final result = await _client.handshake();
     _handshake = result;
     _started = true;
@@ -138,7 +141,31 @@ class LeonardSession implements SessionSurface {
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) async {
     _ensureStarted('observe');
-    return _puller.pull(policy: policy);
+    return _puller.pull(policy: policy, coreBudgetBytes: _coreBudgetBytes);
+  }
+
+  /// Capture raw handshake and observation responses through this session's
+  /// already-pinned VM-service connection.
+  ///
+  /// Keeping diagnostics on the driver's connection avoids a second DWDS
+  /// client disturbing the session that will execute the outer loop.
+  Future<Map<String, Object?>> captureRawProbe({
+    StabilityPolicy policy = StabilityPolicy.actionRelative,
+  }) async {
+    _ensureStarted('captureRawProbe');
+    final Map<String, dynamic> handshake = await _client.callExtension(
+      '$kLeonardExtensionPrefix.core.handshake',
+      const <String, dynamic>{},
+    );
+    final Map<String, dynamic> observation = await _puller.pullRaw(
+      policy: policy,
+      coreBudgetBytes: _coreBudgetBytes,
+    );
+    return <String, Object?>{
+      'isolate_id': _client.isolateId,
+      'handshake': handshake,
+      'observation': observation,
+    };
   }
 
   /// Internal accessor for the underlying [VmServiceClient]. Used by
@@ -168,7 +195,7 @@ class LeonardSession implements SessionSurface {
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) {
     _ensureStarted('pullObservation');
-    return _puller.pull(policy: policy);
+    return _puller.pull(policy: policy, coreBudgetBytes: _coreBudgetBytes);
   }
 
   /// Pull a stable observation through the typed [ObservationPuller] and
@@ -183,7 +210,10 @@ class LeonardSession implements SessionSurface {
     StabilityPolicy policy = StabilityPolicy.actionRelative,
   }) async {
     _ensureStarted('observeWithDiff');
-    final Observation curr = await _puller.pull(policy: policy);
+    final Observation curr = await _puller.pull(
+      policy: policy,
+      coreBudgetBytes: _coreBudgetBytes,
+    );
     final ObservationDiff diff = ObservationDiffer.diff(_prevObservation, curr);
     _prevObservation = curr;
     return (observation: curr, diff: diff);
@@ -273,7 +303,7 @@ class LeonardSession implements SessionSurface {
       conversation:
           conversation ??
           ConversationBuilder(
-            systemMessage: '${host.agentsMd}\n\n## Goal\n${host.goal}',
+            systemMessage: '${host.agentsMd}\n\n## Mission\n${host.goal}',
             tools: host.mergedTools(),
           ),
       validator: validator ?? const ActionValidator(),
@@ -289,6 +319,18 @@ class LeonardSession implements SessionSurface {
     if (!_started) {
       throw StateError('start() must complete before $op().');
     }
+  }
+
+  void _storeCoreBudget(LeonardConfig config) {
+    final int? value = config.coreBudgetBytes;
+    if (value != null && value <= 0) {
+      throw ArgumentError.value(
+        value,
+        'config.coreBudgetBytes',
+        'must be a positive integer',
+      );
+    }
+    _coreBudgetBytes = value;
   }
 
   void _emit(SessionProgressEvent event) {

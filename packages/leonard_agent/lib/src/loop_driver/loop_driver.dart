@@ -20,6 +20,7 @@ library;
 
 import 'dart:async';
 
+import '../errors.dart';
 import '../observation/diff_models.dart';
 import '../observation/models.dart';
 import '../observation/observation_differ.dart';
@@ -387,6 +388,8 @@ class LoopDriver {
   ///   * 50 turns OR 15 minutes wall-clock → `budget_exhausted`
   ///   * 3 consecutive failed turns → `harness_error agent_stuck`
   ///   * VM connection lost mid-turn → `harness_error connection_lost`
+  ///   * malformed observation envelope → `harness_error
+  ///     observation_envelope_rejected`
   ///   * voluntary `core.done(reason)` → `done`
   ///
   /// On termination the trajectory writer is closed with the final
@@ -432,6 +435,13 @@ class LoopDriver {
           termination = const SessionTermination(
             SessionOutcome.harnessError,
             harnessError: HarnessError.connectionLost,
+          );
+          return termination;
+        } on ObservationEnvelopeError catch (e) {
+          termination = SessionTermination(
+            SessionOutcome.harnessError,
+            harnessError: HarnessError.observationEnvelopeRejected,
+            terminationDetail: 'envelope_keys=${e.keySummary}',
           );
           return termination;
         }

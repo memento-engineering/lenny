@@ -6,13 +6,23 @@ Environment-value contract: when a field below names `${NAME}`, invoke
 harness resolves that exact action argument at dispatch; never ask to see,
 repeat, infer, or report its runtime value.
 
+Outer-action guard for this smoke: every `node_id` is a JSON integer copied
+from the current observation, never a quoted string. When the observation has
+no nodes, call only `core.wait {"seconds": 2}`; never invent a node id or call a
+node-targeted tool. If vertical scrolling is genuinely required, call
+`core.scroll {"node_id": 1, "axis": "vertical", "delta_pixels": 200}`, replacing
+`1` with the visible scrollable node's integer id.
+Correct any failed action before continuing.
+
 1. Stay on Conversation and open Settings when the provider form is hidden.
 2. Select provider `swift-infer`. Set Endpoint to `${SWIFT_INFER_ENDPOINT}`,
    Bearer token to `${SWIFT_INFER_AGENT_TOKEN}`, and Default model id to
    `${PANEL_SELFDRIVE_MODEL_ID}`. Select that model in the model dropdown.
 3. Press Test connection. Continue only after `OK (N models)` is visible with
    N greater than zero.
-4. Enter this inner goal exactly: `Report the title of the current sample_app
+4. Enter this inner goal exactly into the panel's text field labeled `Goal` —
+   the INNER goal for the panel's own session, not your Mission; typing it is
+   one step, never completion: `Report the title of the current sample_app
    screen, then call done.`
 5. Press Start and wait for the panel session to emit a completed turn.
 6. Open Timeline. Continue only after a row matching `#<index> <tool>(...)` is
@@ -22,5 +32,8 @@ repeat, infer, or report its runtime value.
 8. Return to Conversation. If Stop is visible, press it; otherwise wait for the
    natural SessionEnded. Continue only when Start is visible, enabled, and
    tappable again.
-9. Call `core.done` with a credential-free reason of the form
-   `panel smoke passed: inner turn <index> tool <tool>`.
+9. Call `core.done` with a credential-free reason in this exact form, copying
+   the index and tool from the row you observed: `panel smoke passed: inner
+   turn <index> tool <tool>`.
+
+done-reason-pattern: ^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$

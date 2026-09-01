@@ -86,6 +86,37 @@ class _RejectingVmService extends VmService {
   Future<void> dispose() async {}
 }
 
+class _EnvelopeStrippingVmService extends VmService {
+  _EnvelopeStrippingVmService(this._delegate)
+    : super(const Stream<dynamic>.empty(), (_) {});
+
+  final BindingVmServiceFake _delegate;
+
+  @override
+  Future<Response> callServiceExtension(
+    String method, {
+    String? isolateId,
+    Map<String, dynamic>? args,
+  }) async {
+    if (method == 'ext.leonard.core.get_stable_observation') {
+      final Response response = Response();
+      response.json = <String, dynamic>{
+        'type': 'Observation',
+        'transport': 'envelope-stripped',
+      };
+      return response;
+    }
+    return _delegate.callServiceExtension(
+      method,
+      isolateId: isolateId,
+      args: args,
+    );
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
 void main() {
   late LeonardBinding binding;
   late BindingVmServiceFake fake;
@@ -144,6 +175,33 @@ void main() {
     await session.start('test goal', const LeonardConfig());
     final Observation obs = await session.observe();
     expect(obs, isNotNull);
+    expect(obs.stability.policy, isNotEmpty);
+    expect(obs.stability.terminatedBy, isNotEmpty);
+  });
+
+  test('e2e: envelope-less observation fails loudly', () async {
+    final LeonardSession session = LeonardSession.fromVmService(
+      _EnvelopeStrippingVmService(fake),
+      'panel-isolate',
+    );
+    await session.start('test goal', const LeonardConfig());
+
+    await expectLater(
+      session.observe(),
+      throwsA(
+        isA<ObservationEnvelopeError>()
+            .having(
+              (ObservationEnvelopeError error) => error.isolateId,
+              'isolateId',
+              'panel-isolate',
+            )
+            .having(
+              (ObservationEnvelopeError error) => error.topLevelKeys,
+              'topLevelKeys',
+              <String>['transport', 'type'],
+            ),
+      ),
+    );
   });
 
   test('e2e: act(sample.echo) round-trips through the envelope', () async {

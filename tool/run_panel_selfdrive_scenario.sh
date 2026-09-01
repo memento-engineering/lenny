@@ -8,6 +8,10 @@ SCENARIO="$ROOT/packages/leonard_cli/scenarios/leonard_devtools_panel.md"
 VERIFY="$ROOT/tool/verify_panel_selfdrive_receipt.dart"
 DEVICE="${1:-macos}"
 STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
+CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
+BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
+BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=6'
 
 if (( $# > 1 )); then
   printf 'usage: %s [sample-app-device-id]\n' "$0" >&2
@@ -24,12 +28,28 @@ export PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-qwen3.6-35b-a3b-8bi
   printf '%s\n' 'run_panel_selfdrive_scenario: startup timeout must be a positive integer' >&2
   exit 64
 }
+[[ "$CORE_BUDGET_BYTES" =~ ^[1-9][0-9]*$ ]] || {
+  printf '%s\n' 'run_panel_selfdrive_scenario: core budget must be positive' >&2
+  exit 64
+}
+command -v "$BD_BIN" >/dev/null 2>&1 || {
+  printf 'run_panel_selfdrive_scenario: bd executable not found: %s\n' \
+    "$BD_BIN" >&2
+  exit 1
+}
 [[ -x "$HARNESS" ]] || {
   printf 'run_panel_selfdrive_scenario: harness is not executable: %s\n' "$HARNESS" >&2
   exit 1
 }
 [[ -f "$SCENARIO" && -f "$VERIFY" ]] || {
   printf '%s\n' 'run_panel_selfdrive_scenario: scenario assets are missing' >&2
+  exit 1
+}
+DONE_REASON_PATTERN="$(sed -n 's/^done-reason-pattern: //p' "$SCENARIO" |
+  head -n 1)"
+[[ -n "$DONE_REASON_PATTERN" ]] || {
+  printf '%s\n' \
+    'run_panel_selfdrive_scenario: scenario declares no done-reason-pattern' >&2
   exit 1
 }
 
@@ -43,6 +63,10 @@ DRIVER_LOG="$RUN_DIR/driver.log"
 HARNESS_LOG="$RUN_DIR/harness.log"
 HARNESS_OUT="$RUN_DIR/panel_dwds.out"
 VERIFY_LOG="$RUN_DIR/verify.log"
+PANEL_PROBE="$RUN_DIR/panel_probe.json"
+PANEL_LOG="$RUN_DIR/panel.log"
+SAMPLE_LOG="$RUN_DIR/sample_app.log"
+printf 'PANEL_SELFDRIVE_RUN_DIR=%s\n' "$RUN_DIR" >&2
 HARNESS_PID=''
 
 cleanup() {
@@ -58,7 +82,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-"$HARNESS" "$DEVICE" >"$HARNESS_OUT" 2>"$HARNESS_LOG" &
+PANEL_SELFDRIVE_ARTIFACT_DIR="$RUN_DIR" \
+  "$HARNESS" "$DEVICE" >"$HARNESS_OUT" 2>"$HARNESS_LOG" &
 HARNESS_PID=$!
 deadline=$((SECONDS + STARTUP_TIMEOUT_SECONDS))
 PANEL_DWDS_URI=''
@@ -82,6 +107,9 @@ DRIVER_ARGS=(
   --model qwen-mlx
   --output "$TRAJECTORY"
   --turn-budget 180
+  --done-reason-pattern "$DONE_REASON_PATTERN"
+  --core-budget-bytes "$CORE_BUDGET_BYTES"
+  --probe-artifact "$PANEL_PROBE"
   --action-env SWIFT_INFER_ENDPOINT
   --action-env SWIFT_INFER_AGENT_TOKEN
   --action-env PANEL_SELFDRIVE_MODEL_ID
@@ -98,22 +126,115 @@ set -e
 
 set +e
 receipt="$("$DART_BIN" run "$VERIFY" \
-  "$TRAJECTORY" "$DRIVER_LOG" "$HARNESS_LOG" 2>"$VERIFY_LOG")"
+  "$TRAJECTORY" \
+  "$DRIVER_LOG" \
+  "$HARNESS_LOG" \
+  "$PANEL_PROBE" \
+  "$PANEL_LOG" \
+  "$SAMPLE_LOG" \
+  2>"$VERIFY_LOG")"
 verify_status=$?
 set -e
+printf '%s\n' "$driver_status" >"$RUN_DIR/driver.status"
+printf '%s\n' "$verify_status" >"$RUN_DIR/verify.status"
+
+scrub_guard() {
+  local text="$1"
+  if [[ -n "$text" ]] &&
+     { [[ "$text" == *"$SWIFT_INFER_ENDPOINT"* ]] ||
+       [[ "$text" == *"$SWIFT_INFER_AGENT_TOKEN"* ]]; }; then
+    printf '%s\n' 'redacted-contained-credential'
+    return
+  fi
+  printf '%s\n' "$text"
+}
+
+persist_receipt() {
+  local note="$1"
+  printf '%s\n' "$note" >"$RUN_DIR/bead.note"
+  "$BD_BIN" update "$BEAD_ID" --actor build --append-notes "$note" >/dev/null
+  "$BD_BIN" show "$BEAD_ID" >"$RUN_DIR/bead.readback"
+  grep -Fq "$ROUND_MARKER" "$RUN_DIR/bead.readback" || {
+    printf '%s\n' \
+      "run_panel_selfdrive_scenario: $ROUND_MARKER missing after bd read-back" \
+      >&2
+    return 1
+  }
+}
+
+probe_key_list() {
+  local keys='' key
+  if [[ -s "$PANEL_PROBE" ]]; then
+    for key in isolate_id handshake observation; do
+      grep -Fq "\"$key\":" "$PANEL_PROBE" && keys+="${keys:+,}$key"
+    done
+  fi
+  printf '%s\n' "${keys:-absent}"
+}
+
 if (( verify_status == 2 )); then
-  rm -rf -- "$RUN_DIR"
-  printf '%s\n' 'run_panel_selfdrive_scenario: secret scan failed; captured files removed' >&2
+  leak_name="$(sed -n 's/.*: \([A-Z_]*\) value found$/\1/p' \
+    "$VERIFY_LOG" | head -n 1 || true)"
+  note="$(printf '%s\n' \
+    "$ROUND_MARKER" \
+    'PANEL_SELFDRIVE_RECEIPT=failed' \
+    "SCENARIO_EXIT_STATUS=$driver_status" \
+    "VERIFIER_EXIT_STATUS=$verify_status" \
+    'FURTHEST_POINT=secret scan' \
+    'FAILING_ASSERTION=no credential value appears in captured output' \
+    "RAW_ERROR=secret scan redacted ${leak_name:-unknown}" \
+    "$(scrub_guard "$receipt")" \
+    "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)")"
+  persist_receipt "$note"
+  printf '%s\n' \
+    'run_panel_selfdrive_scenario: credential redacted in captured output; evidence retained' >&2
+  printf '%s\n' "$note" >&2
   exit 1
 fi
-if (( driver_status != 0 )); then
-  sed -n '1,160p' "$DRIVER_LOG" >&2
-  printf 'run_panel_selfdrive_scenario: outer driver exited %d\n' "$driver_status" >&2
-  exit "$driver_status"
-fi
-if (( verify_status != 0 )); then
-  sed -n '1,160p' "$VERIFY_LOG" >&2
+
+if (( driver_status != 0 || verify_status != 0 )); then
+  last_turn_line="$(grep -F '"type":"turn"' "$TRAJECTORY" | tail -n 1 || true)"
+  last_index="$(printf '%s' "$last_turn_line" |
+    sed -n 's/^{"type":"turn","index":\([0-9]*\).*/\1/p')"
+  last_tool="$(printf '%s' "${last_turn_line#*\"proposed_action\":}" |
+    sed -n 's/^[^}]*"tool":"\([^"]*\)".*/\1/p')"
+  if (( driver_status != 0 )); then
+    raw_error_source="$DRIVER_LOG"
+    failing='./tool/run_panel_selfdrive_scenario.sh exits zero (outer driver)'
+  else
+    raw_error_source="$VERIFY_LOG"
+    failing='verifier accepts the trajectory receipt'
+  fi
+  raw_error="$(scrub_guard "$(grep -v '^[[:space:]]*$' "$raw_error_source" |
+    tail -n 1 || true)")"
+  note="$(printf '%s\n' \
+    "$ROUND_MARKER" \
+    'PANEL_SELFDRIVE_RECEIPT=failed' \
+    "SCENARIO_EXIT_STATUS=$driver_status" \
+    "VERIFIER_EXIT_STATUS=$verify_status" \
+    "FURTHEST_POINT=outer trajectory turn ${last_index:-unknown}, proposed_action.tool=${last_tool:-unknown}" \
+    "FAILING_ASSERTION=$failing" \
+    "RAW_ERROR=${raw_error:-none-captured}" \
+    "$(scrub_guard "$receipt")" \
+    "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)" \
+    'PANEL_LOG_LAST_20_BEGIN' \
+    "$(scrub_guard "$(tail -n 20 "$PANEL_LOG" 2>/dev/null || true)")" \
+    'PANEL_LOG_LAST_20_END')"
+  persist_receipt "$note"
+  printf '%s\n' "$note" >&2
+  sed -n '1,160p' "$raw_error_source" >&2
+  (( driver_status != 0 )) && exit "$driver_status"
   exit 1
 fi
+
+note="$(printf '%s\n' \
+  "$ROUND_MARKER" \
+  'PANEL_SELFDRIVE_RECEIPT=passed' \
+  'SCENARIO_EXIT_STATUS=0' \
+  'VERIFIER_EXIT_STATUS=0' \
+  "$receipt" \
+  'ROOT_CAUSE=core observation exceeded the former 4096-byte all-or-nothing budget' \
+  'REPAIRS=typed ObservationEnvelopeError surfaced as observation_envelope_rejected; endpoint reclassified as configuration; credential leaks redacted in place instead of deleting the run directory')"
+persist_receipt "$note"
 sed -n '1,160p' "$DRIVER_LOG" >&2
-printf '%s\n' "$receipt"
+printf '%s\n' "$note"

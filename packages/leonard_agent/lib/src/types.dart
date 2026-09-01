@@ -46,11 +46,16 @@ class LeonardConfig {
     this.turnBudget = const Duration(seconds: 30),
     this.sessionBudget = const Duration(minutes: 15),
     this.maxTurns = 50,
+    this.coreBudgetBytes,
   });
 
   final Duration turnBudget;
   final Duration sessionBudget;
   final int maxTurns;
+
+  /// Optional positive core-observation byte budget sent on every pull.
+  /// `null` delegates to the binding's default.
+  final int? coreBudgetBytes;
 }
 
 /// Sealed base type for events emitted on

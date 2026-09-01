@@ -38,7 +38,7 @@ void main() {
       final MultiHostSession session = MultiHostSession.forTest(
         <VmServiceClient>[clientOver(fast), clientOver(slow)],
       );
-      await session.start('goal', const LeonardConfig());
+      await session.start('goal', const LeonardConfig(coreBudgetBytes: 65536));
 
       final Stopwatch sw = Stopwatch()..start();
       final Observation merged = await session.observe(
@@ -56,6 +56,8 @@ void main() {
       );
       expect(obsCall(fast).args!['policy'], equals('bounded-stability'));
       expect(obsCall(slow).args!['policy'], equals('bounded-stability'));
+      expect(obsCall(fast).args!['coreBudgetBytes'], equals('65536'));
+      expect(obsCall(slow).args!['coreBudgetBytes'], equals('65536'));
 
       // The slow host gated the turn (join-on-all, not first-wins).
       expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(70));
