@@ -276,6 +276,25 @@ class _PromptPanelState extends State<PromptPanel> {
             ),
           ],
         ),
+        // The RESOLVED model, as one addressable node. The outer self-drive
+        // harness reads `prompt.resolvedModel`'s value from the semantics
+        // tree to record which model the INNER panel session actually runs
+        // (tool/verify_panel_selfdrive_receipt.dart). `excludeSemantics`
+        // keeps it ONE node, matching the `prompt.modelsReload` precedent.
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Semantics(
+            identifier: 'prompt.resolvedModel',
+            label: 'Resolved model',
+            value: _modelId ?? '',
+            readOnly: true,
+            excludeSemantics: true,
+            child: Text(
+              'Resolved model: ${_modelId ?? 'none'}',
+              key: const Key('prompt.resolvedModel'),
+            ),
+          ),
+        ),
         if (state.error != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),

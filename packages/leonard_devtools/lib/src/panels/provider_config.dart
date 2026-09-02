@@ -14,6 +14,21 @@ import 'package:leonard_agent/leonard_agent.dart'
 
 import 'model_catalog.dart';
 
+/// The swift-infer model id the panel pre-selects when no saved config names
+/// one — and the fallback model id when the gateway has no `/v1/models`.
+///
+/// Compile-time, because the panel is a Flutter **web** build and cannot read
+/// a runtime environment: the self-drive harness pins it with
+/// `--dart-define=SWIFT_INFER_MODEL=<id>` (`tool/run_panel_selfdrive.sh`).
+/// That is the SAME name `leonard_cli`'s `buildProvider` reads at runtime for
+/// the OUTER driver, so one name pins both harnesses onto one swift-infer
+/// node. Two different ids on one server make each harness's load evict the
+/// other's (LRU), which is the thrash this constant exists to prevent.
+const String kDefaultSwiftInferModelId = String.fromEnvironment(
+  'SWIFT_INFER_MODEL',
+  defaultValue: 'qwen3.6-35b-a3b-8bit',
+);
+
 /// Sealed configuration for one provider — swift-infer / anthropic /
 /// openai.
 ///
@@ -88,7 +103,7 @@ class SwiftInferUiConfig extends ProviderConfig {
     required this.endpoint,
     this.captureBodies = true,
     this.extraHeaders = const <String, String>{},
-    this.defaultModelId = 'qwen3.6-35b-a3b-8bit',
+    this.defaultModelId = kDefaultSwiftInferModelId,
     this.reasoningEffort,
     this.maxTokens,
     this.temperature,
@@ -192,7 +207,7 @@ class SwiftInferUiConfig extends ProviderConfig {
             ((json['extraHeaders'] as Map?) ?? const <String, String>{})
                 .cast<String, String>(),
         defaultModelId:
-            (json['defaultModelId'] as String?) ?? 'qwen3.6-35b-a3b-8bit',
+            (json['defaultModelId'] as String?) ?? kDefaultSwiftInferModelId,
         reasoningEffort: switch (json['reasoningEffort']) {
           final String wire => SwiftInferReasoningEffort.tryParse(wire),
           _ => null,

@@ -26,7 +26,20 @@ for name in SWIFT_INFER_ENDPOINT SWIFT_INFER_AGENT_TOKEN; do
     exit 64
   fi
 done
-export PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-qwen3.6-35b-a3b-8bit}"
+# ONE name pins BOTH harnesses. SWIFT_INFER_MODEL is what leonard_cli's
+# buildProvider reads for the OUTER driver and what run_panel_selfdrive.sh
+# --dart-defines into the INNER panel build; PANEL_SELFDRIVE_MODEL_ID is the
+# scenario's own name for the same value. Two different ids on one swift-infer
+# server make each harness's load evict the other's node (LRU), so a
+# disagreement is refused LOUDLY rather than reconciled silently.
+if [[ -n "${PANEL_SELFDRIVE_MODEL_ID:-}" && -n "${SWIFT_INFER_MODEL:-}" &&
+      "$PANEL_SELFDRIVE_MODEL_ID" != "$SWIFT_INFER_MODEL" ]]; then
+  printf 'run_panel_selfdrive_scenario: PANEL_SELFDRIVE_MODEL_ID=%s disagrees with SWIFT_INFER_MODEL=%s; one name must pin both harnesses\n' \
+    "$PANEL_SELFDRIVE_MODEL_ID" "$SWIFT_INFER_MODEL" >&2
+  exit 64
+fi
+export PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-${SWIFT_INFER_MODEL:-qwen3.6-35b-a3b-8bit}}"
+export SWIFT_INFER_MODEL="$PANEL_SELFDRIVE_MODEL_ID"
 [[ "$STARTUP_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || {
   printf '%s\n' 'run_panel_selfdrive_scenario: startup timeout must be a positive integer' >&2
   exit 64
@@ -146,6 +159,11 @@ receipt="$("$DART_BIN" run "$VERIFY" \
   2>"$VERIFY_LOG")"
 verify_status=$?
 set -e
+# The note's inner model id comes from the verifier's OBSERVED value. The env
+# only records what was REQUESTED; copying it is what made the round-9 receipt
+# claim a model the panel never ran.
+inner_model_resolved="$(printf '%s\n' "$receipt" |
+  sed -n 's/^INNER_PANEL_MODEL_RESOLVED=//p' | head -n 1)"
 printf '%s\n' "$driver_status" >"$RUN_DIR/driver.status"
 printf '%s\n' "$verify_status" >"$RUN_DIR/verify.status"
 
@@ -198,6 +216,8 @@ if (( verify_status == 2 )); then
     'FAILING_ASSERTION=no credential value appears in captured output' \
     "RAW_ERROR=secret scan redacted ${leak_name:-unknown}" \
     "$(scrub_guard "$receipt")" \
+    "INNER_PANEL_MODEL_ID=${inner_model_resolved:-absent}" \
+    "OUTER_DRIVER_MODEL_ID=$SWIFT_INFER_MODEL" \
     "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)")"
   persist_receipt "$note"
   printf '%s\n' \
@@ -233,6 +253,8 @@ if (( driver_status != 0 || verify_status != 0 )); then
     "FAILING_ASSERTION=$failing" \
     "RAW_ERROR=${raw_error:-none-captured}" \
     "$(scrub_guard "$receipt")" \
+    "INNER_PANEL_MODEL_ID=${inner_model_resolved:-absent}" \
+    "OUTER_DRIVER_MODEL_ID=$SWIFT_INFER_MODEL" \
     "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)" \
     'PANEL_LOG_LAST_20_BEGIN' \
     "$(scrub_guard "$(tail -n 20 "$PANEL_LOG" 2>/dev/null || true)")" \
@@ -253,6 +275,8 @@ note="$(printf '%s\n' \
   'SCENARIO_EXIT_STATUS=0' \
   'VERIFIER_EXIT_STATUS=0' \
   "$receipt" \
+  "INNER_PANEL_MODEL_ID=${inner_model_resolved:-absent}" \
+  "OUTER_DRIVER_MODEL_ID=$SWIFT_INFER_MODEL" \
   'ROOT_CAUSE=core observation exceeded the former 4096-byte all-or-nothing budget' \
   'REPAIRS=core.done is gated on an observed Timeline row cross-checked against the reason; the scenario states the resolved-value contract and the panel'"'"'s real widget set')"
 persist_receipt "$note"

@@ -73,11 +73,16 @@ cp -f "$goal_file" "$FAKE_STATE_DIR/goal_file_content"
 printf '%s\n' \
   '{"isolate_id":"panel-1","handshake":{"contractVersion":"2"},"observation":{"type":"Response","value":{"semantics":[]}}}' \
   >"$probe_artifact"
+model_value="${FAKE_RESOLVED_MODEL_ID:-${PANEL_SELFDRIVE_MODEL_ID:-unset}}"
 cat >"$output" <<'JSONL'
 {"type":"turn","index":0,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_ENDPOINT}"}}}
 {"type":"turn","index":1,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_AGENT_TOKEN}"}}}
 {"type":"turn","index":2,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${PANEL_SELFDRIVE_MODEL_ID}"}}}
-{"type":"turn","index":3,"observation":{"core":{"nodes":[{"label":"OK (2 models)"},{"label":"Stop"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
+JSONL
+cat >>"$output" <<JSONL
+{"type":"turn","index":3,"observation":{"core":{"nodes":[{"label":"OK (2 models)"},{"label":"Stop"},{"identifier":"prompt.resolvedModel","label":"Resolved model","value":"$model_value"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
+JSONL
+cat >>"$output" <<'JSONL'
 {"type":"turn","index":4,"observation":{"core":{"nodes":[{"label":"#0 core.done()"},{"label":"Proposed action"},{"value":"core.done()"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
 {"type":"turn","index":5,"observation":{"core":{"nodes":[{"label":"Start","actions":["tap"],"state":[]}]}},"proposed_action":{"tool":"core.done","args":{"reason":"panel smoke passed: inner turn 0 tool core.done"}}}
 JSONL
@@ -131,6 +136,7 @@ run_dir_from_stderr() {
 
 HAPPY_STATE="$TEST_ROOT/happy-state"
 mkdir -p "$HAPPY_STATE"
+env -u PANEL_SELFDRIVE_MODEL_ID -u SWIFT_INFER_MODEL \
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_STATE_DIR="$HAPPY_STATE" \
@@ -159,6 +165,14 @@ SCRIPT_ROUND_MARKER="$(sed -n "s/^ROUND_MARKER='\(PANEL_SELFDRIVE_ROUND=[0-9]*\)
 grep -Fx "$SCRIPT_ROUND_MARKER" "$HAPPY_STATE/bd_notes" >/dev/null
 grep -E '^RUN_HEAD=[0-9a-f]{40}$' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'INNER_PANEL_MODEL_REQUESTED=qwen3.6-35b-a3b-8bit' \
+  "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'INNER_PANEL_MODEL_RESOLVED=qwen3.6-35b-a3b-8bit' \
+  "$HAPPY_STATE/stdout" >/dev/null
+grep -Fx 'INNER_PANEL_MODEL_ID=qwen3.6-35b-a3b-8bit' \
+  "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'OUTER_DRIVER_MODEL_ID=qwen3.6-35b-a3b-8bit' \
+  "$HAPPY_STATE/bd_notes" >/dev/null
 grep -F 'SWIFT_INFER_AGENT_TOKEN' "$HAPPY_STATE/goal_file_content" >/dev/null
 ! grep -R -F 'fixture-secret-never-written' "$HAPPY_STATE/output"
 
@@ -295,5 +309,64 @@ ENDPOINT_RUN_DIR="$(run_dir_from_stderr "$ENDPOINT_LEAK_STATE/stderr")"
 grep -F 'https://private-swift.example' "$ENDPOINT_RUN_DIR/panel.log" >/dev/null
 grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=clean' "$ENDPOINT_LEAK_STATE/stdout" >/dev/null
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$ENDPOINT_LEAK_STATE/bd_notes" >/dev/null
+
+PINNED_STATE="$TEST_ROOT/pinned-state"
+mkdir -p "$PINNED_STATE"
+env -u PANEL_SELFDRIVE_MODEL_ID \
+SWIFT_INFER_MODEL='qwen3.8-27b-8bit' \
+SWIFT_INFER_ENDPOINT='https://swift.example' \
+SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
+FAKE_STATE_DIR="$PINNED_STATE" \
+PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
+PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$PINNED_STATE/output" \
+  "$SCRIPT" macos >"$PINNED_STATE/stdout" 2>"$PINNED_STATE/stderr"
+grep -Fx 'INNER_PANEL_MODEL_ID=qwen3.8-27b-8bit' \
+  "$PINNED_STATE/bd_notes" >/dev/null
+grep -Fx 'OUTER_DRIVER_MODEL_ID=qwen3.8-27b-8bit' \
+  "$PINNED_STATE/bd_notes" >/dev/null
+
+CONFLICT_STATE="$TEST_ROOT/conflict-state"
+mkdir -p "$CONFLICT_STATE"
+set +e
+PANEL_SELFDRIVE_MODEL_ID='qwen3.8-27b-8bit' \
+SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
+SWIFT_INFER_ENDPOINT='https://swift.example' \
+SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
+FAKE_STATE_DIR="$CONFLICT_STATE" \
+PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
+PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$CONFLICT_STATE/output" \
+  "$SCRIPT" macos >"$CONFLICT_STATE/stdout" 2>"$CONFLICT_STATE/stderr"
+conflict_status=$?
+set -e
+[[ "$conflict_status" == 64 ]]
+grep -F 'one name must pin both harnesses' "$CONFLICT_STATE/stderr" >/dev/null
+[[ ! -e "$CONFLICT_STATE/harness_started" ]]
+
+MISMATCH_STATE="$TEST_ROOT/mismatch-state"
+mkdir -p "$MISMATCH_STATE"
+set +e
+env -u SWIFT_INFER_MODEL \
+PANEL_SELFDRIVE_MODEL_ID='qwen3.8-27b-8bit' \
+FAKE_RESOLVED_MODEL_ID='qwen3.6-35b-a3b-8bit' \
+SWIFT_INFER_ENDPOINT='https://swift.example' \
+SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
+FAKE_STATE_DIR="$MISMATCH_STATE" \
+PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
+PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$MISMATCH_STATE/output" \
+  "$SCRIPT" macos >"$MISMATCH_STATE/stdout" 2>"$MISMATCH_STATE/stderr"
+mismatch_status=$?
+set -e
+[[ "$mismatch_status" != 0 ]]
+grep -Fx 'PANEL_SELFDRIVE_RECEIPT=failed' "$MISMATCH_STATE/bd_notes" >/dev/null
+grep -Fx 'INNER_PANEL_MODEL_ID=qwen3.6-35b-a3b-8bit' \
+  "$MISMATCH_STATE/bd_notes" >/dev/null
+grep -F 'but the run requested qwen3.8-27b-8bit' \
+  "$MISMATCH_STATE/bd_notes" >/dev/null
 
 printf '%s\n' 'run_panel_selfdrive_scenario_test: PASS'

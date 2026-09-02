@@ -4,11 +4,35 @@ import 'package:test/test.dart';
 
 import 'verify_panel_selfdrive_receipt.dart'
     show
+        ReceiptInvalid,
+        assertInnerModelResolved,
         kSecretNames,
         probeDiagnostics,
         receiptDiagnostics,
         redactCapturesInPlace,
-        redactSecrets;
+        redactSecrets,
+        resolvedInnerModelId;
+
+List<Map<String, dynamic>> _trajectory(String? resolvedModelId) =>
+    <Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'turn',
+        'observation': <String, dynamic>{
+          'core': <String, dynamic>{
+            'nodes': <dynamic>[
+              <String, dynamic>{'label': 'Stop'},
+              if (resolvedModelId != null)
+                <String, dynamic>{
+                  'identifier': 'prompt.resolvedModel',
+                  'label': 'Resolved model',
+                  'value': resolvedModelId,
+                },
+            ],
+          },
+        },
+        'proposed_action': <String, dynamic>{'tool': 'core.tap'},
+      },
+    ];
 
 void main() {
   test('the endpoint is configuration, not a secret', () {
@@ -109,6 +133,7 @@ void main() {
           'FOOTER_TERMINATION_DETAIL=envelope_keys=[result, type]',
           'STOP_OBSERVED=false',
           'SELECT_MODEL_ERROR_OBSERVED=false',
+          'INNER_PANEL_MODEL_RESOLVED=absent',
         ],
       );
     },
@@ -194,6 +219,42 @@ void main() {
     },
   );
 
+  test('the resolved inner model is read from the observation', () {
+    expect(
+      resolvedInnerModelId(_trajectory('qwen3.8-27b-8bit')),
+      'qwen3.8-27b-8bit',
+    );
+    expect(
+      assertInnerModelResolved(
+        _trajectory('qwen3.8-27b-8bit'),
+        'qwen3.8-27b-8bit',
+      ),
+      'qwen3.8-27b-8bit',
+    );
+  });
+
+  test(
+    'a picker label disagreeing with the requested id fails the receipt',
+    () {
+      expect(
+        () => assertInnerModelResolved(
+          _trajectory('qwen3.6-35b-a3b-8bit'),
+          'qwen3.8-27b-8bit',
+        ),
+        throwsA(
+          isA<ReceiptInvalid>().having(
+            (ReceiptInvalid e) => e.message,
+            'message',
+            allOf(
+              contains('qwen3.6-35b-a3b-8bit'),
+              contains('qwen3.8-27b-8bit'),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
   test('receiptDiagnostics surfaces an unclassified harness error', () {
     expect(
       receiptDiagnostics(<Map<String, dynamic>>[
@@ -208,6 +269,25 @@ void main() {
         'FOOTER_HARNESS_ERROR=unclassified',
         'FOOTER_TERMINATION_DETAIL=_UnknownHarnessFault: unknown harness fault',
       ]),
+    );
+  });
+
+  test('a missing readout and an unset request both fail LOUDLY', () {
+    expect(resolvedInnerModelId(_trajectory(null)), isNull);
+    expect(
+      () => assertInnerModelResolved(_trajectory(null), 'qwen3.8-27b-8bit'),
+      throwsA(isA<ReceiptInvalid>()),
+    );
+    expect(
+      () => assertInnerModelResolved(_trajectory('qwen3.8-27b-8bit'), ''),
+      throwsA(isA<ReceiptInvalid>()),
+    );
+  });
+
+  test('receiptDiagnostics surfaces the observed resolved model', () {
+    expect(
+      receiptDiagnostics(_trajectory('qwen3.8-27b-8bit')),
+      contains('INNER_PANEL_MODEL_RESOLVED=qwen3.8-27b-8bit'),
     );
   });
 }
