@@ -89,6 +89,9 @@ List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
     (Map<String, dynamic> record) => record['type'] == 'footer',
     orElse: () => const <String, dynamic>{},
   );
+  final Set<String> labels = <String>{
+    for (final Map<String, dynamic> turn in turns) ..._observationText(turn),
+  };
   return <String>[
     'TURN_COUNT=${turns.length}',
     'NON_EMPTY_NODE_TURN_COUNT=$nonEmpty',
@@ -96,6 +99,8 @@ List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
     'FOOTER_OUTCOME=${footer['outcome'] ?? 'absent'}',
     'FOOTER_HARNESS_ERROR=${footer['harness_error'] ?? 'none'}',
     'FOOTER_TERMINATION_DETAIL=${footer['termination_detail'] ?? 'none'}',
+    'STOP_OBSERVED=${labels.contains('Stop')}',
+    'SELECT_MODEL_ERROR_OBSERVED=${labels.contains('Select a model')}',
   ];
 }
 
@@ -232,6 +237,9 @@ void _assertReceipt(
             RegExp(r'^OK \([1-9][0-9]* models\)$').hasMatch(value),
       )) {
     _fail('no successful Test connection observation');
+  }
+  if (!turnText.any((List<String> values) => values.contains('Stop'))) {
+    _fail('no running-session Stop button observed after Start');
   }
 
   final RegExp rowPattern = RegExp(r'^#([0-9]+) ([A-Za-z0-9_.-]+)\(');

@@ -112,9 +112,7 @@ class _PromptPanelState extends State<PromptPanel> {
       _enabled = widget.extensions.map((p) => p.namespace).toSet();
       if (widget.configLoaded) _settingsOpen = true;
     }
-    _modelId = widget.modelsState.models.isNotEmpty
-        ? widget.modelsState.models.first.id
-        : null;
+    _modelId = _preferredModelId(widget.modelsState);
   }
 
   @override
@@ -136,9 +134,12 @@ class _PromptPanelState extends State<PromptPanel> {
     }
     final models = widget.modelsState.models;
     if (_modelId == null && models.isNotEmpty) {
-      _modelId = models.first.id;
+      _modelId = _preferredModelId(widget.modelsState);
     } else if (_modelId != null && !models.any((m) => m.id == _modelId)) {
-      _modelId = models.isNotEmpty ? models.first.id : null;
+      // The current pick vanished from the refreshed list: re-derive rather
+      // than keep a dead id (DropdownButtonFormField asserts its value is
+      // present among its items).
+      _modelId = _preferredModelId(widget.modelsState);
     }
   }
 
@@ -148,8 +149,29 @@ class _PromptPanelState extends State<PromptPanel> {
     super.dispose();
   }
 
+  /// The model the picker should pre-select for [state]: the provider
+  /// config's documented [ProviderConfig.defaultModelId] when the fetched
+  /// list carries it, otherwise the first fetched model. `null` when the
+  /// list is empty.
+  String? _preferredModelId(ModelCatalogState state) {
+    if (state.models.isEmpty) return null;
+    final String? preferred = state.config?.defaultModelId;
+    for (final ResolvedModel model in state.models) {
+      if (model.id == preferred) return model.id;
+    }
+    return state.models.first.id;
+  }
+
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+    final bool valid = _formKey.currentState!.validate();
+    if (_modelId == null && !_settingsOpen) {
+      // Reveal the settings section so the picker's refusal is actually
+      // legible: AnimatedCrossFade wraps its collapsed half in
+      // ExcludeSemantics, so an error rendered there is invisible both to a
+      // human and to a driving agent reading the semantics tree.
+      setState(() => _settingsOpen = true);
+    }
+    if (!valid) return;
     final id = _modelId;
     if (id == null) return;
     widget.onStart(
@@ -189,6 +211,7 @@ class _PromptPanelState extends State<PromptPanel> {
           onChanged: widget.onProviderConfigChanged,
           conversationId: widget.conversationId,
           catalog: widget.catalog,
+          onConnectionVerified: widget.onReloadModels,
         ),
         const SizedBox(height: 12),
         Row(
@@ -197,6 +220,9 @@ class _PromptPanelState extends State<PromptPanel> {
               child: DropdownButtonFormField<String>(
                 key: const Key('prompt.model'),
                 initialValue: _modelId,
+                decoration: const InputDecoration(labelText: 'Model'),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: (v) => v == null ? 'Select a model' : null,
                 items: state.models
                     .map(
                       (m) => DropdownMenuItem<String>(

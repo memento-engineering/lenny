@@ -107,10 +107,35 @@ void main() {
           'FOOTER_OUTCOME=harness_error',
           'FOOTER_HARNESS_ERROR=observation_envelope_rejected',
           'FOOTER_TERMINATION_DETAIL=envelope_keys=[result, type]',
+          'STOP_OBSERVED=false',
+          'SELECT_MODEL_ERROR_OBSERVED=false',
         ],
       );
     },
   );
+
+  test('receiptDiagnostics reports an observed Stop and model error', () {
+    expect(
+      receiptDiagnostics(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'turn',
+          'observation': <String, dynamic>{
+            'core': <String, dynamic>{
+              'nodes': <dynamic>[
+                <String, dynamic>{'label': 'Stop'},
+                <String, dynamic>{'label': 'Select a model'},
+              ],
+            },
+          },
+          'proposed_action': <String, dynamic>{'tool': 'core.tap'},
+        },
+      ]),
+      containsAll(<String>[
+        'STOP_OBSERVED=true',
+        'SELECT_MODEL_ERROR_OBSERVED=true',
+      ]),
+    );
+  });
 
   test('receiptDiagnostics reports an empty trajectory without throwing', () {
     expect(

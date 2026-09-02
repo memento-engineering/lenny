@@ -318,6 +318,7 @@ class ProviderConfigForm extends StatefulWidget {
     required this.onChanged,
     required this.conversationId,
     required this.catalog,
+    this.onConnectionVerified,
   });
 
   /// Starting config. `null` means the panel has never been configured
@@ -334,6 +335,11 @@ class ProviderConfigForm extends StatefulWidget {
   /// Used by the "Test connection" button to call
   /// [ModelCatalog.fetch] with `reload: true`.
   final ModelCatalog catalog;
+
+  /// Fires after a successful "Test connection" fetch so the owner can
+  /// refresh the model picker from the same provider config. `null` leaves
+  /// the button purely informational.
+  final VoidCallback? onConnectionVerified;
 
   @override
   State<ProviderConfigForm> createState() => _ProviderConfigFormState();
@@ -380,6 +386,7 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
       final models = await widget.catalog.fetch(_config, reload: true);
       if (!mounted) return;
       setState(() => _testResult = 'OK (${models.length} models)');
+      widget.onConnectionVerified?.call();
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => _testResult = 'Failed: $e');

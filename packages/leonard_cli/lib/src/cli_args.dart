@@ -37,6 +37,7 @@ class CliArgs {
     this.coreBudgetBytes,
     this.probeArtifactPath,
     this.doneReasonPattern,
+    this.doneEvidencePattern,
   });
 
   /// Goal to drive the app toward, supplied via `--goal`. `null` means use
@@ -104,6 +105,11 @@ class CliArgs {
   /// Scenario-declared regular expression a `core.done` `reason` must match.
   /// `null` leaves `core.done` reasons unconstrained.
   final String? doneReasonPattern;
+
+  /// Scenario-declared regular expression that must match some observed node
+  /// label or value when `core.done` is proposed. `null` leaves `core.done`
+  /// evidence unconstrained.
+  final String? doneEvidencePattern;
 }
 
 /// Thrown by [parseCliArgs] for any user-facing argument error. The
@@ -201,6 +207,13 @@ ArgParser buildParser() => ArgParser()
     help:
         'Regular expression a core.done reason must match; a mismatch is '
         'fed back to the model as a validation error and the turn retries.',
+  )
+  ..addOption(
+    'done-evidence-pattern',
+    help:
+        'Regular expression that must match an observed node label or value '
+        'when core.done is proposed; a miss is fed back to the model as a '
+        'validation error and the turn retries.',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this help.');
 
@@ -328,20 +341,14 @@ CliArgs parseCliArgs(List<String> argv) {
     }
   }
 
-  final String? doneReasonPattern = res['done-reason-pattern'] as String?;
-  if (doneReasonPattern != null) {
-    if (doneReasonPattern.isEmpty) {
-      throw CliUsageError('--done-reason-pattern must not be empty');
-    }
-    try {
-      RegExp(doneReasonPattern);
-    } on FormatException catch (e) {
-      throw CliUsageError(
-        '--done-reason-pattern is not a valid regular expression: '
-        '${e.message}',
-      );
-    }
-  }
+  final String? doneReasonPattern = _validPattern(
+    res['done-reason-pattern'] as String?,
+    'done-reason-pattern',
+  );
+  final String? doneEvidencePattern = _validPattern(
+    res['done-evidence-pattern'] as String?,
+    'done-evidence-pattern',
+  );
 
   return CliArgs(
     goal: res['goal'] as String?,
@@ -361,5 +368,21 @@ CliArgs parseCliArgs(List<String> argv) {
     coreBudgetBytes: coreBudgetBytes,
     probeArtifactPath: res['probe-artifact'] as String?,
     doneReasonPattern: doneReasonPattern,
+    doneEvidencePattern: doneEvidencePattern,
   );
+}
+
+/// Returns [raw] when it compiles as a regular expression, else throws a
+/// [CliUsageError] naming `--[flag]`. `null` passes through unconstrained.
+String? _validPattern(String? raw, String flag) {
+  if (raw == null) return null;
+  if (raw.isEmpty) throw CliUsageError('--$flag must not be empty');
+  try {
+    RegExp(raw);
+  } on FormatException catch (e) {
+    throw CliUsageError(
+      '--$flag is not a valid regular expression: ${e.message}',
+    );
+  }
+  return raw;
 }

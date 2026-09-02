@@ -11,7 +11,10 @@ STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
 BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
 BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
-ROUND_MARKER='PANEL_SELFDRIVE_ROUND=6'
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=8'
+RUN_HEAD="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+RUN_HEAD_COMMITTED_AT="$(git -C "$ROOT" show -s --format=%cI HEAD 2>/dev/null ||
+  printf 'unknown')"
 
 if (( $# > 1 )); then
   printf 'usage: %s [sample-app-device-id]\n' "$0" >&2
@@ -50,6 +53,13 @@ DONE_REASON_PATTERN="$(sed -n 's/^done-reason-pattern: //p' "$SCENARIO" |
 [[ -n "$DONE_REASON_PATTERN" ]] || {
   printf '%s\n' \
     'run_panel_selfdrive_scenario: scenario declares no done-reason-pattern' >&2
+  exit 1
+}
+DONE_EVIDENCE_PATTERN="$(sed -n 's/^done-evidence-pattern: //p' "$SCENARIO" |
+  head -n 1)"
+[[ -n "$DONE_EVIDENCE_PATTERN" ]] || {
+  printf '%s\n' \
+    'run_panel_selfdrive_scenario: scenario declares no done-evidence-pattern' >&2
   exit 1
 }
 
@@ -108,6 +118,7 @@ DRIVER_ARGS=(
   --output "$TRAJECTORY"
   --turn-budget 180
   --done-reason-pattern "$DONE_REASON_PATTERN"
+  --done-evidence-pattern "$DONE_EVIDENCE_PATTERN"
   --core-budget-bytes "$CORE_BUDGET_BYTES"
   --probe-artifact "$PANEL_PROBE"
   --action-env SWIFT_INFER_ENDPOINT
@@ -177,6 +188,9 @@ if (( verify_status == 2 )); then
     "$VERIFY_LOG" | head -n 1 || true)"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    "RUN_HEAD=$RUN_HEAD" \
+    "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+    "RUN_STARTED_AT=$STAMP" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
     "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
@@ -209,6 +223,9 @@ if (( driver_status != 0 || verify_status != 0 )); then
     tail -n 1 || true)")"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    "RUN_HEAD=$RUN_HEAD" \
+    "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+    "RUN_STARTED_AT=$STAMP" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
     "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
@@ -229,12 +246,15 @@ fi
 
 note="$(printf '%s\n' \
   "$ROUND_MARKER" \
+  "RUN_HEAD=$RUN_HEAD" \
+  "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+  "RUN_STARTED_AT=$STAMP" \
   'PANEL_SELFDRIVE_RECEIPT=passed' \
   'SCENARIO_EXIT_STATUS=0' \
   'VERIFIER_EXIT_STATUS=0' \
   "$receipt" \
   'ROOT_CAUSE=core observation exceeded the former 4096-byte all-or-nothing budget' \
-  'REPAIRS=typed ObservationEnvelopeError surfaced as observation_envelope_rejected; endpoint reclassified as configuration; credential leaks redacted in place instead of deleting the run directory')"
+  'REPAIRS=core.done is gated on an observed Timeline row cross-checked against the reason; the scenario states the resolved-value contract and the panel'"'"'s real widget set')"
 persist_receipt "$note"
 sed -n '1,160p' "$DRIVER_LOG" >&2
 printf '%s\n' "$note"

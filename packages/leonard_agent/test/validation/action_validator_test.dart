@@ -407,6 +407,109 @@ void main() {
     });
   });
 
+  group('done-evidence pass', () {
+    final RegExp evidence = RegExp(r'^#([0-9]+) ([A-Za-z0-9_.-]+)\(');
+    final ActionValidator gated = ActionValidator(
+      doneReasonPattern: RegExp(
+        r'^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$',
+      ),
+      doneEvidencePattern: evidence,
+    );
+    Observation withRow(String label) =>
+        _obs(<SemanticsNode>[_node(id: 1, label: label)]);
+
+    test('rejects core.done when no node matches the evidence pattern', () {
+      final r = gated.validate(
+        (
+          tool: 'core.done',
+          args: <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 1 tool start_command',
+          },
+        ),
+        withRow('Timeline'),
+        _doneReasonToolList(),
+      );
+      final reject = r as ValidationReject;
+      expect(reject.reason, 'done_evidence_missing');
+      expect(reject.expected, <String>[evidence.pattern]);
+    });
+
+    test('rejects a reason that names a row which is not observed', () {
+      final r = gated.validate(
+        (
+          tool: 'core.done',
+          args: <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 9 tool start_command',
+          },
+        ),
+        withRow('#1 start_command(goal)'),
+        _doneReasonToolList(),
+      );
+      final reject = r as ValidationReject;
+      expect(reject.reason, 'done_evidence_mismatch');
+      expect(reject.pointer, '/reason');
+      expect(reject.expected, <String>['#1 start_command(goal)']);
+      expect(reject.got, 'panel smoke passed: inner turn 9 tool start_command');
+    });
+
+    test('accepts core.done when the reason quotes the observed row', () {
+      final r = gated.validate(
+        (
+          tool: 'core.done',
+          args: <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 1 tool start_command',
+          },
+        ),
+        withRow('#1 start_command(goal)'),
+        _doneReasonToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('matches a row carried in a node value, not only its label', () {
+      final Observation obs = _obs(<SemanticsNode>[
+        SemanticsNode(
+          id: 1,
+          role: 'text',
+          label: '',
+          value: '#2 core.tap(node_id: 4)',
+          state: const <String>[],
+          actions: const <String>['tap'],
+          rect: const <int>[0, 0, 100, 50],
+        ),
+      ]);
+      final r = gated.validate(
+        (
+          tool: 'core.done',
+          args: <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 2 tool core.tap',
+          },
+        ),
+        obs,
+        _doneReasonToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('a validator without an evidence pattern accepts core.done', () {
+      final r = validator.validate(
+        (tool: 'core.done', args: <String, dynamic>{'reason': 'anything'}),
+        _obs(const <SemanticsNode>[]),
+        _doneReasonToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('the evidence pattern does not constrain other tools', () {
+      final r = gated.validate(
+        (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+        _obs(<SemanticsNode>[_node(id: 1)]),
+        _coreToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+  });
+
   group('statelessness', () {
     test('repeated calls with same inputs return equal results', () {
       final obs = _obs(<SemanticsNode>[_node(id: 1)]);

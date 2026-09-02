@@ -30,8 +30,10 @@ class ValidationOk extends ValidationResult {
 ///
 /// Field meanings:
 /// - [tool] — the tool name from the rejected action (echoed for clarity).
-/// - [reason] — one of: `unknown_tool`, `schema_invalid`, `node_not_found`,
-///   `node_disabled`. The loop driver routes on this string.
+/// - [reason] — one of: `unknown_tool`, `schema_invalid`,
+///   `done_reason_mismatch`, `done_evidence_missing`,
+///   `done_evidence_mismatch`, `node_not_found`, `node_disabled`. The loop
+///   driver routes on this string.
 /// - [expected] — for `unknown_tool`, the list of available tool names.
 /// - [got] — what the action actually carried (e.g. the unknown tool name,
 ///   or the offending node id).
@@ -54,7 +56,8 @@ class ValidationReject extends ValidationResult {
   final String tool;
 
   /// Rejection reason — one of: `unknown_tool`, `schema_invalid`,
-  /// `node_not_found`, `node_disabled`.
+  /// `done_reason_mismatch`, `done_evidence_missing`,
+  /// `done_evidence_mismatch`, `node_not_found`, `node_disabled`.
   final String reason;
 
   /// Expected values (e.g. list of available tool names for

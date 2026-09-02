@@ -77,7 +77,7 @@ cat >"$output" <<'JSONL'
 {"type":"turn","index":0,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_ENDPOINT}"}}}
 {"type":"turn","index":1,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${SWIFT_INFER_AGENT_TOKEN}"}}}
 {"type":"turn","index":2,"observation":{"core":{"nodes":[]}},"proposed_action":{"tool":"core.enter_text","args":{"text":"${PANEL_SELFDRIVE_MODEL_ID}"}}}
-{"type":"turn","index":3,"observation":{"core":{"nodes":[{"label":"OK (2 models)"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
+{"type":"turn","index":3,"observation":{"core":{"nodes":[{"label":"OK (2 models)"},{"label":"Stop"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
 {"type":"turn","index":4,"observation":{"core":{"nodes":[{"label":"#0 core.done()"},{"label":"Proposed action"},{"value":"core.done()"}]}},"proposed_action":{"tool":"core.tap","args":{}}}
 {"type":"turn","index":5,"observation":{"core":{"nodes":[{"label":"Start","actions":["tap"],"state":[]}]}},"proposed_action":{"tool":"core.done","args":{"reason":"panel smoke passed: inner turn 0 tool core.done"}}}
 JSONL
@@ -153,7 +153,11 @@ grep -Fx '131072' "$HAPPY_STATE/core_budget_bytes" >/dev/null
 [[ -f "$HAPPY_STATE/driver_started" ]]
 [[ -f "$HAPPY_RUN_DIR/bead.note" ]]
 [[ -f "$HAPPY_RUN_DIR/bead.readback" ]]
-grep -Fx 'PANEL_SELFDRIVE_ROUND=5' "$HAPPY_STATE/bd_notes" >/dev/null
+SCRIPT_ROUND_MARKER="$(sed -n "s/^ROUND_MARKER='\(PANEL_SELFDRIVE_ROUND=[0-9]*\)'\$/\1/p" \
+  "$SCRIPT" | head -n 1)"
+[[ -n "$SCRIPT_ROUND_MARKER" ]]
+grep -Fx "$SCRIPT_ROUND_MARKER" "$HAPPY_STATE/bd_notes" >/dev/null
+grep -E '^RUN_HEAD=[0-9a-f]{40}$' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -F 'SWIFT_INFER_AGENT_TOKEN' "$HAPPY_STATE/goal_file_content" >/dev/null
 ! grep -R -F 'fixture-secret-never-written' "$HAPPY_STATE/output"
@@ -213,6 +217,7 @@ DRIVER_FAILURE_RUN_DIR="$(run_dir_from_stderr "$DRIVER_FAILURE_STATE/stderr")"
 [[ -s "$DRIVER_FAILURE_RUN_DIR/panel.log" ]]
 [[ -s "$DRIVER_FAILURE_RUN_DIR/sample_app.log" ]]
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=failed' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
+grep -E '^RUN_HEAD=[0-9a-f]{40}$' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 grep -Fx 'FURTHEST_POINT=outer trajectory turn 5, proposed_action.tool=core.done' \
   "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 grep -Fx 'TURN_COUNT=6' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
