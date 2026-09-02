@@ -12,7 +12,7 @@ dependencies:
   dio: ^5.7.0
   flutter:
     sdk: flutter
-  genesis_perception: ^0.2.0
+  genesis_perception: ">=0.2.0 <0.4.0"
   leonard_flutter: ^0.3.0
 
 dev_dependencies:
