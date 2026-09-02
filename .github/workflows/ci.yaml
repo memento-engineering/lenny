@@ -20,6 +20,25 @@ jobs:
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
       - run: melos run test --no-select
+  grid-assets:
+    # `grid_assets/leonard_grid_assets` is a PUBLISHED package that is neither
+    # a workspace member nor covered by the root `dart analyze` (the root
+    # analysis_options excludes `grid_assets/**`). It resolves from pub, so it
+    # gates on its own here — without this job a red pack publishes green.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: grid_assets/leonard_grid_assets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart analyze
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: dart test
+
   coverage:
     runs-on: ubuntu-latest
     steps:
