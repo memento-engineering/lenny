@@ -331,12 +331,15 @@ void main() {
       );
       final body = jsonDecode(client.capturedBody) as Map<String, dynamic>;
       final msgs = (body['messages'] as List).cast<Map<String, dynamic>>();
-      // model turn: <think> replay + tool_use
+      // model turn: thinking-block replay + tool_use
       final model = msgs[1];
       final modelContent = (model['content'] as List)
           .cast<Map<String, dynamic>>();
-      expect(modelContent.first['type'], 'text');
-      expect(modelContent.first['text'], '<think>because</think>');
+      expect(modelContent.first['type'], 'thinking');
+      expect(modelContent.first['thinking'], 'because');
+      // swift-infer/Qwen never signs a thinking block — the key is omitted and
+      // the gateway decodes leniently (AnthropicTypes.swift:115-121).
+      expect(modelContent.first.containsKey('signature'), isFalse);
       final toolUse = modelContent.firstWhere((c) => c['type'] == 'tool_use');
       expect(toolUse['id'], 'tu1');
       expect(toolUse['name'], 'tap');
@@ -349,6 +352,46 @@ void main() {
       expect(resultBlock['type'], 'tool_result');
       expect(resultBlock['tool_use_id'], 'tu1');
       expect(resultBlock['content'], 'done');
+    });
+
+    test('replays prior reasoning as a leading thinking block', () async {
+      final client = _FakeClient([_textDelta('x')]);
+      await _run(
+        client,
+        messages: [
+          ChatMessage.user('hi'),
+          ChatMessage(
+            role: ChatMessageRole.model,
+            parts: [
+              ThinkingPart('step one'),
+              ThinkingPart(' step two'),
+              TextPart('answer'),
+              ToolPart.call(
+                callId: 'tu9',
+                toolName: 'tap',
+                arguments: {'x': 1},
+              ),
+            ],
+          ),
+        ],
+      );
+      final body = jsonDecode(client.capturedBody) as Map<String, dynamic>;
+      final blocks =
+          (((body['messages'] as List)[1] as Map<String, dynamic>)['content']
+                  as List)
+              .cast<Map<String, dynamic>>();
+      // Ordering rule: thinking first, then text, then tool_use.
+      expect(blocks.map((b) => b['type']).toList(), [
+        'thinking',
+        'text',
+        'tool_use',
+      ]);
+      // Fragments of one turn's trace are joined without a separator.
+      expect(blocks.first['thinking'], 'step one step two');
+      expect(blocks.first.containsKey('signature'), isFalse);
+      // The provider never inlines think markers into an outgoing body.
+      expect(client.capturedBody, isNot(contains('<think>')));
+      expect(client.capturedBody, isNot(contains('</think>')));
     });
   });
 
