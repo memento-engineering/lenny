@@ -77,6 +77,13 @@ to `qwen3.6-35b-a3b-8bit`). `--model-id <id>` pins the exact model id for the
 chosen tier and outranks `SWIFT_INFER_MODEL`. Add `--extensions <ns,…>` for any
 registered extensions (e.g. `router,riverpod,dio`, or `tmux`).
 
+On the `qwen-mlx` tier the CLI sends only `max_tokens` (default `16384`) and,
+for a `qwen3.8*` id, `reasoning_effort: medium`; every other sampling knob is
+omitted so the swift-infer node's model-card defaults apply. Override with
+`--reasoning-effort <none|low|medium|high|xhigh>` / `--max-tokens <n>`, or with
+`SWIFT_INFER_REASONING_EFFORT` / `SWIFT_INFER_MAX_TOKENS` (the flags outrank
+the variables).
+
 Turn-by-turn — you decide each action:
 
 ```bash

@@ -17,6 +17,8 @@ const String _kQwen38 = 'qwen3.8-40b-a3b-8bit';
 DartanticModelProvider _qwen({
   Map<String, String> environment = const <String, String>{},
   String? modelId,
+  SwiftInferReasoningEffort? reasoningEffort,
+  int? maxTokens,
 }) =>
     buildProvider(
           ModelTier.qwenMlx,
@@ -24,8 +26,13 @@ DartanticModelProvider _qwen({
           now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
           environment: environment,
           modelId: modelId,
+          reasoningEffort: reasoningEffort,
+          maxTokens: maxTokens,
         )
         as DartanticModelProvider;
+
+SwiftInferChatOptions _opts(DartanticModelProvider p) =>
+    (p.backend as SwiftInferBackend).options!;
 
 void main() {
   group('qwen-mlx model id', () {
@@ -94,6 +101,95 @@ void main() {
       expect(
         (p.backend as SwiftInferBackend).baseUrl,
         Uri.parse('http://localhost:8080'),
+      );
+    });
+  });
+
+  group('qwen-mlx sampling options', () {
+    test('qwen3.8 defaults to medium effort and 16384 max tokens', () {
+      final o = _opts(_qwen(modelId: _kQwen38));
+      expect(o.reasoningEffort, SwiftInferReasoningEffort.medium);
+      expect(o.maxTokens, 16384);
+    });
+
+    test('the 3.6 default id leaves the effort unset', () {
+      final o = _opts(_qwen());
+      expect(o.reasoningEffort, isNull);
+      expect(o.maxTokens, 16384);
+    });
+
+    test('no sampling knob is sent beyond max_tokens + effort', () {
+      final o = _opts(_qwen(modelId: _kQwen38));
+      expect(o.temperature, isNull);
+      expect(o.topP, isNull);
+      expect(o.topK, isNull);
+      expect(o.presencePenalty, isNull);
+      expect(o.repetitionPenalty, isNull);
+      expect(o.preserveThinking, isTrue);
+    });
+
+    test('env vars override the per-model defaults', () {
+      final o = _opts(
+        _qwen(
+          environment: <String, String>{
+            'SWIFT_INFER_REASONING_EFFORT': 'high',
+            'SWIFT_INFER_MAX_TOKENS': '2048',
+          },
+        ),
+      );
+      expect(o.reasoningEffort, SwiftInferReasoningEffort.high);
+      expect(o.maxTokens, 2048);
+    });
+
+    test('flags outrank the env vars', () {
+      final o = _opts(
+        _qwen(
+          environment: <String, String>{
+            'SWIFT_INFER_REASONING_EFFORT': 'high',
+            'SWIFT_INFER_MAX_TOKENS': '2048',
+          },
+          reasoningEffort: SwiftInferReasoningEffort.low,
+          maxTokens: 4096,
+        ),
+      );
+      expect(o.reasoningEffort, SwiftInferReasoningEffort.low);
+      expect(o.maxTokens, 4096);
+    });
+
+    test('empty env values are treated as unset', () {
+      final o = _opts(
+        _qwen(
+          modelId: _kQwen38,
+          environment: <String, String>{
+            'SWIFT_INFER_REASONING_EFFORT': '',
+            'SWIFT_INFER_MAX_TOKENS': '',
+          },
+        ),
+      );
+      expect(o.reasoningEffort, SwiftInferReasoningEffort.medium);
+      expect(o.maxTokens, 16384);
+    });
+
+    test('an unparseable env value throws LOUDLY', () {
+      expect(
+        () => _qwen(
+          environment: <String, String>{
+            'SWIFT_INFER_REASONING_EFFORT': 'insane',
+          },
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => _qwen(
+          environment: <String, String>{'SWIFT_INFER_MAX_TOKENS': '-1'},
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => _qwen(
+          environment: <String, String>{'SWIFT_INFER_MAX_TOKENS': 'lots'},
+        ),
+        throwsA(isA<StateError>()),
       );
     });
   });

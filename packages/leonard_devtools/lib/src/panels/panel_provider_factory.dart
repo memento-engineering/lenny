@@ -48,6 +48,15 @@ ModelProvider buildPanelProvider(
             'X-Session-Id': sessionId,
             if (cfg.captureBodies) 'X-Swift-Infer-Capture-Bodies': 'true',
           },
+          // Panel value > per-model default; omitted sampling knobs leave the
+          // swift-infer node's model-card defaults in force.
+          options: defaultSwiftInferOptions(
+            modelId,
+            maxTokens: cfg.maxTokens,
+            reasoningEffort: cfg.reasoningEffort,
+            temperature: cfg.temperature,
+            presencePenalty: cfg.presencePenalty,
+          ),
         ),
         model: modelId,
         capabilities: capabilitiesFor('swift-infer', modelId) ?? _defaultCaps,

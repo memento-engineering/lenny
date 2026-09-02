@@ -9,6 +9,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:leonard_agent/leonard_agent.dart'
+    show SwiftInferReasoningEffort;
 
 import 'model_catalog.dart';
 
@@ -87,6 +89,10 @@ class SwiftInferUiConfig extends ProviderConfig {
     this.captureBodies = true,
     this.extraHeaders = const <String, String>{},
     this.defaultModelId = 'qwen3.6-35b-a3b-8bit',
+    this.reasoningEffort,
+    this.maxTokens,
+    this.temperature,
+    this.presencePenalty,
   }) : _bearerToken = bearerToken;
 
   @override
@@ -111,6 +117,19 @@ class SwiftInferUiConfig extends ProviderConfig {
 
   @override
   final String defaultModelId;
+
+  /// swift-infer `reasoning_effort`. `null` leaves the model-derived driver
+  /// default in force (`medium` for `qwen3.8`, unset otherwise).
+  final SwiftInferReasoningEffort? reasoningEffort;
+
+  /// swift-infer `max_tokens`. `null` = the driver default (16384).
+  final int? maxTokens;
+
+  /// swift-infer `temperature`. `null` = unset (node card default).
+  final double? temperature;
+
+  /// swift-infer `presence_penalty`. `null` = unset (node card default).
+  final double? presencePenalty;
 
   @override
   Uri get baseUrl => endpoint;
@@ -141,6 +160,10 @@ class SwiftInferUiConfig extends ProviderConfig {
     'captureBodies': captureBodies,
     'extraHeaders': extraHeaders,
     'defaultModelId': defaultModelId,
+    'reasoningEffort': reasoningEffort?.wireValue,
+    'maxTokens': maxTokens,
+    'temperature': temperature,
+    'presencePenalty': presencePenalty,
   };
 
   @override
@@ -151,6 +174,10 @@ class SwiftInferUiConfig extends ProviderConfig {
     'captureBodies': captureBodies,
     'extraHeaders': extraHeaders,
     'defaultModelId': defaultModelId,
+    'reasoningEffort': reasoningEffort?.wireValue,
+    'maxTokens': maxTokens,
+    'temperature': temperature,
+    'presencePenalty': presencePenalty,
   };
 
   @override
@@ -166,6 +193,13 @@ class SwiftInferUiConfig extends ProviderConfig {
                 .cast<String, String>(),
         defaultModelId:
             (json['defaultModelId'] as String?) ?? 'qwen3.6-35b-a3b-8bit',
+        reasoningEffort: switch (json['reasoningEffort']) {
+          final String wire => SwiftInferReasoningEffort.tryParse(wire),
+          _ => null,
+        },
+        maxTokens: (json['maxTokens'] as num?)?.toInt(),
+        temperature: (json['temperature'] as num?)?.toDouble(),
+        presencePenalty: (json['presencePenalty'] as num?)?.toDouble(),
       );
 }
 
@@ -397,38 +431,43 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        DropdownButtonFormField<String>(
-          key: const Key('providerForm.providerSelect'),
-          initialValue: _config.id,
-          decoration: const InputDecoration(labelText: 'Provider'),
-          items: const <DropdownMenuItem<String>>[
-            DropdownMenuItem(value: 'swift-infer', child: Text('swift-infer')),
-            DropdownMenuItem(value: 'anthropic', child: Text('anthropic')),
-            DropdownMenuItem(value: 'openai', child: Text('openai')),
-          ],
-          onChanged: _switchProvider,
-        ),
-        const SizedBox(height: 8),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 120),
-          child: _buildSubform(),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            ElevatedButton(
-              key: const Key('providerForm.testConnection'),
-              onPressed: _testLoading ? null : _testConnection,
-              child: const Text('Test connection'),
-            ),
-            const SizedBox(width: 12),
-            if (_testResult != null) Text(_testResult!),
-          ],
-        ),
-      ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          DropdownButtonFormField<String>(
+            key: const Key('providerForm.providerSelect'),
+            initialValue: _config.id,
+            decoration: const InputDecoration(labelText: 'Provider'),
+            items: const <DropdownMenuItem<String>>[
+              DropdownMenuItem(
+                value: 'swift-infer',
+                child: Text('swift-infer'),
+              ),
+              DropdownMenuItem(value: 'anthropic', child: Text('anthropic')),
+              DropdownMenuItem(value: 'openai', child: Text('openai')),
+            ],
+            onChanged: _switchProvider,
+          ),
+          const SizedBox(height: 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 120),
+            child: _buildSubform(),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              ElevatedButton(
+                key: const Key('providerForm.testConnection'),
+                onPressed: _testLoading ? null : _testConnection,
+                child: const Text('Test connection'),
+              ),
+              const SizedBox(width: 12),
+              if (_testResult != null) Text(_testResult!),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -486,6 +525,16 @@ class _SwiftInferSubformState extends State<_SwiftInferSubform> {
   late final TextEditingController _defaultModel = TextEditingController(
     text: widget.config.defaultModelId,
   );
+  late final TextEditingController _maxTokens = TextEditingController(
+    text: widget.config.maxTokens?.toString() ?? '',
+  );
+  late final TextEditingController _temperature = TextEditingController(
+    text: widget.config.temperature?.toString() ?? '',
+  );
+  late final TextEditingController _presencePenalty = TextEditingController(
+    text: widget.config.presencePenalty?.toString() ?? '',
+  );
+  late SwiftInferReasoningEffort? _effort = widget.config.reasoningEffort;
   late bool _captureBodies = widget.config.captureBodies;
   late List<MapEntry<String, String>> _extras = widget
       .config
@@ -503,6 +552,10 @@ class _SwiftInferSubformState extends State<_SwiftInferSubform> {
         defaultModelId: _defaultModel.text.isEmpty
             ? widget.config.defaultModelId
             : _defaultModel.text,
+        reasoningEffort: _effort,
+        maxTokens: int.tryParse(_maxTokens.text.trim()),
+        temperature: double.tryParse(_temperature.text.trim()),
+        presencePenalty: double.tryParse(_presencePenalty.text.trim()),
       ),
     );
   }
@@ -512,6 +565,9 @@ class _SwiftInferSubformState extends State<_SwiftInferSubform> {
     _bearer.dispose();
     _endpoint.dispose();
     _defaultModel.dispose();
+    _maxTokens.dispose();
+    _temperature.dispose();
+    _presencePenalty.dispose();
     super.dispose();
   }
 
@@ -537,6 +593,59 @@ class _SwiftInferSubformState extends State<_SwiftInferSubform> {
           key: const Key('providerForm.swift-infer.defaultModel'),
           controller: _defaultModel,
           decoration: const InputDecoration(labelText: 'Default model id'),
+          onChanged: (_) => _push(),
+        ),
+        DropdownButtonFormField<String>(
+          key: const Key('providerForm.swift-infer.reasoningEffort'),
+          initialValue: _effort?.wireValue ?? '',
+          decoration: const InputDecoration(
+            labelText: 'Reasoning effort',
+            helperText: 'unset = the driver/model default',
+          ),
+          items: <DropdownMenuItem<String>>[
+            const DropdownMenuItem<String>(value: '', child: Text('unset')),
+            for (final SwiftInferReasoningEffort e
+                in SwiftInferReasoningEffort.values)
+              DropdownMenuItem<String>(
+                value: e.wireValue,
+                child: Text(e.wireValue),
+              ),
+          ],
+          onChanged: (String? v) {
+            setState(
+              () => _effort = (v == null || v.isEmpty)
+                  ? null
+                  : SwiftInferReasoningEffort.tryParse(v),
+            );
+            _push();
+          },
+        ),
+        TextFormField(
+          key: const Key('providerForm.swift-infer.maxTokens'),
+          controller: _maxTokens,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Max tokens',
+            helperText: 'blank = 16384 (driver default)',
+          ),
+          onChanged: (_) => _push(),
+        ),
+        TextFormField(
+          key: const Key('providerForm.swift-infer.temperature'),
+          controller: _temperature,
+          decoration: const InputDecoration(
+            labelText: 'Temperature',
+            helperText: 'blank = the node model-card default',
+          ),
+          onChanged: (_) => _push(),
+        ),
+        TextFormField(
+          key: const Key('providerForm.swift-infer.presencePenalty'),
+          controller: _presencePenalty,
+          decoration: const InputDecoration(
+            labelText: 'Presence penalty',
+            helperText: 'blank = the node model-card default',
+          ),
           onChanged: (_) => _push(),
         ),
         SwitchListTile(

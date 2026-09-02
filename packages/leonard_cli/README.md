@@ -13,7 +13,7 @@ concrete `ModelProvider`:
 | Tier        | Provider             | Required env                      |
 |-------------|----------------------|-----------------------------------|
 | `claude`    | `AnthropicModelProvider` | `ANTHROPIC_API_KEY` (default)           |
-| `qwen-mlx`  | `SwiftInferModelProvider` (local swift-infer gateway) | `SWIFT_INFER_AGENT_TOKEN` (when the gateway requires auth), `SWIFT_INFER_ENDPOINT` (optional, defaults to `http://localhost:8080`), `SWIFT_INFER_MODEL` (optional, defaults to `qwen3.6-35b-a3b-8bit`) |
+| `qwen-mlx`  | `SwiftInferModelProvider` (local swift-infer gateway) | `SWIFT_INFER_AGENT_TOKEN` (when the gateway requires auth), `SWIFT_INFER_ENDPOINT` (optional, defaults to `http://localhost:8080`), `SWIFT_INFER_MODEL` (optional, defaults to `qwen3.6-35b-a3b-8bit`), `SWIFT_INFER_REASONING_EFFORT` (optional), `SWIFT_INFER_MAX_TOKENS` (optional, defaults to 16384) |
 | `openai`    | `OpenAiModelProvider`    | `OPENAI_API_KEY`              |
 
 ## swift-infer gateway (qwen-mlx)
@@ -39,6 +39,21 @@ inspection tooling work for both clients.
   `qwen3.8-40b-a3b-8bit`. The `--model-id` flag outranks this variable, which
   outranks the default; capabilities resolve from the id itself, so any
   `qwen3.*` node keeps vision + preserved thinking.
+* `SWIFT_INFER_REASONING_EFFORT` — `reasoning_effort` sent on every
+  `/v1/messages` request when resolved: one of `none`, `low`, `medium`, `high`,
+  `xhigh`. Unset (or empty) means the field is omitted and the node's model-card
+  default applies — except for a `qwen3.8*` model id, which defaults to `medium`
+  because that template otherwise runs `xhigh`. The `--reasoning-effort` flag
+  outranks this variable; an unparseable value fails the run loudly.
+* `SWIFT_INFER_MAX_TOKENS` — `max_tokens` for a single response. Defaults to
+  `16384` (thinking plus answer share this budget). The `--max-tokens` flag
+  outranks this variable; a non-positive or non-numeric value fails the run
+  loudly.
+
+Every other sampling knob (`temperature`, `top_p`, `top_k`,
+`presence_penalty`, `repetition_penalty`) is deliberately NOT sent by the CLI,
+so the swift-infer node's per-model card values apply. `preserve_thinking` is
+always sent — it is a reasoning-replay contract, not a sampling knob.
 
 ### Per-run conversation tracing
 
@@ -70,8 +85,10 @@ Example (opt-in — local swift-infer):
 
 ```sh
 export SWIFT_INFER_AGENT_TOKEN=sk-…
-export SWIFT_INFER_ENDPOINT=http://localhost:8080  # optional
-export SWIFT_INFER_MODEL=qwen3.8-40b-a3b-8bit      # optional
+export SWIFT_INFER_ENDPOINT=http://localhost:8080     # optional
+export SWIFT_INFER_MODEL=qwen3.8-40b-a3b-8bit         # optional
+export SWIFT_INFER_REASONING_EFFORT=medium            # optional
+export SWIFT_INFER_MAX_TOKENS=16384                   # optional
 dart run leonard_cli \
   --model qwen-mlx \
   --vm-uri ws://127.0.0.1:54321/abc=/ws \

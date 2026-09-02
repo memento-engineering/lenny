@@ -1,3 +1,5 @@
+import 'package:leonard_agent/leonard_agent.dart'
+    show SwiftInferReasoningEffort;
 import 'package:leonard_devtools/src/panels/provider_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -76,6 +78,47 @@ void main() {
       expect(decoded.captureBodies, isFalse);
       expect(decoded.extraHeaders, equals({'x-a': 'b'}));
       expect(decoded.defaultModelId, 'qwen3.6-35b-a3b-8bit');
+    });
+
+    test('sampling knobs round-trip; absent keys decode to null', () {
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 'tok',
+        endpoint: Uri.parse('http://localhost:9000'),
+        reasoningEffort: SwiftInferReasoningEffort.medium,
+        maxTokens: 16384,
+        temperature: 0.7,
+        presencePenalty: 0.0,
+      );
+      final decoded =
+          ProviderConfig.fromJson(cfg.toJson()) as SwiftInferUiConfig;
+      expect(decoded.reasoningEffort, SwiftInferReasoningEffort.medium);
+      expect(decoded.maxTokens, 16384);
+      expect(decoded.temperature, 0.7);
+      expect(decoded.presencePenalty, 0.0);
+
+      final bare =
+          ProviderConfig.fromJson(<String, dynamic>{
+                'id': 'swift-infer',
+                'bearerToken': 'tok',
+                'endpoint': 'http://localhost:9000',
+              })
+              as SwiftInferUiConfig;
+      expect(bare.reasoningEffort, isNull);
+      expect(bare.maxTokens, isNull);
+      expect(bare.temperature, isNull);
+      expect(bare.presencePenalty, isNull);
+    });
+
+    test('toJsonRedacted still hides the bearer with knobs set', () {
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 'super-secret',
+        endpoint: Uri.parse('http://localhost:8080'),
+        reasoningEffort: SwiftInferReasoningEffort.xhigh,
+        maxTokens: 8192,
+      );
+      expect(cfg.toJsonRedacted()['bearerToken'], '<redacted>');
+      expect(cfg.toJsonRedacted()['reasoningEffort'], 'xhigh');
+      expect(cfg.toString().contains('super-secret'), isFalse);
     });
   });
 

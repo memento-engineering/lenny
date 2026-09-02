@@ -111,6 +111,8 @@ Future<int> runCli(
       args.tier,
       sessionId: sessionId,
       modelId: args.modelId,
+      reasoningEffort: args.reasoningEffort,
+      maxTokens: args.maxTokens,
       onModelDiagnostics: (Map<String, Object?> d) {
         final StringBuffer line = StringBuffer('[model] ')
           ..write('${d['provider']} ${d['model']} ')

@@ -1,4 +1,5 @@
-import 'package:leonard_agent/leonard_agent.dart' show StabilityPolicy;
+import 'package:leonard_agent/leonard_agent.dart'
+    show StabilityPolicy, SwiftInferReasoningEffort;
 import 'package:leonard_cli/src/cli_args.dart';
 import 'package:test/test.dart';
 
@@ -155,6 +156,50 @@ void main() {
           '--model-id',
           '   ',
         ]),
+        throwsA(isA<CliUsageError>()),
+      );
+    });
+
+    test('--reasoning-effort parses and defaults to null', () {
+      const base = <String>['--vm-uri', 'ws://127.0.0.1/ws', '--goal', 'x'];
+      expect(parseCliArgs(base).reasoningEffort, isNull);
+      expect(
+        parseCliArgs(<String>[
+          ...base,
+          '--reasoning-effort',
+          'medium',
+        ]).reasoningEffort,
+        SwiftInferReasoningEffort.medium,
+      );
+    });
+
+    test('invalid --reasoning-effort rejected', () {
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--goal',
+          'x',
+          '--reasoning-effort',
+          'insane',
+        ]),
+        throwsA(isA<CliUsageError>()),
+      );
+    });
+
+    test('--max-tokens parses; non-positive and non-numeric rejected', () {
+      const base = <String>['--vm-uri', 'ws://127.0.0.1/ws', '--goal', 'x'];
+      expect(parseCliArgs(base).maxTokens, isNull);
+      expect(
+        parseCliArgs(<String>[...base, '--max-tokens', '16384']).maxTokens,
+        16384,
+      );
+      expect(
+        () => parseCliArgs(<String>[...base, '--max-tokens', '0']),
+        throwsA(isA<CliUsageError>()),
+      );
+      expect(
+        () => parseCliArgs(<String>[...base, '--max-tokens', 'lots']),
         throwsA(isA<CliUsageError>()),
       );
     });

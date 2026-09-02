@@ -10,5 +10,6 @@ export 'model_provider.dart';
 export 'openai/openai_models.dart';
 export 'swift_infer/swift_infer_chat_model.dart';
 export 'swift_infer/swift_infer_chat_options.dart';
+export 'swift_infer/swift_infer_defaults.dart';
 export 'swift_infer/swift_infer_config.dart';
 export 'types.dart';
