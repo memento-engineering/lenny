@@ -6,6 +6,14 @@ export 'src/errors.dart'
 export 'src/loop_driver/default_loop_host.dart' show DefaultLoopHost;
 export 'src/loop_driver/loop_driver.dart' show LoopDriver;
 export 'src/loop_driver/loop_host.dart' show LoopHost;
+export 'src/loop_driver/provider_transport.dart'
+    show
+        ProviderTransportFailure,
+        describeThrowable,
+        isProviderTransportError,
+        kIoTransportExceptionNames,
+        kMaxDetailLength,
+        scrubCredentials;
 export 'src/loop_driver/session_surface.dart' show SessionSurface;
 export 'src/loop_driver/extension_failure_tracker.dart'
     show ExtensionFailureTracker;

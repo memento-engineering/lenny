@@ -34,6 +34,7 @@ import '../trajectory/writer.dart';
 import '../validation/action_validator.dart';
 import 'loop_host.dart';
 import 'extension_failure_tracker.dart';
+import 'provider_transport.dart';
 import 'types.dart';
 import 'validation_retry.dart';
 
@@ -62,6 +63,11 @@ const int _kDefaultTokenBudget = 32000;
 const int _kMaxConsecutiveFailedTurns = 3;
 const int _kMaxConsecutiveTurnTimeouts = 5;
 
+/// Backoff before the turn following a `provider_transport` failure. The wire
+/// just died; hammering it immediately burns the 3-failure ladder in
+/// milliseconds. Tests inject [Duration.zero].
+const Duration _kDefaultProviderRetryBackoff = Duration(seconds: 2);
+
 /// Function returning the current wall-clock time. Tests inject a
 /// fake clock to advance the per-session 15-min budget without
 /// real-time waits.
@@ -78,6 +84,7 @@ class LoopDriver {
     Duration sessionBudget = _kDefaultSessionBudget,
     int maxTurns = _kDefaultMaxTurns,
     int tokenBudget = _kDefaultTokenBudget,
+    Duration providerRetryBackoff = _kDefaultProviderRetryBackoff,
     Clock? clock,
     void Function(TurnEvent)? onTurnEvent,
   }) : _host = host,
@@ -89,6 +96,7 @@ class LoopDriver {
        _sessionBudget = sessionBudget,
        _maxTurns = maxTurns,
        _tokenBudget = tokenBudget,
+       _providerRetryBackoff = providerRetryBackoff,
        _clock = clock ?? DateTime.now,
        _onTurnEvent = onTurnEvent;
 
@@ -101,6 +109,7 @@ class LoopDriver {
   final Duration _sessionBudget;
   final int _maxTurns;
   final int _tokenBudget;
+  final Duration _providerRetryBackoff;
   final Clock _clock;
 
   /// Optional sink for [TurnEvent]s — wired by `LeonardSession.run`
@@ -115,6 +124,17 @@ class LoopDriver {
   bool _doneRequested = false;
   String? _doneReason;
   DateTime? _sessionStart;
+
+  /// `provider_request_id` of the most recent SUCCESSFUL decide. Carried into
+  /// the `provider_transport` detail so a footer names the request that
+  /// preceded the dead stream.
+  String? _lastProviderRequestId;
+
+  /// Detail for the most recent failed turn, e.g.
+  /// `'provider_transport: ClientException; provider_request_id=req-7'`.
+  /// Becomes the footer's `termination_detail` on an `agent_stuck`
+  /// termination; cleared by a successful turn.
+  String? _lastFailureDetail;
 
   /// Failed-action carry-forward. When the previous turn's executed
   /// action returned `{ok: false}`, the error map is staged here; the
@@ -133,6 +153,9 @@ class LoopDriver {
   String? get doneReason => _doneReason;
   Duration get turnBudget => _turnBudget;
 
+  /// Detail of the most recent failed turn, or `null` after a successful one.
+  String? get lastFailureDetail => _lastFailureDetail;
+
   /// Run exactly one turn. PRD §10 ten-step ordering. Returns the
   /// persisted [TurnRecord] on success. On a failed turn (timeout /
   /// validator-exhausted / schema-exhausted) the failed-turn record
@@ -149,6 +172,7 @@ class LoopDriver {
       ).timeout(_turnBudget, onTimeout: () => throw TurnTimeoutError(idx));
       _consecutiveFailedTurns = 0;
       _consecutiveTurnTimeouts = 0;
+      _lastFailureDetail = null;
       _turnIndex++;
       return r;
     } on TurnTimeoutError catch (_) {
@@ -159,8 +183,32 @@ class LoopDriver {
       );
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveTurnTimeouts++;
+      _lastFailureDetail = 'turn_timeout';
       _turnIndex++;
       throw TurnFailure(idx, 'turn_timeout');
+    } on ProviderTransportFailure catch (e) {
+      // The wire died, not the model: a retryable turn failure that rides the
+      // existing 3-consecutive-failures ladder.
+      final String detail =
+          '${e.errorClass}; '
+          'provider_request_id=${_lastProviderRequestId ?? 'none'}';
+      await _writeFailedTurn(
+        idx,
+        reason: 'provider_transport',
+        providerError: detail,
+      );
+      _emitTurnEvent(TurnValidation(idx, false, 'provider_transport'));
+      _emitTurnEvent(
+        TurnUsage(idx, _conversation.estimatedTokens(), _tokenBudget),
+      );
+      _emitTurnEvent(TurnComplete(idx));
+      _consecutiveFailedTurns++;
+      _lastFailureDetail = 'provider_transport: $detail';
+      _turnIndex++;
+      if (_providerRetryBackoff > Duration.zero) {
+        await Future<void>.delayed(_providerRetryBackoff);
+      }
+      throw TurnFailure(idx, 'provider_transport', e);
     } on InvalidActionExhausted catch (e) {
       await _writeFailedTurn(
         idx,
@@ -173,6 +221,7 @@ class LoopDriver {
       );
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
+      _lastFailureDetail = 'invalid_action_exhausted';
       _turnIndex++;
       throw TurnFailure(idx, 'invalid_action_exhausted', e);
     } on SchemaExhausted catch (e) {
@@ -187,6 +236,7 @@ class LoopDriver {
       );
       _emitTurnEvent(TurnComplete(idx));
       _consecutiveFailedTurns++;
+      _lastFailureDetail = 'schema_exhausted';
       _turnIndex++;
       throw TurnFailure(idx, 'schema_exhausted', e);
     }
@@ -236,6 +286,9 @@ class LoopDriver {
     } finally {
       await thinkingSub?.cancel();
     }
+
+    _lastProviderRequestId =
+        v.decision.providerRequestId ?? _lastProviderRequestId;
 
     // After validate: emit the chosen action + validation outcome.
     _emitTurnEvent(
@@ -326,6 +379,7 @@ class LoopDriver {
     required String reason,
     List<String>? rejections,
     String? schemaError,
+    String? providerError,
   }) async {
     final TurnRecord rec = TurnRecord(
       index: idx,
@@ -337,6 +391,7 @@ class LoopDriver {
         'reason': reason,
         if (rejections != null) 'rejections': rejections,
         if (schemaError != null) 'schema_error': schemaError,
+        if (providerError != null) 'provider_error': providerError,
       },
       executedAction: const <String, dynamic>{},
       diff: const <String, dynamic>{},
@@ -390,6 +445,8 @@ class LoopDriver {
   ///   * VM connection lost mid-turn → `harness_error connection_lost`
   ///   * malformed observation envelope → `harness_error
   ///     observation_envelope_rejected`
+  ///   * any unclassified escaping exception → `harness_error unclassified`
+  ///     (the footer names it; the exception still propagates)
   ///   * voluntary `core.done(reason)` → `done`
   ///
   /// On termination the trajectory writer is closed with the final
@@ -399,6 +456,7 @@ class LoopDriver {
   Future<SessionTermination> runSession() async {
     _sessionStart = _clock();
     SessionTermination? termination;
+    Object? escaped;
     try {
       while (true) {
         if (_turnIndex >= _maxTurns ||
@@ -407,9 +465,10 @@ class LoopDriver {
           return termination;
         }
         if (_consecutiveFailedTurns >= _kMaxConsecutiveFailedTurns) {
-          termination = const SessionTermination(
+          termination = SessionTermination(
             SessionOutcome.harnessError,
             harnessError: HarnessError.agentStuck,
+            terminationDetail: _lastFailureDetail,
           );
           return termination;
         }
@@ -446,12 +505,22 @@ class LoopDriver {
           return termination;
         }
       }
+    } catch (error) {
+      // Nothing leaves runSession unclassified: record the escapee so the
+      // finally clause can NAME it in the footer, then propagate it to the
+      // caller exactly as before.
+      escaped = error;
+      rethrow;
     } finally {
-      // Close writer with the appropriate footer (close() is
-      // idempotent, so duplicate calls are safe if termination is
-      // already set).
+      // Close writer with the appropriate footer (close() is idempotent, so
+      // duplicate calls are safe if termination is already set).
       final SessionTermination t =
-          termination ?? const SessionTermination(SessionOutcome.harnessError);
+          termination ??
+          SessionTermination(
+            SessionOutcome.harnessError,
+            harnessError: HarnessError.unclassified,
+            terminationDetail: describeThrowable(escaped),
+          );
       await _writer.close(
         SessionFooter(
           outcome: t.outcome,

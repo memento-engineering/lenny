@@ -171,4 +171,43 @@ void main() {
       'PANEL_PROBE_BUDGET_BYTES=absent',
     ]);
   });
+
+  test(
+    'receiptDiagnostics surfaces a provider_transport termination detail',
+    () {
+      expect(
+        receiptDiagnostics(<Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'footer',
+            'outcome': 'harness_error',
+            'harness_error': 'agent_stuck',
+            'termination_detail':
+                'provider_transport: ClientException; provider_request_id=req-7',
+          },
+        ]),
+        containsAll(<String>[
+          'FOOTER_HARNESS_ERROR=agent_stuck',
+          'FOOTER_TERMINATION_DETAIL=provider_transport: ClientException; '
+              'provider_request_id=req-7',
+        ]),
+      );
+    },
+  );
+
+  test('receiptDiagnostics surfaces an unclassified harness error', () {
+    expect(
+      receiptDiagnostics(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'footer',
+          'outcome': 'harness_error',
+          'harness_error': 'unclassified',
+          'termination_detail': '_UnknownHarnessFault: unknown harness fault',
+        },
+      ]),
+      containsAll(<String>[
+        'FOOTER_HARNESS_ERROR=unclassified',
+        'FOOTER_TERMINATION_DETAIL=_UnknownHarnessFault: unknown harness fault',
+      ]),
+    );
+  });
 }

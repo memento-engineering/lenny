@@ -28,6 +28,12 @@ enum HarnessError {
   /// Distinct from [connectionLost]: the transport is healthy, the
   /// CONTRACT is not.
   observationEnvelopeRejected,
+
+  /// The session ended on an exception the driver does not classify. The
+  /// footer's `termination_detail` names the exception's runtime type and its
+  /// credential-scrubbed message. A footer must NEVER carry
+  /// `outcome: harness_error` with a null `harness_error`.
+  unclassified,
 }
 
 /// Wire name for [HarnessError] values, as written to the trajectory
@@ -37,6 +43,7 @@ extension HarnessErrorWire on HarnessError {
     HarnessError.agentStuck => 'agent_stuck',
     HarnessError.connectionLost => 'connection_lost',
     HarnessError.observationEnvelopeRejected => 'observation_envelope_rejected',
+    HarnessError.unclassified => 'unclassified',
   };
 }
 
@@ -105,6 +112,10 @@ class TurnTimeoutError implements Exception {
 ///     counts toward consecutive-failed-turns.
 ///   * `'turn_timeout'` — per-turn 120s budget expired; counts toward
 ///     the separate consecutive-turn-timeouts counter.
+///   * `'provider_transport'` — the model response failed at the transport
+///     level (`ClientException` / `SocketException` / `HttpException` /
+///     `TimeoutException`); counts toward consecutive-failed-turns and the
+///     turn is retried after a short backoff.
 @immutable
 class TurnFailure implements Exception {
   const TurnFailure(this.turnIndex, this.reason, [this.cause]);

@@ -56,6 +56,13 @@ void main() {
         HarnessError.observationEnvelopeRejected.wireName,
         'observation_envelope_rejected',
       );
+      expect(HarnessError.unclassified.wireName, 'unclassified');
+    });
+
+    test('every HarnessError value has a non-empty wire name', () {
+      for (final HarnessError e in HarnessError.values) {
+        expect(e.wireName, isNotEmpty, reason: 'missing wire name for $e');
+      }
     });
   });
 }

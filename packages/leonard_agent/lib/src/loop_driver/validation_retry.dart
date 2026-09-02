@@ -23,6 +23,7 @@ import '../provider/model_provider.dart';
 import '../provider/types.dart';
 import '../validation/action_validator.dart';
 import '../validation/result.dart';
+import 'provider_transport.dart';
 
 /// Maximum number of validator retries before giving up. PRD §17.
 const int _kDefaultMaxValidationRetries = 3;
@@ -104,7 +105,22 @@ Future<ValidationLoopResult> decideAndValidate({
 
   int schemaRetries = 0;
   Future<ModelDecision> decideWithSchemaRetry() async {
-    Future<ModelDecision> attempt() => provider.decide(snapshot, schema);
+    // A transport fault (dead socket, closed SSE stream) is NOT a
+    // model-output fault: wrap it so the driver can retry the turn instead of
+    // letting it escape runSession unclassified.
+    Future<ModelDecision> attempt() async {
+      try {
+        return await provider.decide(snapshot, schema);
+      } on SchemaRejection {
+        rethrow;
+      } catch (error) {
+        if (isProviderTransportError(error)) {
+          throw ProviderTransportFailure(error);
+        }
+        rethrow;
+      }
+    }
+
     try {
       return await attempt();
     } on SchemaRejection catch (first) {
