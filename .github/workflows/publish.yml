@@ -46,8 +46,41 @@ jobs:
 
   publish:
     needs: parse
+    # Every package EXCEPT the DevTools panel, which needs its bundle built
+    # first and therefore gets its own job below.
+    if: needs.parse.outputs.package != 'leonard_devtools'
     permissions:
       id-token: write # pub.dev OIDC trusted publishing
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
     with:
       working-directory: ${{ needs.parse.outputs.directory }}
+
+  publish-leonard-devtools:
+    # leonard_devtools ships the panel under extension/devtools/build/, which
+    # the root .gitignore excludes and the package's .pubignore lets into the
+    # archive. A fresh CI checkout therefore has config.yaml beside an EMPTY
+    # build directory, and pub refuses the package ("It looks like you are
+    # making a devtools extension!") — which is what killed the 0.2.1 tag run.
+    # This job builds the bundle before publishing. The OIDC exchange happens
+    # inside pub under id-token, and setup-dart is what performs it: without
+    # it pub falls back to the browser OAuth prompt and the job hangs.
+    needs: parse
+    if: needs.parse.outputs.package == 'leonard_devtools'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # pub.dev OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: stable
+      - name: Build the DevTools bundle
+        run: ./tool/build_devtools_extension.sh
+      - uses: dart-lang/setup-dart@v1
+      - name: Publish leonard_devtools
+        working-directory: packages/leonard_devtools
+        run: |
+          test -s extension/devtools/build/index.html
+          dart pub get
+          dart pub publish --force
