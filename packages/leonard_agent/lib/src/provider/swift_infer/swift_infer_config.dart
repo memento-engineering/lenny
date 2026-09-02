@@ -89,7 +89,8 @@ class SwiftInferConfig {
   /// Repetition penalty.
   final double repetitionPenalty;
 
-  /// Whether `<think>...</think>` reasoning is preserved across turns.
+  /// Whether prior-turn reasoning is replayed to the gateway as a leading
+  /// Anthropic `thinking` content block.
   final bool preserveThinking;
 
   /// Maximum tokens in a single response.

@@ -30,6 +30,8 @@ import 'swift_infer_chat_options.dart';
 /// `thinking`/`thinking_delta` blocks OR inlined as `<think>...</think>` markers
 /// inside `text_delta`. Both are routed to [ThinkingPart]; the `<think>` scan is
 /// stateful across chunks (including markers split across chunk boundaries).
+/// The marker handling is **inbound only** — prior reasoning is always replayed
+/// outbound as a native `thinking` content block.
 ///
 /// **Tool names** are passed through verbatim and must match Anthropic's
 /// `^[a-zA-Z0-9_-]{1,64}$` (no dots). lenny's dotted tool namespacing
@@ -212,15 +214,20 @@ class SwiftInferChatModel extends ChatModel<SwiftInferChatOptions> {
           if (content.isNotEmpty) out.add({'role': 'user', 'content': content});
         case ChatMessageRole.model:
           final content = <Map<String, dynamic>>[];
-          // Replay reasoning as a leading <think> text block for continuity
-          // (swift-infer's preserve_thinking knob handles the rest).
+          // Replay reasoning as a leading Anthropic `thinking` content block so
+          // swift-infer's ToolFormatter decodes it into the assistant turn's
+          // `reasoningContent`. Inlining the markers into a text block instead
+          // leaves `reasoningContent` empty, and the Qwen3.8 template — which no
+          // longer splits them back out of content — renders the trace doubled.
+          // `signature` is omitted: the gateway decodes the block leniently, and
+          // swift-infer/Qwen never signs one.
           if (opts.preserveThinking) {
             final thinking = m.parts
                 .whereType<ThinkingPart>()
                 .map((p) => p.text)
                 .join();
             if (thinking.isNotEmpty) {
-              content.add({'type': 'text', 'text': '<think>$thinking</think>'});
+              content.add({'type': 'thinking', 'thinking': thinking});
             }
           }
           for (final p in m.parts) {
