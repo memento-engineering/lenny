@@ -10,6 +10,9 @@
   permission_deny_button to prove safe denial preference.
   The coarse/fine accuracy radio entries are fixture evidence for lenny-obof;
   selecting an accuracy is outside lenny-xgcy.
+  The fine radio carries checked="true" AND selected="true" so lenny-obof can
+  prove a checked radio reports `checked`, its coarse sibling reports nothing,
+  and `selected` is never projected onto the Flutter vocabulary.
 -->
 <hierarchy index="0" class="hierarchy" rotation="0">
   <node class="android.widget.FrameLayout" resource-id="com.google.android.permissioncontroller:id/grant_dialog">
@@ -22,7 +25,7 @@
     <node class="android.widget.ImageView" resource-id="com.google.android.permissioncontroller:id/permission_icon" />
     <node class="android.widget.TextView" resource-id="com.google.android.permissioncontroller:id/permission_message" />
     <node class="android.widget.LinearLayout" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy" />
-    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_coarse" />
-    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_fine" />
+    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_coarse" checked="false" enabled="true" focused="false" password="false" selected="false" />
+    <node class="android.widget.RadioButton" resource-id="com.google.android.permissioncontroller:id/permission_location_accuracy_radio_fine" checked="true" enabled="true" focused="false" password="false" selected="true" />
   </node>
 </hierarchy>
