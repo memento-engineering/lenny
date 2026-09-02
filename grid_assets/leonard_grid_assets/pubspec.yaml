@@ -1,0 +1,26 @@
+name: leonard_grid_assets
+description: >-
+  Lenny's grid assets: the station-driven `selfdrive` circuit (panel-harness
+  daemon, outer driver, receipt verify) and its capability registry.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  beads_dart: ^0.2.0-rc.4
+  genesis_tree: ^0.2.0
+  grid_assets: ^0.6.0-rc.6
+  # grid_assets rc.6 remains on genesis_tree 0.2. Pin the last matching grid
+  # release train so this quarantined package resolves without local overrides.
+  grid_engine: 0.3.0-rc.9
+  grid_runtime: ^0.2.0-rc.7
+  grid_sdk: 0.3.0-rc.7
+  http: ^1.2.0
+  path: ^1.9.0
+
+dev_dependencies:
+  lints: ^5.1.0
+  test: ^1.25.0
+  yaml: ^3.1.2

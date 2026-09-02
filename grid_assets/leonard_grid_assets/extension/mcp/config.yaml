@@ -1,0 +1,28 @@
+# Lenny's grid assets in the packaged-assets manifest shape. The Dart registry
+# is the active runtime path; this file is its declarative mirror.
+name: leonard_grid_assets
+version: 1
+
+resources: []
+
+circuits:
+  - id: selfdrive
+    terminal_step: verify
+    supervision: rest_for_one
+    steps:
+      - id: preflight
+        capability: preflight
+        kind: job
+        depends_on: []
+      - id: panel-harness
+        capability: panel-harness
+        kind: daemon
+        depends_on: [preflight]
+      - id: outer-driver
+        capability: outer-driver
+        kind: job
+        depends_on: [panel-harness]
+      - id: verify
+        capability: verify
+        kind: job
+        depends_on: [outer-driver]

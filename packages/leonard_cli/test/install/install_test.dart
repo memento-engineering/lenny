@@ -7,14 +7,17 @@ library;
 
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
   late Directory tmp;
+  final String packageRoot = _findPackageRoot();
 
   Future<ProcessResult> install(List<String> args) => Process.run(
     'dart',
     <String>['bin/install.dart', '--dir', tmp.path, ...args],
+    workingDirectory: packageRoot,
   );
 
   setUp(() {
@@ -154,4 +157,25 @@ void main() {
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(runner.readAsStringSync(), startsWith('#!/usr/bin/env bash'));
   });
+}
+
+String _findPackageRoot() {
+  Directory directory = Directory.current.absolute;
+  for (var depth = 0; depth < 8; depth++) {
+    for (final Directory candidate in <Directory>[
+      directory,
+      Directory(p.join(directory.path, 'packages', 'leonard_cli')),
+    ]) {
+      if (File(p.join(candidate.path, 'bin', 'install.dart')).existsSync() &&
+          File(p.join(candidate.path, 'pubspec.yaml')).existsSync()) {
+        return candidate.path;
+      }
+    }
+    final Directory parent = directory.parent;
+    if (parent.path == directory.path) break;
+    directory = parent;
+  }
+  throw StateError(
+    'could not find leonard_cli package root from ${Directory.current.path}',
+  );
 }

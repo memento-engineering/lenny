@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The sanctioned path for a panel self-drive receipt is the station's
+# `selfdrive` circuit in grid_assets/leonard_grid_assets. A bead carrying
+# selfdrive.scenario / selfdrive.outer_model / selfdrive.inner_model mounts
+# preflight -> panel-harness (daemon) -> outer-driver -> verify, and the station
+# writes the receipt from step outcomes. This wrapper remains the operator's
+# manual fallback; the circuit reuses its harness and verifier commands.
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 HARNESS="${PANEL_SELFDRIVE_HARNESS:-$ROOT/tool/run_panel_selfdrive.sh}"
 DART_BIN="${PANEL_SELFDRIVE_DART_BIN:-dart}"

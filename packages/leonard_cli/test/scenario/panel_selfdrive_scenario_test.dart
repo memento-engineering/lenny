@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+const String _fixtureModel = 'qwen3.6-35b-a3b-8bit';
+
 void main() {
   final String repositoryRoot = _findRepositoryRoot();
   final File scenario = File(
@@ -152,6 +154,7 @@ void main() {
         workingDirectory: repositoryRoot,
         environment: const <String, String>{
           'SWIFT_INFER_AGENT_TOKEN': fixtureSecret,
+          'PANEL_SELFDRIVE_MODEL_ID': _fixtureModel,
         },
       );
       expect(safe.exitCode, 0, reason: 'stderr: ${safe.stderr}');
@@ -165,6 +168,7 @@ void main() {
         workingDirectory: repositoryRoot,
         environment: const <String, String>{
           'SWIFT_INFER_AGENT_TOKEN': fixtureSecret,
+          'PANEL_SELFDRIVE_MODEL_ID': _fixtureModel,
         },
       );
       expect(leak.exitCode, 2);
@@ -188,6 +192,7 @@ void main() {
         workingDirectory: repositoryRoot,
         environment: const <String, String>{
           'SWIFT_INFER_ENDPOINT': fixtureEndpoint,
+          'PANEL_SELFDRIVE_MODEL_ID': _fixtureModel,
         },
       );
       expect(
@@ -212,6 +217,10 @@ String _validTrajectoryFixture() {
     _turnWithNodes(3, <Map<String, dynamic>>[
       <String, dynamic>{'label': 'OK (2 models)'},
       <String, dynamic>{'label': 'Stop'},
+      <String, dynamic>{
+        'identifier': 'prompt.resolvedModel',
+        'value': _fixtureModel,
+      },
     ]),
     _turnWithNodes(4, <Map<String, dynamic>>[
       <String, dynamic>{'label': '#0 core.done()'},
