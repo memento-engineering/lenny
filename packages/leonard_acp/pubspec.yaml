@@ -5,7 +5,6 @@ description: >-
   leonard_agent's ModelProvider seam.
 version: 0.1.0
 repository: https://github.com/memento-engineering/lenny
-publish_to: none
 resolution: workspace
 
 environment:
