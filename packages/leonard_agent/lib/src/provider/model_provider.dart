@@ -28,6 +28,11 @@ abstract class ModelProvider {
   ///
   /// Throws [SchemaRejection] when the model output cannot be parsed
   /// against [schema]. The caller retries once on rejection.
+  ///
+  /// A TRANSPORT failure (`ClientException`, `SocketException`,
+  /// `HttpException`, `TimeoutException`) raised while awaiting or streaming
+  /// the response is classified by `isProviderTransportError` and retried as a
+  /// `provider_transport` turn failure — providers MUST NOT retry internally.
   Future<ModelDecision> decide(
     ConversationSnapshot snapshot,
     ActionSchema schema,
