@@ -71,8 +71,11 @@ dart run leonard_cli:leonard_cli \
 ```
 
 `--model`: `claude` (`ANTHROPIC_API_KEY`), `openai` (`OPENAI_API_KEY`), or
-`qwen-mlx` (local swift-infer). Add `--extensions <ns,…>` for any registered
-extensions (e.g. `router,riverpod,dio`, or `tmux`).
+`qwen-mlx` (local swift-infer: `SWIFT_INFER_ENDPOINT`,
+`SWIFT_INFER_AGENT_TOKEN`, and `SWIFT_INFER_MODEL` — the model id, defaulting
+to `qwen3.6-35b-a3b-8bit`). `--model-id <id>` pins the exact model id for the
+chosen tier and outranks `SWIFT_INFER_MODEL`. Add `--extensions <ns,…>` for any
+registered extensions (e.g. `router,riverpod,dio`, or `tmux`).
 
 Turn-by-turn — you decide each action:
 

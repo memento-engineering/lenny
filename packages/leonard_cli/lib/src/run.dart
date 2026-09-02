@@ -110,6 +110,7 @@ Future<int> runCli(
     provider = buildProvider(
       args.tier,
       sessionId: sessionId,
+      modelId: args.modelId,
       onModelDiagnostics: (Map<String, Object?> d) {
         final StringBuffer line = StringBuffer('[model] ')
           ..write('${d['provider']} ${d['model']} ')

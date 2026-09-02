@@ -9,6 +9,8 @@
 ///   * `SWIFT_INFER_AGENT_TOKEN` env var → `Authorization: Bearer …`.
 ///   * `SWIFT_INFER_ENDPOINT` env var → base URL (defaults to
 ///     `http://localhost:8080`).
+///   * `SWIFT_INFER_MODEL` env var → model id (defaults to
+///     [_kSwiftInferModel]); the `modelId` argument (`--model-id`) outranks it.
 ///   * `X-Conversation-Id` = `leonard-<sessionId>-<unixMs>` so every turn of
 ///     one run groups under one conversation in the gateway dashboard.
 ///   * `X-Swift-Infer-Capture-Bodies: true` for `GET /v1/conversations/<id>`.
@@ -24,7 +26,8 @@ import 'cli_args.dart';
 const String _kSwiftInferBaseUrl = 'http://localhost:8080';
 
 /// Default MLX model id served by swift-infer (PRD §16.3 — qwen3.6
-/// coder MoE, 8-bit quant).
+/// coder MoE, 8-bit quant). Overridden by `SWIFT_INFER_MODEL`, which is
+/// itself overridden by `--model-id`.
 const String _kSwiftInferModel = 'qwen3.6-35b-a3b-8bit';
 
 /// Default Anthropic model id (Claude Sonnet 4.6).
@@ -50,6 +53,14 @@ const ModelCapabilities _defaultCaps = ModelCapabilities(
 /// per-run `X-Conversation-Id` of the form `leonard-<sessionId>-<unixMs>`.
 /// Pass [now] in tests to make the conversationId deterministic.
 ///
+/// [modelId] (the CLI's `--model-id`) pins the exact model id for the chosen
+/// tier and outranks both `SWIFT_INFER_MODEL` and the per-tier constant; a
+/// `null` or empty value leaves the tier default in force.
+///
+/// [environment] is the environment map every env read goes through; it
+/// defaults to [Platform.environment] and is injected by tests (Fakes, not
+/// mocks — a plain map IS the fake).
+///
 /// [onModelDiagnostics] is retained for call-site compatibility but is a NO-OP
 /// after the dartantic cutover — the seam has no per-call diagnostics sink.
 /// Re-plumbing CLI API-health logging is a 4dhv follow-up.
@@ -58,36 +69,59 @@ ModelProvider buildProvider(
   required String sessionId,
   DateTime Function()? now,
   void Function(Map<String, Object?> diagnostics)? onModelDiagnostics,
+  String? modelId,
+  Map<String, String>? environment,
 }) {
+  final Map<String, String> env = environment ?? Platform.environment;
+  final String anthropicModel = _resolveModelId(modelId, _kAnthropicSonnet);
+  final String openAiModel = _resolveModelId(modelId, _kOpenAiGpt5);
   return switch (tier) {
     ModelTier.qwenMlx => _buildSwiftInferProvider(
       sessionId: sessionId,
       now: now ?? DateTime.now,
+      environment: env,
+      modelId: modelId,
     ),
     ModelTier.claude => DartanticModelProvider(
-      backend: AnthropicBackend(apiKey: _requireEnv('ANTHROPIC_API_KEY')),
-      model: _kAnthropicSonnet,
+      backend: AnthropicBackend(apiKey: _requireEnv('ANTHROPIC_API_KEY', env)),
+      model: anthropicModel,
       capabilities:
-          capabilitiesFor('anthropic', _kAnthropicSonnet) ?? _defaultCaps,
+          capabilitiesFor('anthropic', anthropicModel) ?? _defaultCaps,
     ),
     ModelTier.openai => DartanticModelProvider(
-      backend: OpenAIBackend(apiKey: _requireEnv('OPENAI_API_KEY')),
-      model: _kOpenAiGpt5,
-      capabilities: capabilitiesFor('openai', _kOpenAiGpt5) ?? _defaultCaps,
+      backend: OpenAIBackend(apiKey: _requireEnv('OPENAI_API_KEY', env)),
+      model: openAiModel,
+      capabilities: capabilitiesFor('openai', openAiModel) ?? _defaultCaps,
     ),
   };
 }
 
+/// The first non-empty of [override] then [fallback]. An empty string is
+/// treated as "unset" so `SWIFT_INFER_MODEL=` behaves like an absent var,
+/// matching the endpoint/token reads.
+String _resolveModelId(String? override, String fallback) =>
+    (override != null && override.isNotEmpty) ? override : fallback;
+
 /// Build the qwen-mlx provider with the fs-agent-symmetric env contract.
+///
+/// Model-id precedence: [modelId] (`--model-id`) > `SWIFT_INFER_MODEL` >
+/// [_kSwiftInferModel].
 DartanticModelProvider _buildSwiftInferProvider({
   required String sessionId,
   required DateTime Function() now,
+  required Map<String, String> environment,
+  String? modelId,
 }) {
-  final String? envEndpoint = Platform.environment['SWIFT_INFER_ENDPOINT'];
-  final String? envToken = Platform.environment['SWIFT_INFER_AGENT_TOKEN'];
+  final String? envEndpoint = environment['SWIFT_INFER_ENDPOINT'];
+  final String? envToken = environment['SWIFT_INFER_AGENT_TOKEN'];
+  final String? envModel = environment['SWIFT_INFER_MODEL'];
   final Uri baseUrl = (envEndpoint != null && envEndpoint.isNotEmpty)
       ? Uri.parse(envEndpoint)
       : Uri.parse(_kSwiftInferBaseUrl);
+  final String model = _resolveModelId(
+    modelId,
+    _resolveModelId(envModel, _kSwiftInferModel),
+  );
   final int unixMs = now().millisecondsSinceEpoch;
   return DartanticModelProvider(
     backend: SwiftInferBackend(
@@ -102,14 +136,13 @@ DartanticModelProvider _buildSwiftInferProvider({
         'X-Swift-Infer-Capture-Bodies': 'true',
       },
     ),
-    model: _kSwiftInferModel,
-    capabilities:
-        capabilitiesFor('swift-infer', _kSwiftInferModel) ?? _defaultCaps,
+    model: model,
+    capabilities: capabilitiesFor('swift-infer', model) ?? _defaultCaps,
   );
 }
 
-String _requireEnv(String name) {
-  final String? v = Platform.environment[name];
+String _requireEnv(String name, Map<String, String> environment) {
+  final String? v = environment[name];
   if (v == null || v.isEmpty) {
     throw StateError('Missing required environment variable: $name');
   }

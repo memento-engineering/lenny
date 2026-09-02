@@ -27,6 +27,7 @@ class CliArgs {
     required this.policy,
     required this.extensions,
     this.goalFile,
+    this.modelId,
     this.actionEnvironmentNames = const <String>[],
     this.launch = false,
     this.runner = LaunchRunner.flutter,
@@ -68,6 +69,11 @@ class CliArgs {
 
   /// Selected model tier (`--model`).
   final ModelTier tier;
+
+  /// Exact model id for the selected [tier] (`--model-id`). Outranks the
+  /// tier's environment variable (`SWIFT_INFER_MODEL` on qwen-mlx) and the
+  /// per-tier default. `null` leaves the tier default in force.
+  final String? modelId;
 
   /// Optional `--output` override. When `null` the CLI writes to
   /// `./trajectories/<UTC-timestamp>.jsonl`.
@@ -162,6 +168,12 @@ ArgParser buildParser() => ArgParser()
     defaultsTo: 'claude',
     allowed: <String>['qwen-mlx', 'claude', 'openai'],
     help: 'Model tier (PRD 16.4).',
+  )
+  ..addOption(
+    'model-id',
+    help:
+        'Exact model id for the selected tier (e.g. qwen3.8-40b-a3b-8bit). '
+        'Outranks SWIFT_INFER_MODEL and the per-tier default.',
   )
   ..addOption(
     'output',
@@ -300,6 +312,11 @@ CliArgs parseCliArgs(List<String> argv) {
     'openai' => ModelTier.openai,
     _ => throw CliUsageError('Invalid --model'),
   };
+  final String? rawModelId = res['model-id'] as String?;
+  if (rawModelId != null && rawModelId.trim().isEmpty) {
+    throw CliUsageError('--model-id must not be empty');
+  }
+  final String? modelId = rawModelId?.trim();
 
   final StabilityPolicy policy = switch (res['policy'] as String) {
     'idle' => StabilityPolicy.quietFrame,
@@ -353,6 +370,7 @@ CliArgs parseCliArgs(List<String> argv) {
   return CliArgs(
     goal: res['goal'] as String?,
     goalFile: goalFile,
+    modelId: modelId,
     vmUri: vmUri,
     tier: tier,
     outputPath: res['output'] as String?,

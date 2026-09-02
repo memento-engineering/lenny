@@ -39,6 +39,17 @@ void main() {
       expect(c.supportsToolUse, isTrue);
     });
 
+    test('swift-infer qwen3.8 id resolves the same qwen-tier caps', () {
+      // SWIFT_INFER_MODEL can point the CLI at any qwen3.* node; the prefix
+      // gate must keep resolving caps past qwen3.6.
+      final c = capabilitiesFor('swift-infer', 'qwen3.8-40b-a3b-8bit');
+      expect(c, isNotNull);
+      expect(c!.vision, isTrue);
+      expect(c.preserveThinking, isTrue);
+      expect(c.maxContext, 128000);
+      expect(c.supportsToolUse, isTrue);
+    });
+
     test('swift-infer non-qwen model returns null', () {
       expect(capabilitiesFor('swift-infer', 'llama-3'), isNull);
     });

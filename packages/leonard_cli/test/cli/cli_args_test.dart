@@ -111,6 +111,54 @@ void main() {
       );
     });
 
+    test('--model-id parses and defaults to null', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'x',
+      ]);
+      expect(args.modelId, isNull);
+      final withId = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'x',
+        '--model',
+        'qwen-mlx',
+        '--model-id',
+        'qwen3.8-40b-a3b-8bit',
+      ]);
+      expect(withId.tier, ModelTier.qwenMlx);
+      expect(withId.modelId, 'qwen3.8-40b-a3b-8bit');
+    });
+
+    test('--model-id trims surrounding whitespace', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'x',
+        '--model-id',
+        '  qwen3.8-40b-a3b-8bit  ',
+      ]);
+      expect(args.modelId, 'qwen3.8-40b-a3b-8bit');
+    });
+
+    test('empty --model-id rejected', () {
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://127.0.0.1/ws',
+          '--goal',
+          'x',
+          '--model-id',
+          '   ',
+        ]),
+        throwsA(isA<CliUsageError>()),
+      );
+    });
+
     test('invalid --policy rejected', () {
       expect(
         () => parseCliArgs(<String>[
