@@ -11,6 +11,11 @@
 ///     `http://localhost:8080`).
 ///   * `SWIFT_INFER_MODEL` env var → model id (defaults to
 ///     [_kSwiftInferModel]); the `modelId` argument (`--model-id`) outranks it.
+///   * `SWIFT_INFER_REASONING_EFFORT` env var → `reasoning_effort`
+///     (`none|low|medium|high|xhigh`); `--reasoning-effort` outranks it, and a
+///     `qwen3.8` model id defaults to `medium`.
+///   * `SWIFT_INFER_MAX_TOKENS` env var → `max_tokens`; `--max-tokens`
+///     outranks it, and the driver default is 16384.
 ///   * `X-Conversation-Id` = `leonard-<sessionId>-<unixMs>` so every turn of
 ///     one run groups under one conversation in the gateway dashboard.
 ///   * `X-Swift-Infer-Capture-Bodies: true` for `GET /v1/conversations/<id>`.
@@ -70,6 +75,8 @@ ModelProvider buildProvider(
   DateTime Function()? now,
   void Function(Map<String, Object?> diagnostics)? onModelDiagnostics,
   String? modelId,
+  SwiftInferReasoningEffort? reasoningEffort,
+  int? maxTokens,
   Map<String, String>? environment,
 }) {
   final Map<String, String> env = environment ?? Platform.environment;
@@ -81,6 +88,8 @@ ModelProvider buildProvider(
       now: now ?? DateTime.now,
       environment: env,
       modelId: modelId,
+      reasoningEffort: reasoningEffort,
+      maxTokens: maxTokens,
     ),
     ModelTier.claude => DartanticModelProvider(
       backend: AnthropicBackend(apiKey: _requireEnv('ANTHROPIC_API_KEY', env)),
@@ -111,6 +120,8 @@ DartanticModelProvider _buildSwiftInferProvider({
   required DateTime Function() now,
   required Map<String, String> environment,
   String? modelId,
+  SwiftInferReasoningEffort? reasoningEffort,
+  int? maxTokens,
 }) {
   final String? envEndpoint = environment['SWIFT_INFER_ENDPOINT'];
   final String? envToken = environment['SWIFT_INFER_AGENT_TOKEN'];
@@ -135,10 +146,50 @@ DartanticModelProvider _buildSwiftInferProvider({
         'X-Session-Id': sessionId,
         'X-Swift-Infer-Capture-Bodies': 'true',
       },
+      // Flag > env > per-model default; every other sampling field stays unset
+      // so the node's model-card defaults apply.
+      options: defaultSwiftInferOptions(
+        model,
+        maxTokens: maxTokens ?? _envMaxTokens(environment),
+        reasoningEffort: reasoningEffort ?? _envReasoningEffort(environment),
+      ),
     ),
     model: model,
     capabilities: capabilitiesFor('swift-infer', model) ?? _defaultCaps,
   );
+}
+
+/// `SWIFT_INFER_REASONING_EFFORT` → an effort level. An empty value is
+/// "unset"; an unknown value is a LOUD [StateError], never a silent fallback.
+SwiftInferReasoningEffort? _envReasoningEffort(
+  Map<String, String> environment,
+) {
+  final String? raw = environment['SWIFT_INFER_REASONING_EFFORT'];
+  if (raw == null || raw.trim().isEmpty) return null;
+  final SwiftInferReasoningEffort? parsed = SwiftInferReasoningEffort.tryParse(
+    raw.trim(),
+  );
+  if (parsed == null) {
+    throw StateError(
+      'Invalid SWIFT_INFER_REASONING_EFFORT: "$raw" '
+      '(expected none, low, medium, high or xhigh)',
+    );
+  }
+  return parsed;
+}
+
+/// `SWIFT_INFER_MAX_TOKENS` → a positive token budget. An empty value is
+/// "unset"; a non-numeric or non-positive value is a LOUD [StateError].
+int? _envMaxTokens(Map<String, String> environment) {
+  final String? raw = environment['SWIFT_INFER_MAX_TOKENS'];
+  if (raw == null || raw.trim().isEmpty) return null;
+  final int? parsed = int.tryParse(raw.trim());
+  if (parsed == null || parsed <= 0) {
+    throw StateError(
+      'Invalid SWIFT_INFER_MAX_TOKENS: "$raw" (expected a positive integer)',
+    );
+  }
+  return parsed;
 }
 
 String _requireEnv(String name, Map<String, String> environment) {

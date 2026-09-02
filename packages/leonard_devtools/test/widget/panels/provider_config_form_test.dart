@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:leonard_agent/leonard_agent.dart'
+    show SwiftInferReasoningEffort;
 import 'package:leonard_devtools/src/panels/model_catalog.dart';
 import 'package:leonard_devtools/src/panels/provider_config.dart';
 import 'package:flutter/material.dart';
@@ -81,9 +83,11 @@ void main() {
     expect(switchTile.value, isTrue);
 
     // Add a header.
-    await tester.tap(
-      find.byKey(const Key('providerForm.swift-infer.extra.add')),
+    final addHeader = find.byKey(
+      const Key('providerForm.swift-infer.extra.add'),
     );
+    await tester.ensureVisible(addHeader);
+    await tester.tap(addHeader);
     await tester.pump();
     expect(
       find.byKey(const Key('providerForm.swift-infer.extra.0.key')),
@@ -108,6 +112,72 @@ void main() {
     );
     await tester.pump();
     expect((last! as SwiftInferUiConfig).extraHeaders, isEmpty);
+  });
+
+  testWidgets('swift-infer subform: sampling knobs push through', (
+    tester,
+  ) async {
+    ProviderConfig? last;
+    await tester.pumpWidget(
+      _host(
+        onChanged: (c) => last = c,
+        initial: SwiftInferUiConfig(
+          bearerToken: 'tok',
+          endpoint: Uri.parse('http://localhost:8080'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final key in const <String>[
+      'providerForm.swift-infer.reasoningEffort',
+      'providerForm.swift-infer.maxTokens',
+      'providerForm.swift-infer.temperature',
+      'providerForm.swift-infer.presencePenalty',
+    ]) {
+      expect(find.byKey(Key(key)), findsOneWidget, reason: key);
+    }
+
+    await tester.enterText(
+      find.byKey(const Key('providerForm.swift-infer.maxTokens')),
+      '16384',
+    );
+    await tester.enterText(
+      find.byKey(const Key('providerForm.swift-infer.temperature')),
+      '0.7',
+    );
+    await tester.pump();
+    final pushed = last! as SwiftInferUiConfig;
+    expect(pushed.maxTokens, 16384);
+    expect(pushed.temperature, 0.7);
+    expect(pushed.presencePenalty, isNull);
+    expect(pushed.reasoningEffort, isNull);
+  });
+
+  testWidgets('swift-infer subform: picking an effort pushes it', (
+    tester,
+  ) async {
+    ProviderConfig? last;
+    await tester.pumpWidget(
+      _host(
+        onChanged: (c) => last = c,
+        initial: SwiftInferUiConfig(
+          bearerToken: 'tok',
+          endpoint: Uri.parse('http://localhost:8080'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('providerForm.swift-infer.reasoningEffort')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('medium').last);
+    await tester.pumpAndSettle();
+    expect(
+      (last! as SwiftInferUiConfig).reasoningEffort,
+      SwiftInferReasoningEffort.medium,
+    );
   });
 
   testWidgets('switching to anthropic shows obscured api key field', (
@@ -179,7 +249,9 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('providerForm.testConnection')));
+    final testConnection = find.byKey(const Key('providerForm.testConnection'));
+    await tester.ensureVisible(testConnection);
+    await tester.tap(testConnection);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('OK ('), findsOneWidget);

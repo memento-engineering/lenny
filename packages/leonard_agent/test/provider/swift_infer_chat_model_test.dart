@@ -225,37 +225,73 @@ void main() {
   });
 
   group('SwiftInferChatModel — request building', () {
-    test('body carries Qwen sampling knobs, tool_choice and system', () async {
-      final tool = Tool(
-        name: 'report_status',
-        description: 'report',
-        inputSchema: S.object(
-          properties: {'ok': S.boolean()},
-          required: ['ok'],
-        ),
-        onCall: (a) async => 'ok',
-      );
+    test(
+      'unset sampling fields are omitted; preserve_thinking stays',
+      () async {
+        final tool = Tool(
+          name: 'report_status',
+          description: 'report',
+          inputSchema: S.object(
+            properties: {'ok': S.boolean()},
+            required: ['ok'],
+          ),
+          onCall: (a) async => 'ok',
+        );
+        final client = _FakeClient([_textDelta('x')]);
+        await _run(
+          client,
+          tools: [tool],
+          messages: [ChatMessage.system('sys prompt'), ChatMessage.user('go')],
+        );
+        final body = jsonDecode(client.capturedBody) as Map<String, dynamic>;
+        expect(body['model'], 'qwen-test');
+        for (final k in const <String>[
+          'max_tokens',
+          'temperature',
+          'top_p',
+          'top_k',
+          'presence_penalty',
+          'repetition_penalty',
+          'reasoning_effort',
+        ]) {
+          expect(body.containsKey(k), isFalse, reason: '$k must be omitted');
+        }
+        expect(body['preserve_thinking'], true);
+        expect(body['stream'], true);
+        expect(body['system'], 'sys prompt');
+        expect((body['tool_choice'] as Map<String, dynamic>)['type'], 'any');
+        final tools = body['tools'] as List;
+        expect((tools.single as Map<String, dynamic>)['name'], 'report_status');
+        expect(
+          (tools.single as Map<String, dynamic>)['input_schema'],
+          isA<Map<String, dynamic>>(),
+        );
+      },
+    );
+
+    test('set sampling fields and reasoning_effort ride the body', () async {
       final client = _FakeClient([_textDelta('x')]);
       await _run(
         client,
-        tools: [tool],
-        messages: [ChatMessage.system('sys prompt'), ChatMessage.user('go')],
+        options: const SwiftInferChatOptions(
+          maxTokens: 16384,
+          temperature: 0.7,
+          topP: 0.9,
+          topK: 40,
+          presencePenalty: 0.0,
+          repetitionPenalty: 1.05,
+          reasoningEffort: SwiftInferReasoningEffort.medium,
+        ),
       );
       final body = jsonDecode(client.capturedBody) as Map<String, dynamic>;
-      expect(body['model'], 'qwen-test');
-      expect(body['top_k'], 20);
-      expect(body['presence_penalty'], 1.5);
-      expect(body['repetition_penalty'], 1.0);
+      expect(body['max_tokens'], 16384);
+      expect(body['temperature'], 0.7);
+      expect(body['top_p'], 0.9);
+      expect(body['top_k'], 40);
+      expect(body['presence_penalty'], 0.0);
+      expect(body['repetition_penalty'], 1.05);
+      expect(body['reasoning_effort'], 'medium');
       expect(body['preserve_thinking'], true);
-      expect(body['stream'], true);
-      expect(body['system'], 'sys prompt');
-      expect((body['tool_choice'] as Map<String, dynamic>)['type'], 'any');
-      final tools = body['tools'] as List;
-      expect((tools.single as Map<String, dynamic>)['name'], 'report_status');
-      expect(
-        (tools.single as Map<String, dynamic>)['input_schema'],
-        isA<Map<String, dynamic>>(),
-      );
     });
 
     test('tool_choice auto when configured', () async {
@@ -417,16 +453,24 @@ void main() {
       expect(client.closed, isFalse);
     });
 
-    test('default options match SwiftInferConfig defaults', () {
+    test('default options leave every sampling field unset', () {
       const o = SwiftInferChatOptions();
-      expect(o.maxTokens, 4096);
-      expect(o.temperature, 1.0);
-      expect(o.topP, 0.95);
-      expect(o.topK, 20);
-      expect(o.presencePenalty, 1.5);
-      expect(o.repetitionPenalty, 1.0);
-      expect(o.preserveThinking, true);
+      expect(o.maxTokens, isNull);
+      expect(o.temperature, isNull);
+      expect(o.topP, isNull);
+      expect(o.topK, isNull);
+      expect(o.presencePenalty, isNull);
+      expect(o.repetitionPenalty, isNull);
+      expect(o.reasoningEffort, isNull);
+      expect(o.preserveThinking, isTrue);
       expect(o.toolChoice, SwiftInferToolChoice.any);
+    });
+
+    test('SwiftInferReasoningEffort round-trips its wire value', () {
+      for (final e in SwiftInferReasoningEffort.values) {
+        expect(SwiftInferReasoningEffort.tryParse(e.wireValue), e);
+      }
+      expect(SwiftInferReasoningEffort.tryParse('insane'), isNull);
     });
   });
 

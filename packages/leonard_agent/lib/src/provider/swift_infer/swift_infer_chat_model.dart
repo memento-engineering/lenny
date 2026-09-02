@@ -15,8 +15,9 @@ import 'swift_infer_chat_options.dart';
 ///    `signature` as a non-null `String` and throws every turn. This model
 ///    parses the SSE leniently and never requires a signature.
 ///  * swift-infer accepts Qwen-tuned sampling knobs (`top_k`,
-///    `presence_penalty`, `repetition_penalty`, `preserve_thinking`) that
-///    `AnthropicChatOptions` cannot express.
+///    `presence_penalty`, `repetition_penalty`, `reasoning_effort`,
+///    `preserve_thinking`) that `AnthropicChatOptions` cannot express. Unset
+///    knobs are omitted so the node's model-card defaults apply.
 ///
 /// **Streaming convention** mirrors dartantic's own Anthropic mapper: each
 /// emitted [ChatResult]'s `output` is a *delta* [ChatMessage] carrying the
@@ -142,18 +143,33 @@ class SwiftInferChatModel extends ChatModel<SwiftInferChatOptions> {
         .expand((m) => m.parts.whereType<TextPart>().map((p) => p.text))
         .join('\n');
 
+    // preserve_thinking is a replay contract (lenny-eikx), not a sampling
+    // knob: _buildMessages only emits native `thinking` blocks when it is on,
+    // so the field is stated on every request.
     final body = <String, dynamic>{
       'model': name,
-      'max_tokens': opts.maxTokens,
-      'temperature': temperature ?? opts.temperature,
-      'top_p': opts.topP,
-      'top_k': opts.topK,
-      'presence_penalty': opts.presencePenalty,
-      'repetition_penalty': opts.repetitionPenalty,
       'preserve_thinking': opts.preserveThinking,
       'stream': true,
       'messages': _buildMessages(messages, opts),
     };
+    // Omit every unset sampling field so swift-infer can apply the model
+    // card's defaults; only deliberate overrides ride the request.
+    final int? maxTokens = opts.maxTokens;
+    if (maxTokens != null) body['max_tokens'] = maxTokens;
+    final double? temp = temperature ?? opts.temperature;
+    if (temp != null) body['temperature'] = temp;
+    final double? topP = opts.topP;
+    if (topP != null) body['top_p'] = topP;
+    final int? topK = opts.topK;
+    if (topK != null) body['top_k'] = topK;
+    final double? presencePenalty = opts.presencePenalty;
+    if (presencePenalty != null) body['presence_penalty'] = presencePenalty;
+    final double? repetitionPenalty = opts.repetitionPenalty;
+    if (repetitionPenalty != null) {
+      body['repetition_penalty'] = repetitionPenalty;
+    }
+    final SwiftInferReasoningEffort? effort = opts.reasoningEffort;
+    if (effort != null) body['reasoning_effort'] = effort.wireValue;
     if (system.isNotEmpty) body['system'] = system;
     final stops = opts.stopSequences;
     if (stops != null && stops.isNotEmpty) body['stop_sequences'] = stops;

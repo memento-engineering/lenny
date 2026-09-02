@@ -5,7 +5,8 @@
 library;
 
 import 'package:args/args.dart';
-import 'package:leonard_agent/leonard_agent.dart' show StabilityPolicy;
+import 'package:leonard_agent/leonard_agent.dart'
+    show StabilityPolicy, SwiftInferReasoningEffort;
 
 /// Model tier selected via `--model`. Each tier has a fixed default
 /// configuration applied by `provider_factory.dart` (PRD §16.4).
@@ -28,6 +29,8 @@ class CliArgs {
     required this.extensions,
     this.goalFile,
     this.modelId,
+    this.reasoningEffort,
+    this.maxTokens,
     this.actionEnvironmentNames = const <String>[],
     this.launch = false,
     this.runner = LaunchRunner.flutter,
@@ -74,6 +77,16 @@ class CliArgs {
   /// tier's environment variable (`SWIFT_INFER_MODEL` on qwen-mlx) and the
   /// per-tier default. `null` leaves the tier default in force.
   final String? modelId;
+
+  /// swift-infer `reasoning_effort` for the qwen-mlx tier
+  /// (`--reasoning-effort`). Outranks `SWIFT_INFER_REASONING_EFFORT` and the
+  /// per-model default. `null` leaves the model-derived default in force.
+  final SwiftInferReasoningEffort? reasoningEffort;
+
+  /// swift-infer `max_tokens` for the qwen-mlx tier (`--max-tokens`). Outranks
+  /// `SWIFT_INFER_MAX_TOKENS` and the driver default (16384). `null` leaves
+  /// the default in force.
+  final int? maxTokens;
 
   /// Optional `--output` override. When `null` the CLI writes to
   /// `./trajectories/<UTC-timestamp>.jsonl`.
@@ -174,6 +187,19 @@ ArgParser buildParser() => ArgParser()
     help:
         'Exact model id for the selected tier (e.g. qwen3.8-40b-a3b-8bit). '
         'Outranks SWIFT_INFER_MODEL and the per-tier default.',
+  )
+  ..addOption(
+    'reasoning-effort',
+    allowed: <String>['none', 'low', 'medium', 'high', 'xhigh'],
+    help:
+        'swift-infer reasoning_effort (qwen-mlx tier). Outranks '
+        'SWIFT_INFER_REASONING_EFFORT; qwen3.8 ids default to medium.',
+  )
+  ..addOption(
+    'max-tokens',
+    help:
+        'swift-infer max_tokens (qwen-mlx tier). Outranks '
+        'SWIFT_INFER_MAX_TOKENS; defaults to 16384.',
   )
   ..addOption(
     'output',
@@ -318,6 +344,28 @@ CliArgs parseCliArgs(List<String> argv) {
   }
   final String? modelId = rawModelId?.trim();
 
+  final String? rawEffort = res['reasoning-effort'] as String?;
+  final SwiftInferReasoningEffort? reasoningEffort = switch (rawEffort) {
+    null => null,
+    'none' => SwiftInferReasoningEffort.none,
+    'low' => SwiftInferReasoningEffort.low,
+    'medium' => SwiftInferReasoningEffort.medium,
+    'high' => SwiftInferReasoningEffort.high,
+    'xhigh' => SwiftInferReasoningEffort.xhigh,
+    _ => throw CliUsageError('Invalid --reasoning-effort: "$rawEffort"'),
+  };
+
+  final String? rawMaxTokens = res['max-tokens'] as String?;
+  int? maxTokens;
+  if (rawMaxTokens != null) {
+    maxTokens = int.tryParse(rawMaxTokens);
+    if (maxTokens == null || maxTokens <= 0) {
+      throw CliUsageError(
+        '--max-tokens must be a positive integer; got "$rawMaxTokens"',
+      );
+    }
+  }
+
   final StabilityPolicy policy = switch (res['policy'] as String) {
     'idle' => StabilityPolicy.quietFrame,
     'frame-stable' => StabilityPolicy.boundedStability,
@@ -371,6 +419,8 @@ CliArgs parseCliArgs(List<String> argv) {
     goal: res['goal'] as String?,
     goalFile: goalFile,
     modelId: modelId,
+    reasoningEffort: reasoningEffort,
+    maxTokens: maxTokens,
     vmUri: vmUri,
     tier: tier,
     outputPath: res['output'] as String?,
