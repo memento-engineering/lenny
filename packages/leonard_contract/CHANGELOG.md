@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+- Bump `genesis_perception` to `^0.3.0` (genesis_tree 0.3.0, InheritedModelSeed).
+  No API changes in this package; the perception wire contract is unchanged.
+  Retires the `genesis_perception: ^0.3.0` dependency override every hosted
+  consumer on genesis_tree 0.3.0 had to carry (the_grid, power_station).
+
 ## 0.2.1
 
 - Bump `genesis_perception` to `^0.2.0` (the genesis builder wave). No API
