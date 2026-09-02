@@ -8,7 +8,13 @@ name: Publish to pub.dev
 #
 # Each package needs automated publishing enabled once on its pub.dev admin
 # page (repository memento-engineering/lenny, tag pattern
-# `<package>-v{{version}}`).
+# `<package>-v{{version}}`). pub.dev requires that FIRST version to be
+# published by hand — the tag path only works once the toggle exists — so a
+# package's initial version carries no tag by design.
+#
+# Most members live under `packages/`; `leonard_grid_assets` is a standalone
+# station pack under `grid_assets/` and is NOT a workspace member, so the
+# publish directory is looked up, never assumed.
 #
 # Push ONE tag per `git push` — GitHub fires no workflows for a push
 # containing more than three tags, and dependency ordering needs per-tag
@@ -25,12 +31,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package: ${{ steps.parse.outputs.package }}
+      directory: ${{ steps.parse.outputs.directory }}
     steps:
       - id: parse
         run: |
           pkg="${GITHUB_REF_NAME%-v*}"
+          case "$pkg" in
+            leonard_grid_assets) dir="grid_assets/$pkg" ;;
+            *) dir="packages/$pkg" ;;
+          esac
           echo "package=$pkg" >> "$GITHUB_OUTPUT"
-          echo "Publishing package: $pkg (tag $GITHUB_REF_NAME)"
+          echo "directory=$dir" >> "$GITHUB_OUTPUT"
+          echo "Publishing package: $pkg from $dir (tag $GITHUB_REF_NAME)"
 
   publish:
     needs: parse
@@ -38,4 +50,4 @@ jobs:
       id-token: write # pub.dev OIDC trusted publishing
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
     with:
-      working-directory: packages/${{ needs.parse.outputs.package }}
+      working-directory: ${{ needs.parse.outputs.directory }}
