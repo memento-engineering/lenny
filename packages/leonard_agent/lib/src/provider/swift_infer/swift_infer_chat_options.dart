@@ -52,8 +52,10 @@ class SwiftInferChatOptions extends ChatModelOptions {
   /// Repetition penalty (`repetition_penalty`). Non-Anthropic-standard.
   final double repetitionPenalty;
 
-  /// Whether `<think>` reasoning is preserved across turns
-  /// (`preserve_thinking`). Non-Anthropic-standard.
+  /// Whether prior-turn reasoning is replayed to the gateway
+  /// (`preserve_thinking`). When `true`, an assistant turn's [ThinkingPart]s
+  /// are re-sent as a leading Anthropic `thinking` content block.
+  /// Non-Anthropic-standard.
   final bool preserveThinking;
 
   /// Optional stop sequences (`stop_sequences`).
