@@ -136,7 +136,7 @@ run_dir_from_stderr() {
 
 HAPPY_STATE="$TEST_ROOT/happy-state"
 mkdir -p "$HAPPY_STATE"
-env -u PANEL_SELFDRIVE_MODEL_ID -u SWIFT_INFER_MODEL \
+env -u PANEL_SELFDRIVE_MODEL_ID SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_STATE_DIR="$HAPPY_STATE" \
@@ -165,6 +165,14 @@ SCRIPT_ROUND_MARKER="$(sed -n "s/^ROUND_MARKER='\(PANEL_SELFDRIVE_ROUND=[0-9]*\)
 grep -Fx "$SCRIPT_ROUND_MARKER" "$HAPPY_STATE/bd_notes" >/dev/null
 grep -E '^RUN_HEAD=[0-9a-f]{40}$' "$HAPPY_STATE/bd_notes" >/dev/null
 grep -Fx 'PANEL_SELFDRIVE_RECEIPT=passed' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'RECEIPT_PATH=manual-fallback' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'FAILING_ASSERTION=none' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'FURTHEST_POINT=outer trajectory turn 5, proposed_action.tool=core.done' \
+  "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'TURN_COUNT=6' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'STOP_OBSERVED=true' "$HAPPY_STATE/bd_notes" >/dev/null
+grep -Fx 'PANEL_SELFDRIVE_ROUND=10' "$HAPPY_STATE/bd_notes" >/dev/null
+! grep -F 'ROOT_CAUSE=' "$HAPPY_STATE/bd_notes"
 grep -Fx 'INNER_PANEL_MODEL_REQUESTED=qwen3.6-35b-a3b-8bit' \
   "$HAPPY_STATE/stdout" >/dev/null
 grep -Fx 'INNER_PANEL_MODEL_RESOLVED=qwen3.6-35b-a3b-8bit' \
@@ -214,6 +222,7 @@ run_missing_case SWIFT_INFER_AGENT_TOKEN
 DRIVER_FAILURE_STATE="$TEST_ROOT/driver-failure-state"
 mkdir -p "$DRIVER_FAILURE_STATE"
 set +e
+SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_DRIVER_FAIL=1 \
@@ -248,6 +257,7 @@ grep -Fx 'PANEL_LOG_LAST_20_END' "$DRIVER_FAILURE_STATE/bd_notes" >/dev/null
 READBACK_STATE="$TEST_ROOT/readback-state"
 mkdir -p "$READBACK_STATE"
 set +e
+SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_BD_DROP_APPEND=1 \
@@ -265,6 +275,7 @@ grep -F 'bd read-back' "$READBACK_STATE/stderr" >/dev/null
 LEAK_STATE="$TEST_ROOT/leak-state"
 mkdir -p "$LEAK_STATE"
 set +e
+SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
 SWIFT_INFER_ENDPOINT='https://swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
 FAKE_DRIVER_LEAK=1 \
@@ -292,6 +303,7 @@ grep -Fx 'CAPTURED_OUTPUT_SECRET_SCAN=leak-redacted' "$LEAK_STATE/bd_notes" >/de
 ENDPOINT_LEAK_STATE="$TEST_ROOT/endpoint-leak-state"
 mkdir -p "$ENDPOINT_LEAK_STATE"
 set +e
+SWIFT_INFER_MODEL='qwen3.6-35b-a3b-8bit' \
 SWIFT_INFER_ENDPOINT='https://private-swift.example' \
 SWIFT_INFER_AGENT_TOKEN='fixture-token' \
 FAKE_PANEL_ENDPOINT_LEAK=1 \
@@ -326,6 +338,24 @@ grep -Fx 'INNER_PANEL_MODEL_ID=qwen3.8-27b-8bit' \
   "$PINNED_STATE/bd_notes" >/dev/null
 grep -Fx 'OUTER_DRIVER_MODEL_ID=qwen3.8-27b-8bit' \
   "$PINNED_STATE/bd_notes" >/dev/null
+
+UNPINNED_STATE="$TEST_ROOT/unpinned-state"
+mkdir -p "$UNPINNED_STATE"
+set +e
+env -u PANEL_SELFDRIVE_MODEL_ID -u SWIFT_INFER_MODEL \
+SWIFT_INFER_ENDPOINT='https://swift.example' \
+SWIFT_INFER_AGENT_TOKEN='fixture-secret-never-written' \
+FAKE_STATE_DIR="$UNPINNED_STATE" \
+PANEL_SELFDRIVE_HARNESS="$FAKE_HARNESS" \
+PANEL_SELFDRIVE_DRIVER_BIN="$FAKE_DRIVER" \
+PANEL_SELFDRIVE_BD_BIN="$FAKE_BD" \
+PANEL_SELFDRIVE_OUTPUT_ROOT="$UNPINNED_STATE/output" \
+  "$SCRIPT" macos >"$UNPINNED_STATE/stdout" 2>"$UNPINNED_STATE/stderr"
+unpinned_status=$?
+set -e
+[[ "$unpinned_status" == 64 ]]
+grep -F 'there is no safe default' "$UNPINNED_STATE/stderr" >/dev/null
+[[ ! -e "$UNPINNED_STATE/harness_started" ]]
 
 CONFLICT_STATE="$TEST_ROOT/conflict-state"
 mkdir -p "$CONFLICT_STATE"

@@ -44,6 +44,7 @@ done-evidence-pattern: $_evidence
       trajectoryPath: '/run/outer.jsonl',
       driverLogPath: '/run/driver.log',
       probeArtifactPath: '/run/panel_probe.json',
+      driverStatusPath: '/run/driver.status',
       patterns: const ScenarioPatterns(
         doneReason: _reason,
         doneEvidence: _evidence,
@@ -58,7 +59,13 @@ done-evidence-pattern: $_evidence
     expect(command, contains("'--action-env' 'SWIFT_INFER_ENDPOINT'"));
     expect(command, contains("'--action-env' 'SWIFT_INFER_AGENT_TOKEN'"));
     expect(command, contains("'--action-env' 'PANEL_SELFDRIVE_MODEL_ID'"));
-    expect(command, endsWith("> '/run/driver.log' 2>&1"));
+    expect(
+      command,
+      endsWith(
+        "> '/run/driver.log' 2>&1; "
+        "printf '%s\\n' \"\$?\" > '/run/driver.status'; exit 0",
+      ),
+    );
   });
 
   test('interpretEvent handles every runtime event', () {

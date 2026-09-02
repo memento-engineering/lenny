@@ -47,6 +47,9 @@ Map<String, String> trajectoryMetrics(String trajectoryJsonl) {
   final Map<String, dynamic> first = turns.isEmpty
       ? const <String, dynamic>{}
       : turns.first;
+  final Map<String, dynamic> last = turns.isEmpty
+      ? const <String, dynamic>{}
+      : turns.last;
   return <String, String>{
     'TURN_FIRST_INDEX': '${first['index'] ?? 'absent'}',
     'TURN_FIRST_TOOL':
@@ -56,6 +59,10 @@ Map<String, String> trajectoryMetrics(String trajectoryJsonl) {
     'OUTER_SERVED_MODEL_IDS': served.isEmpty
         ? 'absent'
         : (served.toList()..sort()).join(','),
+    'FURTHEST_POINT':
+        'outer trajectory turn ${last['index'] ?? 'unknown'}, '
+        'proposed_action.tool='
+        '${_nestedString(last, 'proposed_action', 'tool') ?? 'unknown'}',
     'TERMINATION_DETAIL': '${footer['termination_detail'] ?? 'none'}',
   };
 }
@@ -81,22 +88,47 @@ String _readSelfdriveFile(String path) {
   return file.existsSync() ? file.readAsStringSync() : '';
 }
 
+/// The verifier's failed assertion as it printed it, or `none` when the
+/// verifier refused nothing.
+String failingAssertion(String verifierOutput) {
+  final RegExp marker = RegExp(r'^panel self-drive receipt invalid: (.+)$');
+  String out = 'none';
+  for (final String raw in const LineSplitter().convert(verifierOutput)) {
+    if (marker.firstMatch(raw.trim()) case final RegExpMatch match) {
+      out = match.group(1)!;
+    }
+  }
+  return out;
+}
+
 /// Builds the exact receipt block appended to the work bead by the station.
 List<String> selfdriveReceiptLines({
   required String runHead,
   required String runDir,
   required String requestedModelId,
+  required String scenarioExitStatus,
   required int verifierExitStatus,
+  required String failingAssertionText,
   required Map<String, String> verifierFields,
   required Map<String, String> metrics,
 }) => <String>[
+  'PANEL_SELFDRIVE_ROUND=10',
   'PANEL_SELFDRIVE_RECEIPT=${verifierExitStatus == 0 ? 'passed' : 'failed'}',
+  'RECEIPT_PATH=station-circuit',
   'RUN_HEAD=$runHead',
   'RUN_DIR=$runDir',
+  'SCENARIO_EXIT_STATUS=$scenarioExitStatus',
   'VERIFIER_EXIT_STATUS=$verifierExitStatus',
-  'OUTER_DRIVER_MODEL_REQUESTED=$requestedModelId',
+  'FAILING_ASSERTION=$failingAssertionText',
+  'FURTHEST_POINT=${metrics['FURTHEST_POINT'] ?? 'unknown'}',
+  'TURN_COUNT=${verifierFields['TURN_COUNT'] ?? 'absent'}',
+  'STOP_OBSERVED=${verifierFields['STOP_OBSERVED'] ?? 'absent'}',
+  'OBSERVED_TURN_INDEX=${verifierFields['OBSERVED_TURN_INDEX'] ?? 'absent'}',
+  'OBSERVED_TURN_TOOL=${verifierFields['OBSERVED_TURN_TOOL'] ?? 'absent'}',
+  'PROMPT_FORM=${verifierFields['PROMPT_FORM'] ?? 'absent'}',
+  'OUTER_DRIVER_MODEL_ID=$requestedModelId',
   'OUTER_SERVED_MODEL_IDS=${metrics['OUTER_SERVED_MODEL_IDS'] ?? 'absent'}',
-  'INNER_PANEL_MODEL_RESOLVED='
+  'INNER_PANEL_MODEL_ID='
       '${verifierFields['INNER_PANEL_MODEL_RESOLVED'] ?? 'absent'}',
   'TURN_FIRST_INDEX=${metrics['TURN_FIRST_INDEX'] ?? 'absent'}',
   'TURN_FIRST_TOOL=${metrics['TURN_FIRST_TOOL'] ?? 'absent'}',
@@ -148,6 +180,8 @@ class SelfdriveVerifyCapability extends ServiceCapability {
     }
     final String trajectory =
         driver[kSelfdriveTrajectoryKey] ?? p.join(runDir, 'outer.jsonl');
+    final String driverStatusPath =
+        driver[kSelfdriveDriverStatusKey] ?? p.join(runDir, 'driver.status');
     final ShellRunResult head = await _shell.run(
       workingDirectory: workspace.workspaceDir,
       command: 'git rev-parse HEAD',
@@ -166,11 +200,14 @@ class SelfdriveVerifyCapability extends ServiceCapability {
           '${_q(p.join(runDir, 'sample_app.log'))}',
     );
     if (args.cancel.isCancelled) return const Failed('cancelled');
+    final String recordedStatus = _readFile(driverStatusPath).trim();
     final List<String> receipt = selfdriveReceiptLines(
       runHead: head.ok ? head.output.trim() : 'unknown',
       runDir: runDir,
       requestedModelId: order.outerModelId,
+      scenarioExitStatus: recordedStatus.isEmpty ? 'unknown' : recordedStatus,
       verifierExitStatus: verified.exitCode,
+      failingAssertionText: failingAssertion(verified.output),
       verifierFields: parseReceiptFields(verified.output),
       metrics: trajectoryMetrics(_readFile(trajectory)),
     );
