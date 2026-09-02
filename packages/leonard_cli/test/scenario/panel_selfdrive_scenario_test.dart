@@ -41,6 +41,11 @@ void main() {
       'the INNER goal for the panel',
       'never completion',
       'done-reason-pattern:',
+      'done-evidence-pattern:',
+      'DISPLAYS a different, resolved value',
+      'never re-enter it',
+      'There is no model dropdown on this screen',
+      'is refused',
       'Test connection',
       'OK (N models)',
       'Start',
@@ -74,9 +79,13 @@ void main() {
       r"ROUND_MARKER='PANEL_SELFDRIVE_ROUND=([0-9]+)'",
     ).firstMatch(source);
     expect(roundMarker, isNotNull, reason: 'runner declares no ROUND_MARKER');
-    expect(int.parse(roundMarker!.group(1)!), greaterThanOrEqualTo(6));
+    expect(int.parse(roundMarker!.group(1)!), greaterThanOrEqualTo(7));
     expect(source, contains(r'grep -Fq "$ROUND_MARKER"'));
     expect(source, contains(r'--done-reason-pattern "$DONE_REASON_PATTERN"'));
+    expect(
+      source,
+      contains(r'--done-evidence-pattern "$DONE_EVIDENCE_PATTERN"'),
+    );
     expect(source, contains('--append-notes'));
     expect(source, contains('bd read-back'));
     expect(source, isNot(contains('PANEL_SELFDRIVE_PROBE_BIN')));

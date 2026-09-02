@@ -235,6 +235,34 @@ void main() {
       );
     });
 
+    test('--done-evidence-pattern parses and rejects bad values', () {
+      const String pattern = r'^#([0-9]+) ([A-Za-z0-9_.-]+)\(';
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://127.0.0.1/ws',
+        '--goal',
+        'x',
+        '--done-evidence-pattern',
+        pattern,
+      ]);
+      expect(args.doneEvidencePattern, pattern);
+
+      for (final String bad in <String>['', '([unclosed']) {
+        expect(
+          () => parseCliArgs(<String>[
+            '--vm-uri',
+            'ws://127.0.0.1/ws',
+            '--goal',
+            'x',
+            '--done-evidence-pattern',
+            bad,
+          ]),
+          throwsA(isA<CliUsageError>()),
+          reason: 'accepted $bad',
+        );
+      }
+    });
+
     group('--launch', () {
       test('parses with --target; vmUri is null', () {
         final args = parseCliArgs(<String>[

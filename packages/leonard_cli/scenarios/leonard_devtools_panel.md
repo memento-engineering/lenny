@@ -3,8 +3,11 @@ Drive the Leonard debug panel through this complete smoke. Do not call
 
 Environment-value contract: when a field below names `${NAME}`, invoke
 `core.enter_text` with the exact literal `${NAME}` as its `text`. The outer
-harness resolves that exact action argument at dispatch; never ask to see,
-repeat, infer, or report its runtime value.
+harness resolves that exact action argument at dispatch, so the field then
+DISPLAYS a different, resolved value — that difference is the success
+state, not a failure. Once such a field is non-empty, never re-enter it and
+never retype it. Never ask to see, repeat, infer, or report a resolved
+runtime value.
 
 Outer-action guard for this smoke: every `node_id` is a JSON integer copied
 from the current observation, never a quoted string. When the observation has
@@ -15,11 +18,13 @@ node-targeted tool. If vertical scrolling is genuinely required, call
 Correct any failed action before continuing.
 
 1. Stay on Conversation and open Settings when the provider form is hidden.
-2. Select provider `swift-infer`. Set Endpoint to `${SWIFT_INFER_ENDPOINT}`,
-   Bearer token to `${SWIFT_INFER_AGENT_TOKEN}`, and Default model id to
-   `${PANEL_SELFDRIVE_MODEL_ID}`. Select that model in the model dropdown.
+2. Set Provider to `swift-infer`. Fill exactly three fields: Endpoint to
+   `${SWIFT_INFER_ENDPOINT}`, Bearer token to `${SWIFT_INFER_AGENT_TOKEN}`,
+   and Default model id to `${PANEL_SELFDRIVE_MODEL_ID}`.
+   There is no model dropdown on this screen — do not look for one.
 3. Press Test connection. Continue only after `OK (N models)` is visible with
-   N greater than zero.
+   N greater than zero. If a model picker appears after that, select
+   `${PANEL_SELFDRIVE_MODEL_ID}` in it; when none appears, continue.
 4. Enter this inner goal exactly into the panel's text field labeled `Goal` —
    the INNER goal for the panel's own session, not your Mission; typing it is
    one step, never completion: `Report the title of the current sample_app
@@ -33,7 +38,10 @@ Correct any failed action before continuing.
    natural SessionEnded. Continue only when Start is visible, enabled, and
    tappable again.
 9. Call `core.done` with a credential-free reason in this exact form, copying
-   the index and tool from the row you observed: `panel smoke passed: inner
-   turn <index> tool <tool>`.
+   the index and tool from the Timeline row you actually observed: `panel
+   smoke passed: inner turn <index> tool <tool>`. `core.done` is refused
+   unless a row matching `#<index> <tool>(` is present in the current
+   observation AND the index and tool you quote are that row's own.
 
 done-reason-pattern: ^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$
+done-evidence-pattern: ^#([0-9]+) ([A-Za-z0-9_.-]+)\(

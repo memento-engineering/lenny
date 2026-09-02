@@ -266,14 +266,20 @@ Future<int> runCli(
 
     // ----- run loop -------------------------------------------------
     final String? doneReasonPattern = args.doneReasonPattern;
+    final String? doneEvidencePattern = args.doneEvidencePattern;
     final SessionTermination termination = await session.run(
       host: host,
       provider: provider,
       writer: writer,
       turnBudget: args.turnBudget,
-      validator: doneReasonPattern == null
-          ? const ActionValidator()
-          : ActionValidator(doneReasonPattern: RegExp(doneReasonPattern)),
+      validator: ActionValidator(
+        doneReasonPattern: doneReasonPattern == null
+            ? null
+            : RegExp(doneReasonPattern),
+        doneEvidencePattern: doneEvidencePattern == null
+            ? null
+            : RegExp(doneEvidencePattern),
+      ),
     );
 
     // ----- translate to exit code -----------------------------------

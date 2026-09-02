@@ -51,7 +51,7 @@ const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
 /// subject to the done-reason pass.
 const String _kCoreDoneTool = 'core.done';
 
-/// Four-pass validator for candidate actions.
+/// Five-pass validator for candidate actions.
 ///
 /// Passes, in order — first match wins:
 ///   1. **Tool exists** in the merged tool list. Rejects with
@@ -66,7 +66,17 @@ const String _kCoreDoneTool = 'core.done';
 ///      `expected = [pattern source]`, `got = the reason`). A validator
 ///      built without a pattern skips this pass entirely, which is the
 ///      historical behaviour.
-///   4. **Semantic-node check** for core tools that target node ids.
+///   4. **Done evidence.** When [doneEvidencePattern] is non-null and the
+///      action is `core.done`, at least one node in the observation must
+///      carry a `label` or `value` matching it (the rendered row that
+///      proves the claim). Rejects with `done_evidence_missing` when none
+///      does. When the pattern has capture groups, the action's `reason`
+///      must additionally quote every captured token of one matching row
+///      as a standalone word; otherwise it rejects with
+///      `done_evidence_mismatch` (carries `pointer = '/reason'`,
+///      `expected = [the matching node texts]`, `got = the reason`). A
+///      validator built without a pattern skips this pass entirely.
+///   5. **Semantic-node check** for core tools that target node ids.
 ///      Looks up each id in `observation.core.nodes`. Rejects with
 ///      `node_not_found` if absent, `node_disabled` if `node.state`
 ///      contains the literal token `'disabled'`. Extension-namespaced tools
@@ -78,11 +88,17 @@ const String _kCoreDoneTool = 'core.done';
 class ActionValidator {
   /// Creates a validator. [doneReasonPattern] is the scenario-declared form
   /// a `core.done` `reason` must match; `null` leaves `core.done` reasons
-  /// unconstrained.
-  const ActionValidator({this.doneReasonPattern});
+  /// unconstrained. [doneEvidencePattern] is the scenario-declared node-text
+  /// form that must be visible in the observation when `core.done` is
+  /// proposed; `null` leaves `core.done` evidence unconstrained.
+  const ActionValidator({this.doneReasonPattern, this.doneEvidencePattern});
 
   /// Compiled reason form for `core.done`, or `null` when unconstrained.
   final RegExp? doneReasonPattern;
+
+  /// Compiled node-text form that must match some `label` or `value` in the
+  /// observation when `core.done` is proposed, or `null` when unconstrained.
+  final RegExp? doneEvidencePattern;
 
   /// Validate [action] against [tools] and the live UI in [observation].
   ValidationResult validate(
@@ -145,7 +161,54 @@ class ActionValidator {
       }
     }
 
-    // Pass 4: core-tool semantic-node check.
+    // Pass 4: scenario-declared done evidence, read from the observation.
+    final RegExp? evidencePattern = doneEvidencePattern;
+    if (evidencePattern != null && action.tool == _kCoreDoneTool) {
+      final List<({String text, RegExpMatch match})> rows =
+          <({String text, RegExpMatch match})>[];
+      for (final SemanticsNode node in observation.core.nodes.values) {
+        for (final String text in <String>[node.label, node.value]) {
+          if (text.isEmpty) continue;
+          final RegExpMatch? match = evidencePattern.firstMatch(text);
+          if (match != null) rows.add((text: text, match: match));
+        }
+      }
+      if (rows.isEmpty) {
+        return ValidationReject(
+          tool: action.tool,
+          reason: 'done_evidence_missing',
+          expected: <String>[evidencePattern.pattern],
+          description:
+              'core.done needs a node whose label or value matches '
+              '${evidencePattern.pattern}; the current observation carries '
+              'none, so keep acting until that evidence is on screen',
+        );
+      }
+      final Object? rawEvidenceReason = action.args['reason'];
+      final String evidenceReason = rawEvidenceReason is String
+          ? rawEvidenceReason
+          : '';
+      final bool quotesObservedRow = rows.any(
+        (({String text, RegExpMatch match}) row) =>
+            _reasonQuotesRow(evidenceReason, row.match),
+      );
+      if (!quotesObservedRow) {
+        return ValidationReject(
+          tool: action.tool,
+          reason: 'done_evidence_mismatch',
+          pointer: '/reason',
+          expected: <String>[
+            for (final ({String text, RegExpMatch match}) row in rows) row.text,
+          ],
+          got: evidenceReason,
+          description:
+              'core.done reason must quote a row that is actually observed; '
+              'copy the index and tool from one of the listed rows',
+        );
+      }
+    }
+
+    // Pass 5: core-tool semantic-node check.
     if (!_coreNodeTools.contains(action.tool)) {
       // Extension tools and node-less core tools (system_back / wait /
       // done) need no semantic-node check.
@@ -181,4 +244,24 @@ class ActionValidator {
     }
     return const ValidationOk();
   }
+}
+
+/// Whether [reason] quotes every capture group of [match] as a standalone
+/// token.
+///
+/// This is the cross-check that a `core.done` reason names the row that was
+/// actually observed rather than a fabricated one: for the panel row
+/// `#3 core.tap(...)` the captured tokens are `3` and `core.tap`, and both
+/// must appear in the reason bounded by non-identifier characters. A pattern
+/// with no capture groups is satisfied by presence alone.
+bool _reasonQuotesRow(String reason, RegExpMatch match) {
+  for (int group = 1; group <= match.groupCount; group++) {
+    final String? token = match.group(group);
+    if (token == null || token.isEmpty) continue;
+    final RegExp standalone = RegExp(
+      '(?<![A-Za-z0-9_.])${RegExp.escape(token)}(?![A-Za-z0-9_.])',
+    );
+    if (!standalone.hasMatch(reason)) return false;
+  }
+  return true;
 }

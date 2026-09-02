@@ -67,6 +67,25 @@ ToolDescriptor _coreWait() => const ToolDescriptor(
   },
 );
 
+Observation _observationWithRow(String label) => Observation(
+  core: CoreFragment(
+    routeStack: const <String>['/'],
+    nodes: <int, SemanticsNode>{
+      1: SemanticsNode(
+        id: 1,
+        role: 'text',
+        label: label,
+        state: const <String>[],
+        actions: const <String>['tap'],
+        rect: const <int>[0, 0, 100, 50],
+      ),
+    },
+    errors: const <RuntimeError>[],
+  ),
+  extensions: const <String, ExtensionFragment>{},
+  stability: StabilityMetadata.empty,
+);
+
 void main() {
   group('decideAndValidate', () {
     final tools = <ToolDescriptor>[_coreDone(), _coreWait()];
@@ -144,6 +163,43 @@ void main() {
         expect(
           r.decision.action.args['reason'],
           'panel smoke passed: inner turn 0 tool core.done',
+        );
+        expect(provider.callCount, 2);
+      },
+    );
+
+    test(
+      'a fabricated done reason is rejected, then the observed row completes',
+      () async {
+        final provider = _ScriptedProvider(<Object>[
+          _decision('core.done', <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 9 tool start_command',
+          }),
+          _decision('core.done', <String, dynamic>{
+            'reason': 'panel smoke passed: inner turn 1 tool start_command',
+          }),
+        ]);
+        final r = await decideAndValidate(
+          provider: provider,
+          baseSnapshot: _baseSnapshot(tools),
+          schema: schema,
+          validator: ActionValidator(
+            doneReasonPattern: RegExp(
+              r'^panel smoke passed: inner turn \d+ tool [A-Za-z0-9_.]+$',
+            ),
+            doneEvidencePattern: RegExp(r'^#([0-9]+) ([A-Za-z0-9_.-]+)\('),
+          ),
+          observation: _observationWithRow('#1 start_command(goal)'),
+          mergedTools: tools,
+        );
+        expect(r.retries, 1);
+        expect(
+          r.rejections.single,
+          contains('"reason":"done_evidence_mismatch"'),
+        );
+        expect(
+          r.decision.action.args['reason'],
+          'panel smoke passed: inner turn 1 tool start_command',
         );
         expect(provider.callCount, 2);
       },
