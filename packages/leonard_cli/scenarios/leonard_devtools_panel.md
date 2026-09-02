@@ -20,25 +20,33 @@ Correct any failed action before continuing.
 1. Stay on Conversation and open Settings when the provider form is hidden.
 2. Set Provider to `swift-infer`. Fill exactly three fields: Endpoint to
    `${SWIFT_INFER_ENDPOINT}`, Bearer token to `${SWIFT_INFER_AGENT_TOKEN}`,
-   and Default model id to `${PANEL_SELFDRIVE_MODEL_ID}`.
-   There is no model dropdown on this screen — do not look for one.
+   and Default model id to `${PANEL_SELFDRIVE_MODEL_ID}`. The picker labeled
+   `Model` below them is empty until the connection is tested — leave it alone
+   for now.
 3. Press Test connection. Continue only after `OK (N models)` is visible with
-   N greater than zero. If a model picker appears after that, select
-   `${PANEL_SELFDRIVE_MODEL_ID}` in it; when none appears, continue.
-4. Enter this inner goal exactly into the panel's text field labeled `Goal` —
+   N greater than zero.
+4. Look at the picker labeled `Model`. Continue only when it shows a non-empty
+   selected model. While it is still empty, press the `Reload models` refresh
+   button beside it, wait, and look again. Its selected value is a resolved
+   runtime value: never read it back, compare it against anything you typed, or
+   report it.
+5. Enter this inner goal exactly into the panel's text field labeled `Goal` —
    the INNER goal for the panel's own session, not your Mission; typing it is
    one step, never completion: `Report the title of the current sample_app
    screen, then call done.`
-5. Press Start and wait for the panel session to emit a completed turn.
-6. Open Timeline. Continue only after a row matching `#<index> <tool>(...)` is
+6. Press Start. Continue only when `Stop` is visible where `Start` was: that is
+   the panel's running state and the only proof Start was accepted. If
+   `Select a model` appears under the `Model` picker instead, Start was refused
+   — go back to step 4.
+7. Open Timeline. Continue only after a row matching `#<index> <tool>(...)` is
    visible with a non-empty tool name.
-7. Open that row. Under Proposed action, verify the tool is not `<unknown>`.
+8. Open that row. Under Proposed action, verify the tool is not `<unknown>`.
    Remember the row's index and tool, then return from the detail view.
-8. Return to Conversation. If Stop is visible, press it; otherwise wait for the
+9. Return to Conversation. If Stop is visible, press it; otherwise wait for the
    natural SessionEnded. Continue only when Start is visible, enabled, and
    tappable again.
-9. Call `core.done` with a credential-free reason in this exact form, copying
-   the index and tool from the Timeline row you actually observed: `panel
+10. Call `core.done` with a credential-free reason in this exact form, copying
+    the index and tool from the Timeline row you actually observed: `panel
    smoke passed: inner turn <index> tool <tool>`. `core.done` is refused
    unless a row matching `#<index> <tool>(` is present in the current
    observation AND the index and tool you quote are that row's own.

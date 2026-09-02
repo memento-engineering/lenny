@@ -134,6 +134,106 @@ void main() {
     expect(cfg!.enabledExtensionNamespaces, {'dio'});
   });
 
+  testWidgets('Start with an empty picker refuses and reveals the error', (
+    tester,
+  ) async {
+    var calls = 0;
+    await tester.pumpWidget(
+      _host(
+        running: false,
+        extensions: const [],
+        modelsState: _state(),
+        onStart: (_) => calls++,
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byKey(const Key('prompt.goal')), 'drive it');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('prompt.start')));
+    await tester.tap(find.byKey(const Key('prompt.start')));
+    await tester.pumpAndSettle();
+
+    expect(calls, 0);
+    expect(find.text('Select a model'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade))
+          .crossFadeState,
+      CrossFadeState.showSecond,
+    );
+  });
+
+  testWidgets('picker pre-selects the configured defaultModelId', (
+    tester,
+  ) async {
+    PromptPanelConfig? cfg;
+    await tester.pumpWidget(
+      _host(
+        running: false,
+        extensions: const [],
+        modelsState: _state(
+          config: SwiftInferUiConfig(
+            bearerToken: 't',
+            endpoint: Uri.parse('http://localhost:8080'),
+            defaultModelId: 'wanted',
+          ),
+          models: const [
+            ResolvedModel(id: 'other', label: 'Other'),
+            ResolvedModel(id: 'wanted', label: 'Wanted'),
+          ],
+        ),
+        onStart: (c) => cfg = c,
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byKey(const Key('prompt.goal')), 'drive it');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('prompt.start')));
+    await tester.tap(find.byKey(const Key('prompt.start')));
+    await tester.pumpAndSettle();
+
+    expect(cfg?.modelId, 'wanted');
+  });
+
+  testWidgets('a successful Test connection fires onReloadModels', (
+    tester,
+  ) async {
+    var reloads = 0;
+    await tester.pumpWidget(
+      _host(
+        running: false,
+        extensions: const [],
+        onReload: () => reloads++,
+        catalog: ModelCatalog(
+          client: MockClient(
+            (req) async => http.Response(
+              jsonEncode(<String, dynamic>{
+                'data': <Map<String, dynamic>>[
+                  <String, dynamic>{'id': 'wanted'},
+                ],
+              }),
+              200,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('providerForm.testConnection')),
+    );
+    await tester.tap(find.byKey(const Key('providerForm.testConnection')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('OK ('), findsOneWidget);
+    expect(reloads, 1);
+  });
+
   testWidgets('running disables inputs and shows Stop', (tester) async {
     await tester.pumpWidget(_host(running: true, extensions: const []));
     await tester.pump();

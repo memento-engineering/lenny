@@ -44,7 +44,9 @@ void main() {
       'done-evidence-pattern:',
       'DISPLAYS a different, resolved value',
       'never re-enter it',
-      'There is no model dropdown on this screen',
+      'the picker labeled `Model`',
+      'Reload models',
+      'Continue only when `Stop` is visible where `Start` was',
       'is refused',
       'Test connection',
       'OK (N models)',
@@ -207,7 +209,10 @@ String _validTrajectoryFixture() {
     _enterTextTurn(0, r'${SWIFT_INFER_ENDPOINT}'),
     _enterTextTurn(1, r'${SWIFT_INFER_AGENT_TOKEN}'),
     _enterTextTurn(2, r'${PANEL_SELFDRIVE_MODEL_ID}'),
-    _turnWithText(3, 'OK (2 models)'),
+    _turnWithNodes(3, <Map<String, dynamic>>[
+      <String, dynamic>{'label': 'OK (2 models)'},
+      <String, dynamic>{'label': 'Stop'},
+    ]),
     _turnWithNodes(4, <Map<String, dynamic>>[
       <String, dynamic>{'label': '#0 core.done()'},
       <String, dynamic>{'label': 'Proposed action'},
@@ -250,11 +255,6 @@ Map<String, dynamic> _enterTextTurn(int index, String text) =>
         'args': <String, dynamic>{'text': text},
       },
     };
-
-Map<String, dynamic> _turnWithText(int index, String text) =>
-    _turnWithNodes(index, <Map<String, dynamic>>[
-      <String, dynamic>{'label': text},
-    ]);
 
 Map<String, dynamic> _turnWithNodes(
   int index,

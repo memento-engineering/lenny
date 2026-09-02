@@ -11,7 +11,10 @@ STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
 BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
 BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
-ROUND_MARKER='PANEL_SELFDRIVE_ROUND=7'
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=8'
+RUN_HEAD="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+RUN_HEAD_COMMITTED_AT="$(git -C "$ROOT" show -s --format=%cI HEAD 2>/dev/null ||
+  printf 'unknown')"
 
 if (( $# > 1 )); then
   printf 'usage: %s [sample-app-device-id]\n' "$0" >&2
@@ -185,6 +188,9 @@ if (( verify_status == 2 )); then
     "$VERIFY_LOG" | head -n 1 || true)"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    "RUN_HEAD=$RUN_HEAD" \
+    "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+    "RUN_STARTED_AT=$STAMP" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
     "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
@@ -217,6 +223,9 @@ if (( driver_status != 0 || verify_status != 0 )); then
     tail -n 1 || true)")"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    "RUN_HEAD=$RUN_HEAD" \
+    "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+    "RUN_STARTED_AT=$STAMP" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
     "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
@@ -237,6 +246,9 @@ fi
 
 note="$(printf '%s\n' \
   "$ROUND_MARKER" \
+  "RUN_HEAD=$RUN_HEAD" \
+  "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
+  "RUN_STARTED_AT=$STAMP" \
   'PANEL_SELFDRIVE_RECEIPT=passed' \
   'SCENARIO_EXIT_STATUS=0' \
   'VERIFIER_EXIT_STATUS=0' \
