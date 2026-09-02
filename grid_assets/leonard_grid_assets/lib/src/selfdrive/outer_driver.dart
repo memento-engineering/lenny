@@ -50,6 +50,10 @@ ScenarioPatterns scenarioPatterns(String scenarioText) {
 String shellQuote(String value) => "'${value.replaceAll("'", r"'\''")}'";
 
 /// Builds the bounded outer-driver command used by the station process step.
+///
+/// The wrapper always exits zero: the driver's own status is receipt DATA
+/// written to [driverStatusPath], never the circuit's verdict, so the terminal
+/// `verify` step still runs and records a negative receipt.
 String outerDriverShellCommand({
   required String repoRoot,
   required String scenarioPath,
@@ -57,6 +61,7 @@ String outerDriverShellCommand({
   required String trajectoryPath,
   required String driverLogPath,
   required String probeArtifactPath,
+  required String driverStatusPath,
   required ScenarioPatterns patterns,
   int turnBudget = 180,
   int coreBudgetBytes = 131072,
@@ -91,7 +96,9 @@ String outerDriverShellCommand({
     'PANEL_SELFDRIVE_MODEL_ID',
   ];
   return '${argv.map(shellQuote).join(' ')} '
-      '> ${shellQuote(driverLogPath)} 2>&1';
+      '> ${shellQuote(driverLogPath)} 2>&1; '
+      "printf '%s\\n' \"\$?\" > ${shellQuote(driverStatusPath)}; "
+      'exit 0';
 }
 
 /// Runs one outer driver against the endpoint published by the harness.
@@ -143,6 +150,7 @@ class OuterDriverCapability extends ProcessCapability {
     return <String, String>{
       kSelfdriveTrajectoryKey: plan.trajectoryPath,
       kSelfdriveRunDirKey: plan.runDir,
+      kSelfdriveDriverStatusKey: plan.driverStatusPath,
     };
   }
 
@@ -180,11 +188,13 @@ class OuterDriverCapability extends ProcessCapability {
         order.outerModelId;
     final String scenarioPath = p.join(workspace.workspaceDir, order.scenario);
     final String trajectoryPath = p.join(runDir, 'outer.jsonl');
+    final String driverStatusPath = p.join(runDir, 'driver.status');
     return _OuterDriverPlan(
       repoRoot: workspace.workspaceDir,
       runDir: runDir,
       modelId: modelId,
       trajectoryPath: trajectoryPath,
+      driverStatusPath: driverStatusPath,
       command: outerDriverShellCommand(
         repoRoot: workspace.workspaceDir,
         scenarioPath: scenarioPath,
@@ -192,6 +202,7 @@ class OuterDriverCapability extends ProcessCapability {
         trajectoryPath: trajectoryPath,
         driverLogPath: p.join(runDir, 'driver.log'),
         probeArtifactPath: p.join(runDir, 'panel_probe.json'),
+        driverStatusPath: driverStatusPath,
         patterns: scenarioPatterns(File(scenarioPath).readAsStringSync()),
       ),
     );
@@ -204,6 +215,7 @@ class _OuterDriverPlan {
     required this.runDir,
     required this.modelId,
     required this.trajectoryPath,
+    required this.driverStatusPath,
     required this.command,
   });
 
@@ -211,5 +223,6 @@ class _OuterDriverPlan {
   final String runDir;
   final String modelId;
   final String trajectoryPath;
+  final String driverStatusPath;
   final String command;
 }

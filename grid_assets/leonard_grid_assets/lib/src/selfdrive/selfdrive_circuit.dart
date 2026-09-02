@@ -37,6 +37,9 @@ const String kSelfdriveRunDirKey = 'SELFDRIVE_RUN_DIR';
 /// Result key under which the driver publishes its trajectory.
 const String kSelfdriveTrajectoryKey = 'SELFDRIVE_TRAJECTORY';
 
+/// Result key under which the driver publishes its own exit-status file.
+const String kSelfdriveDriverStatusKey = 'SELFDRIVE_DRIVER_STATUS';
+
 /// The four URI publications required for harness readiness.
 const List<String> kSelfdriveUriKeys = <String>[
   'SAMPLE_APP_VM_URI',

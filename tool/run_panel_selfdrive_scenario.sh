@@ -17,8 +17,8 @@ DEVICE="${1:-macos}"
 STARTUP_TIMEOUT_SECONDS="${PANEL_SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 CORE_BUDGET_BYTES="${PANEL_SELFDRIVE_CORE_BUDGET_BYTES:-131072}"
 BD_BIN="${PANEL_SELFDRIVE_BD_BIN:-bd}"
-BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.5}"
-ROUND_MARKER='PANEL_SELFDRIVE_ROUND=8'
+BEAD_ID="${PANEL_SELFDRIVE_BEAD_ID:-lenny-f7nx.6}"
+ROUND_MARKER='PANEL_SELFDRIVE_ROUND=10'
 RUN_HEAD="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')"
 RUN_HEAD_COMMITTED_AT="$(git -C "$ROOT" show -s --format=%cI HEAD 2>/dev/null ||
   printf 'unknown')"
@@ -45,7 +45,12 @@ if [[ -n "${PANEL_SELFDRIVE_MODEL_ID:-}" && -n "${SWIFT_INFER_MODEL:-}" &&
     "$PANEL_SELFDRIVE_MODEL_ID" "$SWIFT_INFER_MODEL" >&2
   exit 64
 fi
-export PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-${SWIFT_INFER_MODEL:-qwen3.6-35b-a3b-8bit}}"
+PANEL_SELFDRIVE_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-${SWIFT_INFER_MODEL:-}}"
+if [[ -z "$PANEL_SELFDRIVE_MODEL_ID" ]]; then
+  printf '%s\n' 'run_panel_selfdrive_scenario: set SWIFT_INFER_MODEL (or PANEL_SELFDRIVE_MODEL_ID); one name pins both harnesses and there is no safe default' >&2
+  exit 64
+fi
+export PANEL_SELFDRIVE_MODEL_ID
 export SWIFT_INFER_MODEL="$PANEL_SELFDRIVE_MODEL_ID"
 [[ "$STARTUP_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || {
   printf '%s\n' 'run_panel_selfdrive_scenario: startup timeout must be a positive integer' >&2
@@ -185,6 +190,17 @@ scrub_guard() {
   printf '%s\n' "$text"
 }
 
+furthest_point() {
+  local last_turn_line last_index last_tool
+  last_turn_line="$(grep -F '"type":"turn"' "$TRAJECTORY" | tail -n 1 || true)"
+  last_index="$(printf '%s' "$last_turn_line" |
+    sed -n 's/^{"type":"turn","index":\([0-9]*\).*/\1/p')"
+  last_tool="$(printf '%s' "${last_turn_line#*\"proposed_action\":}" |
+    sed -n 's/^[^}]*"tool":"\([^"]*\)".*/\1/p')"
+  printf 'outer trajectory turn %s, proposed_action.tool=%s\n' \
+    "${last_index:-unknown}" "${last_tool:-unknown}"
+}
+
 persist_receipt() {
   local note="$1"
   printf '%s\n' "$note" >"$RUN_DIR/bead.note"
@@ -213,6 +229,7 @@ if (( verify_status == 2 )); then
     "$VERIFY_LOG" | head -n 1 || true)"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    'RECEIPT_PATH=manual-fallback' \
     "RUN_HEAD=$RUN_HEAD" \
     "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
     "RUN_STARTED_AT=$STAMP" \
@@ -234,11 +251,6 @@ if (( verify_status == 2 )); then
 fi
 
 if (( driver_status != 0 || verify_status != 0 )); then
-  last_turn_line="$(grep -F '"type":"turn"' "$TRAJECTORY" | tail -n 1 || true)"
-  last_index="$(printf '%s' "$last_turn_line" |
-    sed -n 's/^{"type":"turn","index":\([0-9]*\).*/\1/p')"
-  last_tool="$(printf '%s' "${last_turn_line#*\"proposed_action\":}" |
-    sed -n 's/^[^}]*"tool":"\([^"]*\)".*/\1/p')"
   if (( driver_status != 0 )); then
     raw_error_source="$DRIVER_LOG"
     failing='./tool/run_panel_selfdrive_scenario.sh exits zero (outer driver)'
@@ -250,13 +262,14 @@ if (( driver_status != 0 || verify_status != 0 )); then
     tail -n 1 || true)")"
   note="$(printf '%s\n' \
     "$ROUND_MARKER" \
+    'RECEIPT_PATH=manual-fallback' \
     "RUN_HEAD=$RUN_HEAD" \
     "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
     "RUN_STARTED_AT=$STAMP" \
     'PANEL_SELFDRIVE_RECEIPT=failed' \
     "SCENARIO_EXIT_STATUS=$driver_status" \
     "VERIFIER_EXIT_STATUS=$verify_status" \
-    "FURTHEST_POINT=outer trajectory turn ${last_index:-unknown}, proposed_action.tool=${last_tool:-unknown}" \
+    "FURTHEST_POINT=$(furthest_point)" \
     "FAILING_ASSERTION=$failing" \
     "RAW_ERROR=${raw_error:-none-captured}" \
     "$(scrub_guard "$receipt")" \
@@ -275,17 +288,19 @@ fi
 
 note="$(printf '%s\n' \
   "$ROUND_MARKER" \
+  'RECEIPT_PATH=manual-fallback' \
   "RUN_HEAD=$RUN_HEAD" \
   "RUN_HEAD_COMMITTED_AT=$RUN_HEAD_COMMITTED_AT" \
   "RUN_STARTED_AT=$STAMP" \
   'PANEL_SELFDRIVE_RECEIPT=passed' \
   'SCENARIO_EXIT_STATUS=0' \
   'VERIFIER_EXIT_STATUS=0' \
+  'FAILING_ASSERTION=none' \
+  "FURTHEST_POINT=$(furthest_point)" \
   "$receipt" \
   "INNER_PANEL_MODEL_ID=${inner_model_resolved:-absent}" \
   "OUTER_DRIVER_MODEL_ID=$SWIFT_INFER_MODEL" \
-  'ROOT_CAUSE=core observation exceeded the former 4096-byte all-or-nothing budget' \
-  'REPAIRS=core.done is gated on an observed Timeline row cross-checked against the reason; the scenario states the resolved-value contract and the panel'"'"'s real widget set')"
+  "PANEL_PROBE_TOP_LEVEL_KEYS=$(probe_key_list)")"
 persist_receipt "$note"
 sed -n '1,160p' "$DRIVER_LOG" >&2
 printf '%s\n' "$note"
