@@ -5,6 +5,7 @@ analyzer:
     # implementations whose path deps went stale when perception moved to
     # memento-engineering/genesis. Evidence snapshot: genesis docs/evidence/.
     - spikes/**
+    - grid_assets/**
   language:
     strict-casts: true
     strict-inference: true
