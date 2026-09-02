@@ -25,6 +25,7 @@ void main() {
       expect(out, contains('--goal'));
       expect(out, contains('--goal-file'));
       expect(out, contains('--model'));
+      expect(out, contains('--model-id'));
       expect(out, contains('--output'));
       expect(out, contains('--policy'));
       expect(out, contains('--extensions'));

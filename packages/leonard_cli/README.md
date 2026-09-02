@@ -13,7 +13,7 @@ concrete `ModelProvider`:
 | Tier        | Provider             | Required env                      |
 |-------------|----------------------|-----------------------------------|
 | `claude`    | `AnthropicModelProvider` | `ANTHROPIC_API_KEY` (default)           |
-| `qwen-mlx`  | `SwiftInferModelProvider` (local swift-infer gateway) | `SWIFT_INFER_AGENT_TOKEN` (when the gateway requires auth), `SWIFT_INFER_ENDPOINT` (optional, defaults to `http://localhost:8080`) |
+| `qwen-mlx`  | `SwiftInferModelProvider` (local swift-infer gateway) | `SWIFT_INFER_AGENT_TOKEN` (when the gateway requires auth), `SWIFT_INFER_ENDPOINT` (optional, defaults to `http://localhost:8080`), `SWIFT_INFER_MODEL` (optional, defaults to `qwen3.6-35b-a3b-8bit`) |
 | `openai`    | `OpenAiModelProvider`    | `OPENAI_API_KEY`              |
 
 ## swift-infer gateway (qwen-mlx)
@@ -33,6 +33,12 @@ inspection tooling work for both clients.
   auth disabled, but the production gateway requires this.
 * `SWIFT_INFER_ENDPOINT` — base URL of the gateway. Defaults to
   `http://localhost:8080` when unset or empty.
+* `SWIFT_INFER_MODEL` — model id requested from the gateway. Defaults to
+  `qwen3.6-35b-a3b-8bit` when unset or empty. Set it to any node the gateway
+  serves (`curl "$SWIFT_INFER_ENDPOINT/v1/models"` lists them), e.g.
+  `qwen3.8-40b-a3b-8bit`. The `--model-id` flag outranks this variable, which
+  outranks the default; capabilities resolve from the id itself, so any
+  `qwen3.*` node keeps vision + preserved thinking.
 
 ### Per-run conversation tracing
 
@@ -65,6 +71,7 @@ Example (opt-in — local swift-infer):
 ```sh
 export SWIFT_INFER_AGENT_TOKEN=sk-…
 export SWIFT_INFER_ENDPOINT=http://localhost:8080  # optional
+export SWIFT_INFER_MODEL=qwen3.8-40b-a3b-8bit      # optional
 dart run leonard_cli \
   --model qwen-mlx \
   --vm-uri ws://127.0.0.1:54321/abc=/ws \
