@@ -116,4 +116,33 @@ void main() {
     cap.dispose();
     h.dispose();
   });
+
+  testWidgets('the resolved model captures as one identified, valued node', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final SemanticsHandle h = tester.ensureSemantics();
+
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('prompt.resolvedModel')));
+    await tester.pumpAndSettle();
+
+    final SemanticsCapture cap = SemanticsCapture();
+    final List<Map<String, Object>> recs = await cap.captureAsync();
+    final Map<String, Object> resolved = _byIdentifier(
+      recs,
+      'prompt.resolvedModel',
+    );
+    expect(resolved['value'], 'mlx');
+    expect(resolved['label'], 'Resolved model');
+
+    cap.dispose();
+    h.dispose();
+  });
 }

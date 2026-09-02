@@ -73,6 +73,60 @@ List<Map<String, dynamic>> decodeRecords(String text) {
   return out;
 }
 
+/// Semantics identifier of the panel's resolved-model readout
+/// (`packages/leonard_devtools/lib/src/panels/prompt_panel.dart`). The OUTER
+/// harness reads this node to learn which model the INNER panel session
+/// actually resolved — the env only says which one was REQUESTED.
+const String kResolvedModelIdentifier = 'prompt.resolvedModel';
+
+/// The inner panel's RESOLVED model id as OBSERVED in [records]: the value of
+/// the last `prompt.resolvedModel` node the trajectory captured. `null` when
+/// the trajectory never captured one. The picker is disabled while a session
+/// runs, so the last capture is the id the session started on.
+String? resolvedInnerModelId(List<Map<String, dynamic>> records) {
+  String? out;
+  for (final Map<String, dynamic> record in records) {
+    if (record['type'] != 'turn') continue;
+    for (final Map<String, dynamic> node in _nodes(record)) {
+      if (node['identifier'] != kResolvedModelIdentifier) continue;
+      if (node['value'] case final String value when value.isNotEmpty) {
+        out = value;
+      }
+    }
+  }
+  return out;
+}
+
+/// Asserts the inner panel resolved the model this run REQUESTED, returning
+/// the OBSERVED id. Throws [ReceiptInvalid] when [requested] is empty, when
+/// the trajectory carries no readout, or when the two disagree: two model ids
+/// on one swift-infer server make each harness's load evict the other's node.
+String assertInnerModelResolved(
+  List<Map<String, dynamic>> records,
+  String requested,
+) {
+  if (requested.isEmpty) {
+    _fail(
+      'PANEL_SELFDRIVE_MODEL_ID is unset: the requested inner model id is '
+      'unknown, so the receipt cannot claim one',
+    );
+  }
+  final String? resolved = resolvedInnerModelId(records);
+  if (resolved == null) {
+    _fail(
+      'no $kResolvedModelIdentifier readout observed: the inner panel never '
+      'reported a resolved model',
+    );
+  }
+  if (resolved != requested) {
+    _fail(
+      'inner panel resolved $resolved but the run requested $requested: two '
+      'models on one swift-infer server evict each other',
+    );
+  }
+  return resolved;
+}
+
 /// Trajectory-derived evidence a negative receipt quotes verbatim.
 List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
   final List<Map<String, dynamic>> turns = records
@@ -101,6 +155,7 @@ List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
     'FOOTER_TERMINATION_DETAIL=${footer['termination_detail'] ?? 'none'}',
     'STOP_OBSERVED=${labels.contains('Stop')}',
     'SELECT_MODEL_ERROR_OBSERVED=${labels.contains('Select a model')}',
+    'INNER_PANEL_MODEL_RESOLVED=${resolvedInnerModelId(records) ?? 'absent'}',
   ];
 }
 
@@ -171,9 +226,15 @@ Future<void> main(List<String> args) async {
     'CAPTURED_OUTPUT_SECRET_SCAN='
     '${leaked.isEmpty ? 'clean' : 'leak-redacted'}',
   );
+  final String requestedModelId =
+      Platform.environment['PANEL_SELFDRIVE_MODEL_ID'] ?? '';
   for (final String line in receiptDiagnostics(records)) {
     stdout.writeln(line);
   }
+  stdout.writeln(
+    'INNER_PANEL_MODEL_REQUESTED='
+    '${requestedModelId.isEmpty ? 'absent' : requestedModelId}',
+  );
   for (final String line in probeDiagnostics(probeText)) {
     stdout.writeln(line);
   }
@@ -188,7 +249,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    _assertReceipt(captures, captureText, records);
+    _assertReceipt(captures, captureText, records, requestedModelId);
   } on ReceiptInvalid catch (e) {
     stderr.writeln('$e');
     exitCode = 1;
@@ -199,6 +260,7 @@ void _assertReceipt(
   List<File> captures,
   Map<File, String> captureText,
   List<Map<String, dynamic>> records,
+  String requestedModelId,
 ) {
   for (final File capture in captures) {
     if (!captureText.containsKey(capture)) {
@@ -241,6 +303,7 @@ void _assertReceipt(
   if (!turnText.any((List<String> values) => values.contains('Stop'))) {
     _fail('no running-session Stop button observed after Start');
   }
+  assertInnerModelResolved(records, requestedModelId);
 
   final RegExp rowPattern = RegExp(r'^#([0-9]+) ([A-Za-z0-9_.-]+)\(');
   RegExpMatch? observedRow;

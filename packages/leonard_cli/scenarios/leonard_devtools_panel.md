@@ -29,7 +29,9 @@ Correct any failed action before continuing.
    selected model. While it is still empty, press the `Reload models` refresh
    button beside it, wait, and look again. Its selected value is a resolved
    runtime value: never read it back, compare it against anything you typed, or
-   report it.
+   report it. The `Resolved model:` line beneath the picker is the same
+   resolved runtime value under a different name: leave it alone too — never
+   read it back, compare it, or quote it in `core.done`.
 5. Enter this inner goal exactly into the panel's text field labeled `Goal` —
    the INNER goal for the panel's own session, not your Mission; typing it is
    one step, never completion: `Report the title of the current sample_app

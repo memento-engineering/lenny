@@ -8,6 +8,11 @@ PANEL_PORT=9101
 STARTUP_TIMEOUT_SECONDS="${SELFDRIVE_STARTUP_TIMEOUT_SECONDS:-300}"
 FLUTTER_BIN="${SELFDRIVE_FLUTTER_BIN:-flutter}"
 SAMPLE_DEVICE="${1:-macos}"
+# ONE name pins BOTH harnesses. PANEL_SELFDRIVE_MODEL_ID is the scenario's own
+# name for it; SWIFT_INFER_MODEL is what leonard_cli's buildProvider reads for
+# the OUTER driver. The panel is a web build, so it takes the value at BUILD
+# time through --dart-define.
+PANEL_MODEL_ID="${PANEL_SELFDRIVE_MODEL_ID:-${SWIFT_INFER_MODEL:-qwen3.6-35b-a3b-8bit}}"
 
 fail() {
   printf 'run_panel_selfdrive: %s\n' "$*" >&2
@@ -195,7 +200,8 @@ esac
     -d web-server \
     --web-port "$PANEL_PORT" \
     -t dev/selfdrive_main.dart \
-    --dart-define=use_simulated_environment=true
+    --dart-define=use_simulated_environment=true \
+    --dart-define=SWIFT_INFER_MODEL="$PANEL_MODEL_ID"
 ) >"$PANEL_LOG" 2>&1 &
 PANEL_PID=$!
 

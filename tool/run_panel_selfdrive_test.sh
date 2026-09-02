@@ -97,17 +97,30 @@ chmod +x "$FAKE_BIN/flutter" "$FAKE_BIN/chrome"
 run_case() {
   local case_name="$1"
   local missing_value="$2"
+  local model_id="${3:-}"
   local case_dir="$TEST_ROOT/$case_name"
   local status
   mkdir -p "$case_dir/artifacts"
   set +e
-  FAKE_STATE_DIR="$case_dir" \
-  FAKE_MISSING_VALUE="$missing_value" \
-  SELFDRIVE_FLUTTER_BIN="$FAKE_BIN/flutter" \
-  SELFDRIVE_CHROME_BIN="$FAKE_BIN/chrome" \
-  SELFDRIVE_STARTUP_TIMEOUT_SECONDS="$TEST_STARTUP_TIMEOUT_SECONDS" \
-  PANEL_SELFDRIVE_ARTIFACT_DIR="$case_dir/artifacts" \
-    "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
+  if [[ -n "$model_id" ]]; then
+    env -u PANEL_SELFDRIVE_MODEL_ID SWIFT_INFER_MODEL="$model_id" \
+      FAKE_STATE_DIR="$case_dir" \
+      FAKE_MISSING_VALUE="$missing_value" \
+      SELFDRIVE_FLUTTER_BIN="$FAKE_BIN/flutter" \
+      SELFDRIVE_CHROME_BIN="$FAKE_BIN/chrome" \
+      SELFDRIVE_STARTUP_TIMEOUT_SECONDS="$TEST_STARTUP_TIMEOUT_SECONDS" \
+      PANEL_SELFDRIVE_ARTIFACT_DIR="$case_dir/artifacts" \
+      "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
+  else
+    env -u PANEL_SELFDRIVE_MODEL_ID -u SWIFT_INFER_MODEL \
+      FAKE_STATE_DIR="$case_dir" \
+      FAKE_MISSING_VALUE="$missing_value" \
+      SELFDRIVE_FLUTTER_BIN="$FAKE_BIN/flutter" \
+      SELFDRIVE_CHROME_BIN="$FAKE_BIN/chrome" \
+      SELFDRIVE_STARTUP_TIMEOUT_SECONDS="$TEST_STARTUP_TIMEOUT_SECONDS" \
+      PANEL_SELFDRIVE_ARTIFACT_DIR="$case_dir/artifacts" \
+      "$SCRIPT" macos >"$case_dir/stdout" 2>"$case_dir/stderr"
+  fi
   status=$?
   set -e
   printf '%s\n' "$status" >"$case_dir/status"
@@ -129,8 +142,12 @@ if [[ "$MODE" == all || "$MODE" == happy ]]; then
   grep -Fx -- "$expected_url" "$TEST_ROOT/happy/chrome_url" >/dev/null
   grep -F -- 'run -d macos --print-dtd' "$TEST_ROOT/happy/sample_args" >/dev/null
   grep -F -- \
-    'run -d web-server --web-port 9101 -t dev/selfdrive_main.dart --dart-define=use_simulated_environment=true' \
+    'run -d web-server --web-port 9101 -t dev/selfdrive_main.dart --dart-define=use_simulated_environment=true --dart-define=SWIFT_INFER_MODEL=qwen3.6-35b-a3b-8bit' \
     "$TEST_ROOT/happy/panel_args" >/dev/null
+  run_case pinned none qwen3.8-27b-8bit
+  [[ "$(<"$TEST_ROOT/pinned/status")" == 0 ]]
+  grep -F -- '--dart-define=SWIFT_INFER_MODEL=qwen3.8-27b-8bit' \
+    "$TEST_ROOT/pinned/panel_args" >/dev/null
   [[ -s "$TEST_ROOT/happy/artifacts/sample_app.log" ]]
   [[ -s "$TEST_ROOT/happy/artifacts/panel.log" ]]
   printf 'run_panel_selfdrive_test: happy PASS\n'

@@ -5,6 +5,36 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('SwiftInferUiConfig', () {
+    test('the default model id reads the SWIFT_INFER_MODEL build define', () {
+      // Under `--dart-define=SWIFT_INFER_MODEL=x` BOTH sides become `x`, so
+      // this pins the NAME the constant reads and the fallback it carries,
+      // in either build.
+      expect(
+        kDefaultSwiftInferModelId,
+        const String.fromEnvironment(
+          'SWIFT_INFER_MODEL',
+          defaultValue: 'qwen3.6-35b-a3b-8bit',
+        ),
+      );
+      expect(kDefaultSwiftInferModelId, isNotEmpty);
+    });
+
+    test('an unset defaultModelId falls back to the build define', () {
+      final cfg = SwiftInferUiConfig(
+        bearerToken: 'tok',
+        endpoint: Uri.parse('http://localhost:8080'),
+      );
+      expect(cfg.defaultModelId, kDefaultSwiftInferModelId);
+      final decoded =
+          ProviderConfig.fromJson(<String, dynamic>{
+                'id': 'swift-infer',
+                'bearerToken': 'tok',
+                'endpoint': 'http://localhost:8080',
+              })
+              as SwiftInferUiConfig;
+      expect(decoded.defaultModelId, kDefaultSwiftInferModelId);
+    });
+
     test('headersFor sets the four well-known headers', () {
       final cfg = SwiftInferUiConfig(
         bearerToken: 'tok',
