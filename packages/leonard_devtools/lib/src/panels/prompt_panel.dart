@@ -202,6 +202,11 @@ class _PromptPanelState extends State<PromptPanel> {
     return out;
   }
 
+  /// Flips the settings reveal. Shared by the gear's `IconButton` (pointer)
+  /// and by the `Semantics` annotation's `onTap` (the semantics action an
+  /// outer driver dispatches), so both paths toggle exactly once.
+  void _toggleSettings() => setState(() => _settingsOpen = !_settingsOpen);
+
   Widget _buildSettingsSection(ModelCatalogState state, bool running) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -249,17 +254,25 @@ class _PromptPanelState extends State<PromptPanel> {
                     : (v) => setState(() => _modelId = v ?? _modelId),
               ),
             ),
-            IconButton(
-              key: const Key('prompt.modelsReload'),
-              tooltip: 'Reload models',
-              icon: state.loading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-              onPressed: state.loading ? null : widget.onReloadModels,
+            Semantics(
+              identifier: 'prompt.modelsReload',
+              button: true,
+              label: 'Reload models',
+              enabled: !state.loading,
+              onTap: state.loading ? null : widget.onReloadModels,
+              excludeSemantics: true,
+              child: IconButton(
+                key: const Key('prompt.modelsReload'),
+                tooltip: 'Reload models',
+                icon: state.loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                onPressed: state.loading ? null : widget.onReloadModels,
+              ),
             ),
           ],
         ),
@@ -412,12 +425,23 @@ class _PromptPanelState extends State<PromptPanel> {
                           : null,
                     ),
                   ),
-                  IconButton(
-                    key: const Key('prompt.settingsGear'),
-                    icon: const Icon(Icons.settings),
-                    tooltip: 'Settings',
-                    onPressed: () =>
-                        setState(() => _settingsOpen = !_settingsOpen),
+                  // Icon-only: Flutter keeps the tooltip out of `label`, and a
+                  // Semantics annotation that does not exclude its child emits
+                  // a SECOND, unlabeled button node. Annotate + exclude so an
+                  // outer driver sees exactly one node carrying both the human
+                  // label and the stable identifier.
+                  Semantics(
+                    identifier: 'prompt.settingsGear',
+                    button: true,
+                    label: 'Settings',
+                    onTap: _toggleSettings,
+                    excludeSemantics: true,
+                    child: IconButton(
+                      key: const Key('prompt.settingsGear'),
+                      icon: const Icon(Icons.settings),
+                      tooltip: 'Settings',
+                      onPressed: _toggleSettings,
+                    ),
                   ),
                   running
                       ? ElevatedButton(

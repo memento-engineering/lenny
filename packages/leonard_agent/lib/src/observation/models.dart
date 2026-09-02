@@ -211,15 +211,17 @@ class CoreFragment {
 /// One semantics node from the captured tree.
 ///
 /// Schema mirrors what the `SemanticsCapture` emits:
-/// `{id, role, label?, identifier?, value?, state?, actions?, rect}`. `rect` is
-/// a four-int list `[left, top, right, bottom]` in physical pixels.
+/// `{id, role, label?, identifier?, value?, hint?, state?, actions?, rect}`.
+/// `rect` is a four-int list `[left, top, right, bottom]` in physical pixels.
 ///
 /// `identifier` is the stable, locale-independent key from
 /// `Semantics(identifier:)` — preferred for addressing a node across
 /// locales/sessions, while `label` (rendered text) is what the model reads to
 /// understand what the node is. `value` is a node's current contents — a text
-/// field's text, or masked bullets for a secure field. All three are empty
-/// when absent.
+/// field's text, or masked bullets for a secure field. `hint` is the node's
+/// tooltip when it also has a rendered label; when a node has ONLY a tooltip
+/// (an icon-only button) the host promotes that tooltip into `label`, so the
+/// model reads one field for meaning. All four are empty when absent.
 @immutable
 class SemanticsNode {
   const SemanticsNode({
@@ -231,6 +233,7 @@ class SemanticsNode {
     required this.rect,
     this.identifier = '',
     this.value = '',
+    this.hint = '',
     this.scroll,
   });
 
@@ -250,6 +253,7 @@ class SemanticsNode {
     final Object? rawLabel = j['label'];
     final Object? rawIdentifier = j['identifier'];
     final Object? rawValue = j['value'];
+    final Object? rawHint = j['hint'];
     final Object? rawState = j['state'];
     final Object? rawActions = j['actions'];
     final Object? rawScroll = j['scroll'];
@@ -267,6 +271,7 @@ class SemanticsNode {
       label: rawLabel is String ? rawLabel : '',
       identifier: rawIdentifier is String ? rawIdentifier : '',
       value: rawValue is String ? rawValue : '',
+      hint: rawHint is String ? rawHint : '',
       state: rawState is List
           ? List<String>.unmodifiable(rawState.whereType<String>())
           : const <String>[],
@@ -291,6 +296,11 @@ class SemanticsNode {
   /// a secure field. Empty when the node has none. Lets the model read what is
   /// already typed instead of relying on the screenshot alone.
   final String value;
+
+  /// The node's tooltip, when the node also carries a rendered [label]. Empty
+  /// otherwise — a tooltip-only node has its tooltip promoted into [label] by
+  /// the host, so this is never a duplicate of [label].
+  final String hint;
   final List<String> state;
   final List<String> actions;
 
@@ -308,6 +318,7 @@ class SemanticsNode {
     if (label.isNotEmpty) 'label': label,
     if (identifier.isNotEmpty) 'identifier': identifier,
     if (value.isNotEmpty) 'value': value,
+    if (hint.isNotEmpty) 'hint': hint,
     if (state.isNotEmpty) 'state': List<String>.from(state),
     if (actions.isNotEmpty) 'actions': List<String>.from(actions),
     'rect': List<int>.from(rect),
@@ -323,6 +334,7 @@ class SemanticsNode {
       label == other.label &&
       identifier == other.identifier &&
       value == other.value &&
+      hint == other.hint &&
       _listEq(state, other.state) &&
       _listEq(actions, other.actions) &&
       _listEq(rect, other.rect) &&
@@ -335,6 +347,7 @@ class SemanticsNode {
     label,
     identifier,
     value,
+    hint,
     Object.hashAll(state),
     Object.hashAll(actions),
     Object.hashAll(rect),

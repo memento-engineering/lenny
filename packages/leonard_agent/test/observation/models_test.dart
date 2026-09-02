@@ -117,6 +117,49 @@ void main() {
     });
   });
 
+  group('SemanticsNode hint', () {
+    test('tryFromJson parses hint and toJson re-emits it', () {
+      final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 7,
+        'role': 'button',
+        'label': 'Save',
+        'hint': 'Save the document',
+        'rect': <int>[0, 0, 100, 40],
+      });
+      expect(n, isNotNull);
+      expect(n!.hint, 'Save the document');
+      // The renderer serializes via toJson — hint must survive so the model
+      // actually sees the tooltip that rides beside the label.
+      expect(n.toJson()['hint'], 'Save the document');
+    });
+
+    test('absent hint defaults to empty and toJson omits the key', () {
+      final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
+        'id': 8,
+        'role': 'text',
+        'label': 'Plain',
+        'rect': <int>[0, 0, 10, 10],
+      });
+      expect(n, isNotNull);
+      expect(n!.hint, '');
+      expect(n.toJson().containsKey('hint'), isFalse);
+    });
+
+    test('hint participates in equality', () {
+      SemanticsNode node(String hint) => SemanticsNode(
+        id: 9,
+        role: 'button',
+        label: 'Save',
+        hint: hint,
+        state: const <String>[],
+        actions: const <String>['tap'],
+        rect: const <int>[0, 0, 100, 40],
+      );
+      expect(node('a'), equals(node('a')));
+      expect(node('a'), isNot(equals(node('b'))));
+    });
+  });
+
   group('SemanticsNode value', () {
     test('tryFromJson parses value and toJson re-emits it', () {
       final SemanticsNode? n = SemanticsNode.tryFromJson(<String, dynamic>{
