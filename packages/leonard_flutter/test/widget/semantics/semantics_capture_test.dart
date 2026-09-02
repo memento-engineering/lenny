@@ -52,6 +52,7 @@ void main() {
           'label',
           'identifier',
           'value',
+          'hint',
           'state',
           'actions',
           'rect',

@@ -9,8 +9,18 @@ import 'package:flutter/widgets.dart';
 /// describing visible, interactive nodes.
 ///
 /// Each capture returns a list of records with the schema
-/// `id, role, label?, identifier?, value?, state?, actions?, rect` where `rect`
-/// is a four-element integer list `[left, top, right, bottom]`.
+/// `id, role, label?, identifier?, value?, hint?, state?, actions?, rect` where
+/// `rect` is a four-element integer list `[left, top, right, bottom]`.
+///
+/// Tooltips: Flutter puts an icon-only control's hover text in
+/// [SemanticsData.tooltip], not in [SemanticsData.label] — an
+/// `IconButton(icon: …, tooltip: 'Settings')` has an empty label. Leonard
+/// promotes it: when a node's `label` is empty and its tooltip is not, the
+/// tooltip IS the emitted `label` (that is the text a sighted user reads on
+/// hover, and the text a scenario names). When a node has both, the rendered
+/// `label` is kept and the tooltip rides alongside it as `hint`. `hint` is
+/// therefore never a second copy of `label`, and it carries Flutter's
+/// `tooltip` — Flutter's unrelated `SemanticsData.hint` is not surfaced.
 ///
 /// `identifier` is the stable, locale-independent key set by
 /// `Semantics(identifier:)` (Flutter's [SemanticsData.identifier]). It is the
@@ -177,6 +187,7 @@ class _Rec {
     this.label,
     this.identifier,
     this.value,
+    this.hint,
     this.state,
     this.actions,
     this.rect, [
@@ -191,6 +202,13 @@ class _Rec {
   /// the app sets none. Preferred for addressing; not a substitute for [label].
   final String identifier;
   final String value;
+
+  /// Flutter's [SemanticsData.tooltip], carried only when the node ALSO has a
+  /// rendered [label] — the hover text a sighted user gets in addition to the
+  /// label. Empty when the node has no tooltip, and empty when the tooltip was
+  /// promoted into [label] (a label-less control such as an icon-only button),
+  /// so `hint` never duplicates `label`.
+  final String hint;
   final List<String> state;
   final List<String> actions;
   final Rect rect;
@@ -215,6 +233,7 @@ class _Rec {
     if (label.isNotEmpty) m['label'] = label;
     if (identifier.isNotEmpty) m['identifier'] = identifier;
     if (value.isNotEmpty) m['value'] = value;
+    if (hint.isNotEmpty) m['hint'] = hint;
     if (state.isNotEmpty) m['state'] = state;
     if (actions.isNotEmpty) m['actions'] = actions;
     if (scroll != null) m['scroll'] = scroll!;
@@ -243,13 +262,20 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     );
     final Rect r = MatrixUtils.transformRect(global, n.rect);
     if (!r.overlaps(viewport)) return;
+    // Flutter puts an icon-only control's hover text in `tooltip`, not
+    // `label`. Promote it when there is no label to read; keep both apart
+    // when there is one.
+    final String tooltip = d.tooltip;
+    final String label = d.label.isEmpty ? tooltip : d.label;
+    final String hint = d.label.isEmpty ? '' : tooltip;
     out.add(
       _Rec(
         _stableIdFor(n),
         _role(d),
-        d.label,
+        label,
         d.identifier,
         d.value,
+        hint,
         _state(d),
         _actions(d),
         r,
