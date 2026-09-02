@@ -439,6 +439,39 @@ class UiAutomator2Backend implements NativeBackend {
     ];
   }
 
+  /// Project the UiAutomator2 `/source` state-bearing attributes onto the
+  /// **Flutter** state vocabulary, so the brain reads ONE vocabulary across
+  /// both channels — the parity [NativeNode.state] promises.
+  ///
+  /// The authority is `leonard_flutter`'s `SemanticsCapture._state`
+  /// (`packages/leonard_flutter/lib/src/semantics/semantics_capture.dart`),
+  /// which emits, IN THIS ORDER: `checked`, `on`, `selected`, `focused`,
+  /// `disabled`, `obscured`. This backend emits a strict SUBSET of it, in the
+  /// same order, so the two channels serialize identically:
+  ///
+  ///   * `checked="true"`  -> `checked`
+  ///   * `focused="true"`  -> `focused`
+  ///   * `enabled="false"` -> `disabled` (Flutter emits the NEGATIVE)
+  ///   * `password="true"` -> `obscured`
+  ///
+  /// `on` and `selected` are NEVER emitted. Deriving `on` would mean inferring
+  /// the widget kind from its class name — UiAutomator2 reports a `Switch` as
+  /// `checked` like any other checkable — which is role inference, not
+  /// perception. Android's `selected` attribute IS present in the source, but
+  /// it is a widget-focus artifact, not Flutter's `isSelected` semantic;
+  /// projecting it would fake the parity rather than keep it.
+  ///
+  /// An attribute that is absent is UNKNOWN, never a false: a node carrying
+  /// none of the four reports an EMPTY list.
+  static List<String> _state(XmlElement el) {
+    final List<String> out = <String>[];
+    if (el.getAttribute('checked') == 'true') out.add('checked');
+    if (el.getAttribute('focused') == 'true') out.add('focused');
+    if (el.getAttribute('enabled') == 'false') out.add('disabled');
+    if (el.getAttribute('password') == 'true') out.add('obscured');
+    return out;
+  }
+
   /// Parse a raw UiAutomator2 `/source` XML document into the flattened,
   /// filtered list of [NativeNode]s in document order. Exposed for the parser
   /// unit test — the Android analogue of `XcuiTestBackend.parseSource`.
@@ -495,6 +528,9 @@ class UiAutomator2Backend implements NativeBackend {
           // Editable content only (an EditText's current text); non-fields omit.
           value: role == 'textfield' ? text : null,
           rect: _rect(el.getAttribute('bounds')),
+          // Flutter-vocabulary state, projected from the source attributes —
+          // empty when the element carries none of them.
+          state: _state(el),
           // Tier-1 accessibility id on UiAutomator2 IS `content-desc`.
           a11yId: desc,
           xpath: _xpathFor(el, cls, rid, classIndex, ridCountByClass),
