@@ -138,7 +138,12 @@ class OuterDriverCapability extends ProcessCapability {
     Exited(:final int exitCode) =>
       exitCode == 0 ? StepSignal.complete : StepSignal.failed,
     Died() => StepSignal.failed,
-    SessionStarted() || Respawned() || ActivityChanged() => StepSignal.none,
+    // SessionOrphaned is NOT a terminal (grid_runtime: the group stays
+    // supervised until it empties or the grace elapses), so no step signal.
+    SessionStarted() ||
+    Respawned() ||
+    ActivityChanged() ||
+    SessionOrphaned() => StepSignal.none,
   };
 
   @override
