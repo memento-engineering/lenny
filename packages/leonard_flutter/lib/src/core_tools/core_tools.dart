@@ -1,4 +1,4 @@
-/// Internal barrel for the 10 host-owned `core.*` tools.
+/// Internal barrel for the 11 host-owned `core.*` tools.
 ///
 /// Library-private — consumers should reach for [CoreExtension] from
 /// `package:leonard_flutter/leonard_flutter.dart` and read the

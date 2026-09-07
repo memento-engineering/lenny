@@ -75,6 +75,7 @@ void main() {
     expect(byNs.keys, containsAll(<String>['core', 'router']));
     expect(byNs['router'], <String>['go']);
     expect(byNs['core'], contains('tap'));
+    expect(byNs['core'], contains('tap_at'));
     expect(byNs['core'], contains('done'));
     // bare tokens — no namespacing
     expect(byNs['router']!.every((String t) => !t.contains('.')), isTrue);

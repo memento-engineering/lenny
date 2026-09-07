@@ -5,12 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('exposes namespace "core" and 10 tools in stable order', () {
+  test('exposes namespace "core" and 11 tools in stable order', () {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
     expect(plugin.namespace, 'core');
     expect(plugin.tools.map((LeonardTool t) => t.name).toList(), <String>[
       'tap',
+      'tap_at',
       'long_press',
       'enter_text',
       'scroll',
