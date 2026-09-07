@@ -12,9 +12,11 @@ import 'package:test/test.dart';
 class _FakeClient extends http.BaseClient {
   _FakeClient(this.events);
   final List<Map<String, dynamic>> events;
+  String? body;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request is http.Request) body = request.body;
     final sb = StringBuffer();
     for (final e in events) {
       sb.write('data: ${jsonEncode(e)}\n\n');
@@ -55,19 +57,24 @@ DartanticModelProvider _provider(List<Map<String, dynamic>> sse) =>
       client: _FakeClient(sse),
     );
 
-ConversationSnapshot _snapshot() => ConversationSnapshot(
-  systemMessage: 'you are an agent',
-  turns: [
-    UserTurn(observation: Observation.empty(), diff: ObservationDiff.empty()),
-  ],
-  tools: [
-    ToolDescriptor(
-      name: _tapTool.name,
-      description: _tapTool.description,
-      inputSchema: _tapTool.inputSchema,
-    ),
-  ],
-);
+ConversationSnapshot _snapshot({Map<String, dynamic>? toolResult}) =>
+    ConversationSnapshot(
+      systemMessage: 'you are an agent',
+      turns: [
+        UserTurn(
+          observation: Observation.empty(),
+          diff: ObservationDiff.empty(),
+          toolResult: toolResult,
+        ),
+      ],
+      tools: [
+        ToolDescriptor(
+          name: _tapTool.name,
+          description: _tapTool.description,
+          inputSchema: _tapTool.inputSchema,
+        ),
+      ],
+    );
 
 void main() {
   group('DartanticModelProvider.decide', () {
@@ -256,6 +263,80 @@ void main() {
       );
       p.dispose();
     });
+
+    test(
+      'first-turn toolResult-as-text fallback renders text without tool result',
+      () async {
+        final cases = <({ModelBackendSpec backend, String model})>[
+          (
+            backend: const AnthropicBackend(apiKey: 'k'),
+            model: 'claude-sonnet-4-6',
+          ),
+          (
+            backend: SwiftInferBackend(
+              baseUrl: Uri.parse('http://localhost:8080'),
+            ),
+            model: 'qwen',
+          ),
+        ];
+
+        for (final testCase in cases) {
+          final client = _FakeClient(const []);
+          final provider = DartanticModelProvider(
+            backend: testCase.backend,
+            model: testCase.model,
+            capabilities: _caps,
+            client: client,
+          );
+
+          try {
+            await provider.decide(
+              _snapshot(toolResult: const {'schema_error': 'x'}),
+              ActionSchema.fromToolList([_tapTool]),
+            );
+          } on Object {
+            // The canned response may fail after the request has been sent.
+          } finally {
+            provider.dispose();
+          }
+
+          final decoded = jsonDecode(client.body!) as Map<String, dynamic>;
+          final messages = (decoded['messages'] as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+          final firstUserMessage = messages.firstWhere(
+            (message) => message['role'] == 'user',
+          );
+          final content = firstUserMessage['content'];
+          final typedBlocks = <Map<String, dynamic>>[];
+          final text = switch (content) {
+            String value => value,
+            List<dynamic> values =>
+              values
+                  .map((value) {
+                    if (value is! Map<String, dynamic>) return '';
+                    typedBlocks.add(value);
+                    return value['type'] == 'text'
+                        ? value['text'] as String
+                        : '';
+                  })
+                  .join('\n'),
+            _ => '',
+          };
+          final reason = testCase.backend.runtimeType.toString();
+
+          expect(
+            text,
+            contains(jsonEncode(const {'schema_error': 'x'})),
+            reason: reason,
+          );
+          expect(
+            typedBlocks.where((block) => block['type'] == 'tool_result'),
+            isEmpty,
+            reason: reason,
+          );
+        }
+      },
+    );
 
     test(
       'rejects a namespace-dropped tool name (router.navigate -> navigate)',
