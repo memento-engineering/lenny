@@ -6,6 +6,8 @@ set -euo pipefail
 #      not exported from lib/leonard_agent.dart).
 #   2. leonard_devtools/lib is dart:io-free.
 #   3. leonard_agent is Flutter-free (no package:flutter*, package:leonard_flutter, dart:ui).
+#   4. leonard_agent/lib may import vm_service_io only from its IO seam
+#      (dogfood subtree whitelisted).
 #
 # ANTI-ROT: the invariant targets are asserted to exist BEFORE any grep. A grep
 # over a missing directory yields no matches, which — combined with `|| true` —
@@ -15,11 +17,17 @@ set -euo pipefail
 
 AGENT_LIB="packages/leonard_agent/lib"
 AGENT_TEST="packages/leonard_agent/test"
+AGENT_VM_SERVICE_IO_SEAM="packages/leonard_agent/lib/src/vm_service_client_io.dart"
 DEVTOOLS_LIB="packages/leonard_devtools/lib"
 
 for d in "$AGENT_LIB" "$AGENT_TEST" "$DEVTOOLS_LIB"; do
   [ -d "$d" ] || { echo "check_no_dart_io: invariant target missing (rename rot?): $d" >&2; exit 1; }
 done
+
+[ -f "$AGENT_VM_SERVICE_IO_SEAM" ] || {
+  echo "check_no_dart_io: invariant target missing (rename rot?): $AGENT_VM_SERVICE_IO_SEAM" >&2
+  exit 1
+}
 
 # 1. leonard_agent/lib must be dart:io-free (dogfood subtree whitelisted).
 m=$(grep -rEn "^[[:space:]]*import[[:space:]]+['\"]dart:io['\"]" "$AGENT_LIB" | grep -v '/lib/src/dogfood/' || true)
@@ -48,4 +56,18 @@ if [ -n "$FLUTTER_HITS" ]; then
   exit 1
 fi
 
-echo "OK: leonard_agent is Flutter-free; leonard_agent + leonard_devtools libs are dart:io-free"
+# 4. leonard_agent/lib may import vm_service_io only from its IO seam
+#    (dogfood subtree whitelisted).
+m=$(grep -rEn \
+  "^[[:space:]]*import[[:space:]]+['\"]package:vm_service/vm_service_io\.dart['\"]" \
+  "$AGENT_LIB" \
+  | grep -vF "$AGENT_VM_SERVICE_IO_SEAM:" \
+  | grep -v '/lib/src/dogfood/' \
+  || true)
+if [ -n "$m" ]; then
+  echo "ERROR: vm_service_io imports must be confined to $AGENT_VM_SERVICE_IO_SEAM (dogfood subtree whitelisted)" >&2
+  echo "$m" >&2
+  exit 1
+fi
+
+echo "OK: leonard_agent is Flutter-free; leonard_agent + leonard_devtools libs are dart:io-free; vm_service_io is confined to $AGENT_VM_SERVICE_IO_SEAM"

@@ -7,7 +7,7 @@
 /// and the agent decodes it.
 ///
 /// Note: this file imports `dart:io`. It lives under `lib/src/dogfood/`,
-/// which the `tool/check_no_dart_io.dart` guard whitelists explicitly
+/// which the `tool/check_no_dart_io.sh` guard whitelists explicitly
 /// (the dogfood subtree is private and not exported from
 /// `lib/leonard_agent.dart`).
 library;

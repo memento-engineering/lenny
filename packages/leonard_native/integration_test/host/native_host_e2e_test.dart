@@ -27,7 +27,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:leonard_agent/leonard_agent.dart';
+import 'package:leonard_agent/leonard_agent_io.dart';
 import 'package:test/test.dart';
 
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
@@ -188,7 +188,7 @@ void main() {
         ],
       );
 
-      session = await LeonardSession.connect(wsUri);
+      session = await connectLeonardSession(wsUri);
       await session.start('native auth0 drive', const LeonardConfig());
 
       // The native fragment must be present once the watcher has seeded.

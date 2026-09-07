@@ -6,8 +6,8 @@
 /// per-host bundle `{VmServiceClient, ObservationPuller, HandshakeResult}`,
 /// i.e. exactly the per-session state [LeonardSession] holds for N=1 — and:
 ///
-/// 1. attaches one [VmServiceClient] per endpoint ([connectAll] owns each;
-///    [fromVmServices] borrows each),
+/// 1. attaches one [VmServiceClient] per endpoint (the I/O-only connector owns
+///    each; [fromVmServices] borrows each),
 /// 2. merges every host's handshake into one [HandshakeResult] (namespace
 ///    union, capability union de-duped first-seen, primary contract
 ///    version) and a namespace→channel routing table,
@@ -15,10 +15,8 @@
 ///    (`mergeObservations`), and
 /// 4. routes each `<namespace>.<tool>` action to the owning channel.
 ///
-/// Pure of `dart:io` and Flutter: the owning [connectAll] path routes
-/// through the existing [VmServiceClient.connect] seam (the only place in
-/// `lib/` that transitively touches `dart:io`); this file adds no new
-/// `dart:io` import.
+/// Pure of platform and Flutter imports: owning connections are assembled by
+/// the I/O-only entrypoint. `tool/check_no_dart_io.sh` enforces that boundary.
 library;
 
 import 'dart:async';
@@ -78,38 +76,26 @@ class _HostChannel {
 class MultiHostSession implements SessionSurface {
   MultiHostSession._(this._channels);
 
-  /// Owning attach: open one [VmServiceClient] per [hosts] endpoint (each
-  /// pins its own first isolate), in the order given. CLI-only — routes
-  /// through [VmServiceClient.connect] (transitively `dart:io`), exactly
-  /// like [LeonardSession.connect]. Call [start] before observe/act.
+  /// Assemble channels from clients whose lifetime is already established.
   ///
-  /// The dual case is just
-  /// `connectAll([HostAttachment(label:'flutter', uri:flutterWsUri),
-  /// HostAttachment(label:'native', uri:nativeEndpoint)])`.
-  static Future<MultiHostSession> connectAll(List<HostAttachment> hosts) async {
+  /// The I/O-only connector supplies owned clients; borrowed and test paths
+  /// reuse this constructor without introducing another ownership flag.
+  /// Platform imports are confined by `tool/check_no_dart_io.sh`.
+  @internal
+  factory MultiHostSession.fromVmServiceClients(
+    List<({String label, VmServiceClient client})> hosts,
+  ) {
     if (hosts.isEmpty) {
       throw ArgumentError.value(
         hosts,
         'hosts',
-        'connectAll requires at least one host',
+        'fromVmServiceClients requires at least one host',
       );
     }
-    // Connect in attach order so channel index 0 is the primary (Flutter).
-    final List<_HostChannel> channels = <_HostChannel>[];
-    try {
-      for (final HostAttachment h in hosts) {
-        final VmServiceClient client = await VmServiceClient.connect(h.uri);
-        channels.add(_HostChannel(label: h.label, client: client));
-      }
-    } on Object {
-      // A later connect failed; tear down the channels already opened so we
-      // never leak owned VM-service connections.
-      for (final _HostChannel ch in channels) {
-        await ch.client.dispose();
-      }
-      rethrow;
-    }
-    return MultiHostSession._(channels);
+    return MultiHostSession._(<_HostChannel>[
+      for (final ({String label, VmServiceClient client}) host in hosts)
+        _HostChannel(label: host.label, client: host.client),
+    ]);
   }
 
   /// Borrowed attach (web-safe / DevTools): wrap already-connected
@@ -126,13 +112,15 @@ class MultiHostSession implements SessionSurface {
         'fromVmServices requires at least one host',
       );
     }
-    return MultiHostSession._(<_HostChannel>[
-      for (final ({String label, VmService vm, String isolateId}) h in hosts)
-        _HostChannel(
-          label: h.label,
-          client: VmServiceClient.fromVmService(h.vm, h.isolateId),
-        ),
-    ]);
+    return MultiHostSession.fromVmServiceClients(
+      <({String label, VmServiceClient client})>[
+        for (final ({String label, VmService vm, String isolateId}) h in hosts)
+          (
+            label: h.label,
+            client: VmServiceClient.fromVmService(h.vm, h.isolateId),
+          ),
+      ],
+    );
   }
 
   /// Test-only constructor: wrap already-built [clients] (typically
@@ -148,10 +136,12 @@ class MultiHostSession implements SessionSurface {
       );
     }
     int i = 0;
-    return MultiHostSession._(<_HostChannel>[
-      for (final VmServiceClient c in clients)
-        _HostChannel(label: 'host${i++}', client: c),
-    ]);
+    return MultiHostSession.fromVmServiceClients(
+      <({String label, VmServiceClient client})>[
+        for (final VmServiceClient client in clients)
+          (label: 'host${i++}', client: client),
+      ],
+    );
   }
 
   final List<_HostChannel> _channels;
