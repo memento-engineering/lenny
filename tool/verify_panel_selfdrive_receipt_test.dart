@@ -196,7 +196,7 @@ void main() {
                   ((record['observation'] as Map)['core'] as Map)['nodes']
                       as List,
             )
-            .whereType<Map>()
+            .whereType<Map<Object?, Object?>>()
             .any((node) => node['label'] == 'Stop'),
         isFalse,
       );
