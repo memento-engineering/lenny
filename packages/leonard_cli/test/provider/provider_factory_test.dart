@@ -72,7 +72,7 @@ void main() {
       );
       expect(p.capabilities.vision, isTrue);
       expect(p.capabilities.preserveThinking, isTrue);
-      expect(p.capabilities.maxContext, 128000);
+      expect(p.capabilities.maxContext, 262144);
       expect(p.capabilities.supportsToolUse, isTrue);
     });
 

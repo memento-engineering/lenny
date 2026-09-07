@@ -26,9 +26,9 @@ const ModelCapabilities _anthropicVisionCaps = ModelCapabilities(
 const ModelCapabilities _swiftInferQwenCaps = ModelCapabilities(
   vision: true,
   preserveThinking: true,
-  // Preserves the 128000-token capability established for the swift-infer
-  // dartantic seam; capability discovery reads this registry.
-  maxContext: 128000,
+  // The swift-infer qwen3 tier advertises the native 262144-token window;
+  // YaRN's 1M extension is not the native default.
+  maxContext: 262144,
   supportsToolUse: true,
 );
 
