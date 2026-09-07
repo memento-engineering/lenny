@@ -1,3 +1,6 @@
+// package:xml marks XPath support experimental; this test accepts that API.
+// ignore_for_file: experimental_member_use
+
 import 'dart:io';
 
 import 'package:leonard_native/leonard_native.dart';
