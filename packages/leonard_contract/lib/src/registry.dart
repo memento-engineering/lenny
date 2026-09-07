@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'extension.dart';
 import 'extension_context.dart';
+import 'strike_counter.dart';
 import 'types.dart';
+
+const int _strikeLimit = 3;
 
 /// Per-method discriminator used by the exception-isolation guard.
 enum _Method { busyState, onActionExecuted }
@@ -18,17 +21,10 @@ class _Entry {
   /// subsequent dispatch (PRD §17).
   bool initFailed = false;
 
-  /// Consecutive failure counter, per dispatched method.
-  final Map<_Method, int> failures = <_Method, int>{
-    _Method.busyState: 0,
-    _Method.onActionExecuted: 0,
-  };
-
-  /// Auto-disable flag, per dispatched method. Once `true`, the
-  /// corresponding method is never dispatched again for this session.
-  final Map<_Method, bool> disabled = <_Method, bool>{
-    _Method.busyState: false,
-    _Method.onActionExecuted: false,
+  /// Consecutive failure policy, per dispatched method.
+  final Map<_Method, StrikeCounter> strikeCounters = <_Method, StrikeCounter>{
+    _Method.busyState: StrikeCounter(limit: _strikeLimit),
+    _Method.onActionExecuted: StrikeCounter(limit: _strikeLimit),
   };
 }
 
@@ -38,7 +34,7 @@ class _Entry {
 /// - namespace shape (`^[a-z][a-z0-9_]*$`) and uniqueness,
 /// - mandatory `<namespace>.<tool>` prefixing and bare-token tool names,
 /// - registration-order preservation across every dispatch,
-/// - per-method exception isolation with 3-strikes auto-disable
+/// - per-method exception isolation with three-strike tripping
 ///   (PRD §17).
 ///
 /// Diagnostics are emitted through the injected [logger] (the Flutter host
@@ -158,9 +154,9 @@ class ExtensionRegistry {
     }
   }
 
-  /// Dispatch [busyState] across every (non-disabled) extension in
-  /// registration order. Failures yield [BusyState.idle] for the
-  /// affected extension.
+  /// Dispatch [busyState] across every extension whose method is not tripped,
+  /// in registration order. Failures yield [BusyState.idle] for the affected
+  /// extension.
   Future<List<MapEntry<String, BusyState>>> busyStateAll() async {
     final out = <MapEntry<String, BusyState>>[];
     for (final e in _entries) {
@@ -175,8 +171,8 @@ class ExtensionRegistry {
     return out;
   }
 
-  /// Dispatch [onActionExecuted] across every (non-disabled) extension in
-  /// registration order.
+  /// Dispatch [onActionExecuted] across every extension whose method is not
+  /// tripped, in registration order.
   Future<void> onActionExecutedAll(ExecutedAction action) async {
     for (final e in _entries) {
       await _guard<void>(
@@ -205,43 +201,31 @@ class ExtensionRegistry {
   }
 
   /// Run [body] under the per-method exception-isolation guard. Returns
-  /// [fallback] when the entry is `initFailed`/method-disabled or when
-  /// [body] throws. Tracks consecutive failures and emits a single
-  /// auto-disable log line when the third consecutive failure occurs.
+  /// [fallback] when the entry is `initFailed`, the method is tripped, or
+  /// [body] throws. Tracks consecutive failures and emits a single auto-disable
+  /// log line when the third consecutive failure occurs.
   Future<R> _guard<R>(
     _Entry e,
     _Method m,
     Future<R> Function() body,
     R fallback,
   ) async {
-    if (e.initFailed || e.disabled[m]!) return fallback;
+    final StrikeCounter strikeCounter = e.strikeCounters[m]!;
+    if (e.initFailed || strikeCounter.isTripped) return fallback;
     try {
       final r = await body();
-      e.failures[m] = 0;
+      strikeCounter.recordSuccess();
       return r;
     } catch (err, st) {
-      final next = e.failures[m]! + 1;
-      e.failures[m] = next;
+      strikeCounter.recordFailure();
       _log(
         '[Leonard] extension ${e.plugin.namespace} ${m.name} threw: '
         '$err\n$st',
       );
-      // Mutating `>=` to `==` here is an equivalent mutant: the disable
-      // below makes the guard above return early on every later call, so
-      // `next` never passes 3 and both operators fire on the same input.
-      //
-      // That equivalence is INCIDENTAL, not essential — it exists because
-      // `disabled` duplicates a fact `failures` already carries, which also
-      // makes `!e.disabled[m]!` here a dead conjunct (the guard above
-      // guarantees it) and leaves the threshold `3` repeated in the log
-      // string below. Extracting the strike policy would make `>=`
-      // load-bearing and killable. Tracked in lenny-xkwn; this comment is a
-      // stopgap, not a verdict that the shape is right.
-      if (next >= 3 && !e.disabled[m]!) {
-        e.disabled[m] = true;
+      if (strikeCounter.isTripped) {
         _log(
           '[Leonard] extension ${e.plugin.namespace} auto-disabled after '
-          '3 failures in ${m.name}',
+          '${strikeCounter.limit} failures in ${m.name}',
         );
       }
       return fallback;
