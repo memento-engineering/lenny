@@ -30,7 +30,7 @@ import 'vm_service_client.dart';
 /// Owns the run lifecycle: connect, start, observe, act, end.
 ///
 /// State transitions:
-/// 1. `connect(uri)` — opens VM-service connection, returns instance.
+/// 1. Construct from a borrowed service or through the I/O-only entrypoint.
 /// 2. `start(goal, config)` — performs handshake, emits [SessionStarted].
 /// 3. `observe()` / `act(...)` — repeatable until [end].
 /// 4. `end()` — emits [SessionEnded], closes streams and connection.
@@ -40,22 +40,21 @@ import 'vm_service_client.dart';
 class LeonardSession implements SessionSurface {
   LeonardSession._(this._client) : _puller = ObservationPuller(_client);
 
+  /// Assemble a session around an existing [VmServiceClient].
+  ///
+  /// The client's existing owned-versus-borrowed lifetime determines whether
+  /// [end] disposes the underlying VM-service connection. Platform imports are
+  /// confined by `tool/check_no_dart_io.sh`.
+  @internal
+  factory LeonardSession.fromVmServiceClient(VmServiceClient client) {
+    return LeonardSession._(client);
+  }
+
   /// Test-only constructor that takes an already-built [VmServiceClient]
   /// (typically [VmServiceClient.forTest] wrapping a fake VmService).
   @visibleForTesting
   factory LeonardSession.forTest(VmServiceClient client) {
-    return LeonardSession._(client);
-  }
-
-  /// Connect to the target app's VM service `vmServiceUri` and return a
-  /// session instance. Call [start] before [observe] / [act].
-  ///
-  /// CLI-only: this routes through `package:vm_service/vm_service_io.dart`
-  /// (transitively `dart:io`). Web callers (the DevTools extension) must
-  /// use [fromVmService] with `serviceManager.service` instead.
-  static Future<LeonardSession> connect(Uri vmServiceUri) async {
-    final client = await VmServiceClient.connect(vmServiceUri);
-    return LeonardSession._(client);
+    return LeonardSession.fromVmServiceClient(client);
   }
 
   /// Wrap an already-connected [vm] (e.g. the DevTools extension's
@@ -63,7 +62,9 @@ class LeonardSession implements SessionSurface {
   /// `dart:io`. Call [start] before [observe] / [act]. The caller owns
   /// the connection's lifetime; [end] still forwards [dispose].
   factory LeonardSession.fromVmService(VmService vm, String isolateId) {
-    return LeonardSession._(VmServiceClient.fromVmService(vm, isolateId));
+    return LeonardSession.fromVmServiceClient(
+      VmServiceClient.fromVmService(vm, isolateId),
+    );
   }
 
   final VmServiceClient _client;

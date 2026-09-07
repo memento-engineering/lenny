@@ -55,7 +55,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:leonard_agent/leonard_agent.dart';
+import 'package:leonard_agent/leonard_agent_io.dart';
 import 'package:leonard_cli/src/launcher.dart';
 
 Future<void> main(List<String> argv) async {
@@ -212,7 +212,7 @@ Future<int> _run(List<String> argv) async {
 
   LeonardSession? session;
   try {
-    session = await LeonardSession.connect(vmUri);
+    session = await connectLeonardSession(vmUri);
     // start() runs the handshake (and resets the terminal latch), priming
     // the session for observe/act. The goal is only stamped on an event.
     await session.start(_placeholderGoal, const LeonardConfig());
@@ -396,7 +396,7 @@ Future<int> _driveDual(ArgResults res) async {
 
   MultiHostSession? session;
   try {
-    session = await MultiHostSession.connectAll(<HostAttachment>[
+    session = await connectMultiHostSession(<HostAttachment>[
       HostAttachment(label: 'flutter', uri: flutterUri!),
       HostAttachment(label: 'native', uri: nativeUri!),
     ]);

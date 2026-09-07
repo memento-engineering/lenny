@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:leonard_agent/leonard_agent.dart';
+import 'package:leonard_agent/leonard_agent_io.dart';
 
 import 'action_environment_loop_host.dart';
 import 'cli_args.dart';
@@ -177,7 +177,7 @@ Future<int> runCli(
   // ----- connect session --------------------------------------------
   final LeonardSession session;
   try {
-    session = await LeonardSession.connect(vmUri);
+    session = await connectLeonardSession(vmUri);
   } on Object catch (e) {
     stderr.writeln('error: failed to connect to $vmUri: $e');
     await launched?.shutdown();

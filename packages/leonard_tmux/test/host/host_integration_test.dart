@@ -12,7 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:leonard_agent/leonard_agent.dart';
+import 'package:leonard_agent/leonard_agent_io.dart';
 import 'package:test/test.dart';
 
 bool _tmuxPresent() {
@@ -108,7 +108,7 @@ void main() {
         ],
       );
 
-      session = await LeonardSession.connect(wsUri);
+      session = await connectLeonardSession(wsUri);
       await session.start('e2e drive', const LeonardConfig());
 
       final created = await session.act(<String, dynamic>{

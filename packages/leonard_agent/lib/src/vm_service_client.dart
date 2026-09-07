@@ -12,7 +12,6 @@ import 'dart:convert';
 import 'package:leonard_contract/leonard_contract.dart';
 import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart';
-import 'package:vm_service/vm_service_io.dart';
 
 import 'errors.dart';
 import 'types.dart';
@@ -25,15 +24,14 @@ const int _kMethodNotFoundRpc = -32601;
 /// Typed VM-service client used by [LeonardSession].
 ///
 /// Two construction modes:
-///   - [connect] (async) — opens its own websocket via
-///     `package:vm_service/vm_service_io.dart`. CLI-only: that import
-///     transitively pulls in `dart:io`, which throws on web.
-///   - [fromVmService] (sync) — wraps an already-connected [VmService]
+///   - [fromVmService] wraps an already-connected [VmService]
 ///     supplied by the caller (e.g. the DevTools extension's
-///     `serviceManager.service`). Web-safe: only the core
-///     `package:vm_service/vm_service.dart` is touched.
+///     `serviceManager.service`) as a borrowed connection.
+///   - [fromOwnedVmService] resolves the first isolate for a connection
+///     opened by the I/O-only entrypoint and marks it as owned.
 ///
-/// Tests inject a fake via [VmServiceClient.forTest].
+/// Platform imports are confined by `tool/check_no_dart_io.sh`. Tests inject a
+/// fake via [VmServiceClient.forTest].
 class VmServiceClient {
   VmServiceClient._(this._vm, this._isolateId, {bool ownsConnection = false})
     : _ownsConnection = ownsConnection;
@@ -51,9 +49,31 @@ class VmServiceClient {
     return VmServiceClient._(vm, isolateId);
   }
 
+  /// Resolve the first isolate for an already-open, owned [VmService].
+  ///
+  /// Connection creation lives in the I/O-only entrypoint. This assembly
+  /// method preserves the same isolate-resolution path for owned clients while
+  /// keeping the web-safe client library free of platform imports.
+  @internal
+  static Future<VmServiceClient> fromOwnedVmService(VmService vm) async {
+    final VM state = await vm.getVM();
+    final List<IsolateRef> isolates = state.isolates ?? const <IsolateRef>[];
+    if (isolates.isEmpty) {
+      throw StateError(
+        'VM service connection has no isolates; cannot bind '
+        'LeonardBinding to a target isolate.',
+      );
+    }
+    final String? id = isolates.first.id;
+    if (id == null) {
+      throw StateError('First isolate has no id.');
+    }
+    return VmServiceClient._(vm, id, ownsConnection: true);
+  }
+
   /// Test-only alias for [fromVmService]. Retained so existing tests
   /// compile unchanged; new code should use [fromVmService]. Pass
-  /// `ownsConnection: true` to exercise the owning ([connect]) path.
+  /// `ownsConnection: true` to exercise owning disposal.
   @visibleForTesting
   factory VmServiceClient.forTest(
     VmService vm,
@@ -69,50 +89,18 @@ class VmServiceClient {
   /// Isolate pinned for every service-extension call.
   String get isolateId => _isolateId;
 
-  /// Whether this client created [_vm] (via [connect]) and therefore owns
-  /// its lifetime. Borrowed connections ([fromVmService]) set this false
-  /// so [dispose] never tears down a shared connection (e.g. DevTools'
-  /// `serviceManager.service`).
+  /// Whether the I/O entrypoint created [_vm] and therefore owns its lifetime.
+  /// Borrowed connections ([fromVmService]) set this false so [dispose] never
+  /// tears down a shared connection (e.g. DevTools' `serviceManager.service`).
   final bool _ownsConnection;
-
-  /// Connect to a running app's VM service `wsUri` and pin the first
-  /// isolate as the binding's home.
-  ///
-  /// Importing `package:vm_service/vm_service_io.dart` transitively pulls
-  /// in `dart:io`. The library-level CI guard
-  /// (`tool/check_no_dart_io.dart`) checks for *direct* `dart:io` imports
-  /// in `lib/`; future work will swap this entrypoint for a conditional
-  /// import / DevTools-supplied `VmService`.
-  static Future<VmServiceClient> connect(Uri wsUri) async {
-    final VmService vm = await vmServiceConnectUri(wsUri.toString());
-    return _resolveConnectedVmService(vm);
-  }
 
   /// Exercise the owning connect path with an already-open [vm].
   ///
   /// Unlike [forTest], this asks [vm] for its VM/isolate list and therefore
-  /// covers the same isolate-resolution protocol call as [connect].
+  /// covers the same isolate-resolution protocol as the I/O entrypoint.
   @visibleForTesting
   static Future<VmServiceClient> connectForTest(VmService vm) {
-    return _resolveConnectedVmService(vm);
-  }
-
-  static Future<VmServiceClient> _resolveConnectedVmService(
-    VmService vm,
-  ) async {
-    final VM state = await vm.getVM();
-    final List<IsolateRef> isolates = state.isolates ?? const <IsolateRef>[];
-    if (isolates.isEmpty) {
-      throw StateError(
-        'VM service connection has no isolates; cannot bind '
-        'LeonardBinding to a target isolate.',
-      );
-    }
-    final String? id = isolates.first.id;
-    if (id == null) {
-      throw StateError('First isolate has no id.');
-    }
-    return VmServiceClient._(vm, id, ownsConnection: true);
+    return fromOwnedVmService(vm);
   }
 
   /// Exchange the `ext.leonard.core.handshake` contract
@@ -210,8 +198,8 @@ class VmServiceClient {
     Map<String, dynamic> args,
   ) => _safeCall(extension, args);
 
-  /// Dispose the VM-service connection — but ONLY if this client created
-  /// it (via [connect]). A client built from a BORROWED connection
+  /// Dispose the VM-service connection — but ONLY if the I/O entrypoint
+  /// created it. A client built from a BORROWED connection
   /// ([fromVmService], e.g. DevTools' shared `serviceManager.service`)
   /// must not tear down a connection it does not own, so dispose is a
   /// no-op there. This is what stops a DevTools session teardown from
