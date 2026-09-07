@@ -69,8 +69,13 @@ void main() {
 
   test('ext.leonard.core.tap is in _extensionCallbacks '
       '(CoreExtension tools registered by binding-level loop)', () {
+    expect(binding.debugHasRegisteredExtension('ext.leonard.core.tap'), isTrue);
+  });
+
+  test('ext.leonard.core.tap_at is in _extensionCallbacks '
+      '(CoreExtension tools registered by binding-level loop)', () {
     expect(
-      binding.debugHasRegisteredExtension('ext.leonard.core.tap'),
+      binding.debugHasRegisteredExtension('ext.leonard.core.tap_at'),
       isTrue,
     );
   });

@@ -45,6 +45,19 @@ Map<String, dynamic> _nodeIdSchema() => <String, dynamic>{
   'additionalProperties': false,
 };
 
+// Schema for a normalized tap point inside a semantic node.
+Map<String, dynamic> _tapAtSchema() => <String, dynamic>{
+  r'$schema': 'http://json-schema.org/draft-07/schema#',
+  'type': 'object',
+  'required': <String>['node_id', 'x', 'y'],
+  'properties': <String, dynamic>{
+    'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+    'x': <String, dynamic>{'type': 'number', 'minimum': 0, 'maximum': 1},
+    'y': <String, dynamic>{'type': 'number', 'minimum': 0, 'maximum': 1},
+  },
+  'additionalProperties': false,
+};
+
 // Schema for scroll_until_visible: scrollable_id + target_id.
 Map<String, dynamic> _scrollUntilVisibleSchema() => <String, dynamic>{
   r'$schema': 'http://json-schema.org/draft-07/schema#',
@@ -70,6 +83,7 @@ ToolDescriptor _tool(String name, Map<String, dynamic> schema) =>
 
 List<ToolDescriptor> _coreToolList() => <ToolDescriptor>[
   _tool('core.tap', _nodeIdSchema()),
+  _tool('core.tap_at', _tapAtSchema()),
   _tool('core.long_press', _nodeIdSchema()),
   _tool('core.enter_text', <String, dynamic>{
     r'$schema': 'http://json-schema.org/draft-07/schema#',
@@ -123,6 +137,19 @@ void main() {
       final obs = _obs(<SemanticsNode>[_node(id: 1)]);
       final r = validator.validate(
         (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+        obs,
+        _coreToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('returns ok for a well-formed core.tap_at on an enabled node', () {
+      final obs = _obs(<SemanticsNode>[_node(id: 1)]);
+      final r = validator.validate(
+        (
+          tool: 'core.tap_at',
+          args: <String, dynamic>{'node_id': 1, 'x': 0.78, 'y': 0.45},
+        ),
         obs,
         _coreToolList(),
       );
@@ -221,6 +248,50 @@ void main() {
       expect(r, isA<ValidationReject>());
       expect((r as ValidationReject).reason, 'schema_invalid');
     });
+
+    test('rejects every out-of-range core.tap_at fraction', () {
+      final obs = _obs(<SemanticsNode>[_node(id: 1)]);
+      final List<Map<String, dynamic>> invalidArgs = <Map<String, dynamic>>[
+        <String, dynamic>{'node_id': 1, 'x': -0.001, 'y': 0.5},
+        <String, dynamic>{'node_id': 1, 'x': 1.001, 'y': 0.5},
+        <String, dynamic>{'node_id': 1, 'x': 0.5, 'y': -0.001},
+        <String, dynamic>{'node_id': 1, 'x': 0.5, 'y': 1.001},
+      ];
+
+      for (final Map<String, dynamic> args in invalidArgs) {
+        final r = validator.validate(
+          (tool: 'core.tap_at', args: args),
+          obs,
+          _coreToolList(),
+        );
+        expect(r, isA<ValidationReject>(), reason: '$args');
+        expect(
+          (r as ValidationReject).reason,
+          'schema_invalid',
+          reason: '$args',
+        );
+      }
+    });
+
+    test('keeps core.tap strict when supplied x or y', () {
+      final obs = _obs(<SemanticsNode>[_node(id: 1)]);
+      for (final String coordinate in <String>['x', 'y']) {
+        final r = validator.validate(
+          (
+            tool: 'core.tap',
+            args: <String, dynamic>{'node_id': 1, coordinate: 0.5},
+          ),
+          obs,
+          _coreToolList(),
+        );
+        expect(r, isA<ValidationReject>(), reason: coordinate);
+        expect(
+          (r as ValidationReject).reason,
+          'schema_invalid',
+          reason: coordinate,
+        );
+      }
+    });
   });
 
   group('node_not_found', () {
@@ -241,6 +312,10 @@ void main() {
       final obs = _obs(<SemanticsNode>[_node(id: 1)]);
       final cases = <({String tool, Map<String, dynamic> args})>[
         (tool: 'core.tap', args: <String, dynamic>{'node_id': 99}),
+        (
+          tool: 'core.tap_at',
+          args: <String, dynamic>{'node_id': 99, 'x': 0.5, 'y': 0.5},
+        ),
         (tool: 'core.long_press', args: <String, dynamic>{'node_id': 99}),
         (
           tool: 'core.enter_text',
@@ -266,6 +341,24 @@ void main() {
       ]);
       final r = validator.validate(
         (tool: 'core.tap', args: const <String, dynamic>{'node_id': 1}),
+        obs,
+        _coreToolList(),
+      );
+      final rej = r as ValidationReject;
+      expect(rej.reason, 'node_disabled');
+      expect(rej.pointer, '/node_id');
+      expect(rej.got, 1);
+    });
+
+    test('for core.tap_at when the target node is disabled', () {
+      final obs = _obs(<SemanticsNode>[
+        _node(id: 1, state: const <String>['disabled']),
+      ]);
+      final r = validator.validate(
+        (
+          tool: 'core.tap_at',
+          args: const <String, dynamic>{'node_id': 1, 'x': 0.5, 'y': 0.5},
+        ),
         obs,
         _coreToolList(),
       );

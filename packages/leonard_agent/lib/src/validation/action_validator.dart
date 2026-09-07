@@ -18,12 +18,14 @@ typedef ValidatorAction = ({String tool, Map<String, dynamic> args});
 
 /// Core tools whose args reference one or more semantic node ids.
 ///
-/// Mirrors the CoreExtension surface: tap / long-press / enter-text /
-/// scroll / scroll-until-visible / inspect / gesture all take node ids.
+/// Mirrors the CoreExtension surface: tap / tap-at / long-press /
+/// enter-text / scroll / scroll-until-visible / inspect / gesture all take
+/// node ids.
 /// `core.system_back`, `core.wait`, and `core.done` do not — they skip
 /// the node pass.
 const Set<String> _coreNodeTools = <String>{
   'core.tap',
+  'core.tap_at',
   'core.long_press',
   'core.enter_text',
   'core.scroll',
@@ -39,6 +41,7 @@ const Set<String> _coreNodeTools = <String>{
 /// single `node_id`.
 const Map<String, List<String>> _nodeArgKeys = <String, List<String>>{
   'core.tap': <String>['node_id'],
+  'core.tap_at': <String>['node_id'],
   'core.long_press': <String>['node_id'],
   'core.enter_text': <String>['node_id'],
   'core.scroll': <String>['node_id'],

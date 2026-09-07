@@ -57,6 +57,7 @@ void main() {
           .mergedTools();
       const List<String> coreKeys = <String>[
         'core.tap',
+        'core.tap_at',
         'core.long_press',
         'core.enter_text',
         'core.scroll',
@@ -78,12 +79,13 @@ void main() {
     // `dart:developer.registerExtension` from inside CoreExtension.initialize
     // (ExtensionContext path), not the binding's local
     // `_extensionCallbacks` map. The merged tool map is the
-    // testable surface that proves all 10 tools made it through
+    // testable surface that proves all 11 tools made it through
     // registration end-to-end.
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
     const List<String> tools = <String>[
       'tap',
+      'tap_at',
       'long_press',
       'enter_text',
       'scroll',

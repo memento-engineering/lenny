@@ -47,7 +47,7 @@ class CoreToolError implements Exception {
   String toString() => 'CoreToolError($code): $message';
 }
 
-/// Host-installed extension contributing the 10 `core.*` action tools
+/// Host-installed extension contributing the 11 `core.*` action tools
 /// (PRD §12.1).
 ///
 /// The binding registers a single instance of [CoreExtension] BEFORE any
@@ -114,6 +114,7 @@ class CoreExtension extends LeonardExtension {
   List<LeonardTool> get tools {
     return _toolsCache ??= <LeonardTool>[
       TapTool(this),
+      TapAtTool(this),
       LongPressTool(this),
       EnterTextTool(this),
       ScrollTool(this),
