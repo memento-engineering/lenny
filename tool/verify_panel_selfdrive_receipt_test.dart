@@ -11,7 +11,20 @@ import 'verify_panel_selfdrive_receipt.dart'
         receiptDiagnostics,
         redactCapturesInPlace,
         redactSecrets,
-        resolvedInnerModelId;
+        resolvedInnerModelId,
+        terminalSessionTransitionObserved;
+
+Map<String, dynamic> _markerTurn(String label) => <String, dynamic>{
+  'type': 'turn',
+  'observation': <String, dynamic>{
+    'core': <String, dynamic>{
+      'nodes': <dynamic>[
+        <String, dynamic>{'label': label},
+      ],
+    },
+  },
+  'proposed_action': <String, dynamic>{'tool': 'core.wait'},
+};
 
 List<Map<String, dynamic>> _trajectory(String? resolvedModelId) =>
     <Map<String, dynamic>>[
@@ -139,27 +152,83 @@ void main() {
     },
   );
 
-  test('receiptDiagnostics reports an observed Stop and model error', () {
-    expect(
-      receiptDiagnostics(<Map<String, dynamic>>[
-        <String, dynamic>{
-          'type': 'turn',
-          'observation': <String, dynamic>{
-            'core': <String, dynamic>{
-              'nodes': <dynamic>[
-                <String, dynamic>{'label': 'Stop'},
-                <String, dynamic>{'label': 'Select a model'},
-              ],
+  test(
+    'receiptDiagnostics ignores a transient Stop and reports model error',
+    () {
+      expect(
+        receiptDiagnostics(<Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'turn',
+            'observation': <String, dynamic>{
+              'core': <String, dynamic>{
+                'nodes': <dynamic>[
+                  <String, dynamic>{'label': 'Stop'},
+                  <String, dynamic>{'label': 'Select a model'},
+                ],
+              },
             },
+            'proposed_action': <String, dynamic>{'tool': 'core.tap'},
           },
-          'proposed_action': <String, dynamic>{'tool': 'core.tap'},
-        },
-      ]),
-      containsAll(<String>[
-        'STOP_OBSERVED=true',
-        'SELECT_MODEL_ERROR_OBSERVED=true',
-      ]),
-    );
+        ]),
+        containsAll(<String>[
+          'STOP_OBSERVED=false',
+          'SELECT_MODEL_ERROR_OBSERVED=true',
+        ]),
+      );
+    },
+  );
+
+  test(
+    'terminal marker transition is observed on the turn after Start without a Stop sample',
+    () {
+      final records = <Map<String, dynamic>>[
+        _markerTurn('Session 0 · idle'),
+        _markerTurn('Session 1 · done'),
+      ];
+
+      expect(terminalSessionTransitionObserved(records), isTrue);
+      expect(receiptDiagnostics(records), contains('STOP_OBSERVED=true'));
+      expect(receiptDiagnostics(records), contains('TURN_COUNT=2'));
+      expect(
+        records
+            .expand(
+              (record) =>
+                  ((record['observation'] as Map)['core'] as Map)['nodes']
+                      as List,
+            )
+            .whereType<Map<Object?, Object?>>()
+            .any((node) => node['label'] == 'Stop'),
+        isFalse,
+      );
+    },
+  );
+
+  test('terminal marker transition rejects insufficient evidence', () {
+    final cases = <String, List<Map<String, dynamic>>>{
+      'lone terminal marker': <Map<String, dynamic>>[
+        _markerTurn('Session 1 · done'),
+      ],
+      'same generation': <Map<String, dynamic>>[
+        _markerTurn('Session 1 · running'),
+        _markerTurn('Session 1 · done'),
+      ],
+      'literal Stop without marker transition': <Map<String, dynamic>>[
+        _markerTurn('Stop'),
+      ],
+      'decreasing generation': <Map<String, dynamic>>[
+        _markerTurn('Session 2 · running'),
+        _markerTurn('Session 1 · done'),
+      ],
+    };
+
+    for (final MapEntry<String, List<Map<String, dynamic>>> entry
+        in cases.entries) {
+      expect(
+        terminalSessionTransitionObserved(entry.value),
+        isFalse,
+        reason: entry.key,
+      );
+    }
   });
 
   test('receiptDiagnostics reports an empty trajectory without throwing', () {

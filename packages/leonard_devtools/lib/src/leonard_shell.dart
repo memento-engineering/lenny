@@ -94,6 +94,8 @@ class _LeonardShellState extends State<LeonardShell> {
     null,
   );
 
+  final ValueNotifier<int> _sessionGeneration = ValueNotifier<int>(0);
+
   ConversationViewModel? _conversationVm;
 
   @override
@@ -102,6 +104,7 @@ class _LeonardShellState extends State<LeonardShell> {
     widget.probeRetrigger?.addListener(_onRetrigger);
     _trajectory.addListener(_onTrajectoryChanged);
     _completionStatus.addListener(_onCompletionStatusChanged);
+    _sessionGeneration.addListener(_onSessionGenerationChanged);
   }
 
   @override
@@ -118,6 +121,8 @@ class _LeonardShellState extends State<LeonardShell> {
     widget.probeRetrigger?.removeListener(_onRetrigger);
     _trajectory.removeListener(_onTrajectoryChanged);
     _completionStatus.removeListener(_onCompletionStatusChanged);
+    _sessionGeneration.removeListener(_onSessionGenerationChanged);
+    _sessionGeneration.dispose();
     _completionStatus.dispose();
     _trajectory.dispose();
     _conversationVm?.dispose();
@@ -134,6 +139,10 @@ class _LeonardShellState extends State<LeonardShell> {
     if (status != null) _conversationVm?.complete(status);
   }
 
+  void _onSessionGenerationChanged() {
+    _conversationVm?.updateSessionGeneration(_sessionGeneration.value);
+  }
+
   void _onTrajectoryChanged() {
     final stream = _trajectory.value;
     if (stream == null) return;
@@ -147,6 +156,7 @@ class _LeonardShellState extends State<LeonardShell> {
     final vm = ConversationViewModel(
       turnEvents: session.turnEvents,
       trajectory: stream,
+      sessionGeneration: _sessionGeneration.value,
     );
     setState(() {
       _conversationVm?.dispose();
@@ -217,6 +227,7 @@ class _LeonardShellState extends State<LeonardShell> {
         promptConfigStore: widget.promptConfigStore,
         trajectorySink: _trajectory,
         completionSink: _completionStatus,
+        sessionGenerationSink: _sessionGeneration,
       ),
     ],
   );
@@ -235,6 +246,7 @@ class _PromptTabBody extends StatelessWidget {
     required this.promptConfigStore,
     required this.trajectorySink,
     required this.completionSink,
+    required this.sessionGenerationSink,
   });
 
   final GlobalKey<LeonardPanelHostState> hostKey;
@@ -248,6 +260,9 @@ class _PromptTabBody extends StatelessWidget {
   final ValueNotifier<Stream<TrajectoryRecord>?> trajectorySink;
 
   final ValueNotifier<RunStatus?> completionSink;
+
+  /// Resident generation shared by the event watcher and status snapshot.
+  final ValueNotifier<int> sessionGenerationSink;
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +300,7 @@ class _PromptTabBody extends StatelessWidget {
             ),
             trajectorySink: trajectorySink,
             completionSink: completionSink,
+            sessionGenerationSink: sessionGenerationSink,
           ),
         };
       },

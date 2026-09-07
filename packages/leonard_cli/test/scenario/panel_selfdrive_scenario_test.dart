@@ -48,17 +48,31 @@ void main() {
       'never re-enter it',
       'the picker labeled `Model`',
       'Reload models',
-      'Continue only when `Stop` is visible where `Start` was',
+      'Record the integer from the currently visible `Session <generation> · <status>` chip before Start',
+      'Press Start once and inspect the very next observation once',
+      'A strictly higher generation with `running`, `done`, `stopped`, or `error` proves Start was accepted',
+      'A terminal status proves the inner run both started and ended even when `Stop` never appeared',
+      'use that higher generation',
+      'Press Stop once only when its status is `running`',
+      'When it was already terminal, continue directly',
       'is refused',
       'Test connection',
       'OK (N models)',
       'Start',
       'Timeline',
       'Proposed action',
-      'Stop',
-      'SessionEnded',
     ]) {
       expect(source, contains(expected), reason: 'missing $expected');
+    }
+    for (final String wallClockGate in <String>[
+      'Continue only when `Stop` is visible where `Start` was',
+      'otherwise wait for the natural SessionEnded',
+    ]) {
+      expect(
+        source,
+        isNot(contains(wallClockGate)),
+        reason: 'retained wall-clock gate $wallClockGate',
+      );
     }
   });
 
@@ -216,13 +230,14 @@ String _validTrajectoryFixture() {
     _enterTextTurn(2, r'${PANEL_SELFDRIVE_MODEL_ID}'),
     _turnWithNodes(3, <Map<String, dynamic>>[
       <String, dynamic>{'label': 'OK (2 models)'},
-      <String, dynamic>{'label': 'Stop'},
+      <String, dynamic>{'label': 'Session 0 · idle'},
       <String, dynamic>{
         'identifier': 'prompt.resolvedModel',
         'value': _fixtureModel,
       },
     ]),
     _turnWithNodes(4, <Map<String, dynamic>>[
+      <String, dynamic>{'label': 'Session 1 · done'},
       <String, dynamic>{'label': '#0 core.done()'},
       <String, dynamic>{'label': 'Proposed action'},
       <String, dynamic>{'value': 'core.done()'},

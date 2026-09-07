@@ -176,5 +176,24 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(vm.value.entries.first.toolName, isNull);
     });
+
+    test(
+      'generation remains monotonic when SessionStarted is delivered after completion',
+      () {
+        vm.complete(RunStatus.done);
+
+        vm.updateSessionGeneration(1);
+        expect(vm.value.sessionGeneration, 1);
+        expect(vm.value.status, RunStatus.done);
+
+        vm.updateSessionGeneration(0);
+        expect(vm.value.sessionGeneration, 1);
+        expect(vm.value.status, RunStatus.done);
+
+        vm.updateSessionGeneration(1);
+        expect(vm.value.sessionGeneration, 1);
+        expect(vm.value.status, RunStatus.done);
+      },
+    );
   });
 }

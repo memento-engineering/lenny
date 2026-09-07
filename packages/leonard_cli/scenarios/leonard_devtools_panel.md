@@ -32,21 +32,25 @@ Correct any failed action before continuing.
    report it. The `Resolved model:` line beneath the picker is the same
    resolved runtime value under a different name: leave it alone too — never
    read it back, compare it, or quote it in `core.done`.
-5. Enter this inner goal exactly into the panel's text field labeled `Goal` —
+5. Record the integer from the currently visible `Session <generation> · <status>` chip before Start.
+   Then enter this inner goal exactly into the panel's text field labeled `Goal` —
    the INNER goal for the panel's own session, not your Mission; typing it is
    one step, never completion: `Report the title of the current sample_app
    screen, then call done.`
-6. Press Start. Continue only when `Stop` is visible where `Start` was: that is
-   the panel's running state and the only proof Start was accepted. If
-   `Select a model` appears under the `Model` picker instead, Start was refused
-   — go back to step 4.
+6. Press Start once and inspect the very next observation once.
+   A strictly higher generation with `running`, `done`, `stopped`, or `error` proves Start was accepted;
+   remember that higher generation and its status.
+   A terminal status proves the inner run both started and ended even when `Stop` never appeared.
+   If `Select a model` appears under the `Model` picker instead, Start was
+   refused — go back to step 4.
 7. Open Timeline. Continue only after a row matching `#<index> <tool>(...)` is
    visible with a non-empty tool name.
 8. Open that row. Under Proposed action, verify the tool is not `<unknown>`.
    Remember the row's index and tool, then return from the detail view.
-9. Return to Conversation. If Stop is visible, press it; otherwise wait for the
-   natural SessionEnded. Continue only when Start is visible, enabled, and
-   tappable again.
+9. Return to Conversation and use that higher generation.
+   Press Stop once only when its status is `running`, then continue when the same generation is
+   `done`, `stopped`, or `error` and Start is visible, enabled, and tappable.
+   When it was already terminal, continue directly once Start is enabled.
 10. Call `core.done` with a credential-free reason in this exact form, copying
     the index and tool from the Timeline row you actually observed: `panel
    smoke passed: inner turn <index> tool <tool>`. `core.done` is refused
