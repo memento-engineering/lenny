@@ -24,6 +24,18 @@ the end of a `/harden` cycle.
 - `~/.lenny-dogfood.env` exists and exports `ANTHROPIC_API_KEY` (scoped here, **not** `~/.zshenv`, so
   it bills pay-as-you-go API) plus the swift-infer tokens. It self-skips cleanly if absent.
 - Flutter ≥ 3.44, Melos bootstrapped, signing team `<APPLE_TEAM_ID>`, bundle `com.nicospencer.sampleApp`.
+- The sample app `ios/` runner is tracked in Git, so a clean checkout already contains it. If the
+  runner is missing or needs to be regenerated before a device build, run:
+
+  ```bash
+  cd packages/leonard_flutter/example/sample_app
+  flutter create --platforms=ios --project-name=sample_app --org=com.nicospencer .
+  ```
+
+- If the device build fails with **"No Accounts"** and
+  **"No profiles for `com.nicospencer.sampleApp`"**, the likely cause is that no Apple ID is signed
+  into Xcode. Add the Apple ID in Xcode → Settings → Accounts, then retry. Keep the public
+  signing-team placeholder in this runbook; do not add a team ID or certificate identity.
 - The app is built **from a branch/worktree that carries the fixes you want to test.** For fixes
   already on `main` (semantics, enter_text, DPR), build
   from `main`. The app supplies the binding; the agent CLI (run from `main`) supplies the agent/tools.
