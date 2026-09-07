@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leonard_flutter/contract.dart';
+import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:sample_app/gauntlet/scenario_oracle.dart';
 import 'package:sample_app/gauntlet/scenarios/chart_read_screen.dart';
 import 'package:sample_app/gauntlet/scenarios/count_spatial_screen.dart';
@@ -9,6 +11,44 @@ import 'package:sample_app/gauntlet/scenarios/semantics_lie_screen.dart';
 
 Widget _host(Widget screen) => MaterialApp(home: screen);
 
+Future<void> _tapSceneFraction(
+  WidgetTester tester,
+  Offset sceneFraction,
+) async {
+  final SemanticsCapture capture = SemanticsCapture();
+  try {
+    final Map<String, Object> root = (await capture.captureAsync()).first;
+    final List<int> physicalRect = (root['rect']! as List).cast<int>();
+    final double dpr = tester.view.devicePixelRatio;
+    final Rect rootRect = Rect.fromLTRB(
+      physicalRect[0] / dpr,
+      physicalRect[1] / dpr,
+      physicalRect[2] / dpr,
+      physicalRect[3] / dpr,
+    );
+    final Rect sceneRect = tester.getRect(find.byKey(ObjectIdScreen.sceneKey));
+    final Offset logicalPoint = Offset(
+      sceneRect.left + sceneRect.width * sceneFraction.dx,
+      sceneRect.top + sceneRect.height * sceneFraction.dy,
+    );
+    final double x = (logicalPoint.dx - rootRect.left) / rootRect.width;
+    final double y = (logicalPoint.dy - rootRect.top) / rootRect.height;
+
+    final CoreExtension core = CoreExtension(semantics: capture);
+    final LeonardTool tap = core.tools.singleWhere(
+      (LeonardTool tool) => tool.name == 'tap_at',
+    );
+    final ToolResult result = await tap.call(<String, Object?>{
+      'node_id': root['id']! as int,
+      'x': x,
+      'y': y,
+    });
+    expect(result.ok, isTrue, reason: result.error);
+  } finally {
+    capture.dispose();
+  }
+}
+
 void main() {
   tearDown(() => gauntletOracle.value = null);
 
@@ -17,26 +57,28 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_host(const ObjectIdScreen()));
-      final Offset tl = tester.getTopLeft(find.byKey(ObjectIdScreen.sceneKey));
-      // Red umbrella center ≈ (0.78, 0.45) of a 320×260 scene.
-      await tester.tapAt(tl + const Offset(0.78 * 320, 0.45 * 260));
+      const Offset requested = Offset(0.78, 0.45);
+      await _tapSceneFraction(tester, requested);
       await tester.pump();
 
       expect(gauntletOracle.value?.goalReached, isTrue);
-      expect(gauntletOracle.value?.lastTapFraction, isNotNull);
+      final Offset recorded = gauntletOracle.value!.lastTapFraction!;
+      expect(recorded.dx, closeTo(requested.dx, 1e-9));
+      expect(recorded.dy, closeTo(requested.dy, 1e-9));
     });
 
     testWidgets('tap on a different umbrella does NOT flip goal_reached', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_host(const ObjectIdScreen()));
-      final Offset tl = tester.getTopLeft(find.byKey(ObjectIdScreen.sceneKey));
-      // Blue umbrella ≈ (0.24, 0.45) — outside the red box.
-      await tester.tapAt(tl + const Offset(0.24 * 320, 0.45 * 260));
+      const Offset requested = Offset(0.24, 0.45);
+      await _tapSceneFraction(tester, requested);
       await tester.pump();
 
       expect(gauntletOracle.value?.goalReached, isFalse);
-      expect(gauntletOracle.value?.lastTapFraction, isNotNull);
+      final Offset recorded = gauntletOracle.value!.lastTapFraction!;
+      expect(recorded.dx, closeTo(requested.dx, 1e-9));
+      expect(recorded.dy, closeTo(requested.dy, 1e-9));
     });
   });
 
