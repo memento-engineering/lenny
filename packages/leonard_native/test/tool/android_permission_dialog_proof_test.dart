@@ -4,6 +4,98 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 import '../../tool/android_permission_dialog_proof.dart';
+import '../support/proof_tool_fakes.dart';
+
+const String _visiblePermissionSource = '''<?xml version="1.0"?>
+<hierarchy>
+  <node class="android.widget.LinearLayout"
+      resource-id="com.android.permissioncontroller:id/grant_dialog">
+    <node class="android.widget.Button"
+        resource-id="com.android.permissioncontroller:id/permission_allow_button" />
+    <node class="android.widget.Button"
+        resource-id="com.android.permissioncontroller:id/permission_deny_button" />
+  </node>
+</hierarchy>''';
+
+const String _dismissedPermissionSource = '<hierarchy />';
+
+FakeAppiumClientFactory _appiumRig() => FakeAppiumClientFactory(
+  visibleSource: _visiblePermissionSource,
+  dismissedSource: _dismissedPermissionSource,
+  capabilities: const <String, Object?>{
+    'appium:udid': 'RF8RB21P6LN',
+    'appium:platformVersion': '13',
+    'appium:deviceManufacturer': 'samsung',
+    'appium:deviceModel': 'SM-M225FV',
+  },
+);
+
+FakeProcessLedger _processRig(FakeAppiumClientFactory appium) {
+  return FakeProcessLedger((String executable, List<String> arguments) {
+    final List<String> argv = <String>[executable, ...arguments];
+    if (executable == 'bd' &&
+        arguments.join('\u0000') ==
+            <String>[
+              'list',
+              '--id=lenny-91vu',
+              '--status=open',
+              '--json',
+            ].join('\u0000')) {
+      return ProcessResult(0, 0, '[{"id":"lenny-91vu"}]', '');
+    }
+    if (executable == adb &&
+        arguments.join('\u0000') ==
+            <String>[
+              '-s',
+              serial,
+              'shell',
+              'getprop',
+              'ro.build.version.release',
+            ].join('\u0000')) {
+      return ProcessResult(0, 0, '13\n', '');
+    }
+    if (executable == '/opt/homebrew/bin/appium' &&
+        arguments.join('\u0000') == '--version') {
+      return ProcessResult(0, 0, '3.5.2\n', '');
+    }
+    if (executable == '/opt/homebrew/bin/appium' &&
+        arguments.join('\u0000') ==
+            <String>[
+              'driver',
+              'list',
+              '--installed',
+              '--json',
+            ].join('\u0000')) {
+      return ProcessResult(0, 0, '{"uiautomator2":{"version":"8.2.2"}}', '');
+    }
+    if (expectedResetArgv.any(
+      (List<String> expected) => expected.join('\u0000') == argv.join('\u0000'),
+    )) {
+      if (arguments.join('\u0000').contains('shell\u0000pm\u0000clear\u0000')) {
+        appium.resetPermission();
+      }
+      return ProcessResult(0, 0, '', '');
+    }
+    if (executable == adb &&
+        arguments.join('\u0000') ==
+            <String>[
+              '-s',
+              serial,
+              'shell',
+              'dumpsys',
+              'package',
+              packageName,
+            ].join('\u0000')) {
+      return ProcessResult(
+        0,
+        0,
+        '$permission: granted=${appium.permissionGranted}\n',
+        '',
+      );
+    }
+    throw StateError('Unhandled process call: ${argv.join(' ')}');
+  });
+}
 
 void main() {
   late AndroidPermissionDialogProof proof;
@@ -186,4 +278,85 @@ void main() {
       await rejects(changed);
     });
   }
+
+  test(
+    'drives exercise and capture orchestration offline',
+    () async {
+      final Directory packageRoot = await Directory.systemTemp.createTemp(
+        'android-permission-proof-',
+      );
+      addTearDown(() async {
+        if (await packageRoot.exists()) {
+          await packageRoot.delete(recursive: true);
+        }
+      });
+      await Directory(
+        '${packageRoot.path}/test/fixtures',
+      ).create(recursive: true);
+
+      final FakeAppiumClientFactory exerciseAppium = _appiumRig();
+      final FakeProcessLedger exerciseProcess = _processRig(exerciseAppium);
+      int exerciseSettles = 0;
+      final AndroidPermissionDialogProof exerciseProof =
+          AndroidPermissionDialogProof(
+            runProcess: exerciseProcess.run,
+            clientFactory: exerciseAppium.call,
+            packageRoot: packageRoot,
+            actionSettleDelay: () async {
+              exerciseSettles += 1;
+            },
+          );
+
+      final ActionEvidence action = await exerciseProof.exercise(
+        'permission_allow',
+        '13',
+      );
+      expect(action, (
+        key: 'permission_allow',
+        result: 'returned',
+        dialogBefore: true,
+        dialogAfter: false,
+        grantedAfter: true,
+        backPosted: false,
+      ));
+      expect(exerciseProcess.resetCycleCount, 1);
+      expect(exerciseAppium.sessionCount, 1);
+      expect(exerciseAppium.pressKeys, <String>['permission_allow']);
+      expect(exerciseSettles, 1);
+
+      final FakeAppiumClientFactory captureAppium = _appiumRig();
+      final FakeProcessLedger captureProcess = _processRig(captureAppium);
+      int captureSettles = 0;
+      final AndroidPermissionDialogProof captureProof =
+          AndroidPermissionDialogProof(
+            runProcess: captureProcess.run,
+            clientFactory: captureAppium.call,
+            packageRoot: packageRoot,
+            actionSettleDelay: () async {
+              captureSettles += 1;
+            },
+          );
+
+      await captureProof.capture();
+
+      expect(await captureProof.fixture.exists(), isTrue);
+      expect(await captureProof.receipt.exists(), isTrue);
+      final Map<String, Object?> capturedReceipt =
+          (jsonDecode(await captureProof.receipt.readAsString()) as Map)
+              .cast<String, Object?>();
+      expect(capturedReceipt['actions'], hasLength(3));
+      expect(capturedReceipt['appiumRequests'], hasLength(3));
+      expect(captureProcess.invocations, hasLength(27));
+      expect(captureAppium.requests, hasLength(22));
+      expect(captureSettles, 2);
+      expect(captureProcess.resetCycleCount, 4);
+      expect(captureAppium.sessionCount, 4);
+      expect(captureAppium.pressKeys, <String>[
+        'dismiss_overlay',
+        'permission_allow',
+        'permission_deny',
+      ]);
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 }
