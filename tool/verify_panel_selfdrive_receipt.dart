@@ -127,6 +127,52 @@ String assertInnerModelResolved(
   return resolved;
 }
 
+/// Whether ordered observations prove that a new panel session reached a
+/// terminal state.
+///
+/// The first visible `Session <generation> · <status>` marker establishes the
+/// baseline. A terminal marker proves a transition only when it appears in a
+/// later turn at a strictly higher generation. Any generation decrease makes
+/// the sequence invalid.
+bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
+  final RegExp marker = RegExp(
+    r'^Session ([0-9]+) · (idle|running|done|stopped|error)(?: ·|$)',
+  );
+  int? baselineGeneration;
+  int? baselineTurn;
+  int? previousGeneration;
+  bool terminalTransition = false;
+  var turnIndex = -1;
+
+  for (final Map<String, dynamic> record in records) {
+    if (record['type'] != 'turn') continue;
+    turnIndex += 1;
+    for (final String value in _observationText(record)) {
+      final RegExpMatch? match = marker.firstMatch(value);
+      if (match == null) continue;
+      final int generation = int.parse(match.group(1)!);
+      final String status = match.group(2)!;
+
+      if (previousGeneration != null && generation < previousGeneration) {
+        return false;
+      }
+      previousGeneration = generation;
+      if (baselineGeneration == null) {
+        baselineGeneration = generation;
+        baselineTurn = turnIndex;
+        continue;
+      }
+
+      if (turnIndex > baselineTurn! &&
+          generation > baselineGeneration &&
+          (status == 'done' || status == 'stopped' || status == 'error')) {
+        terminalTransition = true;
+      }
+    }
+  }
+  return terminalTransition;
+}
+
 /// Trajectory-derived evidence a negative receipt quotes verbatim.
 List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
   final List<Map<String, dynamic>> turns = records
@@ -153,7 +199,7 @@ List<String> receiptDiagnostics(List<Map<String, dynamic>> records) {
     'FOOTER_OUTCOME=${footer['outcome'] ?? 'absent'}',
     'FOOTER_HARNESS_ERROR=${footer['harness_error'] ?? 'none'}',
     'FOOTER_TERMINATION_DETAIL=${footer['termination_detail'] ?? 'none'}',
-    'STOP_OBSERVED=${labels.contains('Stop')}',
+    'STOP_OBSERVED=${terminalSessionTransitionObserved(records)}',
     'SELECT_MODEL_ERROR_OBSERVED=${labels.contains('Select a model')}',
     'INNER_PANEL_MODEL_RESOLVED=${resolvedInnerModelId(records) ?? 'absent'}',
   ];
@@ -300,8 +346,8 @@ void _assertReceipt(
       )) {
     _fail('no successful Test connection observation');
   }
-  if (!turnText.any((List<String> values) => values.contains('Stop'))) {
-    _fail('no running-session Stop button observed after Start');
+  if (!terminalSessionTransitionObserved(records)) {
+    _fail('no terminal session generation transition observed after Start');
   }
   assertInnerModelResolved(records, requestedModelId);
 

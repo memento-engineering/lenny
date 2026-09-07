@@ -57,6 +57,7 @@ class ConversationState {
   const ConversationState({
     this.entries = const [],
     this.status = RunStatus.idle,
+    this.sessionGeneration = 0,
     this.usage,
     this.currentTurn = -1,
     this.maxTurns,
@@ -64,6 +65,10 @@ class ConversationState {
   });
   final List<ConversationEntry> entries; // unmodifiable; keyed by turnIndex
   final RunStatus status;
+
+  /// Monotonic generation of the most recently started panel session.
+  final int sessionGeneration;
+
   final UsageSnapshot? usage;
   final int currentTurn; // -1 when idle
   final int? maxTurns; // from PromptPanelConfig.maxTurns
@@ -74,6 +79,7 @@ class ConversationState {
   ConversationState copyWith({
     List<ConversationEntry>? entries,
     RunStatus? status,
+    int? sessionGeneration,
     UsageSnapshot? usage,
     int? currentTurn,
     int? maxTurns,
@@ -81,6 +87,7 @@ class ConversationState {
   }) => ConversationState(
     entries: entries ?? this.entries,
     status: status ?? this.status,
+    sessionGeneration: sessionGeneration ?? this.sessionGeneration,
     usage: usage ?? this.usage,
     currentTurn: currentTurn ?? this.currentTurn,
     maxTurns: maxTurns ?? this.maxTurns,

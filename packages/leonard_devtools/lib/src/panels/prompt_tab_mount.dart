@@ -38,6 +38,7 @@ class PromptTabMount extends StatefulWidget {
     required this.promptConfigStore,
     this.trajectorySink,
     this.completionSink,
+    this.sessionGenerationSink,
     this.initialProviderId = 'swift-infer',
   });
 
@@ -58,6 +59,10 @@ class PromptTabMount extends StatefulWidget {
   /// When set, written with the terminal [RunStatus] when the run future
   /// resolves (done / error) or the user presses Stop (stopped).
   final ValueNotifier<RunStatus?>? completionSink;
+
+  /// Resident monotonic counter advanced by the existing session-event
+  /// subscription whenever it observes [SessionStarted].
+  final ValueNotifier<int>? sessionGenerationSink;
 
   /// Provider id loaded from [store] at mount. Defaults to
   /// `'swift-infer'`.
@@ -147,6 +152,11 @@ class _PromptTabMountState extends State<PromptTabMount> {
     _sub = c.events.listen((event) {
       if (!mounted) return;
       if (event is SessionStarted) {
+        widget.completionSink?.value = null;
+        final generationSink = widget.sessionGenerationSink;
+        if (generationSink != null) {
+          generationSink.value = generationSink.value + 1;
+        }
         setState(() {
           _running = true;
           _conversationId = 'leonard-${DateTime.now().millisecondsSinceEpoch}';

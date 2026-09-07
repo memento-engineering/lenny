@@ -11,10 +11,12 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
     required Stream<TurnEvent> turnEvents,
     required Stream<TrajectoryRecord> trajectory,
     int? maxTurns,
+    int sessionGeneration = 0,
     DateTime? startedAt,
   }) : super(
          ConversationState(
            status: RunStatus.running,
+           sessionGeneration: sessionGeneration,
            maxTurns: maxTurns,
            startedAt: startedAt ?? DateTime.now(),
          ),
@@ -37,6 +39,15 @@ class ConversationViewModel extends ValueNotifier<ConversationState> {
     if (_completed) return;
     _completed = true;
     value = value.copyWith(status: finalStatus);
+  }
+
+  /// Advances the resident session generation without changing run state.
+  ///
+  /// This remains valid after [complete] so independently scheduled lifecycle
+  /// and terminal callbacks converge on the same durable snapshot.
+  void updateSessionGeneration(int nextGeneration) {
+    if (nextGeneration <= value.sessionGeneration) return;
+    value = value.copyWith(sessionGeneration: nextGeneration);
   }
 
   void _onTurnEvent(TurnEvent e) {

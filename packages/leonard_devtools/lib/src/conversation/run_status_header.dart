@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'conversation_state.dart';
 import 'conversation_view_model.dart';
 
-/// Renders the current run phase in the status header:
-/// idle → running(Turn N/M · MM:SS) → done / stopped / error.
+/// Renders the durable session generation and current run phase in the status
+/// header: Session N · idle → running(Turn N/M · MM:SS) → terminal status.
 ///
 /// State is read exclusively from [ConversationViewModel.value]
 /// ([ValueNotifier]); no raw stream subscription. A 1-second [Timer]
@@ -77,28 +77,32 @@ class _RunStatusHeaderState extends State<RunStatusHeader> {
   Widget build(BuildContext context) {
     final vm = widget.vm;
     if (vm == null) {
-      return const _StatusChip(key: Key('runStatus.idle'), label: 'idle');
-    }
-    return switch (vm.value.status) {
-      RunStatus.idle => const _StatusChip(
+      return const _StatusChip(
         key: Key('runStatus.idle'),
-        label: 'idle',
+        label: 'Session 0 · idle',
+      );
+    }
+    final generation = vm.value.sessionGeneration;
+    return switch (vm.value.status) {
+      RunStatus.idle => _StatusChip(
+        key: const Key('runStatus.idle'),
+        label: 'Session $generation · idle',
       ),
       RunStatus.running => _StatusChip(
         key: const Key('runStatus.running'),
         label: _runningLabel(vm.value),
       ),
-      RunStatus.done => const _StatusChip(
-        key: Key('runStatus.done'),
-        label: 'done',
+      RunStatus.done => _StatusChip(
+        key: const Key('runStatus.done'),
+        label: 'Session $generation · done',
       ),
-      RunStatus.stopped => const _StatusChip(
-        key: Key('runStatus.stopped'),
-        label: 'stopped',
+      RunStatus.stopped => _StatusChip(
+        key: const Key('runStatus.stopped'),
+        label: 'Session $generation · stopped',
       ),
-      RunStatus.error => const _StatusChip(
-        key: Key('runStatus.error'),
-        label: 'error',
+      RunStatus.error => _StatusChip(
+        key: const Key('runStatus.error'),
+        label: 'Session $generation · error',
       ),
     };
   }
@@ -108,7 +112,8 @@ class _RunStatusHeaderState extends State<RunStatusHeader> {
     final maxPart = state.maxTurns != null ? '/${state.maxTurns}' : '';
     final mm = _elapsed.inMinutes.toString().padLeft(2, '0');
     final ss = (_elapsed.inSeconds % 60).toString().padLeft(2, '0');
-    return 'Turn $turn$maxPart · $mm:$ss';
+    return 'Session ${state.sessionGeneration} · running · '
+        'Turn $turn$maxPart · $mm:$ss';
   }
 }
 

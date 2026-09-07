@@ -39,6 +39,9 @@ Future<TreeSnapshot> _noDiagnostics() async =>
 /// [emitTurn] helper) because the transcript wiring reads
 /// `session.turnEvents` off the host's live session.
 class _FakeSession implements LeonardSession {
+  _FakeSession({this.completeImmediately = false});
+
+  final bool completeImmediately;
   final StreamController<SessionProgressEvent> _progress =
       StreamController<SessionProgressEvent>.broadcast();
   final StreamController<TurnEvent> _turns =
@@ -77,6 +80,11 @@ class _FakeSession implements LeonardSession {
     int tokenBudget = 32000,
     Duration? turnBudget,
   }) {
+    if (completeImmediately) {
+      return Future<SessionTermination>.value(
+        const SessionTermination(SessionOutcome.done, finalSummary: ''),
+      );
+    }
     runCompleter ??= Completer<SessionTermination>();
     return runCompleter!.future;
   }
@@ -200,6 +208,68 @@ void main() {
         const SessionTermination(SessionOutcome.done, finalSummary: ''),
       );
       await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'terminal session marker survives an inner run that completes before the next observation',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final fake = _FakeSession(completeImmediately: true);
+      final store = InMemoryProviderConfigStore();
+      await store.save(
+        SwiftInferUiConfig(
+          bearerToken: 't',
+          endpoint: Uri.parse('http://localhost:8080'),
+          defaultModelId: 'qwen3.6-35b-a3b-8bit',
+        ),
+      );
+      final catalog = ModelCatalog(
+        client: MockClient(
+          (req) async => throw http.ClientException('Failed to fetch', req.url),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LeonardShell(
+            manifestProbe: () async => const <ExtensionManifestEntry>[],
+            sessionFactory: () async => fake,
+            diagnosticsSnapshotLoader: _noDiagnostics,
+            store: store,
+            catalog: catalog,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const Key('prompt.modelsError.useFallback')),
+      );
+      await tester.tap(find.byKey(const Key('prompt.modelsError.useFallback')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('prompt.goal')));
+      await tester.enterText(
+        find.byKey(const Key('prompt.goal')),
+        'report the current screen title',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Session 0 · idle'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('prompt.start')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Session 1 · done'), findsOneWidget);
+      expect(find.text('Stop'), findsNothing);
+      final start = tester.widget<ElevatedButton>(
+        find.byKey(const Key('prompt.start')),
+      );
+      expect(start.onPressed, isNotNull);
     },
   );
 }
