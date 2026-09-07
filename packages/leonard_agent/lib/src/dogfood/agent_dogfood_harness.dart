@@ -31,6 +31,7 @@ import '../prompt/conversation_builder.dart';
 import '../loop_driver/default_loop_host.dart';
 import '../provider/backend/dartantic_model_provider.dart';
 import '../provider/backend/model_backend.dart';
+import '../provider/capabilities_lookup.dart';
 import '../provider/swift_infer/swift_infer_chat_options.dart';
 import '../provider/swift_infer/swift_infer_config.dart';
 import '../provider/types.dart';
@@ -194,12 +195,7 @@ class AgentDogfoodHarness {
         ),
       ),
       model: swiftInferConfig.model,
-      capabilities: ModelCapabilities(
-        vision: swiftInferConfig.enableVision,
-        preserveThinking: swiftInferConfig.preserveThinking,
-        maxContext: 128000,
-        supportsToolUse: true,
-      ),
+      capabilities: capabilitiesFor('swift-infer', swiftInferConfig.model)!,
     );
     final LeonardSession session = LeonardSession.fromVmService(vm, isolateId);
     int toolCallCount = 0;
