@@ -1002,6 +1002,18 @@ void main() {
       );
     }
 
+    Future<void> expectSuccessfulFallback(UiAutomator2Backend backend) async {
+      await backend.connect();
+      final ({String readback, bool masked}) result = await backend.enterText(
+        const NativeTarget(elementId: 'E', via: 'xpath'),
+        'user@example.com',
+      );
+      expect(result.readback, 'user@example.com');
+      expect(hits, contains('POST /session/s1/element/E/click'));
+      expect(hits, contains('POST /session/s1/execute/sync'));
+      await backend.close();
+    }
+
     test('sheet obstruction is detected before click and type', () async {
       final UiAutomator2Backend b = backendWhereValueFails(
         valueError: 'invalid element state',
@@ -1106,6 +1118,78 @@ void main() {
         );
         await b.close();
       });
+    }
+
+    test('unrelated permission package produces no androidPermissionDialog '
+        'obstruction', () async {
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        sourceXml:
+            '<hierarchy><node resource-id="com.evil.app:id/grant_dialog" /></hierarchy>',
+      );
+      await expectSuccessfulFallback(b);
+    });
+
+    test(
+      'unknown browser package produces no chromeBottomSheet obstruction',
+      () async {
+        final UiAutomator2Backend b = backendWhereValueFails(
+          valueError: 'invalid element state',
+          sourceXml: _sheetFixture().readAsStringSync().replaceAll(
+            'com.android.chrome',
+            'org.mozilla.firefox',
+          ),
+        );
+        await expectSuccessfulFallback(b);
+      },
+    );
+
+    for (final ({String name, String resourceId, String candidateEntry})
+        malformed
+        in <({String name, String resourceId, String candidateEntry})>[
+          (
+            name: 'resource-id with no :id/ separator',
+            resourceId: 'grant_dialog',
+            candidateEntry: 'grant_dialog',
+          ),
+          (
+            name: 'empty resource-id entry',
+            resourceId: 'pkg:id/',
+            candidateEntry: '',
+          ),
+          (
+            name: 'resource-id with a leading separator',
+            resourceId: ':id/grant_dialog',
+            candidateEntry: 'grant_dialog',
+          ),
+          (
+            name: 'resource-id with a doubled separator',
+            resourceId: 'pkg:id/grant_dialog:id/duplicate',
+            candidateEntry: 'grant_dialog:id/duplicate',
+          ),
+        ]) {
+      test(
+        '${malformed.name} parses as null and produces no obstruction',
+        () async {
+          final ObstructionResourceIdPolicy malformedIdPolicy =
+              ObstructionResourceIdPolicy(
+                permissionDialogEntries: <String>[malformed.candidateEntry],
+                permissionAllowEntries: const <String>[],
+                permissionDenyEntries: const <String>[],
+                chromeBottomSheetEntries: const <String>[],
+                chromeTouchToFillTitleEntries: const <String>[],
+                permissionPackage: (String value) => true,
+                chromePackage: (String value) => false,
+              );
+          final UiAutomator2Backend b = backendWhereValueFails(
+            valueError: 'invalid element state',
+            obstructionIds: malformedIdPolicy,
+            sourceXml:
+                '<hierarchy><node resource-id="${malformed.resourceId}" /></hierarchy>',
+          );
+          await expectSuccessfulFallback(b);
+        },
+      );
     }
 
     test('permission detection ignores every visible string', () async {
@@ -1391,6 +1475,31 @@ void main() {
         ),
       );
       await b.close();
+    });
+
+    test('custom policy ignores default obstruction ids', () async {
+      final ObstructionResourceIdPolicy vendorPolicy =
+          ObstructionResourceIdPolicy(
+            permissionDialogEntries: const <String>{'vendor_grant_surface'},
+            permissionAllowEntries: const <String>{'vendor_allow'},
+            permissionDenyEntries: const <String>{'vendor_deny'},
+            chromeBottomSheetEntries: const <String>{'vendor_sheet'},
+            chromeTouchToFillTitleEntries: const <String>{'vendor_sheet_title'},
+            permissionPackage: (String value) => value == 'com.vendor.security',
+            chromePackage: (String value) => value == 'com.vendor.browser',
+          );
+      final UiAutomator2Backend b = backendWhereValueFails(
+        valueError: 'invalid element state',
+        obstructionIds: vendorPolicy,
+        sourceXml: '''
+<hierarchy>
+  <node resource-id="com.android.permissioncontroller:id/grant_dialog" />
+  <node resource-id="com.android.chrome:id/bottom_sheet" />
+  <node resource-id="com.android.chrome:id/touch_to_fill_sheet_title" />
+</hierarchy>
+''',
+      );
+      await expectSuccessfulFallback(b);
     });
 
     // The obstruction probe is INSERTED into the `invalid element state`
