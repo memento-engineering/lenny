@@ -1,3 +1,15 @@
+## 0.4.1
+
+- Android UiAutomator2 `checked`, `focused`, `disabled` and `obscured`
+  attributes now project onto the existing native node state field, so the
+  Android and iOS state vocabularies agree. Actions and iOS behavior are
+  unchanged.
+- Raise the `leonard_contract` floor to `^0.2.2`. The declared `^0.2.0` floor was
+  unsatisfiable — `leonard_contract` 0.2.0 requires `genesis_perception ^0.1.3`,
+  which this package's own `>=0.2.0 <0.4.0` range forbids — so a resolver
+  silently held `leonard_contract` back to 0.2.1 instead of taking 0.2.2.
+- Raise the `leonard_host` floor to `^0.2.2` for the same reason.
+
 ## 0.4.0
 
 - **Breaking — `ObstructionResourceIdPolicy` entry fields are ordered
