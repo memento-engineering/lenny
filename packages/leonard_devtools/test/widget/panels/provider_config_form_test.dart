@@ -35,8 +35,11 @@ Widget _host({
 );
 
 void main() {
-  testWidgets('provider selector lists all three ids', (tester) async {
-    await tester.pumpWidget(_host(onChanged: (_) {}));
+  testWidgets('provider selector disables direct OpenAI in browsers', (
+    tester,
+  ) async {
+    ProviderConfig? last;
+    await tester.pumpWidget(_host(onChanged: (config) => last = config));
     await tester.pump();
     expect(
       find.byKey(const Key('providerForm.providerSelect')),
@@ -46,7 +49,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('swift-infer'), findsWidgets);
     expect(find.text('anthropic'), findsOneWidget);
-    expect(find.text('openai'), findsOneWidget);
+    const label =
+        'openai — disabled in browsers; use a proxy through Base URL override';
+    final openAiItem = tester.widget<DropdownMenuItem<String>>(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(DropdownMenuItem<String>),
+      ),
+    );
+    expect(openAiItem.value, 'openai');
+    expect(openAiItem.enabled, isFalse);
+
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+
+    expect(last, isNull);
+    expect(find.byKey(const Key('providerForm.swift-infer')), findsOneWidget);
+    expect(find.byKey(const Key('providerForm.openai')), findsNothing);
   });
 
   testWidgets('swift-infer subform: bearer obscured + extras add/remove', (
@@ -202,19 +221,20 @@ void main() {
     expect(keyField.obscureText, isTrue);
   });
 
-  testWidgets('switching to openai shows obscured api key field', (
-    tester,
-  ) async {
+  testWidgets('proxied initial OpenAI config remains editable', (tester) async {
     ProviderConfig? last;
-    await tester.pumpWidget(_host(onChanged: (c) => last = c));
+    await tester.pumpWidget(
+      _host(
+        onChanged: (c) => last = c,
+        initial: OpenAiUiConfig(
+          apiKey: 'sk-proxy',
+          baseUrlOverride: Uri.parse('https://proxy.example.com/openai'),
+        ),
+      ),
+    );
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('providerForm.providerSelect')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('openai').last);
-    await tester.pumpAndSettle();
-
-    expect(last, isA<OpenAiUiConfig>());
+    expect(find.byKey(const Key('providerForm.openai')), findsOneWidget);
     final keyField = tester.widget<TextField>(
       find.descendant(
         of: find.byKey(const Key('providerForm.openai.apiKey')),
@@ -222,6 +242,22 @@ void main() {
       ),
     );
     expect(keyField.obscureText, isTrue);
+
+    final baseUrl = find.byKey(const Key('providerForm.openai.baseUrl'));
+    expect(baseUrl, findsOneWidget);
+    expect(
+      tester.widget<TextFormField>(baseUrl).controller!.text,
+      'https://proxy.example.com/openai',
+    );
+
+    await tester.enterText(baseUrl, 'https://edited.example.com/v1');
+    await tester.pump();
+
+    expect(last, isA<OpenAiUiConfig>());
+    expect(
+      (last! as OpenAiUiConfig).baseUrlOverride,
+      Uri.parse('https://edited.example.com/v1'),
+    );
   });
 
   testWidgets('Test connection success renders inline status', (tester) async {
