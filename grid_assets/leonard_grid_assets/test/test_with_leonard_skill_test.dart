@@ -54,7 +54,6 @@ description: >
   ];
   const List<String> stubNames = <String>[
     'scripted-device.md',
-    'hardware.md',
     'oracle.md',
     'triage.md',
   ];
@@ -200,7 +199,7 @@ description: >
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
-  test('the four pending references are exact one-line epic stubs', () {
+  test('the three pending references are exact one-line epic stubs', () {
     const String stub =
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
@@ -293,6 +292,9 @@ description: >
   ).readAsStringSync();
   final String widgetReference = File(
     p.join(referencesRoot, 'widget.md'),
+  ).readAsStringSync();
+  final String hardwareReference = File(
+    p.join(referencesRoot, 'hardware.md'),
   ).readAsStringSync();
 
   test('level 0 pins four hermetic gates to falsifiers and receipts', () {
@@ -553,6 +555,138 @@ description: >
       isNot(contains('Content for this reference is not written yet')),
     );
     expect(widgetReference, isNot(contains('/Users/')));
+  });
+
+  test('level 3 delegates wired iOS dogfood to the canonical runbook', () {
+    for (final String label in <String>[
+      'Proves:',
+      'Command:',
+      'Falsifier:',
+      'Failure signature:',
+    ]) {
+      expect(
+        RegExp(
+          '^\\*\\*$label\\*\\*',
+          multiLine: true,
+        ).allMatches(hardwareReference),
+        hasLength(2),
+        reason: label,
+      );
+    }
+    for (final String cite in <String>[
+      'docs/RUNBOOK-e2e-dogfood.md:17-41',
+      'docs/RUNBOOK-e2e-dogfood.md:45-50',
+      'docs/RUNBOOK-e2e-dogfood.md:52-67',
+      'docs/RUNBOOK-e2e-dogfood.md:69-86',
+      'docs/RUNBOOK-e2e-dogfood.md:88-102',
+      'docs/RUNBOOK-e2e-dogfood.md:103-126',
+      'docs/RUNBOOK-e2e-dogfood.md:128-145',
+    ]) {
+      expect(hardwareReference, contains(cite), reason: cite);
+    }
+    for (final String evidence in <String>[
+      'wired iOS device',
+      'iPad',
+      'device attach',
+      'iproxy` cleanup',
+      'Detach the target before the device attach check',
+      'target is absent from the device listing',
+      'marked `(wireless)`',
+      'no VM-service URI',
+    ]) {
+      expect(hardwareReference, contains(evidence), reason: evidence);
+    }
+    for (final String copiedCommand in <String>[
+      'flutter run -d 00008110-001651523CE3801E',
+      'source ~/.lenny-dogfood.env',
+      'pkill -f "iproxy .* --udid',
+    ]) {
+      expect(
+        hardwareReference,
+        isNot(contains(copiedCommand)),
+        reason: copiedCommand,
+      );
+    }
+  });
+
+  test('level 3 pins Android permission proof inputs and evidence', () {
+    for (final String evidence in <String>[
+      'cd packages/leonard_native && dart run '
+          'tool/android_permission_dialog_proof.dart capture',
+      'cd packages/leonard_native && dart run '
+          'tool/android_permission_dialog_proof.dart verify',
+      ':id/grant_dialog',
+      'permission_allow_button',
+      'permission_deny_button',
+      'localized visible strings',
+      'dismissal is refused with the dialog still visible',
+      'allow closes and grants',
+      'deny closes and does not grant',
+      'Replace the captured `grant_dialog` resource id with an unrecognized id',
+      'grant dialog absent after startup wait',
+      'captured /source has no permission dialog',
+      'live permission action proof failed',
+      "const String serial = 'RF8RB21P6LN';",
+      'no `--serial` argument',
+      'local, uncommitted edit',
+      'lenny-91vu',
+      'HARDWARE_PROOF FAIL: Bad state: RF8RB21P6LN unavailable: '
+          'lenny-91vu must be open',
+    ]) {
+      expect(hardwareReference, contains(evidence), reason: evidence);
+    }
+    for (final String cite in <String>[
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:705-732',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:219-240',
+      'packages/leonard_native/test/fixtures/'
+          'android_permission_dialog_source.xml:20-35',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:307-327',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:594-613',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:232-240',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:555-564',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:10',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:19-20',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:156-158',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:713-727',
+      'packages/leonard_native/tool/'
+          'android_permission_dialog_proof.dart:135-153',
+    ]) {
+      expect(hardwareReference, contains(cite), reason: cite);
+    }
+  });
+
+  test('level 3 is manual and escalates independent judgment', () {
+    for (final String boundary in <String>[
+      'manual runbook',
+      'no automated lane runs level 3',
+      'simulator or emulator',
+      'markTestSkipped',
+      'human device pass',
+      'independent verdict',
+      'level 4',
+      'references/oracle.md',
+      'grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+          'skills/test-with-leonard/SKILL.md:19-21',
+      'grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+          'skills/test-with-leonard/SKILL.md:32-34',
+    ]) {
+      expect(hardwareReference, contains(boundary), reason: boundary);
+    }
+    expect(
+      hardwareReference,
+      isNot(contains('Content for this reference is not written yet')),
+    );
+    expect(hardwareReference, isNot(contains('/Users/')));
   });
 
   final String reference = File(
