@@ -134,10 +134,12 @@ void main() {
       devDependenciesStart,
       flutterStart,
     );
-    final leonardFlutter = RegExp(
-      r'^  leonard_flutter: \^0\.3\.0$',
-      multiLine: true,
-    );
+    // Version-agnostic on purpose: this guard is about leonard_flutter being a
+    // DEV dependency, never a runtime one. Pinning the constraint string broke
+    // the test on every leonard_flutter release, and it also weakened the
+    // negative assertion below — a runtime `leonard_flutter` at any other
+    // version would have slipped past `isNot(matches(...))`.
+    final leonardFlutter = RegExp(r'^  leonard_flutter: \S+$', multiLine: true);
     expect(dependencies, isNot(matches(leonardFlutter)));
     expect(devDependencies, matches(leonardFlutter));
   });

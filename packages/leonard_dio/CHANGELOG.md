@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0-rc.1
+
+- Require `leonard_flutter ^0.4.0-rc.1` (the `captureScreenshot` signature wave).
+  No API changes in this package.
+
 ## 0.3.0
 
 - Breaking: require `leonard_flutter ^0.3.0`; test support now comes from
