@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +68,8 @@ void main() {
         'core.system_back',
         'core.wait',
         'core.inspect_widget',
+        'core.remember',
+        'core.recall',
         'core.done',
       ];
       for (final String k in coreKeys) {
@@ -79,7 +83,7 @@ void main() {
     // `dart:developer.registerExtension` from inside CoreExtension.initialize
     // (ExtensionContext path), not the binding's local
     // `_extensionCallbacks` map. The merged tool map is the
-    // testable surface that proves all 11 tools made it through
+    // testable surface that proves all 13 tools made it through
     // registration end-to-end.
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
@@ -94,6 +98,8 @@ void main() {
       'system_back',
       'wait',
       'inspect_widget',
+      'remember',
+      'recall',
       'done',
     ];
     for (final String tool in tools) {
@@ -125,4 +131,40 @@ void main() {
       expect(r.ok, isTrue, reason: r.error);
     },
   );
+
+  test('core.recall opts its successful envelope into carry-forward', () async {
+    const String key = 'registration-confirmation';
+    const String exact = '  42!?\nsecond line\t— café 東京  ';
+    final remember =
+        jsonDecode(
+              await binding.invokeServiceExtension(
+                'ext.leonard.core.remember',
+                <String, String>{
+                  'key': jsonEncode(key),
+                  'value': jsonEncode(exact),
+                },
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(remember, <String, Object?>{
+      'ok': true,
+      'value': <String, Object?>{},
+      'error': null,
+    });
+
+    final recall =
+        jsonDecode(
+              await binding.invokeServiceExtension(
+                'ext.leonard.core.recall',
+                <String, String>{'key': jsonEncode(key)},
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(recall, <String, Object?>{
+      'ok': true,
+      'value': <String, Object?>{'value': exact},
+      'error': null,
+      'carryForward': true,
+    });
+  });
 }

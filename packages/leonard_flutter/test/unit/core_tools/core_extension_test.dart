@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('exposes namespace "core" and 11 tools in stable order', () {
+  test('exposes namespace "core" and 13 tools in stable order', () {
     final SemanticsCapture cap = SemanticsCapture();
     final CoreExtension plugin = CoreExtension(semantics: cap);
     expect(plugin.namespace, 'core');
@@ -20,6 +20,8 @@ void main() {
       'system_back',
       'wait',
       'inspect_widget',
+      'remember',
+      'recall',
       'done',
     ]);
     cap.dispose();

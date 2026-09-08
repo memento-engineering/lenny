@@ -183,6 +183,46 @@ void main() {
           .toList();
       expect(uts.every((UserTurn u) => !u.trimmed), isTrue);
     });
+
+    test('estimatedTokens counts toolResult before and after trim', () {
+      const Map<String, dynamic> result = <String, dynamic>{
+        'value': '  42!? second line — café 東京  ',
+      };
+      final ConversationBuilder withoutResult = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: const <ToolDescriptor>[_coreDone],
+      );
+      final ConversationBuilder withResult = ConversationBuilder(
+        systemMessage: 'sys',
+        tools: const <ToolDescriptor>[_coreDone],
+      );
+      withoutResult.appendUserTurn(Observation.empty(), _emptyDiff());
+      withResult.appendUserTurn(
+        Observation.empty(),
+        _emptyDiff(),
+        toolResult: result,
+      );
+
+      expect(
+        withResult.estimatedTokens(),
+        greaterThan(withoutResult.estimatedTokens()),
+      );
+
+      withoutResult.trimIfOverBudget(0);
+      withResult.trimIfOverBudget(0);
+      expect(
+        withoutResult.snapshot().turns.whereType<UserTurn>().single.trimmed,
+        isTrue,
+      );
+      expect(
+        withResult.snapshot().turns.whereType<UserTurn>().single.trimmed,
+        isTrue,
+      );
+      expect(
+        withResult.estimatedTokens(),
+        greaterThan(withoutResult.estimatedTokens()),
+      );
+    });
   });
 
   group('JsonObservationRenderer', () {

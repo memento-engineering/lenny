@@ -7,6 +7,7 @@ import 'package:leonard_agent/src/provider/action_schema.dart';
 import 'package:leonard_agent/src/provider/backend/dartantic_model_provider.dart';
 import 'package:leonard_agent/src/provider/backend/model_backend.dart';
 import 'package:leonard_agent/src/provider/types.dart';
+import 'package:leonard_agent/src/prompt/conversation_builder.dart';
 import 'package:test/test.dart';
 
 class _FakeClient extends http.BaseClient {
@@ -335,6 +336,78 @@ void main() {
             reason: reason,
           );
         }
+      },
+    );
+
+    test(
+      'trimmed carried tool result renders verbatim in provider payload',
+      () async {
+        const String exact = '  42!?\nsecond line\t— café 東京  ';
+        final recallTool = ToolDescriptor(
+          name: 'core.recall',
+          description: 'recall a session value',
+          inputSchema: const <String, dynamic>{
+            r'$schema': 'http://json-schema.org/draft-07/schema#',
+            'type': 'object',
+            'properties': <String, dynamic>{
+              'key': <String, dynamic>{'type': 'string', 'minLength': 1},
+            },
+            'required': <String>['key'],
+            'additionalProperties': false,
+          },
+        );
+        final builder = ConversationBuilder(
+          systemMessage: 'sys',
+          tools: <ToolDescriptor>[recallTool],
+        );
+        builder.appendAssistantTurn('recall it', (
+          tool: 'core.recall',
+          args: <String, dynamic>{'key': 'confirmation'},
+        ));
+        builder.appendUserTurn(
+          Observation.empty(),
+          ObservationDiff.empty(),
+          toolResult: const <String, dynamic>{'value': exact},
+        );
+        builder.trimIfOverBudget(0);
+        final snapshot = builder.snapshot();
+        final carrier = snapshot.turns.last as UserTurn;
+        expect(carrier.trimmed, isTrue);
+        expect(carrier.toolResult, const <String, dynamic>{'value': exact});
+
+        final client = _FakeClient(const <Map<String, dynamic>>[]);
+        final provider = DartanticModelProvider(
+          backend: SwiftInferBackend(
+            baseUrl: Uri.parse('http://localhost:8080'),
+          ),
+          model: 'qwen',
+          capabilities: _caps,
+          client: client,
+        );
+        try {
+          await provider.decide(
+            snapshot,
+            ActionSchema.fromToolList(<ToolDescriptor>[recallTool]),
+          );
+        } on SchemaRejection {
+          // The empty canned stream is enough to capture the outgoing request.
+        } finally {
+          provider.dispose();
+        }
+
+        final decoded = jsonDecode(client.body!) as Map<String, dynamic>;
+        final messages = (decoded['messages'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final resultTurn = messages.last;
+        final content = (resultTurn['content'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final resultBlock = content.firstWhere(
+          (Map<String, dynamic> block) => block['type'] == 'tool_result',
+        );
+        expect(
+          resultBlock['content'],
+          jsonEncode(const <String, dynamic>{'value': exact}),
+        );
       },
     );
 
