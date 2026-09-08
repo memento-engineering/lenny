@@ -36,6 +36,7 @@ void main() {
       final FrameCaptureSink decorated = FrameCaptureSink(
         delegate: decoratedDelegate,
         framesDirectory: framesDirectory,
+        warningSink: StringBuffer(),
       );
       final FileTrajectorySink undecorated = await FileTrajectorySink.open(
         undecoratedPath,
@@ -79,6 +80,7 @@ void main() {
     final FrameCaptureSink sink = FrameCaptureSink(
       delegate: await FileTrajectorySink.open(trajectoryPath),
       framesDirectory: p.join(temp.path, 'run.frames'),
+      warningSink: StringBuffer(),
     );
 
     await sink.writeLine('not json');
@@ -92,23 +94,37 @@ void main() {
     expect(sink.capturedFramePaths, isEmpty);
   });
 
-  test('forwards a turn before surfacing invalid base64', () async {
+  test('warns and keeps the forwarded turn when base64 is invalid', () async {
     final Directory temp = await Directory.systemTemp.createTemp(
       'leonard-frame-invalid-',
     );
     addTearDown(() => temp.delete(recursive: true));
     final String trajectoryPath = p.join(temp.path, 'run.jsonl');
+    final StringBuffer warnings = StringBuffer();
     final FrameCaptureSink sink = FrameCaptureSink(
       delegate: await FileTrajectorySink.open(trajectoryPath),
       framesDirectory: p.join(temp.path, 'run.frames'),
+      warningSink: warnings,
     );
     const String line =
         '{"type":"turn","index":7,"observation":{"screenshot_png_b64":"!"}}';
 
-    await expectLater(sink.writeLine(line), throwsFormatException);
+    await sink.writeLine(line);
     await sink.close();
 
     expect(await File(trajectoryPath).readAsString(), '$line\n');
     expect(sink.capturedFramePaths, isEmpty);
+    final List<String> warningLines = const LineSplitter().convert(
+      warnings.toString(),
+    );
+    expect(warningLines, hasLength(1));
+    expect(
+      warningLines.single,
+      startsWith(
+        'warning: frame capture skipped turn 7: FormatException: '
+        'Invalid character',
+      ),
+    );
+    expect(warningLines.single, isNot(contains('\r')));
   });
 }

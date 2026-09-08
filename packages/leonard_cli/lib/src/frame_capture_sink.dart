@@ -3,6 +3,7 @@ library;
 
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io' show FileSystemException;
 
 import 'package:leonard_agent/leonard_agent.dart' show TrajectorySink;
 import 'package:path/path.dart' as p;
@@ -16,7 +17,14 @@ import 'png_file_writer.dart';
 /// including malformed JSON, are forwarded and ignored for frame capture.
 class FrameCaptureSink implements TrajectorySink {
   /// Creates a frame-capturing decorator around [delegate].
-  FrameCaptureSink({required this.delegate, required this.framesDirectory});
+  ///
+  /// Capture failures are reported to [warningSink] after the trajectory line
+  /// has been forwarded, and do not interrupt the live-driving run.
+  FrameCaptureSink({
+    required this.delegate,
+    required this.framesDirectory,
+    required StringSink warningSink,
+  }) : _warningSink = warningSink;
 
   /// The trajectory sink that receives every input line unchanged.
   final TrajectorySink delegate;
@@ -24,6 +32,7 @@ class FrameCaptureSink implements TrajectorySink {
   /// Directory where captured frames are written.
   final String framesDirectory;
 
+  final StringSink _warningSink;
   final List<String> _capturedFramePaths = <String>[];
 
   /// Unmodifiable live view of frame paths in trajectory order.
@@ -49,15 +58,33 @@ class FrameCaptureSink implements TrajectorySink {
     final Object? pngBase64 = observation['screenshot_png_b64'];
     if (pngBase64 is! String || pngBase64.isEmpty) return;
 
-    final String framePath = p.join(
-      framesDirectory,
-      'turn-${index.toString().padLeft(4, '0')}.png',
+    try {
+      final String framePath = p.join(
+        framesDirectory,
+        'turn-${index.toString().padLeft(4, '0')}.png',
+      );
+      final String writtenPath = await writeBase64Png(
+        path: framePath,
+        pngBase64: pngBase64,
+      );
+      _capturedFramePaths.add(writtenPath);
+    } on FormatException catch (cause) {
+      _warnCaptureSkipped(index, cause);
+    } on FileSystemException catch (cause) {
+      _warnCaptureSkipped(index, cause);
+    } on Object catch (cause) {
+      _warnCaptureSkipped(index, cause);
+    }
+  }
+
+  void _warnCaptureSkipped(int index, Object cause) {
+    final String causeText = cause.toString().replaceAll(
+      RegExp(r'[\r\n]+'),
+      ' ',
     );
-    final String writtenPath = await writeBase64Png(
-      path: framePath,
-      pngBase64: pngBase64,
+    _warningSink.writeln(
+      'warning: frame capture skipped turn $index: $causeText',
     );
-    _capturedFramePaths.add(writtenPath);
   }
 
   @override

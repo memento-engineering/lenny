@@ -103,6 +103,7 @@ Future<int> runCli(
   final FrameCaptureSink frameSink = FrameCaptureSink(
     delegate: fileSink,
     framesDirectory: framesDirectory,
+    warningSink: stderr,
   );
   final TrajectoryWriter writer = TrajectoryWriter(frameSink);
 
