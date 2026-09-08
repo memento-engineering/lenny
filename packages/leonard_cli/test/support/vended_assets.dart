@@ -88,5 +88,17 @@ Iterable<String> skillReferencesIn(String text) sync* {
 }
 
 /// Whether `assets/skills/<name>/SKILL.md` exists.
-bool skillExists(String name) =>
-    File('${vendedAssetsDir().path}/skills/$name/SKILL.md').existsSync();
+bool skillExists(String name) {
+  if (File('${vendedAssetsDir().path}/skills/$name/SKILL.md').existsSync()) {
+    return true;
+  }
+  for (final String path in <String>[
+    'grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+        'skills/$name/SKILL.md',
+    '../../grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+        'skills/$name/SKILL.md',
+  ]) {
+    if (File(path).existsSync()) return true;
+  }
+  return false;
+}

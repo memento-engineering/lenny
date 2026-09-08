@@ -3,9 +3,11 @@ name: drive-with-leonard
 description: >
   Drive and verify a running program with an LLM via Leonard — observe its
   runtime state over the Dart VM service, act with tools, work toward a goal,
-  check the outcome. Leonard is a Dart-VM tool: a Flutter app is one target;
-  external processes / pure-Dart programs are others. Use when asked to test,
-  drive, verify, or exercise a running app/process end-to-end.
+  and check the outcome. Use for requests such as "drive my app to do X" or
+  otherwise exercise a running app or process toward a goal. This skill owns
+  live driving, not test authoring. Use the `test-with-leonard` skill when asked
+  to "write a test for my Flutter app", "add coverage with lenny", or "test this
+  screen end to end".
 ---
 
 # Drive a running program with Leonard
