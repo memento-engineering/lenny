@@ -53,7 +53,6 @@ description: >
     'mutation.md',
   ];
   const List<String> stubNames = <String>[
-    'plain-dart-flutter.md',
     'widget.md',
     'scripted-device.md',
     'hardware.md',
@@ -202,7 +201,7 @@ description: >
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
-  test('the six pending references are exact one-line epic stubs', () {
+  test('the five pending references are exact one-line epic stubs', () {
     const String stub =
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
@@ -224,16 +223,18 @@ description: >
     }
   });
 
-  test('all seven complete gotchas stay in the entrypoint only', () {
+  test('all seven complete gotchas stay verbatim in the entrypoint only', () {
     for (final String bullet in gotchaBullets) {
       expect(skill, contains(bullet), reason: bullet);
     }
-    for (final String name in referenceNames) {
+    for (final String name in referenceNames.where(
+      (String name) => !stubNames.contains(name),
+    )) {
       final String contents = File(
         p.join(referencesRoot, name),
       ).readAsStringSync();
-      for (final String token in loadBearingTokens) {
-        expect(contents, isNot(contains(token)), reason: '$name: $token');
+      for (final String bullet in gotchaBullets) {
+        expect(contents, isNot(contains(bullet)), reason: '$name: $bullet');
       }
     }
   });
@@ -286,6 +287,124 @@ description: >
       ).existsSync(),
       isFalse,
     );
+  });
+
+  final String plainDartFlutterReference = File(
+    p.join(referencesRoot, 'plain-dart-flutter.md'),
+  ).readAsStringSync();
+
+  test('level 0 pins four hermetic gates to falsifiers and receipts', () {
+    for (final String label in <String>[
+      'Proves:',
+      'Command:',
+      'Falsifier:',
+      'Failure signature:',
+      'Measured receipt:',
+    ]) {
+      expect(
+        RegExp(
+          '^\\*\\*$label\\*\\*',
+          multiLine: true,
+        ).allMatches(plainDartFlutterReference),
+        hasLength(4),
+        reason: label,
+      );
+    }
+    for (final String command in <String>[
+      '`dart analyze`',
+      '`cd packages/leonard_contract && dart test '
+          'test/strike_counter_test.dart`',
+      '`cd packages/leonard_router && flutter test '
+          'test/widget/extension/router_perception_equivalence_test.dart`',
+      '`./tool/check_no_dart_io.sh`',
+    ]) {
+      expect(plainDartFlutterReference, contains(command), reason: command);
+    }
+    for (final String policy in <String>[
+      'strict-casts',
+      'strict-inference',
+      'strict-raw-types',
+      'prefer_single_quotes',
+      'sort_pub_dependencies',
+      'unawaited_futures',
+      'avoid_print',
+    ]) {
+      expect(plainDartFlutterReference, contains(policy), reason: policy);
+    }
+    for (final String cite in <String>[
+      'analysis_options.yaml:1-18',
+      '.github/workflows/ci.yaml:18-24',
+      'packages/leonard_contract/lib/src/strike_counter.dart:9',
+      'packages/leonard_contract/lib/src/strike_counter.dart:11-18',
+      'packages/leonard_contract/test/strike_counter_test.dart:5-31',
+      'packages/leonard_router/lib/src/router_perception.dart:21-33',
+      'packages/leonard_router/test/widget/extension/'
+          'router_perception_equivalence_test.dart:82-171',
+      'tool/check_no_dart_io.sh:18-70',
+      '.github/workflows/ci.yaml:22-24',
+      'packages/leonard_agent/lib/src/vm_service_client.dart:10',
+    ]) {
+      expect(plainDartFlutterReference, contains(cite), reason: cite);
+    }
+    for (final String falsifier in <String>[
+      "`int _consecutive = 'zero';`",
+      '`void recordSuccess() => _consecutive++;`',
+      "`Field('currentRouteName', snap?.currentRouteName)`",
+      "`import 'dart:io';`",
+    ]) {
+      expect(plainDartFlutterReference, contains(falsifier), reason: falsifier);
+    }
+    for (final String signature in <String>[
+      'invalid_assignment',
+      'Expected: false',
+      'Actual: <true>',
+      'missing `current_route_name` expectation',
+      'golden JSON mismatch',
+      'ERROR: packages/leonard_agent/lib must not import dart:io',
+    ]) {
+      expect(plainDartFlutterReference, contains(signature), reason: signature);
+    }
+    for (final String receipt in <String>[
+      '2 issues found',
+      'info-level `depend_on_referenced_packages` diagnostics',
+      '+2: All tests passed!',
+      '+5: All tests passed!',
+      'OK: leonard_agent is Flutter-free; leonard_agent + leonard_devtools '
+          'libs are dart:io-free; vm_service_io is confined to '
+          'packages/leonard_agent/lib/src/vm_service_client_io.dart',
+    ]) {
+      expect(plainDartFlutterReference, contains(receipt), reason: receipt);
+    }
+  });
+
+  test('level 0 marks the live boundary and integration exception', () {
+    for (final String limitation in <String>[
+      'real rendering on a device',
+      'real gestures',
+      'real platform channels',
+      'anything requiring a live VM service',
+    ]) {
+      expect(
+        plainDartFlutterReference,
+        contains(limitation),
+        reason: limitation,
+      );
+    }
+    expect(plainDartFlutterReference, contains('package:integration_test'));
+    expect(plainDartFlutterReference, contains('lenny is absent'));
+    expect(plainDartFlutterReference, contains('leave level 0'));
+    expect(
+      plainDartFlutterReference,
+      contains(
+        'grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+        'skills/test-with-leonard/SKILL.md:30',
+      ),
+    );
+    expect(
+      plainDartFlutterReference,
+      isNot(contains('Content for this reference is not written yet')),
+    );
+    expect(plainDartFlutterReference, isNot(contains('/Users/')));
   });
 
   final String reference = File(
