@@ -137,7 +137,8 @@ class LoopDriver {
   String? _lastFailureDetail;
 
   /// Prior-action carry-forward. A failed action stages its error map, while
-  /// a successful action stages only a non-empty value map. The next turn's
+  /// a successful action stages a non-empty value map only when its execution
+  /// envelope explicitly opts in with `carryForward: true`. The next turn's
   /// [UserTurn] receives it as `toolResult` so the model sees the structured
   /// result on its next decide call.
   Map<String, dynamic>? _pendingToolResult;
@@ -358,7 +359,7 @@ class LoopDriver {
       _pendingToolResult = <String, dynamic>{
         'error': err is String ? err : err?.toString() ?? 'unknown',
       };
-    } else if (exec['ok'] == true) {
+    } else if (exec['ok'] == true && exec['carryForward'] == true) {
       final Object? value = exec['value'];
       if (value is Map && value.isNotEmpty) {
         _pendingToolResult = Map<String, dynamic>.from(value);

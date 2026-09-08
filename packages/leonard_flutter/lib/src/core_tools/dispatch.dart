@@ -16,6 +16,10 @@ abstract class CoreTool extends LeonardTool {
 
   final CoreExtension plugin;
 
+  /// Whether a successful non-empty result should be carried into the next
+  /// model turn. Core tools opt out unless they explicitly override this.
+  bool get carryForward => false;
+
   /// Returns a `session_terminated` [ToolResult] when [DoneTool] has
   /// already run, otherwise `null`. Tools that should be rejected after
   /// session termination begin with

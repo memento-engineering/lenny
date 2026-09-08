@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:leonard_contract/leonard_contract.dart';
 import 'package:test/test.dart';
 
@@ -87,6 +89,41 @@ void main() {
     },
   );
 
+  test(
+    'dispatchToolToEnvelope adds carryForward only for an explicit opt-in',
+    () async {
+      final defaultEnvelope =
+          jsonDecode(
+                await dispatchToolToEnvelope(
+                  const _EchoTool(),
+                  <String, Object?>{'a': 1},
+                ),
+              )
+              as Map<String, dynamic>;
+      expect(defaultEnvelope, <String, Object?>{
+        'ok': true,
+        'value': <String, Object?>{'a': 1},
+        'error': null,
+      });
+
+      final optedInEnvelope =
+          jsonDecode(
+                await dispatchToolToEnvelope(
+                  const _EchoTool(),
+                  <String, Object?>{'a': 1},
+                  carryForward: true,
+                ),
+              )
+              as Map<String, dynamic>;
+      expect(optedInEnvelope, <String, Object?>{
+        'ok': true,
+        'value': <String, Object?>{'a': 1},
+        'error': null,
+        'carryForward': true,
+      });
+    },
+  );
+
   test('dispatchToolToEnvelope wraps an ok result', () async {
     final body = await dispatchToolToEnvelope(const _EchoTool(), {'a': 1});
     expect(body, contains('"ok":true'));
@@ -94,10 +131,21 @@ void main() {
   });
 
   test('dispatchToolToEnvelope catches a throw as dispatch_failed', () async {
-    final body = await dispatchToolToEnvelope(const _BoomTool(), const {});
-    expect(body, contains('"ok":false'));
-    expect(body, contains('dispatch_failed'));
-    expect(body, contains('"trace"'));
+    final body = await dispatchToolToEnvelope(
+      const _BoomTool(),
+      const {},
+      carryForward: true,
+    );
+    final envelope = jsonDecode(body) as Map<String, dynamic>;
+    final Object? trace = envelope['trace'];
+    expect(trace, isA<String>());
+    expect((trace! as String), isNotEmpty);
+    expect(envelope, <String, Object?>{
+      'ok': false,
+      'value': null,
+      'error': 'dispatch_failed: Bad state: kaboom',
+      'trace': trace,
+    });
   });
 
   group('ExtensionRegistry', () {

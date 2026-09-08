@@ -184,6 +184,20 @@ ToolDescriptor _coreRecall() => const ToolDescriptor(
   },
 );
 
+ToolDescriptor _coreInspectWidget() => const ToolDescriptor(
+  name: 'core.inspect_widget',
+  description: 'inspect a semantics subtree',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+      'depth': <String, dynamic>{'type': 'integer', 'minimum': 1, 'maximum': 8},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
+
 ToolDescriptor _coreTap() => const ToolDescriptor(
   name: 'core.tap',
   description: 'tap a target semantics node',
@@ -494,7 +508,7 @@ void main() {
     });
 
     test(
-      'successful non-empty action value carries forward into a trimmed user turn',
+      'successful opted-in recall value carries forward into a trimmed user turn',
       () async {
         const String exact = '  42!?\nsecond line\t— café 東京  ';
         final sink = _MemorySink();
@@ -509,6 +523,7 @@ void main() {
               ? <String, dynamic>{
                   'ok': true,
                   'value': <String, dynamic>{'value': exact},
+                  'carryForward': true,
                 }
               : <String, dynamic>{'ok': true, 'value': <String, dynamic>{}},
         );
@@ -539,6 +554,59 @@ void main() {
             provider.seenSnapshots[1].turns.last as UserTurn;
         expect(carrier.trimmed, isTrue);
         expect(carrier.toolResult, <String, dynamic>{'value': exact});
+      },
+    );
+
+    test(
+      'successful non-opted-in inspect_widget value does not carry forward',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithEnabledTapNode(),
+            _obsWithEnabledTapNode(),
+          ],
+          tools: <ToolDescriptor>[_coreInspectWidget(), _coreTap()],
+          executeFn: (tool, args) async => tool == 'core.inspect_widget'
+              ? <String, dynamic>{
+                  'ok': true,
+                  'value': <String, dynamic>{
+                    'tree': <String, dynamic>{
+                      'id': 1,
+                      'role': 'button',
+                      'label': 'Continue',
+                    },
+                    'truncated': false,
+                  },
+                }
+              : <String, dynamic>{'ok': true, 'value': <String, dynamic>{}},
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (
+                tool: 'core.inspect_widget',
+                args: <String, dynamic>{'node_id': 1},
+              ),
+            ),
+            ModelDecision(
+              action: (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
+
+        await driver.runTurn();
+        await driver.runTurn();
+
+        final UserTurn carrier =
+            provider.seenSnapshots[1].turns.last as UserTurn;
+        expect(carrier.toolResult, isNull);
       },
     );
 

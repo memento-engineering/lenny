@@ -17,6 +17,9 @@ class RecallTool extends CoreTool {
       'Recall the exact string remembered under a non-empty session key.';
 
   @override
+  bool get carryForward => true;
+
+  @override
   JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
     r'$schema': 'http://json-schema.org/draft-07/schema#',
     'type': 'object',

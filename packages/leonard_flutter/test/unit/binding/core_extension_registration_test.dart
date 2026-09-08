@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -129,4 +131,40 @@ void main() {
       expect(r.ok, isTrue, reason: r.error);
     },
   );
+
+  test('core.recall opts its successful envelope into carry-forward', () async {
+    const String key = 'registration-confirmation';
+    const String exact = '  42!?\nsecond line\t— café 東京  ';
+    final remember =
+        jsonDecode(
+              await binding.invokeServiceExtension(
+                'ext.leonard.core.remember',
+                <String, String>{
+                  'key': jsonEncode(key),
+                  'value': jsonEncode(exact),
+                },
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(remember, <String, Object?>{
+      'ok': true,
+      'value': <String, Object?>{},
+      'error': null,
+    });
+
+    final recall =
+        jsonDecode(
+              await binding.invokeServiceExtension(
+                'ext.leonard.core.recall',
+                <String, String>{'key': jsonEncode(key)},
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(recall, <String, Object?>{
+      'ok': true,
+      'value': <String, Object?>{'value': exact},
+      'error': null,
+      'carryForward': true,
+    });
+  });
 }

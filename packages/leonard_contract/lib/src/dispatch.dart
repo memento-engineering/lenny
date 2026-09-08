@@ -30,21 +30,25 @@ Object? _tryDecode(String raw) {
 }
 
 /// Run [tool] with [args] and wrap the result in the canonical
-/// `{ok, value, error[, trace]}` envelope.
+/// `{ok, value, error[, carryForward][, trace]}` envelope.
 ///
 /// Single source of truth for that envelope shape — used by both the
 /// Flutter binding's per-tool extension handler and the pure-Dart host.
+/// [carryForward] opts a successful result into delivery on the next model
+/// turn; the field is omitted unless explicitly enabled.
 /// Never throws: any unexpected error becomes a `dispatch_failed` envelope.
 Future<String> dispatchToolToEnvelope(
   LeonardTool tool,
-  Map<String, Object?> args,
-) async {
+  Map<String, Object?> args, {
+  bool carryForward = false,
+}) async {
   try {
     final ToolResult r = await tool.call(args);
     return jsonEncode(<String, Object?>{
       'ok': r.ok,
       'value': r.value,
       'error': r.error,
+      if (carryForward) 'carryForward': true,
     });
   } catch (e, st) {
     return jsonEncode(<String, Object?>{

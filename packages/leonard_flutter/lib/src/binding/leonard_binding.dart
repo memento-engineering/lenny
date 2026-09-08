@@ -10,6 +10,7 @@ import 'package:leonard_contract/leonard_contract.dart'
 import '../contract/perception_extension.dart';
 import '../contract/extension.dart';
 import '../contract/registry.dart';
+import '../core_tools/dispatch.dart';
 import '../core_tools/core_extension.dart';
 import '../diagnostics/interactive_semantics_auditor.dart';
 import '../diagnostics/interactive_semantics_warning.dart';
@@ -560,7 +561,11 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       final LeonardTool tool = entry.value;
       _registerExtension(method, (String m, Map<String, String> params) async {
         final Map<String, Object?> args = decodeServiceExtensionParams(params);
-        final String body = await dispatchToolToEnvelope(tool, args);
+        final String body = await dispatchToolToEnvelope(
+          tool,
+          args,
+          carryForward: tool is CoreTool && tool.carryForward,
+        );
         return developer.ServiceExtensionResponse.result(body);
       });
     }
@@ -927,7 +932,11 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       );
     }
     final Map<String, Object?> args = decodeServiceExtensionParams(params);
-    return dispatchToolToEnvelope(tool, args);
+    return dispatchToolToEnvelope(
+      tool,
+      args,
+      carryForward: tool is CoreTool && tool.carryForward,
+    );
   }
 
   /// Test-only: install a custom root provider for the diagnostics walker.
