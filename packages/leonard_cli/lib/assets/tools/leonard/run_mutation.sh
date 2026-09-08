@@ -82,7 +82,9 @@ if [[ "$mode" == dry ]]; then
   run_phase dry "${files[@]}" || { status=$?; (( gate )) && exit "$status"; echo "Reporting only (gating off)."; }
   exit 0
 fi
-run_phase dry "${files[@]}" || die 70 "dry sizing failed"
+run_phase dry "${files[@]}" || true
+grep -Eq 'Found [1-9][0-9]* mutations' \
+  "$repo_root/artifacts/mutation/$package_name/dry/console.txt" || die 70 "dry sizing failed"
 (cd "$package_dir" && dart test)
 run_phase "$mode" "${files[@]}" || {
   status=$?

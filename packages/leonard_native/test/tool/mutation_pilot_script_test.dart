@@ -50,6 +50,7 @@ printf 'dart %s\n' "$*" >> "$MUTATION_LOG"
 if [[ "${1:-}" == test ]]; then exit "${BASELINE_EXIT:-0}"; fi
 if [[ "${1:-}" == run ]]; then
   [[ " $* " == *" --format all "* ]] && exit "${MUTATION_EXIT:-0}"
+  echo "Found 3 mutations"
   exit 0
 fi
 exit 70
