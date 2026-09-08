@@ -16,8 +16,7 @@ Directory _packageRoot() {
   var dir = Directory.current.absolute;
   for (var i = 0; i < 6; i++) {
     final localPubspec = File('${dir.path}/pubspec.yaml');
-    if (dir.path.endsWith('leonard_devtools') &&
-        localPubspec.existsSync()) {
+    if (dir.path.endsWith('leonard_devtools') && localPubspec.existsSync()) {
       return dir;
     }
 
@@ -36,8 +35,7 @@ Directory _libDirectory() => Directory('${_packageRoot().path}/lib');
 
 File _mainDart() => File('${_packageRoot().path}/lib/main.dart');
 
-File _selfDriveMain() =>
-    File('${_packageRoot().path}/dev/selfdrive_main.dart');
+File _selfDriveMain() => File('${_packageRoot().path}/dev/selfdrive_main.dart');
 
 File _pubspec() => File('${_packageRoot().path}/pubspec.yaml');
 
@@ -86,60 +84,44 @@ void main() {
     expect(source, contains('serviceManager.isolateManager.mainIsolate'));
   });
 
-  test(
-    '_loadDiagnosticsSnapshot borrows the DevTools VM connection and '
-    'calls the on-demand sibling only',
-    () {
-      final String body = _loadDiagnosticsSnapshotBody(source);
-      expect(body, contains('serviceManager.service'));
-      expect(body, contains('mainIsolate'));
-      expect(body, contains('kLeonardExtensionPrefix'));
-      expect(body, contains('core.get_diagnostics_tree'));
-      // The diagnostics loader must NOT ride the observation hot path,
-      // pass stability-policy arguments, or open its own socket.
-      expect(body, isNot(contains('core.get_stable_observation')));
-      expect(body, isNot(contains('action-relative')));
-      expect(body, isNot(contains('vm_service_io.dart')));
-    },
-  );
+  test('_loadDiagnosticsSnapshot borrows the DevTools VM connection and '
+      'calls the on-demand sibling only', () {
+    final String body = _loadDiagnosticsSnapshotBody(source);
+    expect(body, contains('serviceManager.service'));
+    expect(body, contains('mainIsolate'));
+    expect(body, contains('kLeonardExtensionPrefix'));
+    expect(body, contains('core.get_diagnostics_tree'));
+    // The diagnostics loader must NOT ride the observation hot path,
+    // pass stability-policy arguments, or open its own socket.
+    expect(body, isNot(contains('core.get_stable_observation')));
+    expect(body, isNot(contains('action-relative')));
+    expect(body, isNot(contains('vm_service_io.dart')));
+  });
 
-  test(
-    'self-drive entrypoint installs LeonardBinding before shared shell',
-    () {
-      final source = _selfDriveMain().readAsStringSync();
-      expect(
-        source,
-        contains(
-          "import 'package:leonard_devtools/main.dart' "
-          'show LeonardDevToolsExtension;',
-        ),
-      );
-      expect(
-        source,
-        contains('extensions: const <LeonardExtension>[]'),
-      );
+  test('self-drive entrypoint installs LeonardBinding before shared shell', () {
+    final source = _selfDriveMain().readAsStringSync();
+    expect(
+      source,
+      contains(
+        "import 'package:leonard_devtools/main.dart' "
+        'show LeonardDevToolsExtension;',
+      ),
+    );
+    expect(source, contains('extensions: const <LeonardExtension>[]'));
 
-      final bindingCall = source.indexOf(
-        'LeonardBinding.ensureInitialized(',
-      );
-      final runAppCall = source.indexOf(
-        'runApp(const LeonardDevToolsExtension())',
-      );
-      expect(bindingCall, isNonNegative);
-      expect(runAppCall, greaterThan(bindingCall));
-    },
-  );
+    final bindingCall = source.indexOf('LeonardBinding.ensureInitialized(');
+    final runAppCall = source.indexOf(
+      'runApp(const LeonardDevToolsExtension())',
+    );
+    expect(bindingCall, isNonNegative);
+    expect(runAppCall, greaterThan(bindingCall));
+  });
 
   test('leonard_flutter remains a dev dependency', () {
     final source = _pubspec().readAsStringSync();
     final dependenciesStart = source.indexOf('\ndependencies:\n');
-    final devDependenciesStart = source.indexOf(
-      '\ndev_dependencies:\n',
-    );
-    final flutterStart = source.indexOf(
-      '\nflutter:\n',
-      devDependenciesStart,
-    );
+    final devDependenciesStart = source.indexOf('\ndev_dependencies:\n');
+    final flutterStart = source.indexOf('\nflutter:\n', devDependenciesStart);
     expect(dependenciesStart, isNonNegative);
     expect(devDependenciesStart, greaterThan(dependenciesStart));
     expect(flutterStart, greaterThan(devDependenciesStart));
@@ -166,24 +148,22 @@ void main() {
       r'''^\s*import\s+['"]package:leonard_flutter/''',
       multiLine: true,
     );
-    final offenders = _libDirectory()
-        .listSync(recursive: true, followLinks: false)
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.dart'))
-        .where(
-          (file) => leonardFlutterImport.hasMatch(
-            file.readAsStringSync(),
-          ),
-        )
-        .map(
-          (file) => file.path.substring(packageRootPath.length + 1),
-        )
-        .toList()
-      ..sort();
+    final offenders =
+        _libDirectory()
+            .listSync(recursive: true, followLinks: false)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart'))
+            .where(
+              (file) => leonardFlutterImport.hasMatch(file.readAsStringSync()),
+            )
+            .map((file) => file.path.substring(packageRootPath.length + 1))
+            .toList()
+          ..sort();
     expect(
       offenders,
       isEmpty,
-      reason: 'lib/ must not import dev-only leonard_flutter: '
+      reason:
+          'lib/ must not import dev-only leonard_flutter: '
           '$offenders',
     );
   });
@@ -209,16 +189,11 @@ void main() {
     final standaloneStart = source.indexOf(
       '### Standalone web (fast iteration)',
     );
-    final inDevToolsStart = source.indexOf(
-      '### In-DevTools (real handshake)',
-    );
+    final inDevToolsStart = source.indexOf('### In-DevTools (real handshake)');
     expect(standaloneStart, isNonNegative);
     expect(inDevToolsStart, greaterThan(standaloneStart));
 
-    final standalone = source.substring(
-      standaloneStart,
-      inDevToolsStart,
-    );
+    final standalone = source.substring(standaloneStart, inDevToolsStart);
     expect(
       standalone,
       contains(
@@ -230,10 +205,7 @@ void main() {
       standalone,
       contains('it accepts real Dart VM Service and DTD connections'),
     );
-    expect(
-      standalone,
-      contains('`uri` and `dtdUri` query parameters'),
-    );
+    expect(standalone, contains('`uri` and `dtdUri` query parameters'));
     expect(
       standalone,
       contains('./tool/run_panel_selfdrive.sh [sample-app-device-id]'),
@@ -247,10 +219,7 @@ void main() {
       ),
     );
     expect(standalone.toLowerCase(), isNot(contains('fake dtd')));
-    expect(
-      standalone.toLowerCase(),
-      isNot(contains('fake vm service')),
-    );
+    expect(standalone.toLowerCase(), isNot(contains('fake vm service')));
   });
 }
 

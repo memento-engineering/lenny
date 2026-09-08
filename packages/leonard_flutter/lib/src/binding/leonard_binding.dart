@@ -479,22 +479,22 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
           }
         },
       );
-      _registerExtension(
-        '$kLeonardExtensionPrefix.core.get_diagnostics_tree',
-        (String method, Map<String, String> parameters) async {
-          final TreeSnapshot snapshot = await _buildDiagnosticsTree();
-          final encoded = _budgetDiagnosticsTree(
-            snapshot,
-            _diagnosticsBudgetBytes,
-          );
-          return developer.ServiceExtensionResponse.result(
-            jsonEncode(<String, Object?>{
-              'diagnostics_tree': encoded.tree,
-              'truncated': encoded.truncated,
-            }),
-          );
-        },
-      );
+      _registerExtension('$kLeonardExtensionPrefix.core.get_diagnostics_tree', (
+        String method,
+        Map<String, String> parameters,
+      ) async {
+        final TreeSnapshot snapshot = await _buildDiagnosticsTree();
+        final encoded = _budgetDiagnosticsTree(
+          snapshot,
+          _diagnosticsBudgetBytes,
+        );
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{
+            'diagnostics_tree': encoded.tree,
+            'truncated': encoded.truncated,
+          }),
+        );
+      });
     }
     if (kDebugMode || kProfileMode) {
       developer.registerExtension('$kLeonardExtensionPrefix.core.screenshot', (

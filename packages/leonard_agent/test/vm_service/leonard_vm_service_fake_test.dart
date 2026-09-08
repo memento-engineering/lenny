@@ -46,9 +46,7 @@ void main() {
       final fake = LeonardVmServiceFake(
         handshakeResponse: _handshake(version: '2'),
       );
-      final r = await fake.callServiceExtension(
-        'ext.leonard.core.handshake',
-      );
+      final r = await fake.callServiceExtension('ext.leonard.core.handshake');
       expect(r.json!['protocolVersion'], '2');
       expect(fake.calls, hasLength(1));
       expect(fake.calls.single.method, 'ext.leonard.core.handshake');
@@ -75,9 +73,7 @@ void main() {
         // no observationBundle
       );
       await expectLater(
-        fake.callServiceExtension(
-          'ext.leonard.core.get_stable_observation',
-        ),
+        fake.callServiceExtension('ext.leonard.core.get_stable_observation'),
         throwsA(isA<RPCError>().having((e) => e.code, 'code', -32601)),
       );
     });
@@ -90,8 +86,10 @@ void main() {
               String,
               Future<Map<String, dynamic>> Function(Map<String, dynamic>?)
             >{
-              'ext.leonard.router.navigate': (args) async =>
-                  <String, dynamic>{'ok': true, 'value': args?['route_name']},
+              'ext.leonard.router.navigate': (args) async => <String, dynamic>{
+                'ok': true,
+                'value': args?['route_name'],
+              },
             },
       );
       final r = await fake.callServiceExtension(

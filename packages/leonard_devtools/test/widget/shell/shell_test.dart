@@ -276,38 +276,35 @@ void main() {
       ),
     );
 
-    testWidgets(
-      'opening the tab performs exactly one initial refresh: '
-      'loading then loaded',
-      (tester) async {
-        final List<Completer<TreeSnapshot>> completers =
-            <Completer<TreeSnapshot>>[];
-        Future<TreeSnapshot> loader() {
-          final Completer<TreeSnapshot> c = Completer<TreeSnapshot>();
-          completers.add(c);
-          return c.future;
-        }
+    testWidgets('opening the tab performs exactly one initial refresh: '
+        'loading then loaded', (tester) async {
+      final List<Completer<TreeSnapshot>> completers =
+          <Completer<TreeSnapshot>>[];
+      Future<TreeSnapshot> loader() {
+        final Completer<TreeSnapshot> c = Completer<TreeSnapshot>();
+        completers.add(c);
+        return c.future;
+      }
 
-        await tester.pumpWidget(shell(loader));
-        await tester.pumpAndSettle();
-        // Conversation is the initial tab — no diagnostics load yet.
-        expect(completers, isEmpty);
+      await tester.pumpWidget(shell(loader));
+      await tester.pumpAndSettle();
+      // Conversation is the initial tab — no diagnostics load yet.
+      expect(completers, isEmpty);
 
-        await tester.tap(find.text('Diagnostics'));
-        // Bounded pumps: the loading spinner animates forever, so
-        // pumpAndSettle would never settle.
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 1));
-        expect(completers, hasLength(1));
-        expect(find.byKey(const Key('diagnostics.loading')), findsOneWidget);
+      await tester.tap(find.text('Diagnostics'));
+      // Bounded pumps: the loading spinner animates forever, so
+      // pumpAndSettle would never settle.
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(completers, hasLength(1));
+      expect(find.byKey(const Key('diagnostics.loading')), findsOneWidget);
 
-        completers.single.complete(snap('root'));
-        await tester.pumpAndSettle();
-        expect(completers, hasLength(1), reason: 'exactly one initial refresh');
-        expect(find.byKey(const Key('diagnostics.tree')), findsOneWidget);
-        expect(find.byKey(const Key('diagnostics.loading')), findsNothing);
-      },
-    );
+      completers.single.complete(snap('root'));
+      await tester.pumpAndSettle();
+      expect(completers, hasLength(1), reason: 'exactly one initial refresh');
+      expect(find.byKey(const Key('diagnostics.tree')), findsOneWidget);
+      expect(find.byKey(const Key('diagnostics.loading')), findsNothing);
+    });
 
     testWidgets('manual refresh surfaces the error, then recovers', (
       tester,
@@ -393,18 +390,12 @@ void main() {
       final Future<void> second = controller.refresh();
       completers[1].complete(snap('fresh'));
       await second;
-      expect(
-        (controller.value as DiagnosticsLoaded).snapshot.root.id,
-        'fresh',
-      );
+      expect((controller.value as DiagnosticsLoaded).snapshot.root.id, 'fresh');
       // The FIRST (stale) load completes afterwards — it must not clobber
       // the newer result.
       completers[0].complete(snap('stale'));
       await first;
-      expect(
-        (controller.value as DiagnosticsLoaded).snapshot.root.id,
-        'fresh',
-      );
+      expect((controller.value as DiagnosticsLoaded).snapshot.root.id, 'fresh');
     });
 
     test('a stale earlier failure is suppressed', () async {
@@ -426,10 +417,7 @@ void main() {
       completers[0].completeError(StateError('stale failure'));
       await first;
       expect(controller.value, isA<DiagnosticsLoaded>());
-      expect(
-        (controller.value as DiagnosticsLoaded).snapshot.root.id,
-        'fresh',
-      );
+      expect((controller.value as DiagnosticsLoaded).snapshot.root.id, 'fresh');
     });
 
     testWidgets(

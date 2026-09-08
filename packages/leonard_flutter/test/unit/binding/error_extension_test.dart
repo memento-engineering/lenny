@@ -117,9 +117,7 @@ void main() {
 
   test('extension is registered with the local binding', () {
     expect(
-      binding.debugHasRegisteredExtension(
-        'ext.leonard.core.get_recent_errors',
-      ),
+      binding.debugHasRegisteredExtension('ext.leonard.core.get_recent_errors'),
       isTrue,
     );
   });

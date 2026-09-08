@@ -120,9 +120,7 @@ class _LiveDevToolsScope implements LeonardDevToolsScope {
       isolateId: isolateId,
     );
     return decodeDiagnosticsSnapshot(
-      Map<String, Object?>.from(
-        response.json ?? const <String, Object?>{},
-      ),
+      Map<String, Object?>.from(response.json ?? const <String, Object?>{}),
     );
   }
 

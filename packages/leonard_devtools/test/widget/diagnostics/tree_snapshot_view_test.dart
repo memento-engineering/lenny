@@ -224,10 +224,7 @@ void main() {
   test('maps every severity to its icon', () {
     expect(diagnosticsLevelIcon(DiagnosticsLevel.fine), Icons.tune);
     expect(diagnosticsLevelIcon(DiagnosticsLevel.info), Icons.info_outline);
-    expect(
-      diagnosticsLevelIcon(DiagnosticsLevel.warning),
-      Icons.warning_amber,
-    );
+    expect(diagnosticsLevelIcon(DiagnosticsLevel.warning), Icons.warning_amber);
     expect(diagnosticsLevelIcon(DiagnosticsLevel.error), Icons.error_outline);
   });
 
