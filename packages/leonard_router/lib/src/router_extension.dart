@@ -107,6 +107,8 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   Seed buildPerception() => RouterPerception(RouteSnapshotAnchor(this));
 }
 
+const Duration _frameObservationBudget = Duration(milliseconds: 250);
+
 class _NavigateTool extends LeonardTool {
   _NavigateTool(this._extension);
 
@@ -119,7 +121,10 @@ class _NavigateTool extends LeonardTool {
   String get description =>
       'Navigate to a requested named route. When the navigation call succeeds, '
       'ok remains true and the result preserves the request as route_name while '
-      'nullable effective_route reports the observed route after redirects.';
+      'nullable effective_route reports the observed route after redirects. '
+      'effective_route_status explains why: observed means a snapshot supplied '
+      'the route, unobserved means a frame arrived but the snapshot was null, '
+      'and frame_timeout means no frame arrived within the observation budget.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema({
@@ -127,7 +132,10 @@ class _NavigateTool extends LeonardTool {
     'description':
         'Requests named-route navigation. A successful call keeps ok true; the '
         'result preserves the requested route_name and reports the nullable '
-        'post-navigation effective_route, which may differ after a redirect.',
+        'post-navigation effective_route, which may differ after a redirect. '
+        'effective_route_status explains why: observed means a snapshot supplied '
+        'the route, unobserved means a frame arrived but the snapshot was null, '
+        'and frame_timeout means no frame arrived within the observation budget.',
     'properties': {
       'route_name': {
         'type': 'string',
@@ -161,8 +169,15 @@ class _NavigateTool extends LeonardTool {
     if (navigate != null) {
       try {
         await navigate(rn, routeArgs);
-        await SchedulerBinding.instance.endOfFrame;
-        return _successfulNavigation(rn);
+        var frameTimedOut = false;
+        await SchedulerBinding.instance.endOfFrame.timeout(
+          _frameObservationBudget,
+          onTimeout: () => frameTimedOut = true,
+        );
+        return _successfulNavigation(
+          rn,
+          effectiveRouteStatus: frameTimedOut ? 'frame_timeout' : null,
+        );
       } catch (e) {
         return ToolResult(ok: false, error: 'unknown route "$rn": $e');
       }
@@ -188,13 +203,21 @@ class _NavigateTool extends LeonardTool {
     }
   }
 
-  ToolResult _successfulNavigation(String requestedRoute) {
-    final RouteSnapshot? snapshot = _extension.readSnapshot();
+  ToolResult _successfulNavigation(
+    String requestedRoute, {
+    String? effectiveRouteStatus,
+  }) {
+    final RouteSnapshot? snapshot = effectiveRouteStatus == 'frame_timeout'
+        ? null
+        : _extension.readSnapshot();
     return ToolResult(
       ok: true,
       value: <String, Object?>{
         'route_name': requestedRoute,
         'effective_route': snapshot?.currentRouteName,
+        'effective_route_status':
+            effectiveRouteStatus ??
+            (snapshot == null ? 'unobserved' : 'observed'),
       },
     );
   }
