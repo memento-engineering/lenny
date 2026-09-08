@@ -42,6 +42,11 @@ class CliArgs {
     this.probeArtifactPath,
     this.doneReasonPattern,
     this.doneEvidencePattern,
+    this.goldensDir,
+    this.framesDir,
+    this.updateGoldens = false,
+    this.goldenChannelTolerance = 8,
+    this.goldenMaxDiffRatio = 0.0,
   });
 
   /// Goal to drive the app toward, supplied via `--goal`. `null` means use
@@ -91,6 +96,26 @@ class CliArgs {
   /// Optional `--output` override. When `null` the CLI writes to
   /// `./trajectories/<UTC-timestamp>.jsonl`.
   final String? outputPath;
+
+  /// Caller-supplied directory containing same-named PNG baselines.
+  /// `null` selects capture-only mode.
+  final String? goldensDir;
+
+  /// Optional override for captured-frame placement. `null` derives the
+  /// directory from [outputPath] or the generated default trajectory path.
+  final String? framesDir;
+
+  /// Whether captured frames replace baselines instead of being compared.
+  final bool updateGoldens;
+
+  /// Maximum allowed absolute difference in an individual RGBA channel.
+  final int goldenChannelTolerance;
+
+  /// Maximum allowed ratio of pixels exceeding [goldenChannelTolerance].
+  final double goldenMaxDiffRatio;
+
+  /// Whether this invocation compares captured frames with PNG baselines.
+  bool get comparesGoldens => goldensDir != null && !updateGoldens;
 
   /// Stability policy (`--policy`) — already mapped to the agent's
   /// [StabilityPolicy] enum.
@@ -204,6 +229,29 @@ ArgParser buildParser() => ArgParser()
   ..addOption(
     'output',
     help: 'Trajectory path (default ./trajectories/<UTC-timestamp>.jsonl).',
+  )
+  ..addOption(
+    'goldens-dir',
+    help: 'Directory of same-named PNG baselines; omit for capture-only.',
+  )
+  ..addOption(
+    'frames-dir',
+    help: 'Override the frame directory derived from the trajectory path.',
+  )
+  ..addFlag(
+    'update-goldens',
+    negatable: false,
+    help: 'Create or overwrite PNG baselines without comparing.',
+  )
+  ..addOption(
+    'golden-channel-tolerance',
+    defaultsTo: '8',
+    help: 'Maximum per-channel RGBA delta (0-255, default 8).',
+  )
+  ..addOption(
+    'golden-max-diff-ratio',
+    defaultsTo: '0.0',
+    help: 'Maximum differing-pixel ratio (0.0-1.0, default 0.0).',
   )
   ..addOption(
     'policy',
@@ -373,6 +421,42 @@ CliArgs parseCliArgs(List<String> argv) {
     _ => throw CliUsageError('Invalid --policy'),
   };
 
+  final String? goldensDir = _nonEmptyDirectory(
+    res['goldens-dir'] as String?,
+    'goldens-dir',
+  );
+  final String? framesDir = _nonEmptyDirectory(
+    res['frames-dir'] as String?,
+    'frames-dir',
+  );
+  final bool updateGoldens = res['update-goldens'] as bool;
+  if (updateGoldens && goldensDir == null) {
+    throw CliUsageError('--update-goldens requires --goldens-dir <dir>');
+  }
+
+  final String rawChannelTolerance = res['golden-channel-tolerance'] as String;
+  final int? goldenChannelTolerance = int.tryParse(rawChannelTolerance);
+  if (goldenChannelTolerance == null ||
+      goldenChannelTolerance < 0 ||
+      goldenChannelTolerance > 255) {
+    throw CliUsageError(
+      '--golden-channel-tolerance must be an integer from 0 through 255; '
+      'got "$rawChannelTolerance"',
+    );
+  }
+
+  final String rawMaxDiffRatio = res['golden-max-diff-ratio'] as String;
+  final double? goldenMaxDiffRatio = double.tryParse(rawMaxDiffRatio);
+  if (goldenMaxDiffRatio == null ||
+      !goldenMaxDiffRatio.isFinite ||
+      goldenMaxDiffRatio < 0.0 ||
+      goldenMaxDiffRatio > 1.0) {
+    throw CliUsageError(
+      '--golden-max-diff-ratio must be a finite number from 0.0 through 1.0; '
+      'got "$rawMaxDiffRatio"',
+    );
+  }
+
   final String extensionsRaw = (res['extensions'] as String).trim();
   final List<String> extensions = extensionsRaw.isEmpty
       ? const <String>[]
@@ -437,7 +521,19 @@ CliArgs parseCliArgs(List<String> argv) {
     probeArtifactPath: res['probe-artifact'] as String?,
     doneReasonPattern: doneReasonPattern,
     doneEvidencePattern: doneEvidencePattern,
+    goldensDir: goldensDir,
+    framesDir: framesDir,
+    updateGoldens: updateGoldens,
+    goldenChannelTolerance: goldenChannelTolerance,
+    goldenMaxDiffRatio: goldenMaxDiffRatio,
   );
+}
+
+String? _nonEmptyDirectory(String? raw, String flag) {
+  if (raw == null) return null;
+  final String value = raw.trim();
+  if (value.isEmpty) throw CliUsageError('--$flag must not be empty');
+  return value;
 }
 
 /// Returns [raw] when it compiles as a regular expression, else throws a

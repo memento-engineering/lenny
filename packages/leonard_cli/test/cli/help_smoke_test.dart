@@ -34,6 +34,24 @@ void main() {
       expect(out, contains('--action-env'));
       expect(out, contains('--core-budget-bytes'));
       expect(out, contains('--probe-artifact'));
+      expect(out, contains('--goldens-dir'));
+      expect(out, contains('--frames-dir'));
+      expect(out, contains('--update-goldens'));
+      expect(out, contains('--golden-channel-tolerance'));
+      expect(out, contains('--golden-max-diff-ratio'));
+    });
+
+    test('README documents the image-golden workflow', () {
+      final String readme = File(
+        p.join(packageRoot, 'README.md'),
+      ).readAsStringSync();
+
+      expect(readme, contains('20260507T141503Z.frames/'));
+      expect(readme, contains('outer.frames/'));
+      expect(readme, contains('capture-only'));
+      expect(readme, contains('--goldens-dir image_goldens --update-goldens'));
+      expect(readme, contains('never deletes or'));
+      expect(readme, contains('prunes frame or run directories'));
     });
 
     test('missing --vm-uri exits 64', () async {

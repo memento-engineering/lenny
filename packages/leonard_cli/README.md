@@ -97,6 +97,64 @@ dart run leonard_cli \
 curl "$SWIFT_INFER_ENDPOINT/v1/conversations/leonard-cli-…"
 ```
 
+## Captured frames and image goldens
+
+Every live-driving run writes PNG frames already carried by its trajectory
+turns. By default, the frame directory is derived from the trajectory path:
+
+```text
+trajectories/
+├── 20260507T141503Z.jsonl
+└── 20260507T141503Z.frames/
+    ├── turn-0000.png
+    └── turn-0001.png
+```
+
+The same rule keeps frames inside the station's existing per-run directory:
+
+```text
+panel-selfdrive-20260507T141503Z/
+├── outer.jsonl
+├── outer.frames/
+│   ├── turn-0000.png
+│   └── turn-0001.png
+├── driver.log
+└── driver.status
+```
+
+`--frames-dir <dir>` overrides only frame placement. The CLI never deletes or
+prunes frame or run directories; the caller owns retention. With no
+`--goldens-dir`, the run is capture-only.
+
+To compare the current run against PNG baselines, supply their directory:
+
+```sh
+dart run leonard_cli \
+  --vm-uri ws://127.0.0.1:54321/abc=/ws \
+  --goal "open settings" \
+  --goldens-dir image_goldens
+```
+
+Frames are paired with goldens by filename. Image dimensions must match. A
+pixel differs when any RGBA channel delta exceeds
+`--golden-channel-tolerance` (default `8`), and the frame fails when the
+differing-pixel ratio exceeds `--golden-max-diff-ratio` (default `0.0`).
+
+To establish or replace baselines, run:
+
+```sh
+dart run leonard_cli \
+  --vm-uri ws://127.0.0.1:54321/abc=/ws \
+  --goal "open settings" \
+  --goldens-dir image_goldens --update-goldens
+```
+
+Update mode creates the baseline directory, overwrites same-named files, and
+prints every baseline written. It never compares in the same invocation. The
+repository's comparator fixtures are PNGs under
+`packages/leonard_cli/test/image_goldens/`; they are distinct from the JSON
+observation goldens used by the Flutter perception-equivalence tests.
+
 ## Nightly dogfood
 
 The nightly e2e test (`packages/leonard_agent/integration_test/dogfood/dogfood_e2e_test.dart`) is

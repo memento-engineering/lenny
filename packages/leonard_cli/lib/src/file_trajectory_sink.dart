@@ -64,4 +64,12 @@ class FileTrajectorySink implements TrajectorySink {
         '${two(t.hour)}${two(t.minute)}${two(t.second)}Z';
     return p.join('trajectories', '$stamp.jsonl');
   }
+
+  /// Derives the directory for captured frames from [trajectoryPath].
+  ///
+  /// For example, `run/outer.jsonl` maps to `run/outer.frames`.
+  static String framesDirectoryFor(String trajectoryPath) => p.join(
+    p.dirname(trajectoryPath),
+    '${p.basenameWithoutExtension(trajectoryPath)}.frames',
+  );
 }

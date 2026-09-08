@@ -40,5 +40,21 @@ void main() {
       );
       expect(path, p.join('trajectories', '20260507T141503Z.jsonl'));
     });
+
+    test('framesDirectoryFor derives bare CLI path', () {
+      expect(
+        FileTrajectorySink.framesDirectoryFor(
+          p.join('trajectories', '20260507T141503Z.jsonl'),
+        ),
+        p.join('trajectories', '20260507T141503Z.frames'),
+      );
+    });
+
+    test('framesDirectoryFor derives selfdrive path', () {
+      expect(
+        FileTrajectorySink.framesDirectoryFor(p.join('run', 'outer.jsonl')),
+        p.join('run', 'outer.frames'),
+      );
+    });
   });
 }

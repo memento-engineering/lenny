@@ -356,6 +356,133 @@ void main() {
       }
     });
 
+    group('image golden options', () {
+      const List<String> base = <String>['--vm-uri', 'ws://h/ws'];
+
+      test('defaults to capture-only with decided tolerances', () {
+        final args = parseCliArgs(base);
+
+        expect(args.goldensDir, isNull);
+        expect(args.framesDir, isNull);
+        expect(args.updateGoldens, isFalse);
+        expect(args.goldenChannelTolerance, 8);
+        expect(args.goldenMaxDiffRatio, 0.0);
+        expect(args.comparesGoldens, isFalse);
+      });
+
+      test('parses and trims all explicit values', () {
+        final args = parseCliArgs(<String>[
+          ...base,
+          '--goldens-dir',
+          '  baselines  ',
+          '--frames-dir',
+          '  run/frames  ',
+          '--golden-channel-tolerance',
+          '12',
+          '--golden-max-diff-ratio',
+          '0.25',
+        ]);
+
+        expect(args.goldensDir, 'baselines');
+        expect(args.framesDir, 'run/frames');
+        expect(args.goldenChannelTolerance, 12);
+        expect(args.goldenMaxDiffRatio, 0.25);
+        expect(args.comparesGoldens, isTrue);
+      });
+
+      test('update requires a golden directory and never compares', () {
+        expect(
+          () => parseCliArgs(<String>[...base, '--update-goldens']),
+          throwsA(
+            isA<CliUsageError>().having(
+              (error) => error.message,
+              'message',
+              contains('--goldens-dir'),
+            ),
+          ),
+        );
+
+        final args = parseCliArgs(<String>[
+          ...base,
+          '--goldens-dir',
+          'baselines',
+          '--update-goldens',
+        ]);
+        expect(args.updateGoldens, isTrue);
+        expect(args.comparesGoldens, isFalse);
+      });
+
+      test('rejects empty golden and frame directories', () {
+        for (final String option in <String>['--goldens-dir', '--frames-dir']) {
+          expect(
+            () => parseCliArgs(<String>[...base, option, '   ']),
+            throwsA(isA<CliUsageError>()),
+            reason: 'accepted $option with an empty value',
+          );
+        }
+      });
+
+      test('channel tolerance accepts inclusive boundaries', () {
+        for (final int value in <int>[0, 255]) {
+          expect(
+            parseCliArgs(<String>[
+              ...base,
+              '--golden-channel-tolerance',
+              '$value',
+            ]).goldenChannelTolerance,
+            value,
+          );
+        }
+      });
+
+      test('channel tolerance rejects invalid values', () {
+        for (final String value in <String>['-1', '256', '8.0', 'many']) {
+          expect(
+            () => parseCliArgs(<String>[
+              ...base,
+              '--golden-channel-tolerance',
+              value,
+            ]),
+            throwsA(isA<CliUsageError>()),
+            reason: 'accepted $value',
+          );
+        }
+      });
+
+      test('maximum difference ratio accepts inclusive boundaries', () {
+        for (final double value in <double>[0.0, 1.0]) {
+          expect(
+            parseCliArgs(<String>[
+              ...base,
+              '--golden-max-diff-ratio',
+              '$value',
+            ]).goldenMaxDiffRatio,
+            value,
+          );
+        }
+      });
+
+      test('maximum difference ratio rejects invalid values', () {
+        for (final String value in <String>[
+          '-0.1',
+          '1.1',
+          'NaN',
+          'Infinity',
+          'many',
+        ]) {
+          expect(
+            () => parseCliArgs(<String>[
+              ...base,
+              '--golden-max-diff-ratio',
+              value,
+            ]),
+            throwsA(isA<CliUsageError>()),
+            reason: 'accepted $value',
+          );
+        }
+      });
+    });
+
     group('--launch', () {
       test('parses with --target; vmUri is null', () {
         final args = parseCliArgs(<String>[
