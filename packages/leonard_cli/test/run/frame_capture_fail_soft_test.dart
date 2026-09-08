@@ -118,22 +118,28 @@ class _LiveRun {
     required this.temp,
     required this.server,
     required this.process,
+    required this.targetProcess,
     required this.outputPath,
     required this.framesDirectory,
-    required this.targetPidPath,
     required Future<String> stdoutText,
     required Future<String> stderrText,
+    required Future<void> targetStdoutDone,
+    required Future<void> targetStderrDone,
   }) : _stdoutText = stdoutText,
-       _stderrText = stderrText;
+       _stderrText = stderrText,
+       _targetStdoutDone = targetStdoutDone,
+       _targetStderrDone = targetStderrDone;
 
   final Directory temp;
   final _ScriptedSwiftInferServer server;
   final Process process;
+  final Process targetProcess;
   final String outputPath;
   final String framesDirectory;
-  final String targetPidPath;
   final Future<String> _stdoutText;
   final Future<String> _stderrText;
+  final Future<void> _targetStdoutDone;
+  final Future<void> _targetStderrDone;
 
   static Future<_LiveRun> start({
     required List<String> screenshots,
@@ -146,32 +152,90 @@ class _LiveRun {
     final _ScriptedSwiftInferServer server =
         await _ScriptedSwiftInferServer.start();
     Process? process;
+    Process? targetProcess;
+    Future<void>? targetStdoutDone;
+    Future<void>? targetStderrDone;
     final String outputPath = p.join(temp.path, 'run.jsonl');
     final String framesDirectory = FileTrajectorySink.framesDirectoryFor(
       outputPath,
     );
     final String targetPath = p.join(temp.path, 'fake_core_target.dart');
-    final String targetPidPath = p.join(temp.path, 'target.pid');
     try {
-      await File(targetPath).writeAsString(
-        _fakeCoreTarget(screenshots: screenshots, targetPidPath: targetPidPath),
-        flush: true,
-      );
+      await File(
+        targetPath,
+      ).writeAsString(_fakeCoreTarget(screenshots: screenshots), flush: true);
       if (blockFramesDirectory) {
         await File(
           framesDirectory,
         ).writeAsString('not a directory', flush: true);
       }
+      targetProcess = await Process.start(Platform.resolvedExecutable, <String>[
+        'run',
+        '--enable-vm-service=0',
+        targetPath,
+      ], workingDirectory: packageRoot);
+      final List<String> targetStdout = <String>[];
+      final List<String> targetStderr = <String>[];
+      final Completer<String> vmServiceReady = Completer<String>();
+      targetStdoutDone = targetProcess.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .forEach((String line) {
+            targetStdout.add(line);
+            final Object? decoded;
+            try {
+              decoded = jsonDecode(line);
+            } on FormatException {
+              return;
+            }
+            if (decoded case <String, dynamic>{
+              'event': 'vm_service_ready',
+              'ws_uri': final String wsUri,
+            }) {
+              if (!vmServiceReady.isCompleted && wsUri.isNotEmpty) {
+                vmServiceReady.complete(wsUri);
+              }
+            }
+          });
+      targetStderrDone = targetProcess.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .forEach(targetStderr.add);
+      unawaited(
+        targetProcess.exitCode.then((int code) {
+          if (!vmServiceReady.isCompleted) {
+            vmServiceReady.completeError(
+              StateError('fake target exited with code $code before ready'),
+            );
+          }
+        }),
+      );
+
+      final String vmUri;
+      try {
+        vmUri = await vmServiceReady.future.timeout(
+          const Duration(seconds: 30),
+        );
+      } on Object catch (cause) {
+        targetProcess.kill(ProcessSignal.sigkill);
+        await targetProcess.exitCode;
+        await targetStdoutDone;
+        await targetStderrDone;
+        throw StateError(
+          'fake target did not emit a registered-extension VM-service URI: '
+          '$cause\nstdout:\n${targetStdout.join('\n')}\n'
+          'stderr:\n${targetStderr.join('\n')}',
+        );
+      }
+      await _waitForLeonardContract(packageRoot: packageRoot, vmUri: vmUri);
+
       process = await Process.start(
         Platform.resolvedExecutable,
         <String>[
           'run',
           p.join(packageRoot, 'bin', 'leonard_cli.dart'),
-          '--launch',
-          '--runner',
-          'dart',
-          '--target',
-          targetPath,
+          '--vm-uri',
+          vmUri,
           '--goal',
           'exercise frame capture',
           '--output',
@@ -191,14 +255,21 @@ class _LiveRun {
         temp: temp,
         server: server,
         process: process,
+        targetProcess: targetProcess,
         outputPath: outputPath,
         framesDirectory: framesDirectory,
-        targetPidPath: targetPidPath,
         stdoutText: process.stdout.transform(utf8.decoder).join(),
         stderrText: process.stderr.transform(utf8.decoder).join(),
+        targetStdoutDone: targetStdoutDone,
+        targetStderrDone: targetStderrDone,
       );
     } on Object {
       process?.kill(ProcessSignal.sigkill);
+      targetProcess?.kill(ProcessSignal.sigkill);
+      await process?.exitCode;
+      await targetProcess?.exitCode;
+      await targetStdoutDone;
+      await targetStderrDone;
       await server.close();
       if (await temp.exists()) await temp.delete(recursive: true);
       rethrow;
@@ -222,19 +293,63 @@ class _LiveRun {
 
   Future<void> dispose() async {
     process.kill(ProcessSignal.sigkill);
-    try {
-      await process.exitCode.timeout(const Duration(seconds: 2));
-    } on TimeoutException {
-      // The target PID below is the remaining process worth terminating.
-    }
-    final File targetPid = File(targetPidPath);
-    if (await targetPid.exists()) {
-      final int? pid = int.tryParse((await targetPid.readAsString()).trim());
-      if (pid != null) Process.killPid(pid, ProcessSignal.sigkill);
-    }
+    targetProcess.kill(ProcessSignal.sigkill);
+    await process.exitCode;
+    await targetProcess.exitCode;
+    await _targetStdoutDone;
+    await _targetStderrDone;
     await server.close();
     if (await temp.exists()) await temp.delete(recursive: true);
   }
+}
+
+Future<void> _waitForLeonardContract({
+  required String packageRoot,
+  required String vmUri,
+}) async {
+  final String driveBin = p.join(packageRoot, 'bin', 'leonard_drive.dart');
+  ProcessResult? finalResult;
+  for (var attempt = 0; attempt < 20; attempt++) {
+    finalResult = await Process.run(Platform.resolvedExecutable, <String>[
+      'run',
+      driveBin,
+      'tools',
+      '--vm-uri',
+      vmUri,
+    ], workingDirectory: packageRoot);
+    if (finalResult.exitCode == 0 &&
+        _reportsLeonardContract(finalResult.stdout as String)) {
+      return;
+    }
+    if (attempt < 19) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+  }
+  throw StateError(
+    'Leonard contract was not ready after 20 attempts\n'
+    'stdout:\n${finalResult?.stdout}\n'
+    'stderr:\n${finalResult?.stderr}',
+  );
+}
+
+bool _reportsLeonardContract(String stdoutText) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(stdoutText);
+  } on FormatException {
+    return false;
+  }
+  if (decoded is! Map<String, dynamic>) return false;
+  final Object? namespaces = decoded['namespaces'];
+  if (namespaces is! List) return false;
+  for (final Object? entry in namespaces) {
+    if (entry is! Map || entry['namespace'] != 'core') continue;
+    final Object? tools = entry['tools'];
+    if (tools is List && tools.contains('wait') && tools.contains('done')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class _ProcessResult {
@@ -316,12 +431,8 @@ class _ScriptedSwiftInferServer {
   Future<void> close() => _server.close(force: true);
 }
 
-String _fakeCoreTarget({
-  required List<String> screenshots,
-  required String targetPidPath,
-}) {
+String _fakeCoreTarget({required List<String> screenshots}) {
   final String encodedScreenshots = screenshots.map(jsonEncode).join(', ');
-  final String encodedPidPath = jsonEncode(targetPidPath);
   return '''
 import 'dart:async';
 import 'dart:convert';
@@ -331,7 +442,6 @@ import 'dart:io';
 Future<void> main() async {
   final List<String> screenshots = <String>[$encodedScreenshots];
   var observationIndex = 0;
-  File($encodedPidPath).writeAsStringSync(pid.toString(), flush: true);
 
   developer.registerExtension('ext.leonard.core.handshake', (_, __) async {
     return developer.ServiceExtensionResponse.result(jsonEncode({
@@ -368,16 +478,32 @@ Future<void> main() async {
       }));
     },
   );
-  for (final String tool in ['wait', 'done']) {
-    developer.registerExtension('ext.leonard.core.\$tool', (_, __) async {
-      return developer.ServiceExtensionResponse.result(jsonEncode({
-        'ok': true,
-        'value': {},
-      }));
-    });
-  }
+  developer.registerExtension('ext.leonard.core.wait', (_, __) async {
+    return developer.ServiceExtensionResponse.result(jsonEncode({
+      'ok': true,
+      'value': {},
+    }));
+  });
+  developer.registerExtension('ext.leonard.core.done', (_, __) async {
+    return developer.ServiceExtensionResponse.result(jsonEncode({
+      'ok': true,
+      'value': {},
+    }));
+  });
 
-  stdout.writeln('FRAME_CAPTURE_TEST_TARGET_READY');
+  final developer.ServiceProtocolInfo serviceInfo =
+      await developer.Service.getInfo();
+  final Uri? vmUri = serviceInfo.serverWebSocketUri;
+  if (vmUri == null) {
+    stderr.writeln('VM service did not expose a WebSocket URI');
+    exitCode = 1;
+    return;
+  }
+  stdout.writeln(jsonEncode({
+    'event': 'vm_service_ready',
+    'ws_uri': vmUri.toString(),
+  }));
+  await stdout.flush();
   Timer.periodic(const Duration(seconds: 1), (_) {});
 }
 ''';
