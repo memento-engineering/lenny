@@ -53,7 +53,6 @@ description: >
     'mutation.md',
   ];
   const List<String> stubNames = <String>[
-    'widget.md',
     'scripted-device.md',
     'hardware.md',
     'oracle.md',
@@ -201,7 +200,7 @@ description: >
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
-  test('the five pending references are exact one-line epic stubs', () {
+  test('the four pending references are exact one-line epic stubs', () {
     const String stub =
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
@@ -291,6 +290,9 @@ description: >
 
   final String plainDartFlutterReference = File(
     p.join(referencesRoot, 'plain-dart-flutter.md'),
+  ).readAsStringSync();
+  final String widgetReference = File(
+    p.join(referencesRoot, 'widget.md'),
   ).readAsStringSync();
 
   test('level 0 pins four hermetic gates to falsifiers and receipts', () {
@@ -405,6 +407,152 @@ description: >
       isNot(contains('Content for this reference is not written yet')),
     );
     expect(plainDartFlutterReference, isNot(contains('/Users/')));
+  });
+
+  test(
+    'level 1 pins one fake setup and one observation equivalence assertion',
+    () {
+      for (final String label in <String>[
+        'Proves:',
+        'Command:',
+        'Falsifier:',
+        'Failure signature:',
+      ]) {
+        expect(
+          RegExp(
+            '^\\*\\*$label\\*\\*',
+            multiLine: true,
+          ).allMatches(widgetReference),
+          hasLength(2),
+          reason: label,
+        );
+      }
+      for (final String label in <String>['Setup:', 'Assertion:']) {
+        expect(
+          RegExp(
+            '^\\*\\*$label\\*\\*',
+            multiLine: true,
+          ).allMatches(widgetReference),
+          hasLength(1),
+          reason: label,
+        );
+      }
+      expect(
+        RegExp(r'assertObservationEquivalent\(').allMatches(widgetReference),
+        hasLength(1),
+      );
+      for (final String command in <String>[
+        '`cd packages/leonard_flutter_test && flutter test '
+            'test/binding_integration_test.dart`',
+        '`cd packages/leonard_riverpod && flutter test '
+            'test/unit/extension/riverpod_perception_equivalence_test.dart`',
+      ]) {
+        expect(widgetReference, contains(command), reason: command);
+      }
+      for (final String setup in <String>[
+        "import 'package:leonard_flutter_test/leonard_flutter_test.dart';",
+        'late LeonardBinding binding;',
+        'late BindingVmServiceFake fake;',
+        'binding = LeonardBinding.ensureInitialized(',
+        'extensions: <LeonardExtension>[_SampleEchoExtension()],',
+        'await Future<void>.delayed(Duration.zero);',
+        'fake = BindingVmServiceFake(binding);',
+        'await fake.dispose();',
+      ]) {
+        expect(widgetReference, contains(setup), reason: setup);
+      }
+      for (final String falsifier in <String>[
+        "ToolResult(ok: true, value: 'wrong')",
+        "'extensions': <String, Object?>{},",
+      ]) {
+        expect(widgetReference, contains(falsifier), reason: falsifier);
+      }
+      for (final String signature in <String>[
+        "Expected: 'hello'",
+        "Actual: 'wrong'",
+        'extension "riverpod" fragment must match between legacy and '
+            'perception paths',
+      ]) {
+        expect(widgetReference, contains(signature), reason: signature);
+      }
+      for (final String cite in <String>[
+        'packages/leonard_flutter/example/diagnostic_fixture/test/'
+            'diagnostic_fixture_test.dart:15-22',
+        'packages/leonard_flutter/example/diagnostic_fixture/test/'
+            'diagnostic_fixture_test.dart:44-68',
+        'packages/leonard_flutter_test/lib/leonard_flutter_test.dart:1-5',
+        'packages/leonard_flutter_test/lib/src/'
+            'binding_vm_service_fake.dart:34-39',
+        'packages/leonard_flutter_test/test/'
+            'binding_integration_test.dart:120-149',
+        'packages/leonard_flutter_test/test/'
+            'binding_integration_test.dart:42-65',
+        'packages/leonard_flutter_test/test/'
+            'binding_integration_test.dart:38-39',
+        'packages/leonard_flutter_test/lib/src/'
+            'observation_equivalence.dart:5-37',
+        'packages/leonard_riverpod/test/unit/extension/'
+            'riverpod_perception_equivalence_test.dart:154-180',
+        'packages/leonard_riverpod/test/unit/extension/'
+            'riverpod_perception_equivalence_test.dart:178',
+      ]) {
+        expect(widgetReference, contains(cite), reason: cite);
+      }
+    },
+  );
+
+  test('level 1 names two false-negative console signatures', () {
+    expect(
+      RegExp(
+        r'^### False negative \d+ —',
+        multiLine: true,
+      ).allMatches(widgetReference),
+      hasLength(2),
+    );
+    for (final String signature in <String>[
+      'Bad state: LeonardBinding cannot be installed: another WidgetsBinding '
+          '(AutomatedTestWidgetsFlutterBinding) is already active.',
+      'All tests passed!',
+    ]) {
+      expect(widgetReference, contains(signature), reason: signature);
+    }
+    for (final String evidence in <String>[
+      'AutomatedTestWidgetsFlutterBinding',
+      'IntegrationTestWidgetsFlutterBinding',
+      'legacyExtensions.keys',
+      'packages/leonard_flutter/lib/src/binding/'
+          'leonard_binding.dart:180-187',
+      'packages/leonard_flutter/lib/src/binding/leonard_binding.dart:185',
+      'packages/leonard_flutter/test/unit/binding/'
+          'binding_conflict_test.dart:6-22',
+      'packages/leonard_flutter_test/lib/src/'
+          'observation_equivalence.dart:24-37',
+    ]) {
+      expect(widgetReference, contains(evidence), reason: evidence);
+    }
+  });
+
+  test('level 1 escalates live observables to scripted device', () {
+    for (final String limitation in <String>[
+      'real VM-service discovery or transport',
+      'isolate selection',
+      'engine-backed rendering',
+      'real input',
+      'platform channels',
+      'device OS behavior',
+      'level 2',
+      'references/scripted-device.md',
+      'simulator or emulator',
+      'grid_assets/leonard_grid_assets/extension/station_overlay/claude/'
+          'skills/test-with-leonard/SKILL.md:19',
+    ]) {
+      expect(widgetReference, contains(limitation), reason: limitation);
+    }
+    expect(
+      widgetReference,
+      isNot(contains('Content for this reference is not written yet')),
+    );
+    expect(widgetReference, isNot(contains('/Users/')));
   });
 
   final String reference = File(
