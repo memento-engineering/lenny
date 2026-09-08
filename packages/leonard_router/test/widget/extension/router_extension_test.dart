@@ -110,6 +110,7 @@ void main() {
     expect(r.value, {
       'route_name': '/settings',
       'effective_route': '/settings',
+      'effective_route_status': 'observed',
     });
     await t.pumpAndSettle();
     final f = _harvest(p);
@@ -129,7 +130,7 @@ void main() {
   testWidgets('navigate uses the navigation seam when provided', (t) async {
     String? gotName;
     Map<String, Object?>? gotArgs;
-    final p = RouterExtension(
+    final p = _FakeCountingRouterExtension(
       navigatorKey: GlobalKey<NavigatorState>(),
       navigate: (name, args) async {
         gotName = name;
@@ -144,10 +145,42 @@ void main() {
     await t.pump();
     final r = await invocation;
     expect(r.ok, isTrue);
-    expect(r.value, {'route_name': 'settings', 'effective_route': null});
+    expect(r.value, {
+      'route_name': 'settings',
+      'effective_route': null,
+      'effective_route_status': 'unobserved',
+    });
+    expect(p.readSnapshotCalls, 1);
     expect(gotName, 'settings');
     expect(gotArgs, {'tab': 'profile'});
   });
+
+  testWidgets(
+    'navigate times out frame observation without reading a snapshot',
+    (t) async {
+      final p = _FakeCountingRouterExtension(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        routerDelegate: _FakeDelegate('/pre-redirect'),
+        navigate: (name, args) async {},
+      );
+      final stopwatch = Stopwatch()..start();
+
+      final ToolResult r = (await t.runAsync(
+        () => p.tools.single.call({'route_name': 'settings'}),
+      ))!;
+      stopwatch.stop();
+
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+      expect(r.ok, isTrue);
+      expect(r.value, {
+        'route_name': 'settings',
+        'effective_route': null,
+        'effective_route_status': 'frame_timeout',
+      });
+      expect(p.readSnapshotCalls, 0);
+    },
+    timeout: const Timeout(Duration(seconds: 2)),
+  );
 
   testWidgets(
     'navigate reports redirected effective route from shared snapshot',
@@ -170,7 +203,11 @@ void main() {
       final r = await invocation;
 
       expect(r.ok, isTrue);
-      expect(r.value, {'route_name': 'settings', 'effective_route': '/login'});
+      expect(r.value, {
+        'route_name': 'settings',
+        'effective_route': '/login',
+        'effective_route_status': 'observed',
+      });
       expect(p.readSnapshotCalls, 1);
 
       final f = _harvest(p);
@@ -205,7 +242,11 @@ void main() {
     await t.pump();
     final r = await invocation;
     expect(r.ok, isTrue);
-    expect(r.value, {'route_name': '/settings', 'effective_route': '/'});
+    expect(r.value, {
+      'route_name': '/settings',
+      'effective_route': '/',
+      'effective_route_status': 'observed',
+    });
     expect(seamCalled, isTrue);
     // The seam handled navigation; Navigator-1.0 pushNamed must NOT have run,
     // so the Navigator stack is untouched (still at root).
@@ -219,14 +260,9 @@ void main() {
       navigatorKey: GlobalKey<NavigatorState>(),
     ).tools.single;
     final schema = tool.inputSchema.raw;
-    final properties = schema['properties']! as Map<String, Object?>;
-    final routeName = properties['route_name']! as Map<String, Object?>;
     final description = tool.description.toLowerCase();
-    final schemaDescription = <String>[
-      schema['description']! as String,
-      routeName['description']! as String,
-    ].join(' ').toLowerCase();
-    final semantics = allOf(
+    final schemaDescription = (schema['description']! as String).toLowerCase();
+    final navigationSemantics = allOf(
       contains('request'),
       contains('nullable'),
       contains('effective_route'),
@@ -234,9 +270,15 @@ void main() {
       contains('ok'),
       contains('true'),
     );
+    final statusSemantics = allOf(
+      contains('effective_route_status'),
+      contains('observed'),
+      contains('unobserved'),
+      contains('frame_timeout'),
+    );
 
-    expect(description, semantics);
-    expect(schemaDescription, semantics);
+    expect(description, allOf(navigationSemantics, statusSemantics));
+    expect(schemaDescription, allOf(navigationSemantics, statusSemantics));
   });
 
   test('declarative-only: reads RouterDelegate.currentConfiguration', () async {
