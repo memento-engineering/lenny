@@ -52,11 +52,7 @@ description: >
     'triage.md',
     'mutation.md',
   ];
-  const List<String> stubNames = <String>[
-    'scripted-device.md',
-    'oracle.md',
-    'triage.md',
-  ];
+  const List<String> stubNames = <String>['scripted-device.md', 'triage.md'];
   const List<String> gotchaBullets = <String>[
     '* `SessionOutcome.done` is the MODEL calling `core.done`. It is a '
         'self-report, not an oracle. A test whose only assertion is '
@@ -199,7 +195,7 @@ description: >
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
-  test('the three pending references are exact one-line epic stubs', () {
+  test('the two pending references are exact one-line epic stubs', () {
     const String stub =
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
@@ -295,6 +291,9 @@ description: >
   ).readAsStringSync();
   final String hardwareReference = File(
     p.join(referencesRoot, 'hardware.md'),
+  ).readAsStringSync();
+  final String oracleReference = File(
+    p.join(referencesRoot, 'oracle.md'),
   ).readAsStringSync();
 
   test('level 0 pins four hermetic gates to falsifiers and receipts', () {
@@ -688,6 +687,130 @@ description: >
     );
     expect(hardwareReference, isNot(contains('/Users/')));
   });
+
+  test('level 4 pins two independent gauntlet verdicts', () {
+    for (final String label in <String>[
+      'Proves:',
+      'Command:',
+      'Falsifier:',
+      'Failure signature:',
+    ]) {
+      expect(
+        RegExp(
+          '^\\*\\*$label\\*\\*',
+          multiLine: true,
+        ).allMatches(oracleReference),
+        hasLength(2),
+        reason: label,
+      );
+    }
+    for (final String command in <String>[
+      '`cd packages/leonard_flutter/example/sample_app && flutter test '
+          'test/gauntlet/gauntlet_live_harness_test.dart --plain-name '
+          "'settle/decorative-motion passes only when goal_reached is true'`",
+      '`cd packages/leonard_flutter/example/sample_app && flutter test '
+          'test/gauntlet/gauntlet_live_harness_test.dart --plain-name '
+          "'answer verdict rejects a mismatched reported value'`",
+    ]) {
+      expect(oracleReference, contains(command), reason: command);
+    }
+    for (final String evidence in <String>[
+      'GauntletLiveHarness',
+      'GauntletDriver',
+      'GauntletOracleReader',
+      'reported',
+      'goal_reached',
+      'expected',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:7-11',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:70-97',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:100-107',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:100-164',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:120-148',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:130-134',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness.dart:151-163',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness_test.dart:67-97',
+      'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+          'gauntlet_live_harness_test.dart:99-169',
+      'Return `goal_reached: false` from the private reader after the driver '
+          'finishes.',
+      'Report `count: 9` while the private expected value is `count: 8`.',
+      'Bad state: settle/decorative-motion: goal_reached is false',
+      'Bad state: vision/count-spatial: answer mismatch for count',
+    ]) {
+      expect(oracleReference, contains(evidence), reason: evidence);
+    }
+  });
+
+  test('level 4 keeps the oracle outside the driving observation', () {
+    for (final String evidence in <String>[
+      'ScenarioOracleState',
+      'ext.gauntlet.oracle',
+      'ext.flutter.exploration.*',
+      'contributes no observation fragment',
+      'driving agent',
+      'observation bundle',
+      'An observation leak invalidates the oracle.',
+      'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+          'scenario_oracle.dart:6-13',
+      'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+          'scenario_oracle.dart:15',
+      'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+          'scenario_oracle.dart:23-55',
+      'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+          'scenario_oracle.dart:65-103',
+      'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+          'scenario_oracle.dart:79',
+      'packages/leonard_flutter/example/sample_app/lib/main.dart:18-20',
+    ]) {
+      expect(oracleReference, contains(evidence), reason: evidence);
+    }
+  });
+
+  test(
+    'level 4 separates self-report from evidence and names its boundary',
+    () {
+      for (final String evidence in <String>[
+        'SessionOutcome.done',
+        'self-report',
+        'an observation must prove the completion claim',
+        'packages/leonard_agent/lib/src/loop_driver/loop_driver.dart:450',
+        'packages/leonard_agent/lib/src/loop_driver/loop_driver.dart:482-489',
+        'packages/leonard_agent/lib/src/loop_driver/types.dart:66-68',
+        'docs/decisions/'
+            '2026-09-01-a4-core-done-is-gated-by-a-scenario-declared-'
+            'reason-form.md:21-33',
+        'docs/decisions/'
+            '2026-09-01-a5-core-done-is-additionally-gated-by-an-observed-'
+            'evidence-p.md:21-37',
+        'not worth',
+        'cheapest level',
+        'per-scenario app instrumentation',
+        'running app and VM service',
+        'separate grader maintenance',
+        'uninstrumented or subjective goal',
+        'stale or wrong ground truth',
+        'packages/leonard_flutter/example/sample_app/lib/gauntlet/'
+            'scenario_oracle.dart:105-167',
+        'packages/leonard_flutter/example/sample_app/test/gauntlet/'
+            'gauntlet_live_harness.dart:135-163',
+      ]) {
+        expect(oracleReference, contains(evidence), reason: evidence);
+      }
+      expect(
+        oracleReference,
+        isNot(contains('Content for this reference is not written yet')),
+      );
+      expect(oracleReference, isNot(contains('/Users/')));
+    },
+  );
 
   final String reference = File(
     p.join(referencesRoot, 'mutation.md'),
