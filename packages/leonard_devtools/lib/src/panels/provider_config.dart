@@ -453,6 +453,7 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
           DropdownButtonFormField<String>(
             key: const Key('providerForm.providerSelect'),
             initialValue: _config.id,
+            isExpanded: true,
             decoration: const InputDecoration(labelText: 'Provider'),
             items: const <DropdownMenuItem<String>>[
               DropdownMenuItem(
@@ -460,7 +461,13 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
                 child: Text('swift-infer'),
               ),
               DropdownMenuItem(value: 'anthropic', child: Text('anthropic')),
-              DropdownMenuItem(value: 'openai', child: Text('openai')),
+              DropdownMenuItem(
+                value: 'openai',
+                enabled: false,
+                child: Text(
+                  'openai — disabled in browsers; use a proxy through Base URL override',
+                ),
+              ),
             ],
             onChanged: _switchProvider,
           ),
