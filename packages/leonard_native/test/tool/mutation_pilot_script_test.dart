@@ -108,6 +108,12 @@ exit 70
         log.readAsStringSync(),
         contains('/artifacts/mutation/leonard_native/full/leonard_native.lcov'),
       );
+      final String normalizedCoverage = File(
+        '${sandbox.path}/artifacts/mutation/leonard_native/full/'
+        'leonard_native.lcov',
+      ).readAsStringSync();
+      expect(normalizedCoverage, 'SF:lib/a.dart\n');
+      expect(normalizedCoverage, isNot(contains('SF:lib/lib/a.dart')));
     },
   );
 
