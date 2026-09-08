@@ -130,8 +130,7 @@ void main() {
                       textField: true,
                       child: TextFormField(
                         controller: ctrl,
-                        onChanged: (value) =>
-                            set(() => email = value.trim()),
+                        onChanged: (value) => set(() => email = value.trim()),
                         onFieldSubmitted: (_) => submitted++,
                       ),
                     ),
@@ -163,8 +162,11 @@ void main() {
 
       expect(r.ok, isTrue, reason: r.error);
       expect(ctrl.text, 'user@example.com');
-      expect(email, 'user@example.com',
-          reason: 'onChanged must fire so app state updates');
+      expect(
+        email,
+        'user@example.com',
+        reason: 'onChanged must fire so app state updates',
+      );
       // The onChanged-gated button is now enabled and tap-able.
       await tester.pump();
       expect(nextButton?.onPressed, isNotNull);

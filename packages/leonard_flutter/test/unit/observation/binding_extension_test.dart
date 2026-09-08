@@ -49,7 +49,6 @@ class _ExtensionB extends LeonardExtension with PerceptionExtension {
   Future<void> dispose() async {}
 }
 
-
 /// Perception extension that always reports idle — its fragment/subtree
 /// must be OMITTED from both observation and diagnostics.
 class _IdleExtension extends LeonardExtension with PerceptionExtension {
@@ -273,96 +272,84 @@ void main() {
       expect(binding.debugHasRegisteredExtension(_diagExt), isTrue);
     });
 
-    test(
-      'on-demand tree: contract 1, UTC stamp, root identity, core-first '
-      'registry order, idle omission, throw isolation',
-      () async {
-        if (!kDebugMode) return;
-        await Future<void>.delayed(Duration.zero);
+    test('on-demand tree: contract 1, UTC stamp, root identity, core-first '
+        'registry order, idle omission, throw isolation', () async {
+      if (!kDebugMode) return;
+      await Future<void>.delayed(Duration.zero);
+      final String body = await binding.invokeServiceExtension(
+        _diagExt,
+        const <String, String>{},
+      );
+      final Map<String, Object?> out = jsonDecode(body) as Map<String, Object?>;
+      expect(out['truncated'], isFalse);
+      final TreeSnapshot snap = TreeSnapshot.fromJson(
+        (out['diagnostics_tree']! as Map).cast<String, Object?>(),
+      );
+      expect(snap.contractVersion, 1);
+      expect(snap.projectedAt.isUtc, isTrue);
+      expect(snap.root.seedType, 'LeonardObservation');
+      expect(snap.root.id, 'leonard:observation');
+      // Core first, then registry order (a, b, oversized). The idle
+      // extension is omitted; the throwing extension is isolated (no
+      // subtree, but the call still succeeded).
+      final List<TreeNode> children = snap.root.children;
+      expect(children, hasLength(4));
+      expect(
+        _propertyNames(children[0]),
+        containsAll(<String>['semantics', 'routes', 'errors', 'stability']),
+      );
+      expect(_propertyNames(children[1]), contains('extensionA'));
+      expect(_propertyNames(children[2]), contains('extensionB'));
+      expect(_propertyNames(children[3]), contains('payload'));
+      for (final TreeNode child in children) {
+        expect(_propertyNames(child), isNot(contains('neverEmitted')));
+      }
+    });
+
+    test('low budget truncates from the tail; root stays decodable', () async {
+      if (!kDebugMode) return;
+      await Future<void>.delayed(Duration.zero);
+      final String fullBody = await binding.invokeServiceExtension(
+        _diagExt,
+        const <String, String>{},
+      );
+      final Map<String, Object?> fullOut =
+          jsonDecode(fullBody) as Map<String, Object?>;
+      expect(fullOut['truncated'], isFalse);
+      final TreeSnapshot full = TreeSnapshot.fromJson(
+        (fullOut['diagnostics_tree']! as Map).cast<String, Object?>(),
+      );
+      final int fullBytes = utf8.encode(jsonEncode(full.toJson())).length;
+      try {
+        binding.debugSetDiagnosticsBudgetForTesting(fullBytes - 1);
         final String body = await binding.invokeServiceExtension(
           _diagExt,
           const <String, String>{},
         );
         final Map<String, Object?> out =
             jsonDecode(body) as Map<String, Object?>;
-        expect(out['truncated'], isFalse);
+        expect(out['truncated'], isTrue);
+        // The truncated payload must still decode under contract 1 —
+        // whole extension subtrees were dropped from the tail, never
+        // replaced with a marker blob.
         final TreeSnapshot snap = TreeSnapshot.fromJson(
           (out['diagnostics_tree']! as Map).cast<String, Object?>(),
         );
         expect(snap.contractVersion, 1);
-        expect(snap.projectedAt.isUtc, isTrue);
         expect(snap.root.seedType, 'LeonardObservation');
         expect(snap.root.id, 'leonard:observation');
-        // Core first, then registry order (a, b, oversized). The idle
-        // extension is omitted; the throwing extension is isolated (no
-        // subtree, but the call still succeeded).
-        final List<TreeNode> children = snap.root.children;
-        expect(children, hasLength(4));
-        expect(
-          _propertyNames(children[0]),
-          containsAll(<String>['semantics', 'routes', 'errors', 'stability']),
-        );
-        expect(_propertyNames(children[1]), contains('extensionA'));
-        expect(_propertyNames(children[2]), contains('extensionB'));
-        expect(_propertyNames(children[3]), contains('payload'));
-        for (final TreeNode child in children) {
-          expect(_propertyNames(child), isNot(contains('neverEmitted')));
-        }
-      },
-    );
-
-    test(
-      'low budget truncates from the tail; root stays decodable',
-      () async {
-        if (!kDebugMode) return;
-        await Future<void>.delayed(Duration.zero);
-        final String fullBody = await binding.invokeServiceExtension(
-          _diagExt,
-          const <String, String>{},
-        );
-        final Map<String, Object?> fullOut =
-            jsonDecode(fullBody) as Map<String, Object?>;
-        expect(fullOut['truncated'], isFalse);
-        final TreeSnapshot full = TreeSnapshot.fromJson(
-          (fullOut['diagnostics_tree']! as Map).cast<String, Object?>(),
-        );
-        final int fullBytes = utf8
-            .encode(jsonEncode(full.toJson()))
-            .length;
-        try {
-          binding.debugSetDiagnosticsBudgetForTesting(fullBytes - 1);
-          final String body = await binding.invokeServiceExtension(
-            _diagExt,
-            const <String, String>{},
-          );
-          final Map<String, Object?> out =
-              jsonDecode(body) as Map<String, Object?>;
-          expect(out['truncated'], isTrue);
-          // The truncated payload must still decode under contract 1 —
-          // whole extension subtrees were dropped from the tail, never
-          // replaced with a marker blob.
-          final TreeSnapshot snap = TreeSnapshot.fromJson(
-            (out['diagnostics_tree']! as Map).cast<String, Object?>(),
-          );
-          expect(snap.contractVersion, 1);
-          expect(snap.root.seedType, 'LeonardObservation');
-          expect(snap.root.id, 'leonard:observation');
+        expect(snap.root.children.length, lessThan(full.root.children.length));
+        if (snap.root.children.isNotEmpty) {
+          // Core-first survives truncation.
           expect(
-            snap.root.children.length,
-            lessThan(full.root.children.length),
+            _propertyNames(snap.root.children.first),
+            containsAll(<String>['semantics', 'stability']),
           );
-          if (snap.root.children.isNotEmpty) {
-            // Core-first survives truncation.
-            expect(
-              _propertyNames(snap.root.children.first),
-              containsAll(<String>['semantics', 'stability']),
-            );
-          }
-        } finally {
-          binding.debugSetDiagnosticsBudgetForTesting(kCoreBudgetBytes);
         }
-      },
-    );
+      } finally {
+        binding.debugSetDiagnosticsBudgetForTesting(kCoreBudgetBytes);
+      }
+    });
 
     test('budget setter rejects non-positive values', () {
       expect(

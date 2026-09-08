@@ -4,8 +4,6 @@ import 'package:leonard_flutter/leonard_flutter.dart'
     show LeonardBinding, LeonardExtension;
 
 void main() {
-  LeonardBinding.ensureInitialized(
-    extensions: const <LeonardExtension>[],
-  );
+  LeonardBinding.ensureInitialized(extensions: const <LeonardExtension>[]);
   runApp(const LeonardDevToolsExtension());
 }
