@@ -26,6 +26,18 @@ Level 0 is the default when static checks or hermetic Dart and Flutter tests can
 
 **Measured receipt:** On the 2026-09-08 base, the command reported `+2: All tests passed!`.
 
+## Flutter-package unit behavior
+
+**Proves:** `RouterPerception` reads a `RouteSnapshot` through `RouteSnapshotAnchor` and serializes the exact populated and defensive-empty router maps without constructing a widget or installing a binding (`packages/leonard_router/lib/src/router_perception.dart:21-33`, `packages/leonard_router/lib/src/router_perception.dart:42-49`, and `packages/leonard_router/test/unit/observation/router_perception_test.dart:9-52`).
+
+**Command:** `cd packages/leonard_router && flutter test test/unit/observation/router_perception_test.dart`
+
+**Falsifier:** Replace `RouteSnapshot? read() => _extension.readSnapshot();` with `RouteSnapshot? read() => null;`.
+
+**Failure signature:** `snapshot becomes the exact router perception shape` reports that the expected populated route map was replaced by null `current_route_name` and `arguments` plus an empty `stack`.
+
+**Measured receipt:** On the 2026-09-08 base, the command reported `+2: All tests passed!`.
+
 ## Flutter widget and golden behavior
 
 **Proves:** The router perception emits the expected route fields and stays byte-equivalent to its committed golden. The producer and tests are at `packages/leonard_router/lib/src/router_perception.dart:21-33` and `packages/leonard_router/test/widget/extension/router_perception_equivalence_test.dart:82-171`.
@@ -54,4 +66,4 @@ Level 0 is the default when static checks or hermetic Dart and Flutter tests can
 
 Unit, widget, and golden checks cannot observe real rendering on a device, real gestures, real platform channels, or anything requiring a live VM service. Escalate when the behavior depends on any of those observables.
 
-Level 0 does not use lenny. Use `package:integration_test` as the level-0 exception when Flutter owns the integration run and lenny is absent. The moment lenny participates, leave level 0 and follow the router; its binding constraint is already recorded at `grid_assets/leonard_grid_assets/extension/station_overlay/claude/skills/test-with-leonard/SKILL.md:30`.
+Testing Leonard packages or types hermetically stays at level 0; level 0 does not launch or drive a running app with Leonard. Use `package:integration_test` as the level-0 exception when Flutter owns the integration run and Leonard is absent. The moment Leonard drives the running app, leave level 0 and follow the router; its binding constraint is already recorded at `grid_assets/leonard_grid_assets/extension/station_overlay/claude/skills/test-with-leonard/SKILL.md:30`.

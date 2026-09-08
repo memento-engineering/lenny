@@ -158,9 +158,10 @@ description: >
     }
 
     for (final String row in <String>[
-      '| none (level 0) | Can a widget test or golden prove it? | Read '
-          '`references/plain-dart-flutter.md` when a widget test or golden can '
-          'prove it. |',
+      '| none (level 0) | Can a static check or hermetic Dart unit, widget, or '
+          'golden test prove it? | Read `references/plain-dart-flutter.md` '
+          'when a static check or hermetic Dart unit, widget, or golden test '
+          'can prove it. |',
       '| widget/unit | Does the test need no device because it covers an '
           'extension or observation? | Read `references/widget.md` when no '
           'device is required and the test covers an extension or '
@@ -192,6 +193,15 @@ description: >
     for (final String name in mentionedReferences) {
       expect(File(p.join(referencesRoot, name)).existsSync(), isTrue);
     }
+    final List<String> actualReferenceNames =
+        Directory(referencesRoot)
+            .listSync()
+            .whereType<File>()
+            .map((File file) => p.basename(file.path))
+            .toList()
+          ..sort();
+    final List<String> expectedReferenceNames = referenceNames.toList()..sort();
+    expect(actualReferenceNames, expectedReferenceNames);
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
@@ -296,7 +306,7 @@ description: >
     p.join(referencesRoot, 'oracle.md'),
   ).readAsStringSync();
 
-  test('level 0 pins four hermetic gates to falsifiers and receipts', () {
+  test('level 0 pins five hermetic gates to falsifiers and receipts', () {
     for (final String label in <String>[
       'Proves:',
       'Command:',
@@ -309,7 +319,7 @@ description: >
           '^\\*\\*$label\\*\\*',
           multiLine: true,
         ).allMatches(plainDartFlutterReference),
-        hasLength(4),
+        hasLength(5),
         reason: label,
       );
     }
@@ -317,6 +327,8 @@ description: >
       '`dart analyze`',
       '`cd packages/leonard_contract && dart test '
           'test/strike_counter_test.dart`',
+      '`cd packages/leonard_router && flutter test '
+          'test/unit/observation/router_perception_test.dart`',
       '`cd packages/leonard_router && flutter test '
           'test/widget/extension/router_perception_equivalence_test.dart`',
       '`./tool/check_no_dart_io.sh`',
@@ -341,6 +353,9 @@ description: >
       'packages/leonard_contract/lib/src/strike_counter.dart:11-18',
       'packages/leonard_contract/test/strike_counter_test.dart:5-31',
       'packages/leonard_router/lib/src/router_perception.dart:21-33',
+      'packages/leonard_router/lib/src/router_perception.dart:42-49',
+      'packages/leonard_router/test/unit/observation/'
+          'router_perception_test.dart:9-52',
       'packages/leonard_router/test/widget/extension/'
           'router_perception_equivalence_test.dart:82-171',
       'tool/check_no_dart_io.sh:18-70',
@@ -352,6 +367,7 @@ description: >
     for (final String falsifier in <String>[
       "`int _consecutive = 'zero';`",
       '`void recordSuccess() => _consecutive++;`',
+      '`RouteSnapshot? read() => _extension.readSnapshot();`',
       "`Field('currentRouteName', snap?.currentRouteName)`",
       "`import 'dart:io';`",
     ]) {
@@ -361,6 +377,8 @@ description: >
       'invalid_assignment',
       'Expected: false',
       'Actual: <true>',
+      'snapshot becomes the exact router perception shape',
+      'null `current_route_name` and `arguments` plus an empty `stack`',
       'missing `current_route_name` expectation',
       'golden JSON mismatch',
       'ERROR: packages/leonard_agent/lib must not import dart:io',
@@ -378,9 +396,18 @@ description: >
     ]) {
       expect(plainDartFlutterReference, contains(receipt), reason: receipt);
     }
+    expect(
+      RegExp(
+        RegExp.escape(
+          'On the 2026-09-08 base, the command reported '
+          '`+2: All tests passed!`.',
+        ),
+      ).allMatches(plainDartFlutterReference),
+      hasLength(2),
+    );
   });
 
-  test('level 0 marks the live boundary and integration exception', () {
+  test('level 0 keeps hermetic Leonard code below the live boundary', () {
     for (final String limitation in <String>[
       'real rendering on a device',
       'real gestures',
@@ -394,8 +421,24 @@ description: >
       );
     }
     expect(plainDartFlutterReference, contains('package:integration_test'));
-    expect(plainDartFlutterReference, contains('lenny is absent'));
-    expect(plainDartFlutterReference, contains('leave level 0'));
+    for (final String boundary in <String>[
+      'Testing Leonard packages or types hermetically stays at level 0; level '
+          '0 does not launch or drive a running app with Leonard.',
+      'Use `package:integration_test` as the level-0 exception when Flutter '
+          'owns the integration run and Leonard is absent.',
+      'The moment Leonard drives the running app, leave level 0 and follow the '
+          'router;',
+    ]) {
+      expect(plainDartFlutterReference, contains(boundary), reason: boundary);
+    }
+    expect(
+      plainDartFlutterReference,
+      isNot(contains('Level 0 does not use lenny.')),
+    );
+    expect(
+      plainDartFlutterReference,
+      isNot(contains('The moment lenny participates')),
+    );
     expect(
       plainDartFlutterReference,
       contains(
