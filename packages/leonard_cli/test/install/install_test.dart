@@ -37,16 +37,9 @@ void main() {
       ).existsSync(),
       isTrue,
     );
-    final File mutationReference = File(
-      '${tmp.path}/.agents/skills/test-with-leonard/'
-      'references/mutation.md',
-    );
-    expect(mutationReference.existsSync(), isTrue);
     expect(
-      mutationReference.readAsStringSync(),
-      contains(
-        'Before writing an assertion, name the single-line source change',
-      ),
+      Directory('${tmp.path}/.agents/skills/test-with-leonard').existsSync(),
+      isFalse,
     );
     expect(
       File('${tmp.path}/.agents/agents/leonard-drive.agent.md').existsSync(),
@@ -116,14 +109,9 @@ void main() {
         ).existsSync(),
         isTrue,
       );
-      final File mutationReference = File(
-        '${tmp.path}/.claude/skills/test-with-leonard/'
-        'references/mutation.md',
-      );
-      expect(mutationReference.existsSync(), isTrue);
       expect(
-        mutationReference.readAsStringSync(),
-        contains('542 mutants, 215 survivors, 60.33% killed'),
+        Directory('${tmp.path}/.claude/skills/test-with-leonard').existsSync(),
+        isFalse,
       );
     },
   );
