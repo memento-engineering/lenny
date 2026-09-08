@@ -497,22 +497,11 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       });
     }
     if (kDebugMode || kProfileMode) {
-      developer.registerExtension('$kLeonardExtensionPrefix.core.screenshot', (
-        String method,
-        Map<String, String> params,
-      ) async {
-        try {
-          final ScreenshotResult result = await captureScreenshot(this);
-          return developer.ServiceExtensionResponse.result(
-            jsonEncode(<String, dynamic>{'result': result.toJson()}),
-          );
-        } on ScreenshotUnavailable catch (e) {
-          return developer.ServiceExtensionResponse.error(
-            developer.ServiceExtensionResponse.extensionError,
-            jsonEncode(<String, dynamic>{'code': 1, 'message': e.reason}),
-          );
-        }
-      });
+      _registerExtension(
+        '$kLeonardExtensionPrefix.core.screenshot',
+        (String method, Map<String, String> params) =>
+            screenshotServiceExtensionResponse(),
+      );
     }
   }
 
@@ -670,7 +659,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
     Future<String?> screenshotCaptureOrNull() async {
       try {
-        final ScreenshotResult sr = await captureScreenshot(this);
+        final ScreenshotResult sr = await captureScreenshot();
         return sr.pngBase64;
       } on ScreenshotUnavailable {
         return null;
