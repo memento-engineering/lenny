@@ -14,7 +14,7 @@ Read the table top-down and take the first level that can prove the behaviour. L
 
 | Level | Single deciding question | Load |
 | --- | --- | --- |
-| none (level 0) | Can a widget test or golden prove it? | Read `references/plain-dart-flutter.md` when a widget test or golden can prove it. |
+| none (level 0) | Can a static check or hermetic Dart unit, widget, or golden test prove it? | Read `references/plain-dart-flutter.md` when a static check or hermetic Dart unit, widget, or golden test can prove it. |
 | widget/unit | Does the test need no device because it covers an extension or observation? | Read `references/widget.md` when no device is required and the test covers an extension or observation. |
 | scripted device | Does the test need a real Flutter app on a simulator or emulator? | Read `references/scripted-device.md` when the test needs a real Flutter app on a simulator or emulator. |
 | hardware | Does the behaviour exist only on a physical device? | Read `references/hardware.md` when the behaviour exists only on a physical device. |
