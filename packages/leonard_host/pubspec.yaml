@@ -15,7 +15,7 @@ dependencies:
   leonard_contract: ^0.2.2
 
 dev_dependencies:
-  leonard_agent: ^0.2.0
+  leonard_agent: ^0.3.0-rc.1
   lints: ^5.1.0
   test: ^1.25.0
   yaml: ^3.1.3

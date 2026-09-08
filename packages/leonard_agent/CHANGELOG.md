@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0-rc.1
+
+- **Breaking: owning VM-service connections moved to `leonard_agent_io.dart`.**
+  The static `connect` constructors — `VmServiceClient.connect`,
+  `LeonardSession.connect` and `MultiHostSession.connectAll` — are gone from the
+  default, web-safe library. Migration: import
+  `package:leonard_agent/leonard_agent_io.dart` and call the top-level
+  `connectVmServiceClient`, `connectLeonardSession` or `connectMultiHostSession`.
+  A consumer that only wraps an already-connected `VmService`
+  (`VmServiceClient.fromVmService`) is unaffected and stays on
+  `leonard_agent.dart`.
+- Fix: model-response transport faults are classified as retryable failed turns
+  and their diagnostic context carries into the terminal agent-stuck footer. Any
+  exception still escaping the session loop is named and scrubbed, so a harness
+  error is never anonymous.
+- Fix: prior reasoning replays as native thinking blocks in assistant history,
+  so swift-infer populates reasoning content without template-specific marker
+  parsing.
+- Fix: unset sampling overrides are omitted rather than sent; shared driver
+  token and effort defaults are added, with operator overrides.
+- Fix: the swift-infer qwen tier advertises its native context window, and the
+  dogfood harness reads the shared capability registry.
+- Fix: tooltip-only semantics are promoted to labels, distinct tooltips are
+  preserved as hints, and the optional field carries through typed observations,
+  so icon buttons are addressable by drivers.
+- Fix: self-drive completion is gated on observed timeline evidence — a
+  scenario-declared node pattern must match and captured row tokens are
+  cross-checked against the completion reason — and diagnostic evidence is
+  preserved when an observation fails.
+- Raise the `leonard_contract` floor to `^0.2.2`; the declared `^0.2.0` floor was
+  unsatisfiable against this package's own `genesis_perception` range.
+
 ## 0.2.0
 
 - Breaking: VM-service methods now use `ext.leonard.*`. Construct names with

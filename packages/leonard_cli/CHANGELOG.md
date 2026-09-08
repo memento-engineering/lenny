@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0-rc.1
+
+- **Breaking: requires `leonard_agent ^0.3.0-rc.1`** and adopts its I/O
+  entrypoint. Migration for anything embedding this package's library surface:
+  import `package:leonard_agent/leonard_agent_io.dart` for owning connections.
+- Add observation frame goldens: `leonard_drive` persists observation frames and
+  compares them against a stored golden.
+- Add the `test-with-leonard` skill router.
+- Provider model ids are configurable, and driver token and effort defaults are
+  exposed as operator overrides.
+- The portable pure-Dart mutation runner ships with its Flutter delegate; dry
+  output counts as sizing evidence, and zero uncovered mutation lines is accepted
+  rather than failed.
+- Self-drive: completion is gated on observed timeline evidence, a model must be
+  selected before Start, diagnostic evidence survives an observation failure, and
+  panel session markers are durable.
+- Raise the sibling floors to the published wave: `leonard_contract ^0.2.2`,
+  `leonard_host ^0.2.2`, `leonard_native ^0.4.1`.
+
 ## 0.2.1
 
 - `install --copilot` now overlays `.github/agents/` — the location GitHub

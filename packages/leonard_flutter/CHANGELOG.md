@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0-rc.1
+
+- **Breaking: `captureScreenshot` no longer takes a `RendererBinding`.** The
+  exported top-level function is now `captureScreenshot()`, capturing through the
+  stock Flutter inspector screenshot protocol behind one bounded capture path
+  instead of protected `RenderView` layer capture. Migration: drop the argument —
+  `captureScreenshot(binding)` becomes `captureScreenshot()`. Leonard's response
+  and failure envelopes are unchanged, and the extension now registers through
+  the catalog seam. `ScreenshotConfig` gains the inspector capture timeout,
+  object group, and argument builder.
+- Add `core.tap_at`: a strict fractional tap that resolves logical coordinates
+  inside an observed semantics node's rect and drives them through the existing
+  hit-test path. The strict `core.tap` contract is unchanged.
+- Raise the `leonard_contract` floor to `^0.2.2`; the declared `^0.2.0` floor was
+  unsatisfiable against this package's own `genesis_perception` range.
+
 ## 0.3.1
 
 - Fix: `core.enter_text` now enters text through

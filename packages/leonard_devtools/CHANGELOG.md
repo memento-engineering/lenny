@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0-rc.1
+
+- Require `leonard_agent ^0.3.0-rc.1`. This package uses the borrowed
+  `VmServiceClient.fromVmService` path, which is unchanged, but it also consumes
+  `SwiftInferReasoningEffort`, `defaultSwiftInferOptions` and
+  `SwiftInferChatOptions.reasoningEffort`, which exist only from that version.
+- Fix: the panel retains durable self-drive session markers. A monotonic
+  generation is persisted beside terminal run status and the pair renders in the
+  visible status chip, so an inner run that completes between two observations
+  stays detectable.
+- Fix: the browser-only direct OpenAI provider choice is disabled, with a
+  proxy-oriented explanation in its place; persisted proxy configurations remain
+  editable.
+- Raise the `leonard_contract` floor to `^0.2.2`.
+
 ## 0.2.1
 
 - feat: diagnostics tree inspector panel. The single shipped extension now
