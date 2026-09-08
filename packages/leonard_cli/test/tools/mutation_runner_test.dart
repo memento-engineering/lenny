@@ -41,22 +41,28 @@ if [[ "${1:-}" == test ]]; then
 fi
 if [[ "${1:-}" == run && "${2:-}" == mutation_test ]]; then
   echo "mutations: $*"
+  dry=0
   output=""
   previous=""
   for argument in "$@"; do
     if [[ "$previous" == --rules && -f "$argument" ]]; then
       sed -n 's/.* id="\([^"]*\)".*/semantic mutant: \1/p' "$argument"
     fi
+    [[ "$argument" == --dry ]] && dry=1
     [[ "$previous" == --output ]] && output="$argument"
     previous="$argument"
   done
+  if (( dry )); then
+    [[ "${OMIT_DRY_COUNT:-0}" == 1 ]] || echo "Found ${DRY_MUTATIONS:-3} mutations"
+    exit "${DRY_EXIT:-0}"
+  fi
   if [[ -n "$output" ]]; then
+    echo "--- Results ---"
     for report in mutation-test-report.html mutation-test-report.xml mutation-test-report.junit.xml mutation-test-report.xunit.xml mutation-test-report.md; do
       : > "$output/$report"
     done
     exit "${MUTATION_EXIT:-0}"
   fi
-  exit "${DRY_EXIT:-0}"
 fi
 exit 70
 ''');
@@ -171,6 +177,77 @@ exit 70
     expect(baseline.exitCode, 9);
     expect(log.readAsLinesSync(), hasLength(2));
     expect(Directory(output('full')).existsSync(), isFalse);
+  });
+
+  test(
+    'non-dry sizing accepts counted failure and rejects missing or zero counts',
+    () async {
+      final ProcessResult counted = await run(
+        <String>['pr', package.path, '--', 'lib/a.dart'],
+        env: <String, String>{...environment, 'DRY_EXIT': '1'},
+      );
+      expect(
+        counted.exitCode,
+        0,
+        reason: '${counted.stdout}\n${counted.stderr}',
+      );
+      expect(log.readAsLinesSync(), hasLength(3));
+      expect(
+        File('${output('dry')}/console.txt').readAsStringSync(),
+        contains('Found 3 mutations'),
+      );
+      expect(
+        File('${output('pr')}/console.txt').readAsStringSync(),
+        contains('--- Results ---'),
+      );
+
+      log.writeAsStringSync('');
+      final ProcessResult missing = await run(
+        <String>['pr', package.path, '--', 'lib/a.dart'],
+        env: <String, String>{
+          ...environment,
+          'DRY_EXIT': '1',
+          'OMIT_DRY_COUNT': '1',
+        },
+      );
+      expect(missing.exitCode, 70);
+      expect(missing.stderr, contains('dry sizing failed'));
+      expect(log.readAsLinesSync(), hasLength(1));
+
+      log.writeAsStringSync('');
+      final ProcessResult zero = await run(
+        <String>['pr', package.path, '--', 'lib/a.dart'],
+        env: <String, String>{
+          ...environment,
+          'DRY_EXIT': '1',
+          'DRY_MUTATIONS': '0',
+        },
+      );
+      expect(zero.exitCode, 70);
+      expect(zero.stderr, contains('dry sizing failed'));
+      expect(log.readAsLinesSync(), hasLength(1));
+    },
+  );
+
+  test('standalone dry retains reporting and gate policy', () async {
+    final Map<String, String> dryFailure = <String, String>{
+      ...environment,
+      'DRY_EXIT': '1',
+    };
+    final ProcessResult reporting = await run(<String>[
+      'dry',
+      package.path,
+    ], env: dryFailure);
+    expect(reporting.exitCode, 0);
+    expect(reporting.stdout, contains('Reporting only (gating off).'));
+
+    final ProcessResult gated = await run(<String>[
+      'dry',
+      package.path,
+      '--gate',
+    ], env: dryFailure);
+    expect(gated.exitCode, 1);
+    expect(gated.stdout, isNot(contains('Reporting only (gating off).')));
   });
 
   test('pr forwards package-relative files', () async {
