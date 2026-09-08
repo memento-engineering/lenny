@@ -136,10 +136,10 @@ class LoopDriver {
   /// termination; cleared by a successful turn.
   String? _lastFailureDetail;
 
-  /// Failed-action carry-forward. When the previous turn's executed
-  /// action returned `{ok: false}`, the error map is staged here; the
-  /// next turn's [UserTurn] receives it as `toolResult` so the model
-  /// sees the structured failure on its next decide call.
+  /// Prior-action carry-forward. A failed action stages its error map, while
+  /// a successful action stages only a non-empty value map. The next turn's
+  /// [UserTurn] receives it as `toolResult` so the model sees the structured
+  /// result on its next decide call.
   Map<String, dynamic>? _pendingToolResult;
 
   /// Extension auto-disable counter (PRD §17, threshold = 3).
@@ -252,7 +252,7 @@ class LoopDriver {
 
     // step 5: build prompt against the CURRENT merged tool list
     // (auto-disabled extensions already excluded). Append a UserTurn
-    // carrying any pending failed-action carry-forward, trim stale
+    // carrying any pending prior-action result, trim stale
     // observations to stay under the token budget, then snapshot.
     final List<ToolDescriptor> mergedTools = _host.mergedTools();
     _conversation.appendUserTurn(curr, diff, toolResult: _pendingToolResult);
@@ -347,8 +347,8 @@ class LoopDriver {
     );
     await _writer.writeTurn(rec);
 
-    // Append the assistant turn to the conversation; stash any failed-
-    // action error for the next turn's user-turn toolResult.
+    // Append the assistant turn to the conversation; stash any useful prior
+    // action result for the next turn's user-turn toolResult.
     _conversation.appendAssistantTurn(
       v.decision.thinking ?? '',
       v.decision.action,
@@ -358,6 +358,11 @@ class LoopDriver {
       _pendingToolResult = <String, dynamic>{
         'error': err is String ? err : err?.toString() ?? 'unknown',
       };
+    } else if (exec['ok'] == true) {
+      final Object? value = exec['value'];
+      if (value is Map && value.isNotEmpty) {
+        _pendingToolResult = Map<String, dynamic>.from(value);
+      }
     }
     _prev = curr;
 

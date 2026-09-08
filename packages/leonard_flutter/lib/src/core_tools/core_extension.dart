@@ -47,7 +47,7 @@ class CoreToolError implements Exception {
   String toString() => 'CoreToolError($code): $message';
 }
 
-/// Host-installed extension contributing the 11 `core.*` action tools
+/// Host-installed extension contributing the 13 `core.*` action tools
 /// (PRD §12.1).
 ///
 /// The binding registers a single instance of [CoreExtension] BEFORE any
@@ -60,6 +60,8 @@ class CoreExtension extends LeonardExtension {
   CoreExtension({required SemanticsCapture semantics}) : _semantics = semantics;
 
   final SemanticsCapture _semantics;
+
+  final Map<String, String> _scratchpad = <String, String>{};
 
   /// Built lazily on first access; cached so [tools] returns the same
   /// list across calls.
@@ -89,6 +91,7 @@ class CoreExtension extends LeonardExtension {
   /// no in-flight session is ever un-terminated mid-run.
   void resetTermination() {
     _terminated = false;
+    _scratchpad.clear();
   }
 
   /// Internal: lookup a live [SemanticsNode] by stable id, or null.
@@ -123,6 +126,8 @@ class CoreExtension extends LeonardExtension {
       SystemBackTool(this),
       WaitTool(this),
       InspectWidgetTool(this),
+      RememberTool(this, _scratchpad),
+      RecallTool(this, _scratchpad),
       DoneTool(this),
     ];
   }

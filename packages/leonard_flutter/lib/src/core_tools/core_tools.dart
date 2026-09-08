@@ -1,4 +1,4 @@
-/// Internal barrel for the 11 host-owned `core.*` tools.
+/// Internal barrel for the 13 host-owned `core.*` tools.
 ///
 /// Library-private — consumers should reach for [CoreExtension] from
 /// `package:leonard_flutter/leonard_flutter.dart` and read the
@@ -13,4 +13,6 @@ export 'tools/gesture_tool.dart';
 export 'tools/system_back_tool.dart';
 export 'tools/wait_tool.dart';
 export 'tools/inspect_widget_tool.dart';
+export 'tools/remember_tool.dart';
+export 'tools/recall_tool.dart';
 export 'tools/done_tool.dart';

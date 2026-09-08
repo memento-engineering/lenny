@@ -66,6 +66,8 @@ void main() {
         'core.system_back',
         'core.wait',
         'core.inspect_widget',
+        'core.remember',
+        'core.recall',
         'core.done',
       ];
       for (final String k in coreKeys) {
@@ -79,7 +81,7 @@ void main() {
     // `dart:developer.registerExtension` from inside CoreExtension.initialize
     // (ExtensionContext path), not the binding's local
     // `_extensionCallbacks` map. The merged tool map is the
-    // testable surface that proves all 11 tools made it through
+    // testable surface that proves all 13 tools made it through
     // registration end-to-end.
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
@@ -94,6 +96,8 @@ void main() {
       'system_back',
       'wait',
       'inspect_widget',
+      'remember',
+      'recall',
       'done',
     ];
     for (final String tool in tools) {

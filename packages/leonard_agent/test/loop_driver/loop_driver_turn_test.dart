@@ -170,11 +170,39 @@ ToolDescriptor _coreWait() => const ToolDescriptor(
   },
 );
 
+ToolDescriptor _coreRecall() => const ToolDescriptor(
+  name: 'core.recall',
+  description: 'recall a session value',
+  inputSchema: <String, dynamic>{
+    r'$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'key': <String, dynamic>{'type': 'string', 'minLength': 1},
+    },
+    'required': <String>['key'],
+    'additionalProperties': false,
+  },
+);
+
+ToolDescriptor _coreTap() => const ToolDescriptor(
+  name: 'core.tap',
+  description: 'tap a target semantics node',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
+
 LoopDriver _newDriver({
   required _FakeHost host,
   required _FakeProvider provider,
   required TrajectoryWriter writer,
   Duration turnBudget = const Duration(seconds: 30),
+  int tokenBudget = 64000,
 }) {
   return LoopDriver(
     host: host,
@@ -186,6 +214,7 @@ LoopDriver _newDriver({
     validator: const ActionValidator(),
     writer: writer,
     turnBudget: turnBudget,
+    tokenBudget: tokenBudget,
   );
 }
 
@@ -206,6 +235,25 @@ Future<TrajectoryWriter> _newWriter(_MemorySink sink) async {
 }
 
 Observation _emptyObs() => Observation.empty();
+
+Observation _obsWithEnabledTapNode() => const Observation(
+  core: CoreFragment(
+    routeStack: <String>['/'],
+    nodes: <int, SemanticsNode>{
+      1: SemanticsNode(
+        id: 1,
+        role: 'button',
+        label: 'Continue',
+        state: <String>[],
+        actions: <String>['tap'],
+        rect: <int>[0, 0, 100, 50],
+      ),
+    },
+    errors: <RuntimeError>[],
+  ),
+  extensions: <String, ExtensionFragment>{},
+  stability: StabilityMetadata.empty,
+);
 
 Observation _obsWithStability(String terminatedBy) => Observation(
   core: CoreFragment.empty,
@@ -415,6 +463,126 @@ void main() {
               'a bare "failed" with no reason leaves the model unable to '
               'self-correct; the error must reach the next turn',
         );
+      },
+    );
+
+    test('failed action carry-forward remains exactly the error map', () async {
+      final sink = _MemorySink();
+      final writer = await _newWriter(sink);
+      final host = _FakeHost(
+        observations: <Observation>[_emptyObs(), _emptyObs()],
+        tools: <ToolDescriptor>[_coreWait()],
+        executeFn: (tool, args) async => <String, dynamic>{
+          'ok': false,
+          'error': 'exact failure',
+          'value': <String, dynamic>{'ignored': true},
+        },
+      );
+      final provider = _FakeProvider(
+        script: <ModelDecision>[
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+          ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{})),
+        ],
+      );
+      final driver = _newDriver(host: host, provider: provider, writer: writer);
+
+      await driver.runTurn();
+      await driver.runTurn();
+
+      final UserTurn carrier = provider.seenSnapshots[1].turns.last as UserTurn;
+      expect(carrier.toolResult, <String, dynamic>{'error': 'exact failure'});
+    });
+
+    test(
+      'successful non-empty action value carries forward into a trimmed user turn',
+      () async {
+        const String exact = '  42!?\nsecond line\t— café 東京  ';
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithEnabledTapNode(),
+            _obsWithEnabledTapNode(),
+          ],
+          tools: <ToolDescriptor>[_coreRecall(), _coreTap()],
+          executeFn: (tool, args) async => tool == 'core.recall'
+              ? <String, dynamic>{
+                  'ok': true,
+                  'value': <String, dynamic>{'value': exact},
+                }
+              : <String, dynamic>{'ok': true, 'value': <String, dynamic>{}},
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (
+                tool: 'core.recall',
+                args: <String, dynamic>{'key': 'confirmation'},
+              ),
+            ),
+            ModelDecision(
+              action: (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+          tokenBudget: 0,
+        );
+
+        await driver.runTurn();
+        await driver.runTurn();
+
+        final UserTurn carrier =
+            provider.seenSnapshots[1].turns.last as UserTurn;
+        expect(carrier.trimmed, isTrue);
+        expect(carrier.toolResult, <String, dynamic>{'value': exact});
+      },
+    );
+
+    test(
+      'successful core.tap with empty value does not carry forward',
+      () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[
+            _obsWithEnabledTapNode(),
+            _obsWithEnabledTapNode(),
+          ],
+          tools: <ToolDescriptor>[_coreTap(), _coreRecall()],
+          executeFn: (tool, args) async => <String, dynamic>{
+            'ok': true,
+            'value': <String, dynamic>{},
+          },
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (tool: 'core.tap', args: <String, dynamic>{'node_id': 1}),
+            ),
+            ModelDecision(
+              action: (
+                tool: 'core.recall',
+                args: <String, dynamic>{'key': 'confirmation'},
+              ),
+            ),
+          ],
+        );
+        final driver = _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        );
+
+        await driver.runTurn();
+        await driver.runTurn();
+
+        final UserTurn carrier =
+            provider.seenSnapshots[1].turns.last as UserTurn;
+        expect(carrier.toolResult, isNull);
       },
     );
 

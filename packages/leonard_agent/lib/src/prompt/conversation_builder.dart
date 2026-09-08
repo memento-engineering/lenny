@@ -9,6 +9,8 @@
 /// `UserTurn` to stay under a token estimate threshold.
 library;
 
+import 'dart:convert';
+
 import '../observation/diff_models.dart';
 import '../observation/models.dart';
 import '../provider/types.dart';
@@ -28,9 +30,9 @@ class ConversationBuilder {
   final ObservationRenderer _renderer;
   final List<ConversationTurn> _turns = <ConversationTurn>[];
 
-  /// Append a user-role turn. [toolResult] carries a previous turn's
-  /// failed-action error or a schema/validation-retry error map; null
-  /// when this turn was a clean observation.
+  /// Append a user-role turn. [toolResult] carries a previous action result
+  /// or a schema/validation-retry error map; null when this turn was a clean
+  /// observation.
   void appendUserTurn(
     Observation obs,
     ObservationDiff diff, {
@@ -91,6 +93,9 @@ class ConversationBuilder {
         // Conservative flat-rate accounting for a screenshot content
         // block. Better to trim early than overflow.
         if (!t.trimmed && t.observation.screenshot != null) n += 1500;
+        if (t.toolResult != null) {
+          n += jsonEncode(t.toolResult).split(RegExp(r'\s+')).length;
+        }
       } else if (t is AssistantTurn) {
         n += t.thinking.split(RegExp(r'\s+')).length + 10;
       }

@@ -101,6 +101,15 @@ List<ToolDescriptor> _coreToolList() => <ToolDescriptor>[
   _tool('core.gesture', _nodeIdSchema()),
   _tool('core.system_back', _emptyArgsSchema()),
   _tool('core.wait', _emptyArgsSchema()),
+  _tool('core.recall', <String, dynamic>{
+    r'$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': <String>['key'],
+    'properties': <String, dynamic>{
+      'key': <String, dynamic>{'type': 'string', 'minLength': 1},
+    },
+    'additionalProperties': false,
+  }),
   _tool('core.done', _emptyArgsSchema()),
   _tool('router.push', <String, dynamic>{
     r'$schema': 'http://json-schema.org/draft-07/schema#',
@@ -161,6 +170,15 @@ void main() {
       final r = validator.validate(
         (tool: 'router.push', args: <String, dynamic>{'path': '/x'}),
         obs,
+        _coreToolList(),
+      );
+      expect(r, isA<ValidationOk>());
+    });
+
+    test('accepts core.recall without node_id', () {
+      final r = validator.validate(
+        (tool: 'core.recall', args: <String, dynamic>{'key': 'confirmation'}),
+        _obs(const <SemanticsNode>[]),
         _coreToolList(),
       );
       expect(r, isA<ValidationOk>());

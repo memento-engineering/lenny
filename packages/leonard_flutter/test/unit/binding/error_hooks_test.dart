@@ -97,7 +97,7 @@ void main() {
     expect(binding.extensionRegistry, isNotNull);
     final Map<String, LeonardTool> merged = binding.extensionRegistry
         .mergedTools();
-    // The host-installed CoreExtension contributes the 11 `core.*` tools
+    // The host-installed CoreExtension contributes the 13 `core.*` tools
     // even when no user extensions are supplied.
     final List<String> coreKeys = const <String>[
       'core.tap',
@@ -110,6 +110,8 @@ void main() {
       'core.system_back',
       'core.wait',
       'core.inspect_widget',
+      'core.remember',
+      'core.recall',
       'core.done',
     ];
     expect(merged.keys.toSet(), coreKeys.toSet());
