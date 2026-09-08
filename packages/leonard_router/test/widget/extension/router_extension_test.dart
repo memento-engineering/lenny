@@ -1,5 +1,7 @@
 import 'package:genesis_perception/genesis_perception.dart';
+import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_router/leonard_router.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,6 +33,12 @@ Widget _app(GlobalKey<NavigatorState> key) => WidgetsApp(
 class _FakeDelegate extends RouterDelegate<Object> with ChangeNotifier {
   _FakeDelegate(this._cfg);
   Object? _cfg;
+
+  void setConfiguration(Object? value) {
+    _cfg = value;
+    notifyListeners();
+  }
+
   @override
   Object? get currentConfiguration => _cfg;
   @override
@@ -39,6 +47,22 @@ class _FakeDelegate extends RouterDelegate<Object> with ChangeNotifier {
   Future<void> setNewRoutePath(Object c) async => _cfg = c;
   @override
   Future<bool> popRoute() async => false;
+}
+
+class _FakeCountingRouterExtension extends RouterExtension {
+  _FakeCountingRouterExtension({
+    required super.navigatorKey,
+    super.routerDelegate,
+    super.navigate,
+  });
+
+  int readSnapshotCalls = 0;
+
+  @override
+  RouteSnapshot? readSnapshot() {
+    readSnapshotCalls += 1;
+    return super.readSnapshot();
+  }
 }
 
 void main() {
@@ -72,7 +96,9 @@ void main() {
     expect(p.isPerceptionIdle(), isTrue);
   });
 
-  testWidgets('navigate pushes named route and observation sees it', (t) async {
+  testWidgets('navigate pushes named route and reports effective route', (
+    t,
+  ) async {
     final k = GlobalKey<NavigatorState>();
     await t.pumpWidget(_app(k));
     final p = RouterExtension(navigatorKey: k);
@@ -80,9 +106,12 @@ void main() {
       'route_name': '/settings',
       'arguments': {'tab': 'profile'},
     });
-    await t.pumpAndSettle();
     expect(r.ok, isTrue);
-    expect(r.value, {'route_name': '/settings'});
+    expect(r.value, {
+      'route_name': '/settings',
+      'effective_route': '/settings',
+    });
+    await t.pumpAndSettle();
     final f = _harvest(p);
     expect(f['current_route_name'], '/settings');
     expect(f['arguments'], {'tab': 'profile'});
@@ -97,7 +126,7 @@ void main() {
     expect(r.error, contains('/nope'));
   });
 
-  test('navigate uses the navigation seam when provided', () async {
+  testWidgets('navigate uses the navigation seam when provided', (t) async {
     String? gotName;
     Map<String, Object?>? gotArgs;
     final p = RouterExtension(
@@ -107,15 +136,48 @@ void main() {
         gotArgs = args;
       },
     );
-    final r = await p.tools.single.call({
+    final invocation = p.tools.single.call({
       'route_name': 'settings',
       'arguments': {'tab': 'profile'},
     });
+    await t.pump();
+    await t.pump();
+    final r = await invocation;
     expect(r.ok, isTrue);
-    expect(r.value, {'route_name': 'settings'});
+    expect(r.value, {'route_name': 'settings', 'effective_route': null});
     expect(gotName, 'settings');
     expect(gotArgs, {'tab': 'profile'});
   });
+
+  testWidgets(
+    'navigate reports redirected effective route from shared snapshot',
+    (t) async {
+      final delegate = _FakeDelegate('/home');
+      final p = _FakeCountingRouterExtension(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        routerDelegate: delegate,
+        navigate: (name, args) async {
+          expect(name, 'settings');
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            delegate.setConfiguration('/login');
+          });
+        },
+      );
+
+      final invocation = p.tools.single.call({'route_name': 'settings'});
+      await t.pump();
+      await t.pump();
+      final r = await invocation;
+
+      expect(r.ok, isTrue);
+      expect(r.value, {'route_name': 'settings', 'effective_route': '/login'});
+      expect(p.readSnapshotCalls, 1);
+
+      final f = _harvest(p);
+      final value = r.value! as Map<String, Object?>;
+      expect(f['current_route_name'], value['effective_route']);
+    },
+  );
 
   test('navigate seam errors surface as ok:false', () async {
     final p = RouterExtension(
@@ -138,14 +200,43 @@ void main() {
       navigatorKey: k,
       navigate: (name, args) async => seamCalled = true,
     );
-    final r = await p.tools.single.call({'route_name': '/settings'});
+    final invocation = p.tools.single.call({'route_name': '/settings'});
+    await t.pump();
+    await t.pump();
+    final r = await invocation;
     expect(r.ok, isTrue);
+    expect(r.value, {'route_name': '/settings', 'effective_route': '/'});
     expect(seamCalled, isTrue);
     // The seam handled navigation; Navigator-1.0 pushNamed must NOT have run,
     // so the Navigator stack is untouched (still at root).
     await t.pumpAndSettle();
     final f = _harvest(p);
     expect(f['current_route_name'], '/');
+  });
+
+  test('navigate advertises requested and effective route semantics', () {
+    final tool = RouterExtension(
+      navigatorKey: GlobalKey<NavigatorState>(),
+    ).tools.single;
+    final schema = tool.inputSchema.raw;
+    final properties = schema['properties']! as Map<String, Object?>;
+    final routeName = properties['route_name']! as Map<String, Object?>;
+    final description = tool.description.toLowerCase();
+    final schemaDescription = <String>[
+      schema['description']! as String,
+      routeName['description']! as String,
+    ].join(' ').toLowerCase();
+    final semantics = allOf(
+      contains('request'),
+      contains('nullable'),
+      contains('effective_route'),
+      contains('redirect'),
+      contains('ok'),
+      contains('true'),
+    );
+
+    expect(description, semantics);
+    expect(schemaDescription, semantics);
   });
 
   test('declarative-only: reads RouterDelegate.currentConfiguration', () async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
 import 'package:genesis_perception/genesis_perception.dart';
@@ -116,13 +117,25 @@ class _NavigateTool extends LeonardTool {
 
   @override
   String get description =>
-      'Programmatically navigate to a registered named route.';
+      'Navigate to a requested named route. When the navigation call succeeds, '
+      'ok remains true and the result preserves the request as route_name while '
+      'nullable effective_route reports the observed route after redirects.';
 
   @override
   JsonSchema get inputSchema => const JsonSchema({
     'type': 'object',
+    'description':
+        'Requests named-route navigation. A successful call keeps ok true; the '
+        'result preserves the requested route_name and reports the nullable '
+        'post-navigation effective_route, which may differ after a redirect.',
     'properties': {
-      'route_name': {'type': 'string'},
+      'route_name': {
+        'type': 'string',
+        'description':
+            'Route name to request. On success, result route_name preserves '
+            'this request, nullable effective_route reports the observed route '
+            'after redirects, and ok remains true.',
+      },
       'arguments': {'type': 'object'},
     },
     'required': ['route_name'],
@@ -148,7 +161,8 @@ class _NavigateTool extends LeonardTool {
     if (navigate != null) {
       try {
         await navigate(rn, routeArgs);
-        return ToolResult(ok: true, value: {'route_name': rn});
+        await SchedulerBinding.instance.endOfFrame;
+        return _successfulNavigation(rn);
       } catch (e) {
         return ToolResult(ok: false, error: 'unknown route "$rn": $e');
       }
@@ -168,9 +182,20 @@ class _NavigateTool extends LeonardTool {
       // is kicked off. Synchronous failures (e.g. unknown route) still
       // surface here because Navigator asserts before returning the Future.
       unawaited(state.pushNamed<Object?>(rn, arguments: routeArgs));
-      return ToolResult(ok: true, value: {'route_name': rn});
+      return _successfulNavigation(rn);
     } on FlutterError catch (e) {
       return ToolResult(ok: false, error: 'unknown route "$rn": ${e.message}');
     }
+  }
+
+  ToolResult _successfulNavigation(String requestedRoute) {
+    final RouteSnapshot? snapshot = _extension.readSnapshot();
+    return ToolResult(
+      ok: true,
+      value: <String, Object?>{
+        'route_name': requestedRoute,
+        'effective_route': snapshot?.currentRouteName,
+      },
+    );
   }
 }
