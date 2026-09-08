@@ -15,6 +15,8 @@ import 'package:leonard_agent/leonard_agent_io.dart';
 import 'action_environment_loop_host.dart';
 import 'cli_args.dart';
 import 'file_trajectory_sink.dart';
+import 'frame_capture_sink.dart';
+import 'image_golden_comparator.dart';
 import 'launcher.dart';
 import 'provider_factory.dart';
 
@@ -28,7 +30,7 @@ const String _kHarnessVersion = '0.5.0';
 /// Run the CLI end-to-end. Returns the process exit code:
 ///   * 0  — clean session (any non-error termination)
 ///   * 64 — usage error (Unix convention)
-///   * 1  — harness error (`agent_stuck`, `connection_lost`, etc.)
+///   * 1  — harness error or image-golden mismatch
 Future<int> runCli(
   List<String> argv, {
   required Stdin stdin,
@@ -95,8 +97,14 @@ Future<int> runCli(
   // ----- open trajectory sink ---------------------------------------
   final String outPath =
       args.outputPath ?? FileTrajectorySink.defaultOutputPath();
-  final FileTrajectorySink sink = await FileTrajectorySink.open(outPath);
-  final TrajectoryWriter writer = TrajectoryWriter(sink);
+  final String framesDirectory =
+      args.framesDir ?? FileTrajectorySink.framesDirectoryFor(outPath);
+  final FileTrajectorySink fileSink = await FileTrajectorySink.open(outPath);
+  final FrameCaptureSink frameSink = FrameCaptureSink(
+    delegate: fileSink,
+    framesDirectory: framesDirectory,
+  );
+  final TrajectoryWriter writer = TrajectoryWriter(frameSink);
 
   // ----- build provider (may throw on missing API key) --------------
   // Mint a per-run sessionId so the qwen-mlx tier can stamp every
@@ -285,13 +293,26 @@ Future<int> runCli(
       ),
     );
 
+    final String? goldensDirectory = args.goldensDir;
+    final int goldenExitCode = goldensDirectory == null
+        ? 0
+        : await finishImageGoldenRun(
+            framePaths: frameSink.capturedFramePaths,
+            goldensDirectory: goldensDirectory,
+            channelTolerance: args.goldenChannelTolerance,
+            maxDiffRatio: args.goldenMaxDiffRatio,
+            updateGoldens: args.updateGoldens,
+            output: stdout,
+            error: stderr,
+          );
+
     // ----- translate to exit code -----------------------------------
     if (termination.outcome == SessionOutcome.harnessError) {
       final String code = termination.harnessError?.wireName ?? 'unknown';
       stderr.writeln('harness_error: $code');
       return 1;
     }
-    return 0;
+    return goldenExitCode;
   } on Object catch (e) {
     stderr.writeln('error: $e');
     return 1;

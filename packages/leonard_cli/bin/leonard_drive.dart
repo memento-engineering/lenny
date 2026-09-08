@@ -57,6 +57,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:leonard_agent/leonard_agent_io.dart';
 import 'package:leonard_cli/src/launcher.dart';
+import 'package:leonard_cli/src/png_file_writer.dart';
 
 Future<void> main(List<String> argv) async {
   exitCode = await _run(argv);
@@ -283,11 +284,12 @@ Future<int> _run(List<String> argv) async {
           stderr.writeln('error: screenshot unavailable (no png_base64)');
           return 1;
         }
-        final File outFile = File(outPath!);
-        await outFile.parent.create(recursive: true);
-        await outFile.writeAsBytes(base64Decode(b64), flush: true);
+        final String writtenPath = await writeBase64Png(
+          path: outPath!,
+          pngBase64: b64,
+        );
         _emit(<String, dynamic>{
-          'out': outFile.path,
+          'out': writtenPath,
           'width_px': inner['width_px'],
           'height_px': inner['height_px'],
           'device_pixel_ratio': inner['device_pixel_ratio'],
