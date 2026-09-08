@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- Registry strike handling is one directly testable counter instead of parallel
+  failure and disable maps: `ExtensionRegistry` derives both its tripping and
+  its diagnostic thresholds from a single policy. Internal only — the counter is
+  not exported and `ExtensionRegistry`'s surface is unchanged.
+
 ## 0.2.2
 
 - Bump `genesis_perception` to `^0.3.0` (genesis_tree 0.3.0, InheritedModelSeed).

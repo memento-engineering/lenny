@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Fix: a navigation success result preserves the requested route AND reports the
+  observed post-navigation route read from the shared snapshot, so a redirect is
+  visible to the driver. `ok` semantics are unchanged.
+- Fix: post-navigation frame observation is capped at 250 ms, and results
+  distinguish an observed, an unobserved and a timed-out route snapshot.
+
 ## 0.3.0
 
 - Breaking: require `leonard_flutter ^0.3.0`; test support now comes from
