@@ -18,3 +18,4 @@ dev_dependencies:
   leonard_agent: ^0.2.0
   lints: ^5.1.0
   test: ^1.25.0
+  yaml: ^3.1.3
