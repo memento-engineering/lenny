@@ -12,7 +12,6 @@ void main() {
     'genesis_perception',
     'leonard_contract',
     'meta',
-    'vm_service',
   };
 
   test('runtime dependencies match the closed allow-list', () {
@@ -34,10 +33,10 @@ void main() {
     expect(
       _dependencyDriftMessage(
         actual: <String>{'flutter', 'leonard_agent'},
-        expected: <String>{'flutter', 'vm_service'},
+        expected: <String>{'flutter', 'leonard_contract'},
       ),
       'leonard_agent was re-added to leonard_flutter runtime dependencies.\n'
-      'vm_service was removed from leonard_flutter runtime dependencies.',
+      'leonard_contract was removed from leonard_flutter runtime dependencies.',
     );
   });
 
