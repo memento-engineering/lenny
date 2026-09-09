@@ -53,13 +53,14 @@
 @Timeout(Duration(seconds: 300))
 library;
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_native/leonard_native.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+
+import '../support/device_e2e_up.dart';
 
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
 const String _udidEnv = 'LEONARD_NATIVE_ANDROID_UDID';
@@ -389,70 +390,41 @@ void main() {
     );
     final String pidFile = p.join(tmp.path, 'up.pid');
     final String uriFile = p.join(tmp.path, 'up.uris');
-    final Completer<Map<String, dynamic>> ready =
-        Completer<Map<String, dynamic>>();
-    final Completer<void> shutdownSeen = Completer<void>();
-    final List<String> out = <String>[];
 
     // `up` with --platform android: launchDualTarget forwards it to the native
     // host, whose backendForPlatform selects the UiAutomator2Backend. One
     // --udid (the device id) drives BOTH `flutter run -d` and the host.
-    final Process up =
-        await Process.start(Platform.resolvedExecutable, <String>[
-          'run',
-          driveBin,
-          'up',
-          '--runner',
-          'flutter',
-          '-t',
-          flutterTarget,
-          '--udid',
-          udid,
-          '--app',
-          apk,
-          '--platform',
-          'android',
-          '--native-host',
-          nativeHost,
-          '--appium-server',
-          server,
-          '--pid-file',
-          pidFile,
-          '--uri-file',
-          uriFile,
-        ], workingDirectory: flutterProject);
-    up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
-      String line,
-    ) {
-      out.add(line);
-      Object? obj;
-      try {
-        obj = jsonDecode(line);
-      } on Object {
-        return;
-      }
-      if (obj is! Map) return;
-      if (obj['event'] == 'vm_service_ready' && !ready.isCompleted) {
-        ready.complete(obj.cast<String, dynamic>());
-      }
-      if (obj['event'] == 'shutdown' && !shutdownSeen.isCompleted) {
-        shutdownSeen.complete();
-      }
-    });
-    // Drain stderr (full-pipe gotcha) — buffer for triage on timeout.
-    final List<String> err = <String>[];
-    up.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(err.add);
+    final DeviceE2eUp up = await DeviceE2eUp.start(
+      driveBin: driveBin,
+      workingDirectory: flutterProject,
+      downWorkingDirectory: packageRoot,
+      pidFile: pidFile,
+      upArguments: <String>[
+        '--runner',
+        'flutter',
+        '-t',
+        flutterTarget,
+        '--udid',
+        udid,
+        '--app',
+        apk,
+        '--platform',
+        'android',
+        '--native-host',
+        nativeHost,
+        '--appium-server',
+        server,
+        '--uri-file',
+        uriFile,
+      ],
+    );
 
     Map<String, dynamic>? lastObservation;
     try {
-      final Map<String, dynamic> envelope = await ready.future.timeout(
-        const Duration(seconds: 240),
-        onTimeout: () => throw StateError(
-          'no vm_service_ready line. up stdout:\n${out.join('\n')}',
-        ),
+      final Map<String, dynamic> envelope = await up.waitForReady(
+        timeout: const Duration(seconds: 240),
+        simulatorUdid: udid,
+        appiumServer: server,
       );
       final String flutterWs = envelope['flutter_ws_uri'] as String;
       final String nativeEndpoint = envelope['native_endpoint'] as String;
@@ -660,7 +632,7 @@ void main() {
         'LOGGED_IN',
         reason:
             'Android round-trip did not resume on Flutter (verdict=$verdict). '
-            'up stderr:\n${err.join('\n')}\nlast core:\n'
+            'up stderr:\n${up.stderrLines.join('\n')}\nlast core:\n'
             '${jsonEncode(lastObservation?['core'])}',
       );
 
@@ -672,23 +644,18 @@ void main() {
       expect(exts.containsKey('native'), isTrue, reason: 'exts: ${exts.keys}');
       stdout.writeln('HARDWARE_ASSERT dashboard_logged_in udid=$udid');
       stdout.writeln('LOGGED_IN');
-
-      // Tear BOTH channels down via the single pid-file.
-      final ProcessResult down = await Process.run(
-        Platform.resolvedExecutable,
-        <String>['run', driveBin, 'down', '--pid-file', pidFile],
-        workingDirectory: packageRoot,
-      );
-      expect(down.exitCode, 0, reason: 'down stderr: ${down.stderr}');
-      await up.exitCode.timeout(const Duration(seconds: 60));
-      await shutdownSeen.future.timeout(const Duration(seconds: 10));
     } finally {
-      up.kill(ProcessSignal.sigkill);
       try {
-        tmp.deleteSync(recursive: true);
-      } on Object {
-        // best-effort
+        await up.stop();
+      } finally {
+        try {
+          tmp.deleteSync(recursive: true);
+        } on Object {
+          // best-effort
+        }
       }
     }
+    expect(await up.exitCode, 0, reason: 'up should exit cleanly after down');
+    await up.shutdownSeen.timeout(const Duration(seconds: 10));
   });
 }

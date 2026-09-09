@@ -34,13 +34,12 @@
 @Timeout(Duration(seconds: 300))
 library;
 
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/device_e2e_up.dart';
 import '../support/dual_e2e_target.dart';
 
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
@@ -161,17 +160,13 @@ void main() {
     );
     final String pidFile = p.join(tmp.path, 'up.pid');
     final String uriFile = p.join(tmp.path, 'up.uris');
-    final Completer<Map<String, dynamic>> ready =
-        Completer<Map<String, dynamic>>();
-    final Completer<void> shutdownSeen = Completer<void>();
-    final List<String> out = <String>[];
 
-    final Process up = await Process.start(
-      Platform.resolvedExecutable,
-      <String>[
-        'run',
-        driveBin,
-        'up',
+    final DeviceE2eUp up = await DeviceE2eUp.start(
+      driveBin: driveBin,
+      workingDirectory: target.flutterProject,
+      downWorkingDirectory: packageRoot,
+      pidFile: pidFile,
+      upArguments: <String>[
         '--runner',
         'flutter',
         '-t',
@@ -184,46 +179,19 @@ void main() {
         nativeHost,
         '--appium-server',
         server,
-        '--pid-file',
-        pidFile,
         '--uri-file',
         uriFile,
         // `up` runs from the Flutter project so the spawned `flutter run`
         // resolves it; the absolute driveBin + --native-host resolve their
         // own package configs from their file locations, not this cwd.
       ],
-      workingDirectory: target.flutterProject,
     );
-    up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
-      String line,
-    ) {
-      out.add(line);
-      Object? obj;
-      try {
-        obj = jsonDecode(line);
-      } on Object {
-        return;
-      }
-      if (obj is! Map) return;
-      if (obj['event'] == 'vm_service_ready' && !ready.isCompleted) {
-        ready.complete(obj.cast<String, dynamic>());
-      }
-      if (obj['event'] == 'shutdown' && !shutdownSeen.isCompleted) {
-        shutdownSeen.complete();
-      }
-    });
-    // Drain stderr so the teed child log never blocks the pipe.
-    up.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((_) {});
 
     try {
-      final Map<String, dynamic> envelope = await ready.future.timeout(
-        const Duration(seconds: 240),
-        onTimeout: () => throw StateError(
-          'no vm_service_ready line. up stdout:\n${out.join('\n')}',
-        ),
+      final Map<String, dynamic> envelope = await up.waitForReady(
+        timeout: const Duration(seconds: 240),
+        simulatorUdid: udid,
+        appiumServer: server,
       );
 
       // AC7: the extended envelope carries both endpoints + the shared device.
@@ -259,26 +227,20 @@ void main() {
       expect(tools.exitCode, 0, reason: 'tools stderr: ${tools.stderr}');
       expect(tools.stdout as String, contains('native'));
 
-      // AC9: down tears BOTH channels down via the single pid-file.
-      final ProcessResult down = await Process.run(
-        Platform.resolvedExecutable,
-        <String>['run', driveBin, 'down', '--pid-file', pidFile],
-        workingDirectory: packageRoot,
-      );
-      expect(down.exitCode, 0, reason: 'down stderr: ${down.stderr}');
-
-      final int code = await up.exitCode.timeout(const Duration(seconds: 60));
-      expect(code, 0, reason: 'up should exit cleanly after down');
-      await shutdownSeen.future.timeout(const Duration(seconds: 10));
       // STOP before SIGN IN — m5 owns sign-in / callback / resume-on-Flutter.
     } finally {
-      up.kill(ProcessSignal.sigkill);
       try {
-        tmp.deleteSync(recursive: true);
-      } on Object {
-        // best-effort
+        await up.stop();
+      } finally {
+        try {
+          tmp.deleteSync(recursive: true);
+        } on Object {
+          // best-effort
+        }
       }
     }
+    expect(await up.exitCode, 0, reason: 'up should exit cleanly after down');
+    await up.shutdownSeen.timeout(const Duration(seconds: 10));
   });
 }
 

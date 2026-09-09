@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -242,6 +244,97 @@ void main() {
       });
     },
     timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  test(
+    'vm_service_ready is emitted only after down is armed',
+    () async {
+      final Directory tmp = Directory.systemTemp.createTempSync(
+        'leonard_up_readiness_order',
+      );
+      final String pidFile = p.join(tmp.path, 'up.pid');
+      final String fixture = p.join('test', 'support', 'host_target.dart');
+      final Completer<Map<String, dynamic>> ready =
+          Completer<Map<String, dynamic>>();
+      final List<String> stdoutLines = <String>[];
+      int? targetPid;
+
+      final Process up = await Process.start(
+        Platform.resolvedExecutable,
+        <String>[
+          'run',
+          entrypoint,
+          'up',
+          '--runner',
+          'dart',
+          '-t',
+          fixture,
+          '--pid-file',
+          pidFile,
+        ],
+        workingDirectory: packageRoot,
+      );
+      final Future<void> stdoutDone = up.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .forEach((String line) {
+            stdoutLines.add(line);
+            try {
+              final Object? decoded = jsonDecode(line);
+              if (decoded is Map &&
+                  decoded['event'] == 'vm_service_ready' &&
+                  !ready.isCompleted) {
+                ready.complete(decoded.cast<String, dynamic>());
+              }
+            } on FormatException {
+              // Target logs are not part of the machine-readable envelope.
+            }
+          });
+      final Future<void> stderrDone = up.stderr.drain<void>();
+
+      try {
+        final Map<String, dynamic> envelope = await ready.future.timeout(
+          const Duration(seconds: 90),
+          onTimeout: () => throw StateError(
+            'no vm_service_ready line. up stdout:\n${stdoutLines.join('\n')}',
+          ),
+        );
+        targetPid = envelope['pid'] as int;
+
+        // Readiness is the contract boundary: down's pid-file must already be
+        // durable at the instant this line is observed.
+        expect(File(pidFile).existsSync(), isTrue);
+        expect((await File(pidFile).readAsString()).trim(), '${up.pid}');
+
+        final ProcessResult down = await run(<String>[
+          'down',
+          '--pid-file',
+          pidFile,
+        ]);
+        expect(down.exitCode, 0, reason: 'down stderr: ${down.stderr}');
+
+        final int code = await up.exitCode.timeout(const Duration(seconds: 30));
+        expect(code, 0, reason: 'up should exit cleanly after immediate down');
+        await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
+        expect(stdoutLines, contains('{"event":"shutdown"}'));
+        expect(
+          Process.killPid(targetPid, ProcessSignal.sigkill),
+          isFalse,
+          reason: 'the pure-Dart target must be reaped before up exits',
+        );
+      } finally {
+        up.kill(ProcessSignal.sigkill);
+        if (targetPid != null) {
+          Process.killPid(targetPid, ProcessSignal.sigkill);
+        }
+        try {
+          tmp.deleteSync(recursive: true);
+        } on Object {
+          // best-effort cleanup
+        }
+      }
+    },
+    timeout: const Timeout(Duration(seconds: 150)),
   );
 }
 

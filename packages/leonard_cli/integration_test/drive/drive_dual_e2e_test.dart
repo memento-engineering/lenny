@@ -37,13 +37,13 @@
 @Timeout(Duration(seconds: 300))
 library;
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/device_e2e_up.dart';
 import '../support/dual_e2e_target.dart';
 
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
@@ -163,58 +163,35 @@ void main() {
     );
     final String pidFile = p.join(tmp.path, 'up.pid');
     final String uriFile = p.join(tmp.path, 'up.uris');
-    final Completer<Map<String, dynamic>> ready =
-        Completer<Map<String, dynamic>>();
-    final List<String> out = <String>[];
 
-    final Process up =
-        await Process.start(Platform.resolvedExecutable, <String>[
-          'run',
-          driveBin,
-          'up',
-          '--runner',
-          'flutter',
-          '-t',
-          flutterTarget,
-          '--udid',
-          udid,
-          '--app',
-          target.app,
-          '--native-host',
-          nativeHost,
-          '--appium-server',
-          server,
-          '--pid-file',
-          pidFile,
-          '--uri-file',
-          uriFile,
-        ], workingDirectory: target.flutterProject);
-    up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
-      String line,
-    ) {
-      out.add(line);
-      Object? obj;
-      try {
-        obj = jsonDecode(line);
-      } on Object {
-        return;
-      }
-      if (obj is! Map) return;
-      if (obj['event'] == 'vm_service_ready' && !ready.isCompleted) {
-        ready.complete(obj.cast<String, dynamic>());
-      }
-    });
-    up.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((_) {});
+    final DeviceE2eUp up = await DeviceE2eUp.start(
+      driveBin: driveBin,
+      workingDirectory: target.flutterProject,
+      downWorkingDirectory: packageRoot,
+      pidFile: pidFile,
+      upArguments: <String>[
+        '--runner',
+        'flutter',
+        '-t',
+        flutterTarget,
+        '--udid',
+        udid,
+        '--app',
+        target.app,
+        '--native-host',
+        nativeHost,
+        '--appium-server',
+        server,
+        '--uri-file',
+        uriFile,
+      ],
+    );
 
     try {
-      final Map<String, dynamic> envelope = await ready.future.timeout(
-        const Duration(seconds: 240),
-        onTimeout: () => throw StateError(
-          'no vm_service_ready line. up stdout:\n${out.join('\n')}',
-        ),
+      final Map<String, dynamic> envelope = await up.waitForReady(
+        timeout: const Duration(seconds: 240),
+        simulatorUdid: udid,
+        appiumServer: server,
       );
       final String flutterWs = envelope['flutter_ws_uri'] as String;
       final String nativeEndpoint = envelope['native_endpoint'] as String;
@@ -289,21 +266,15 @@ void main() {
           (jsonDecode(invoke.stdout as String) as Map).cast<String, dynamic>();
       expect(invokeJson['tool'], 'native.tap');
       expect(invokeJson['result'], isA<Map<String, dynamic>>());
-
-      // Tear BOTH channels down via the single pid-file.
-      final ProcessResult down = await Process.run(
-        Platform.resolvedExecutable,
-        <String>['run', driveBin, 'down', '--pid-file', pidFile],
-        workingDirectory: packageRoot,
-      );
-      expect(down.exitCode, 0, reason: 'down stderr: ${down.stderr}');
-      await up.exitCode.timeout(const Duration(seconds: 60));
     } finally {
-      up.kill(ProcessSignal.sigkill);
       try {
-        tmp.deleteSync(recursive: true);
-      } on Object {
-        // best-effort
+        await up.stop();
+      } finally {
+        try {
+          tmp.deleteSync(recursive: true);
+        } on Object {
+          // best-effort
+        }
       }
     }
   });
