@@ -52,6 +52,22 @@ void main() {
       final String publishCondition = _jobIfExpression(publish);
       final String publishDevToolsCondition = _jobIfExpression(publishDevTools);
       final String gateScript = _jobRunScript(gate);
+
+      // The skip-propagation guard. `live-flutter-macos` is skipped for every
+      // package but leonard_flutter, and GitHub propagates that `skipped`
+      // result down the whole `needs` graph — through release-gate's
+      // `always()` and into anything downstream that does not override it.
+      // Without these two terms BOTH publish jobs are skipped for every other
+      // package while the run still reports success, which is how
+      // leonard_contract-v0.2.5 produced a green run that uploaded nothing.
+      // `release-gate.result == 'success'` is what keeps the gate binding.
+      for (final String condition in <String>[
+        publishCondition,
+        publishDevToolsCondition,
+      ]) {
+        expect(condition, contains('!cancelled()'));
+        expect(condition, contains("needs.release-gate.result == 'success'"));
+      }
       const List<
         ({
           String package,
@@ -199,14 +215,39 @@ String _jobIfExpression(String job) {
 }
 
 bool _evaluatePackageCondition(String expression, String package) {
-  final RegExpMatch? match = RegExp(
-    r"^needs\.parse\.outputs\.package (==|!=) '([^']+)'$",
-  ).firstMatch(expression);
-  if (match == null) {
-    throw UnsupportedError('unsupported package condition: $expression');
+  // Accepts the bare `needs.parse.outputs.package <op> '<pkg>'` form AND the
+  // guarded `${{ !cancelled() && needs.release-gate.result == 'success' && ...
+  // }}` form the publish jobs carry since lenny#127. The matrix models a run
+  // that was not cancelled and whose gate passed, so those two terms hold and
+  // the package clause decides.
+  String body = expression.trim();
+  final RegExpMatch? wrapped = RegExp(
+    r'^\$\{\{(.*)\}\}$',
+    dotAll: true,
+  ).firstMatch(body);
+  if (wrapped != null) {
+    body = wrapped.group(1)!.trim();
   }
-  final bool equals = package == match.group(2);
-  return match.group(1) == '==' ? equals : !equals;
+
+  bool result = true;
+  bool sawPackageClause = false;
+  for (final String term in body.split('&&').map((String t) => t.trim())) {
+    if (term == '!cancelled()') continue;
+    if (term == "needs.release-gate.result == 'success'") continue;
+    final RegExpMatch? match = RegExp(
+      r"^needs\.parse\.outputs\.package (==|!=) '([^']+)'$",
+    ).firstMatch(term);
+    if (match == null) {
+      throw UnsupportedError('unsupported package condition term: $term');
+    }
+    final bool equals = package == match.group(2);
+    result = result && (match.group(1) == '==' ? equals : !equals);
+    sawPackageClause = true;
+  }
+  if (!sawPackageClause) {
+    throw UnsupportedError('condition names no package clause: $expression');
+  }
+  return result;
 }
 
 String _jobRunScript(String job) {
