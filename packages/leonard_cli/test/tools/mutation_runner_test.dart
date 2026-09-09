@@ -79,6 +79,35 @@ exit 70
   Future<ProcessResult> run(List<String> args, {Map<String, String>? env}) =>
       Process.run(runner.path, args, environment: env ?? environment);
 
+  test('vended runner forwards exclude strings in dry, pr, and full', () async {
+    final Map<String, List<String>> modes = <String, List<String>>{
+      'dry': <String>['dry', package.path],
+      'pr': <String>['pr', package.path, '--', 'lib/a.dart'],
+      'full': <String>['full', package.path],
+    };
+    for (final MapEntry<String, List<String>> mode in modes.entries) {
+      log.writeAsStringSync('');
+      final ProcessResult result = await run(mode.value);
+      expect(
+        result.exitCode,
+        0,
+        reason: '${mode.key}: ${result.stdout}\n${result.stderr}',
+      );
+      final List<String> mutationCalls = log
+          .readAsLinesSync()
+          .where((String call) => call.startsWith('run mutation_test '))
+          .toList();
+      expect(mutationCalls, isNotEmpty, reason: mode.key);
+      for (final String call in mutationCalls) {
+        expect(
+          RegExp(r'(^| )--exclude-strings($| )').allMatches(call),
+          hasLength(1),
+          reason: '${mode.key}: $call',
+        );
+      }
+    }
+  });
+
   test('full sizes before five-format report from any installation', () async {
     final ProcessResult result = await run(<String>['full', package.path]);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');

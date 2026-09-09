@@ -50,6 +50,12 @@ void main() {
     final File runner = File('${tmp.path}/tool/leonard/run_mutation.sh');
     expect(runner.existsSync(), isTrue);
     expect(
+      runner.readAsStringSync(),
+      contains(
+        r'''local args=(--rules "$command_rules" -b --exclude-strings)''',
+      ),
+    );
+    expect(
       File('${tmp.path}/tool/leonard/custom_rules.example.xml').existsSync(),
       isTrue,
     );

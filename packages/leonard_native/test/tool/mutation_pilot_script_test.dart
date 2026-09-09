@@ -92,6 +92,39 @@ exit 70
       Process.run(pilot.path, args, environment: env ?? environment);
 
   test(
+    'Flutter runner forwards exclude strings in dry, pr, and full',
+    () async {
+      package('leonard_flutter', flutter: true);
+      final Map<String, List<String>> modes = <String, List<String>>{
+        'dry': <String>['dry', 'leonard_flutter'],
+        'pr': <String>['pr', 'leonard_flutter', 'lib/a.dart'],
+        'full': <String>['full', 'leonard_flutter'],
+      };
+      for (final MapEntry<String, List<String>> mode in modes.entries) {
+        log.writeAsStringSync('');
+        final ProcessResult result = await run(mode.value);
+        expect(
+          result.exitCode,
+          0,
+          reason: '${mode.key}: ${result.stdout}\n${result.stderr}',
+        );
+        final List<String> mutationCalls = log
+            .readAsLinesSync()
+            .where((String call) => call.startsWith('dart run mutation_test '))
+            .toList();
+        expect(mutationCalls, hasLength(1), reason: mode.key);
+        expect(
+          RegExp(
+            r'(^| )--exclude-strings($| )',
+          ).allMatches(mutationCalls.single),
+          hasLength(1),
+          reason: '${mode.key}: ${mutationCalls.single}',
+        );
+      }
+    },
+  );
+
+  test(
     'defaults to full leonard_native and conditionally supplies coverage',
     () async {
       final ProcessResult first = await run(const <String>[]);

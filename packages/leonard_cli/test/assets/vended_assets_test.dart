@@ -25,7 +25,12 @@ void main() {
         )
         .value;
     expect(runner, startsWith('#!/usr/bin/env bash'));
-    expect(runner, contains(' -b)'));
+    expect(
+      runner,
+      contains(
+        r'''local args=(--rules "$command_rules" -b --exclude-strings)''',
+      ),
+    );
     final List<String> ids = RegExp(
       r'<regex id="(M[1-8]\.[^"]+)"',
     ).allMatches(rules).map((m) => m.group(1)!).toList();

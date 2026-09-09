@@ -18,7 +18,7 @@ rm -rf -- "$output_dir"
 mkdir -p "$output_dir"
 rules="$output_dir/mutation_rules.xml"
 printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"><commands><command group="test" expected-return="0" working-directory=".">flutter test</command></commands></mutations>' > "$rules"
-mutation_args=(--rules "$rules" -b)
+mutation_args=(--rules "$rules" -b --exclude-strings)
 
 if [[ "$mode" == dry ]]; then
   mutation_args+=(--dry --format none)

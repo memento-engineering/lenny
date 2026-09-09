@@ -902,8 +902,20 @@ description: >
   });
 
   test('reports measured calibration, including contradiction and uplift', () {
+    expect(
+      reference,
+      contains(
+        '- `leonard_native`: no valid post-fix calibration is available. '
+        'A full 2026-09-09 run with `--exclude-strings` produced 502 mutants, '
+        '114 survivors, 77.29% killed, rating C, in 1h50m19s, but the audit '
+        'rejected it because 19 string-interior survivors remain. The '
+        '2026-08-01 542/215/60.33%/C result is not comparable because string '
+        'exclusion was disabled; `mutation_test` 1.8.0 compile-error inflation '
+        'remains. Survivor triage produced the initial four checks and found '
+        '`lenny-i2j6`.',
+      ),
+    );
     for (final String receipt in <String>[
-      '542 mutants, 215 survivors, 60.33% killed',
       '49.09% killed',
       '54/55 killed, 98.18%',
       '126 of 777 mutants',
