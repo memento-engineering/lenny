@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 [dry|full|pr] PACKAGE_PATH [--repo-root PATH] [--coverage LCOV] [--rules XML]... [--gate] [-- FILE...]" >&2
+  echo "usage: $0 [dry|full|pr] PACKAGE_PATH [--repo-root PATH] [--coverage LCOV] [--rules XML]... [--test-impact] [--gate] [-- FILE...]" >&2
 }
 die() { local code="$1"; shift; echo "error: $*" >&2; exit "$code"; }
 
@@ -10,12 +10,13 @@ mode="${1:-}"; package_arg="${2:-}"
 [[ "$mode" =~ ^(dry|full|pr)$ ]] || { usage; exit 64; }
 [[ -n "$package_arg" ]] || { usage; exit 64; }
 shift 2
-repo_arg=""; coverage_arg=""; gate=0; rules=(); files=()
+repo_arg=""; coverage_arg=""; gate=0; test_impact=0; rules=(); files=()
 while (( $# )); do
   case "$1" in
     --repo-root) (( $# >= 2 )) || die 64 "--repo-root requires a path"; repo_arg="$2"; shift 2 ;;
     --coverage) (( $# >= 2 )) || die 64 "--coverage requires a path"; coverage_arg="$2"; shift 2 ;;
     --rules) (( $# >= 2 )) || die 64 "--rules requires a path"; rules+=("$2"); shift 2 ;;
+    --test-impact) test_impact=1; shift ;;
     --gate) gate=1; shift ;;
     --) shift; files=("$@"); break ;;
     *) die 64 "unknown argument: $1" ;;
@@ -41,6 +42,10 @@ if [[ -z "$repo_root" ]]; then
 fi
 for rule in "${rules[@]}"; do [[ -f "$rule" ]] || die 66 "rules file not found: $rule"; done
 [[ -z "$coverage_arg" || -f "$coverage_arg" ]] || die 66 "coverage file not found: $coverage_arg"
+if (( test_impact )); then
+  (( ${#files[@]} > 0 )) || die 64 "--test-impact needs at least one package-relative source"
+  [[ -f "$repo_root/tool/test_impact.dart" ]] || die 66 "test-impact mapper not found: $repo_root/tool/test_impact.dart"
+fi
 
 run_phase() {
   local phase="$1"; shift
@@ -48,9 +53,14 @@ run_phase() {
   case "$output" in "$repo_root"/artifacts/mutation/*) ;; *) die 70 "unsafe artifact path: $output" ;; esac
   rm -rf -- "$output"; mkdir -p "$output"
   local command_rules="$output/command_rules.xml"
-  printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"><commands><command group="test" expected-return="0" working-directory=".">dart test</command></commands></mutations>' > "$command_rules"
+  if (( test_impact )); then
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"></mutations>' > "$command_rules"
+  else
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"><commands><command group="test" expected-return="0" working-directory=".">dart test</command></commands></mutations>' > "$command_rules"
+  fi
   local args=(--rules "$command_rules" -b --exclude-strings)
-  local absolute_rule normalized status
+  local absolute_rule normalized status document manifest
+  local inputs=("$@")
   : > "$output/semantic-rules.txt"
   for rule in "${rules[@]}"; do
     absolute_rule="$(cd "$(dirname "$rule")" && pwd -P)/$(basename "$rule")"
@@ -70,7 +80,19 @@ run_phase() {
       echo "note: no LCOV supplied; running without coverage input."
     fi
   fi
-  args+=("$@")
+  if (( test_impact )); then
+    manifest="$output/test-impact-manifest.txt"
+    if ! dart run "$repo_root/tool/test_impact.dart" \
+      "$package_dir" "$output/test-impact" "${inputs[@]}" > "$manifest"; then
+      die 70 "test-impact generation failed"
+    fi
+    mapfile -t inputs < "$manifest"
+    (( ${#inputs[@]} > 0 )) || die 70 "test-impact generation returned no documents"
+    for document in "${inputs[@]}"; do
+      [[ -n "$document" && -f "$document" ]] || die 70 "test-impact manifest contains a missing document: $document"
+    done
+  fi
+  args+=("${inputs[@]}")
   set +e
   (cd "$package_dir" && dart run mutation_test "${args[@]}") 2>&1 | tee -a "$output/console.txt"
   status=${PIPESTATUS[0]}

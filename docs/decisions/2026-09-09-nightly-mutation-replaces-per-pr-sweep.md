@@ -14,7 +14,8 @@ register:
   updates:
     - a3-mutation-strategy-vends-through-leonard-assets
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - mutation-sweeps-shard-by-file-and-select-tests-by-impact
   bead: lenny-f2z4
   legacy-id: null
 ---
