@@ -83,7 +83,14 @@ jobs:
     needs: [parse, release-gate]
     # Every package EXCEPT the DevTools panel, which needs its bundle built
     # first and therefore gets its own job below.
-    if: needs.parse.outputs.package != 'leonard_devtools'
+    #
+    # `!cancelled()` is LOAD-BEARING. `live-flutter-macos` is skipped for every
+    # package but leonard_flutter, and a skipped job propagates `skipped` down
+    # the whole `needs` graph — through release-gate's `always()` and into this
+    # job. Without the override this job is skipped for EVERY package except
+    # leonard_flutter, and the run still reports success while publishing
+    # nothing. `release-gate.result == 'success'` keeps the gate binding.
+    if: ${{ !cancelled() && needs.release-gate.result == 'success' && needs.parse.outputs.package != 'leonard_devtools' }}
     permissions:
       id-token: write # pub.dev OIDC trusted publishing
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
@@ -100,7 +107,8 @@ jobs:
     # inside pub under id-token, and setup-dart is what performs it: without
     # it pub falls back to the browser OAuth prompt and the job hangs.
     needs: [parse, release-gate]
-    if: needs.parse.outputs.package == 'leonard_devtools'
+    # `!cancelled()` for the same reason as the `publish` job above.
+    if: ${{ !cancelled() && needs.release-gate.result == 'success' && needs.parse.outputs.package == 'leonard_devtools' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write # pub.dev OIDC trusted publishing
