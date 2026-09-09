@@ -6,6 +6,7 @@ on:
     branches: [main]
   schedule:
     - cron: '0 6 * * *'
+  workflow_dispatch:
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
@@ -74,76 +75,35 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   mutation-nightly:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: [coverage]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Full modes sweep every production file. `max_files` caps only
+          # the diff portion of a selected mode before rotation is appended.
           # `prove_uncovered` asserts the lcov coverage classification is
           # present whether the reported count is zero or nonzero. One
           # pure-Dart package proves the shared runner path without
           # duplicating this signal in every matrix job.
           - package: leonard_native
+            mode: full
             prove_uncovered: 'true'
           - package: leonard_contract
+            mode: full
             prove_uncovered: 'false'
-          # leonard_flutter is deliberately ABSENT from the nightly full
-          # sweep. Its suite costs ~11s per run under `flutter test` against
-          # 777 mutants — roughly 2.4 hours, every night. It is covered by
-          # the changed-file pr lane below until that is worth paying for.
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.4'
-          channel: 'stable'
-      - run: flutter pub get
-      - name: Download coverage input
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-lcov
-          path: artifacts/coverage
-      - name: Run full mutation sweep
-        run: ./tool/run_mutation_pilot.sh full ${{ matrix.package }}
-      - name: Prove coverage input was applied
-        if: matrix.prove_uncovered == 'true'
-        run: >-
-          grep -Eq 'Not covered by tests: [0-9]+'
-          artifacts/mutation/${{ matrix.package }}/full/console.txt
-      - name: Upload full mutation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutation-${{ matrix.package }}-full
-          path: artifacts/mutation/${{ matrix.package }}/full/
-          if-no-files-found: error
-          retention-days: 14
-  mutation-pr:
-    if: github.event_name == 'pull_request'
-    needs: [coverage]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # `max_files` bounds the sweep by how expensive one mutant is.
-          # A pure-Dart suite runs in well under a second; leonard_flutter's
-          # costs ~11s under `flutter test`, so the same cap would blow the
-          # job timeout — and a timeout is a red job, which is exactly the
-          # noise gating-off is meant to remove.
-          - package: leonard_native
-            max_files: '5'
-          - package: leonard_contract
-            max_files: '5'
           - package: leonard_flutter
-            max_files: '2'
+            mode: pr
+            max_files: '4'
+            prove_uncovered: 'false'
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
@@ -155,59 +115,85 @@ jobs:
         with:
           name: coverage-lcov
           path: artifacts/coverage
-      - name: Select changed production Dart files
+      - name: Select mutation files
         id: changed
         shell: bash
         env:
           PKG: ${{ matrix.package }}
-          MAX_FILES: ${{ matrix.max_files }}
+          MODE: ${{ matrix.mode }}
+          MATRIX_MAX_FILES: ${{ matrix.max_files }}
         run: |
-          mkdir -p "artifacts/mutation/$PKG/pr"
-          # THREE-dot. A two-dot `base head` diff also reports files that
-          # main gained after this branch was cut -- the PR looks like it
-          # reverted them -- so unrelated packages get mutation-tested and
-          # someone else's score fails this job. Three-dot diffs against the
-          # merge-base, which is what "changed by this PR" means.
-          mapfile -t eligible < <(
-            git diff --name-only --diff-filter=ACMR \
-              "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" |
-              grep -E "^packages/$PKG/.*\.dart$" |
-              grep -Ev "^packages/$PKG/(test|integration_test)/" |
-              sed "s#^packages/$PKG/##" |
-              sort -u
-          )
-          selected=("${eligible[@]:0:$MAX_FILES}")
-          printf '%s\n' "${selected[@]}" | sed '/^$/d' > "$RUNNER_TEMP/mutation-files.txt"
-          count="$(wc -l < "$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
-          if (( count == 0 )); then
-            echo "No eligible changed $PKG Dart files." |
-              tee "artifacts/mutation/$PKG/pr/console.txt"
-          elif (( ${#eligible[@]} > MAX_FILES )); then
-            # Never truncate silently — a capped sweep that reads as full
-            # coverage is worse than no sweep.
-            echo "Selected $MAX_FILES of ${#eligible[@]} eligible files; the rest were NOT swept." |
-              tee "artifacts/mutation/$PKG/pr/selection.txt"
+          BASE_SHA="$(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yaml/runs?event=schedule&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty' || true
+          )"
+          if [[ -z "$BASE_SHA" ]]; then
+            BASE_SHA=HEAD~20
           fi
-      - name: Run changed-file mutation sweep
-        if: steps.changed.outputs.count != '0'
+          HEAD_SHA=HEAD
+
+          if [[ "$MODE" == full ]]; then
+            MAX_FILES="$(
+              git ls-tree -r --name-only "$HEAD_SHA" -- "packages/$PKG" |
+                wc -l |
+                tr -d ' '
+            )"
+          else
+            MAX_FILES="$MATRIX_MAX_FILES"
+          fi
+
+          selection_dir="$RUNNER_TEMP/mutation-selection"
+          ./tool/select_mutation_files.sh \
+            "$PKG" "$MAX_FILES" "$BASE_SHA" "$HEAD_SHA" \
+            --out-dir "$selection_dir" \
+            --rotate 3 "$(date -u +%Y%m%d)" \
+            >"$RUNNER_TEMP/mutation-files.txt"
+          count="$(wc -l <"$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
+          echo "count=$count" >>"$GITHUB_OUTPUT"
+      - name: Run mutation sweep
+        if: matrix.mode == 'full' || steps.changed.outputs.count != '0'
         shell: bash
         env:
           PKG: ${{ matrix.package }}
+          MODE: ${{ matrix.mode }}
         run: |
-          mapfile -t mutation_files < "$RUNNER_TEMP/mutation-files.txt"
-          ./tool/run_mutation_pilot.sh pr "$PKG" "${mutation_files[@]}"
+          if [[ "$MODE" == full ]]; then
+            ./tool/run_mutation_pilot.sh full "$PKG"
+          else
+            mapfile -t mutation_files <"$RUNNER_TEMP/mutation-files.txt"
+            ./tool/run_mutation_pilot.sh pr "$PKG" "${mutation_files[@]}"
+          fi
+      - name: Preserve mutation selection
+        if: always()
+        shell: bash
+        env:
+          PKG: ${{ matrix.package }}
+          MODE: ${{ matrix.mode }}
+        run: |
+          artifact_dir="artifacts/mutation/$PKG/$MODE"
+          mkdir -p "$artifact_dir"
+          if [[ -f "$RUNNER_TEMP/mutation-selection/selection.txt" ]]; then
+            cp -f \
+              "$RUNNER_TEMP/mutation-selection/selection.txt" \
+              "$artifact_dir/selection.txt"
+          fi
+          if [[ "${{ steps.changed.outputs.count }}" == 0 && \
+                -f "$RUNNER_TEMP/mutation-selection/console.txt" ]]; then
+            cp -f \
+              "$RUNNER_TEMP/mutation-selection/console.txt" \
+              "$artifact_dir/console.txt"
+          fi
       - name: Prove coverage input was applied
-        if: steps.changed.outputs.count != '0'
+        if: matrix.prove_uncovered == 'true' || (matrix.package == 'leonard_flutter' && steps.changed.outputs.count != '0')
         run: >-
           grep -Eq 'Not covered by tests: [0-9]+'
-          artifacts/mutation/${{ matrix.package }}/pr/console.txt
-      - name: Upload changed-file mutation report
+          artifacts/mutation/${{ matrix.package }}/${{ matrix.mode }}/console.txt
+      - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-${{ matrix.package }}-pr-${{ github.event.pull_request.number }}
-          path: artifacts/mutation/${{ matrix.package }}/pr/
+          name: mutation-${{ matrix.package }}-${{ matrix.mode }}
+          path: artifacts/mutation/${{ matrix.package }}/${{ matrix.mode }}/
           if-no-files-found: error
           retention-days: 14
   # Stable required-check name for branch protection. Pin protection to

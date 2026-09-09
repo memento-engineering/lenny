@@ -12,7 +12,8 @@ register:
   obsoletes: []
   updates: []
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - nightly-mutation-replaces-per-pr-sweep
   bead: null
   legacy-id: "A3"
 ---
