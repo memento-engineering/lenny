@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 void main() {
   test('the routed triage reference is structured and failure-code-first', () {
     final File reference = File(
-      '../../packages/leonard_cli/lib/assets/skills/'
+      'extension/station_overlay/claude/skills/'
       'test-with-leonard/references/triage.md',
     );
     expect(reference.existsSync(), true);
@@ -36,7 +36,16 @@ void main() {
     expect(text, contains('one bead for each distinct defect'));
   });
 
-  test('triage did not introduce the forbidden station overlay skill', () {
-    expect(Directory('extension/station_overlay').existsSync(), false);
+  test('triage is authored only in the routed overlay reference', () {
+    for (final String forbiddenPath in <String>[
+      'extension/station_overlay/claude/skills/triage/SKILL.md',
+      '../../packages/leonard_cli/lib/assets/skills/test-with-leonard',
+      '../../packages/leonard_grid_assets',
+    ]) {
+      expect(
+        FileSystemEntity.typeSync(forbiddenPath),
+        FileSystemEntityType.notFound,
+      );
+    }
   });
 }

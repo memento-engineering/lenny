@@ -317,7 +317,8 @@ class E2eService {
           code: E2eFailureCode.launch,
           model: request.model,
           device: handle.deviceId,
-          durationMilliseconds: runtime.now()
+          durationMilliseconds: runtime
+              .now()
               .difference(started)
               .inMilliseconds,
           trajectoryPath: receipt?.trajectoryPath ?? '',
