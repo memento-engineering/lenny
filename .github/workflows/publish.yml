@@ -58,6 +58,9 @@ jobs:
       - run: flutter pub get
       - run: dart run melos run test:live:macos --no-select
 
+  # GitHub Actions cannot conditionally declare `needs`, so every publish job
+  # must need this shared gate. It requires `success` for leonard_flutter and
+  # converts the live job's intentional `skipped` result into success otherwise.
   release-gate:
     needs: [parse, live-flutter-macos]
     if: always()

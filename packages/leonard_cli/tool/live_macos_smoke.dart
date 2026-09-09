@@ -14,7 +14,8 @@ const String _targetWorkspaceEnvironment =
 
 Future<void> main(List<String> arguments) async {
   try {
-    final _SmokeConfiguration configuration = _parseConfiguration(arguments);
+    final LiveMacosSmokeConfiguration configuration =
+        parseLiveMacosSmokeConfiguration(arguments);
     final Map<String, Object> receipt = await _runSmoke(configuration);
     stdout.writeln(
       jsonEncode(<String, Object>{'event': 'LIVE_SMOKE_PASS', ...receipt}),
@@ -31,7 +32,15 @@ Future<void> main(List<String> arguments) async {
   }
 }
 
-_SmokeConfiguration _parseConfiguration(List<String> arguments) {
+/// Parses command-line and workspace inputs for the live macOS smoke.
+///
+/// Explicit non-blank command-line configuration takes precedence over the
+/// injected environment, then the source workspace.
+LiveMacosSmokeConfiguration parseLiveMacosSmokeConfiguration(
+  List<String> arguments, {
+  Map<String, String>? environment,
+  String? sourceWorkspace,
+}) {
   final ArgParser parser = ArgParser()
     ..addOption(
       'target-workspace',
@@ -50,22 +59,23 @@ _SmokeConfiguration _parseConfiguration(List<String> arguments) {
     );
   }
 
-  final String sourceWorkspace = _findSourceWorkspace();
+  final String resolvedSourceWorkspace =
+      sourceWorkspace ?? _findSourceWorkspace();
   final String? workspaceOption = results['target-workspace'] as String?;
   final String? workspaceEnvironment =
-      Platform.environment[_targetWorkspaceEnvironment];
+      (environment ?? Platform.environment)[_targetWorkspaceEnvironment];
   final String targetWorkspace = p.normalize(
     p.absolute(
       workspaceOption?.trim().isNotEmpty == true
           ? workspaceOption!
           : workspaceEnvironment?.trim().isNotEmpty == true
           ? workspaceEnvironment!
-          : sourceWorkspace,
+          : resolvedSourceWorkspace,
     ),
   );
 
-  return _SmokeConfiguration(
-    sourceWorkspace: sourceWorkspace,
+  return LiveMacosSmokeConfiguration(
+    sourceWorkspace: resolvedSourceWorkspace,
     targetWorkspace: targetWorkspace,
     target: results['target'] as String,
   );
@@ -97,7 +107,9 @@ String _findSourceWorkspace() {
   );
 }
 
-Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
+Future<Map<String, Object>> _runSmoke(
+  LiveMacosSmokeConfiguration configuration,
+) async {
   if (!Platform.isMacOS) {
     throw UnsupportedError('live smoke requires a macOS host');
   }
@@ -179,7 +191,7 @@ Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
           }
           final Object? rawUri = decoded['ws_uri'];
           final Uri? uri = rawUri is String ? Uri.tryParse(rawUri) : null;
-          if (!_isValidVmServiceUri(uri)) {
+          if (!isValidVmServiceUri(uri)) {
             ready.completeError(
               StateError(
                 _launchFailure(
@@ -227,7 +239,7 @@ Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
       ],
       timeout: const Duration(minutes: 1),
     );
-    final Map<String, dynamic> navigationResult = _requireMap(
+    final Map<String, dynamic> navigationResult = requireMap(
       navigation['result'],
       'router.navigate result',
     );
@@ -243,12 +255,12 @@ Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
       arguments: <String>['observe', '--vm-uri', vmServiceUri.toString()],
       timeout: const Duration(minutes: 1),
     );
-    final Map<String, dynamic> observation = _requireMap(
+    final Map<String, dynamic> observation = requireMap(
       observationEnvelope['observation'],
       'observation',
     );
     const String expectedLabel = 'Debounced search';
-    if (!_containsExactLabel(observation['core'], expectedLabel)) {
+    if (!containsExactLabel(observation['core'], expectedLabel)) {
       throw StateError(
         'observation.core contains no exact label "$expectedLabel": '
         '${jsonEncode(observation['core'])}',
@@ -268,7 +280,7 @@ Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
       timeout: const Duration(minutes: 1),
     );
     final Uint8List pngBytes = await File(screenshotFile).readAsBytes();
-    _validatePngSignature(pngBytes);
+    validatePngSignature(pngBytes);
     if (pngBytes.length <= 1024) {
       throw StateError(
         'screenshot is trivially small: ${pngBytes.length} bytes',
@@ -279,11 +291,11 @@ Future<Map<String, Object>> _runSmoke(_SmokeConfiguration configuration) async {
     if (decoded == null || decoded.width <= 0 || decoded.height <= 0) {
       throw StateError('screenshot did not decode to positive dimensions');
     }
-    final num reportedWidth = _requireNumber(
+    final num reportedWidth = requireNumber(
       screenshot['width_px'],
       'screenshot width_px',
     );
-    final num reportedHeight = _requireNumber(
+    final num reportedHeight = requireNumber(
       screenshot['height_px'],
       'screenshot height_px',
     );
@@ -396,7 +408,8 @@ Future<Uri> _awaitVmService({
   }
 }
 
-bool _isValidVmServiceUri(Uri? uri) =>
+/// Whether [uri] is an authority-bearing WebSocket VM-service URI.
+bool isValidVmServiceUri(Uri? uri) =>
     uri != null &&
     (uri.isScheme('ws') || uri.isScheme('wss')) &&
     uri.hasAuthority &&
@@ -487,7 +500,7 @@ Future<Map<String, dynamic>> _runDriverJson({
       'stderr:\n${result.stderr}',
     );
   }
-  return _requireMap(decoded, '$command output');
+  return requireMap(decoded, '$command output');
 }
 
 Future<_CommandResult> _runDriver({
@@ -567,39 +580,42 @@ Future<void> _tearDownHeldApp({
   ]).timeout(const Duration(seconds: 5));
 }
 
-Map<String, dynamic> _requireMap(Object? value, String description) {
+/// Returns [value] as a JSON object or throws a descriptive [StateError].
+Map<String, dynamic> requireMap(Object? value, String description) {
   if (value is! Map) {
     throw StateError('$description must be a JSON object, got $value');
   }
-  try {
-    return value.cast<String, dynamic>();
-  } on TypeError {
+  if (value.keys.any((Object? key) => key is! String)) {
     throw StateError('$description has non-string keys: $value');
   }
+  return value.cast<String, dynamic>();
 }
 
-num _requireNumber(Object? value, String description) {
+/// Returns [value] as a JSON number or throws a descriptive [StateError].
+num requireNumber(Object? value, String description) {
   if (value is! num) {
     throw StateError('$description must be numeric, got $value');
   }
   return value;
 }
 
-bool _containsExactLabel(Object? value, String expectedLabel) {
+/// Recursively searches JSON-like [value] for an exact `label` value.
+bool containsExactLabel(Object? value, String expectedLabel) {
   if (value is Map) {
     if (value['label'] == expectedLabel) return true;
     for (final Object? child in value.values) {
-      if (_containsExactLabel(child, expectedLabel)) return true;
+      if (containsExactLabel(child, expectedLabel)) return true;
     }
   } else if (value is List) {
     for (final Object? child in value) {
-      if (_containsExactLabel(child, expectedLabel)) return true;
+      if (containsExactLabel(child, expectedLabel)) return true;
     }
   }
   return false;
 }
 
-void _validatePngSignature(List<int> bytes) {
+/// Throws when [bytes] does not begin with the eight-byte PNG signature.
+void validatePngSignature(List<int> bytes) {
   const List<int> signature = <int>[
     0x89,
     0x50,
@@ -620,8 +636,9 @@ void _validatePngSignature(List<int> bytes) {
   }
 }
 
-final class _SmokeConfiguration {
-  const _SmokeConfiguration({
+/// Resolved paths and entrypoint used by the live macOS smoke.
+final class LiveMacosSmokeConfiguration {
+  const LiveMacosSmokeConfiguration({
     required this.sourceWorkspace,
     required this.targetWorkspace,
     required this.target,
