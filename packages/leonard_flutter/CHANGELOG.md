@@ -7,6 +7,7 @@
   the app's VM-service self-connection and the package's runtime `vm_service`
   dependency. Screenshot failures now expose six distinct unavailable reasons
   while preserving the four-key success envelope and JSON-RPC error code 1.
+- Floors `leonard_contract` to `^0.2.4` (the binding passes `carryForward`, introduced there).
 
 ## 0.4.0-rc.1
 
