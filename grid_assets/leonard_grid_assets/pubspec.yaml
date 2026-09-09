@@ -17,8 +17,8 @@ dependencies:
   grid_runtime: ^0.2.0-rc.15
   grid_sdk: ^0.3.0-rc.18
   http: ^1.2.0
-  leonard_agent: ^0.3.0-rc.1
-  leonard_cli: ^0.3.0-rc.1
+  leonard_agent: ^0.3.0
+  leonard_cli: ^0.3.0
   path: ^1.9.0
 
 dev_dependencies:

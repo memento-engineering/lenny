@@ -5,6 +5,8 @@
 - Add a typed live-device E2E service, one JSON-emitting `e2e` Command, the
   four-scenario sample-app composition, and the four-step `leonard-e2e`
   circuit to the existing pack registry and manifest.
+- Pin the stable schema-aware Leonard agent and CLI wave that carries the
+  device tool-schema handshake fix from lenny#123.
 
 ## 0.1.0-rc.2
 
