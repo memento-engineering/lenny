@@ -55,6 +55,7 @@ void main() {
         r'''local args=(--rules "$command_rules" -b --exclude-strings)''',
       ),
     );
+    expect(runner.readAsStringSync(), contains('--test-impact'));
     expect(
       File('${tmp.path}/tool/leonard/custom_rules.example.xml').existsSync(),
       isTrue,

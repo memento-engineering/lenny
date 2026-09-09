@@ -18,5 +18,6 @@ args=("$mode" "$package_dir" --repo-root "$workspace_root")
 coverage="$workspace_root/artifacts/coverage/$package.lcov"
 [[ -f "$coverage" ]] && args+=(--coverage "$coverage")
 [[ "${MUTATION_GATE:-0}" == 1 ]] && args+=(--gate)
+[[ $# -gt 0 ]] && args+=(--test-impact)
 [[ $# -gt 0 ]] && args+=(-- "$@")
 exec "$runner" "${args[@]}"

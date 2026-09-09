@@ -14,6 +14,7 @@ register:
   obsoleted-by: null
   updated-by:
     - nightly-mutation-replaces-per-pr-sweep
+    - mutation-sweeps-shard-by-file-and-select-tests-by-impact
   bead: null
   legacy-id: "A3"
 ---
@@ -25,4 +26,3 @@ register:
 **Status:** pending.
 
 ---
-

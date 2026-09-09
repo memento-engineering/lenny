@@ -31,6 +31,8 @@ void main() {
         r'''local args=(--rules "$command_rules" -b --exclude-strings)''',
       ),
     );
+    expect(runner, contains('--test-impact'));
+    expect(runner, contains(r'''$repo_root/tool/test_impact.dart'''));
     final List<String> ids = RegExp(
       r'<regex id="(M[1-8]\.[^"]+)"',
     ).allMatches(rules).map((m) => m.group(1)!).toList();

@@ -30,11 +30,38 @@ void main() {
     File('${package.path}/pubspec.yaml').writeAsStringSync(
       'name: portable_package\ndev_dependencies:\n  mutation_test: ^1.8.0\n',
     );
+    Directory('${package.path}/lib').createSync();
+    File(
+      '${package.path}/lib/imported.dart',
+    ).writeAsStringSync('const a = 1;\n');
+    File(
+      '${package.path}/lib/unimported.dart',
+    ).writeAsStringSync('const b = 2;\n');
+    File(
+      '${package.path}/lib/barrel.dart',
+    ).writeAsStringSync("export 'imported.dart';\n");
+    Directory('${package.path}/test').createSync();
+    File('${package.path}/test/importing_test.dart').writeAsStringSync(
+      "import 'package:portable_package/imported.dart';\nvoid main() {}\n",
+    );
+    Directory('${repo.path}/tool').createSync();
+    File(
+      '${root.path}/tool/test_impact.dart',
+    ).copySync('${repo.path}/tool/test_impact.dart');
+    Directory('${repo.path}/.dart_tool').createSync();
+    File(
+      '${root.path}/.dart_tool/package_config.json',
+    ).copySync('${repo.path}/.dart_tool/package_config.json');
     final Directory bin = Directory('${repo.path}/bin')..createSync();
     log = File('${repo.path}/calls.txt');
     final File dart = File('${bin.path}/dart');
     dart.writeAsStringSync(r'''#!/usr/bin/env bash
 printf '%s\n' "$*" >> "$MUTATION_LOG"
+if [[ "${1:-}" == run && "${2:-}" == */tool/test_impact.dart ]]; then
+  [[ "${TEST_IMPACT_FAIL:-0}" == 1 ]] && exit 23
+  [[ "${TEST_IMPACT_EMPTY:-0}" == 1 ]] && exit 0
+  exec "$REAL_DART" "$@"
+fi
 if [[ "${1:-}" == test ]]; then
   echo baseline
   exit "${BASELINE_EXIT:-0}"
@@ -71,6 +98,7 @@ exit 70
       ...Platform.environment,
       'PATH': '${bin.path}:${Platform.environment['PATH'] ?? ''}',
       'MUTATION_LOG': log.path,
+      'REAL_DART': Platform.resolvedExecutable,
     };
   });
 
@@ -290,6 +318,108 @@ exit 70
     expect(result.exitCode, 0);
     expect(log.readAsLinesSync()[0], endsWith('lib/a.dart lib/b.dart'));
     expect(log.readAsLinesSync()[2], endsWith('lib/a.dart lib/b.dart'));
+  });
+
+  test(
+    'test-impact passes selective and fallback XML in both phases',
+    () async {
+      final ProcessResult result = await run(<String>[
+        'full',
+        package.path,
+        '--test-impact',
+        '--',
+        'lib/imported.dart',
+        'lib/unimported.dart',
+        'lib/barrel.dart',
+      ]);
+      expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+
+      final List<String> mutationCalls = log
+          .readAsLinesSync()
+          .where((String call) => call.startsWith('run mutation_test '))
+          .toList();
+      expect(mutationCalls, hasLength(2));
+      for (final String call in mutationCalls) {
+        expect(call, isNot(contains(' lib/imported.dart')));
+        expect(call, isNot(contains(' lib/unimported.dart')));
+        expect(call, isNot(contains(' lib/barrel.dart')));
+        expect(RegExp(r'\.xml($| )').allMatches(call), hasLength(4));
+      }
+
+      for (final String phase in <String>['dry', 'full']) {
+        final Directory impact = Directory('${output(phase)}/test-impact');
+        final List<File> documents =
+            impact.listSync().whereType<File>().toList()..sort(
+              (File left, File right) => left.path.compareTo(right.path),
+            );
+        expect(documents, hasLength(3));
+        final Map<String, String> bySource = <String, String>{
+          for (final File document in documents)
+            RegExp(
+              r'<file>([^<]+)</file>',
+            ).firstMatch(document.readAsStringSync())!.group(1)!: document
+                .readAsStringSync(),
+        };
+        expect(
+          bySource['lib/imported.dart'],
+          contains('dart test &apos;test/importing_test.dart&apos;'),
+        );
+        for (final String fallback in <String>[
+          'lib/unimported.dart',
+          'lib/barrel.dart',
+        ]) {
+          expect(
+            bySource[fallback],
+            contains('working-directory=".">dart test</command>'),
+          );
+        }
+        expect(
+          File('${output(phase)}/command_rules.xml').readAsStringSync(),
+          isNot(contains('<commands>')),
+        );
+      }
+    },
+  );
+
+  test('test-impact input failures happen before artifacts', () async {
+    final ProcessResult noSources = await run(<String>[
+      'full',
+      package.path,
+      '--test-impact',
+    ]);
+    expect(noSources.exitCode, 64);
+    expect(Directory('${repo.path}/artifacts').existsSync(), isFalse);
+
+    File('${repo.path}/tool/test_impact.dart').deleteSync();
+    final ProcessResult missingMapper = await run(<String>[
+      'full',
+      package.path,
+      '--test-impact',
+      '--',
+      'lib/imported.dart',
+    ]);
+    expect(missingMapper.exitCode, 66);
+    expect(Directory('${repo.path}/artifacts').existsSync(), isFalse);
+  });
+
+  test('test-impact rejects failed or empty document generation', () async {
+    for (final String variable in <String>[
+      'TEST_IMPACT_FAIL',
+      'TEST_IMPACT_EMPTY',
+    ]) {
+      final ProcessResult result = await run(
+        <String>[
+          'dry',
+          package.path,
+          '--test-impact',
+          '--',
+          'lib/imported.dart',
+        ],
+        env: <String, String>{...environment, variable: '1'},
+      );
+      expect(result.exitCode, 70, reason: variable);
+      expect(result.stderr, contains('test-impact generation'));
+    }
   });
 
   test('invalid inputs fail before full artifacts', () async {

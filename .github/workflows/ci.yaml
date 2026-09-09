@@ -74,33 +74,82 @@ jobs:
           path: artifacts/coverage/*.lcov
           if-no-files-found: error
           retention-days: 14
-  mutation-nightly:
+  mutation-nightly-plan:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: [coverage]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     env:
       GITHUB_TOKEN: ${{ github.token }}
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select files and build shard matrix
+        id: plan
+        shell: bash
+        run: |
+          flutter_base_sha="$(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yaml/runs?event=schedule&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty' || true
+          )"
+          if [[ -z "$flutter_base_sha" ]]; then
+            flutter_base_sha=HEAD~20
+          fi
+          rotation_seed="$(date -u +%Y%m%d)"
+
+          for package in leonard_native leonard_contract leonard_flutter; do
+            selection_dir="artifacts/mutation-selection/$package"
+            mkdir -p "$selection_dir"
+            if [[ "$package" == leonard_flutter ]]; then
+              MAX_FILES=4
+              BASE_SHA="$flutter_base_sha"
+              HEAD_SHA=HEAD
+              rotate_count=3
+            else
+              # A zero diff cap plus a rotation as large as the tracked lib
+              # set asks the one selector for every pure-Dart production file.
+              MAX_FILES=0
+              BASE_SHA=HEAD
+              HEAD_SHA=HEAD
+              rotate_count="$(
+                git ls-tree -r --name-only HEAD -- "packages/$package/lib" |
+                  awk '/\.dart$/ {count++} END {print count + 0}'
+              )"
+            fi
+            ./tool/select_mutation_files.sh \
+              "$package" "$MAX_FILES" "$BASE_SHA" "$HEAD_SHA" \
+              --out-dir "$selection_dir" \
+              --rotate "$rotate_count" "$rotation_seed" \
+              > "$selection_dir/files.txt"
+          done
+
+          matrix="$(jq -cn '
+            {
+              include:
+                ([range(0; 3) | {package: "leonard_native", shard_index: ., shard_count: 3}] +
+                 [range(0; 1) | {package: "leonard_contract", shard_index: ., shard_count: 1}] +
+                 [range(0; 6) | {package: "leonard_flutter", shard_index: ., shard_count: 6}])
+            }
+          ')"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+      - name: Upload mutation selections
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-selections
+          path: artifacts/mutation-selection/
+          if-no-files-found: error
+          retention-days: 1
+
+  mutation-nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: [coverage, mutation-nightly-plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Full modes sweep every production file. `max_files` caps only
-          # the diff portion of a selected mode before rotation is appended.
-          # `prove_uncovered` asserts the lcov coverage classification is
-          # present whether the reported count is zero or nonzero. One
-          # pure-Dart package proves the shared runner path without
-          # duplicating this signal in every matrix job.
-          - package: leonard_native
-            mode: full
-            prove_uncovered: 'true'
-          - package: leonard_contract
-            mode: full
-            prove_uncovered: 'false'
-          - package: leonard_flutter
-            mode: pr
-            max_files: '4'
-            prove_uncovered: 'false'
+      matrix: ${{ fromJSON(needs.mutation-nightly-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,85 +164,136 @@ jobs:
         with:
           name: coverage-lcov
           path: artifacts/coverage
-      - name: Select mutation files
-        id: changed
+      - name: Download mutation selections
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-selections
+          path: artifacts/mutation-selection
+      - name: Run assigned file shard
+        id: shard
         shell: bash
         env:
           PKG: ${{ matrix.package }}
-          MODE: ${{ matrix.mode }}
-          MATRIX_MAX_FILES: ${{ matrix.max_files }}
+          SHARD_COUNT: ${{ matrix.shard_count }}
+          SHARD_INDEX: ${{ matrix.shard_index }}
         run: |
-          BASE_SHA="$(
-            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yaml/runs?event=schedule&status=success&per_page=1" \
-              --jq '.workflow_runs[0].head_sha // empty' || true
-          )"
-          if [[ -z "$BASE_SHA" ]]; then
-            BASE_SHA=HEAD~20
-          fi
-          HEAD_SHA=HEAD
-
-          if [[ "$MODE" == full ]]; then
-            MAX_FILES="$(
-              git ls-tree -r --name-only "$HEAD_SHA" -- "packages/$PKG" |
-                wc -l |
-                tr -d ' '
-            )"
+          selection_file="artifacts/mutation-selection/$PKG/files.txt"
+          test -f "$selection_file"
+          assigned="$RUNNER_TEMP/mutation-files.txt"
+          awk -v shard_count="$SHARD_COUNT" -v shard_index="$SHARD_INDEX" '(NR-1) % shard_count == shard_index' "$selection_file" > "$assigned"
+          count="$(wc -l < "$assigned" | tr -d ' ')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          mapfile -t shard_files < "$assigned"
+          if (( count > 0 )); then
+            if [[ "$PKG" == leonard_flutter ]]; then
+              ./tool/run_mutation_pilot.sh dry "$PKG" "${shard_files[@]}"
+            fi
+            ./tool/run_mutation_pilot.sh full "$PKG" "${shard_files[@]}"
           else
-            MAX_FILES="$MATRIX_MAX_FILES"
-          fi
-
-          selection_dir="$RUNNER_TEMP/mutation-selection"
-          ./tool/select_mutation_files.sh \
-            "$PKG" "$MAX_FILES" "$BASE_SHA" "$HEAD_SHA" \
-            --out-dir "$selection_dir" \
-            --rotate 3 "$(date -u +%Y%m%d)" \
-            >"$RUNNER_TEMP/mutation-files.txt"
-          count="$(wc -l <"$RUNNER_TEMP/mutation-files.txt" | tr -d ' ')"
-          echo "count=$count" >>"$GITHUB_OUTPUT"
-      - name: Run mutation sweep
-        if: matrix.mode == 'full' || steps.changed.outputs.count != '0'
-        shell: bash
-        env:
-          PKG: ${{ matrix.package }}
-          MODE: ${{ matrix.mode }}
-        run: |
-          if [[ "$MODE" == full ]]; then
-            ./tool/run_mutation_pilot.sh full "$PKG"
-          else
-            mapfile -t mutation_files <"$RUNNER_TEMP/mutation-files.txt"
-            ./tool/run_mutation_pilot.sh pr "$PKG" "${mutation_files[@]}"
+            artifact_dir="artifacts/mutation/$PKG/full"
+            mkdir -p "$artifact_dir"
+            printf 'No files assigned to shard %s of %s.\n' \
+              "$SHARD_INDEX" "$SHARD_COUNT" > "$artifact_dir/console.txt"
+            printf '%s\n' \
+              'Found 0 mutations in 0 source files!' \
+              'Total tests: 0' \
+              'Undetected Mutations: 0 (0.00%)' \
+              'Not covered by tests: 0' >> "$artifact_dir/console.txt"
+            printf '# Mutation report\n\nNo files were assigned to this shard.\n' \
+              > "$artifact_dir/mutation-test-report.md"
           fi
       - name: Preserve mutation selection
         if: always()
         shell: bash
         env:
           PKG: ${{ matrix.package }}
-          MODE: ${{ matrix.mode }}
+          SHARD_COUNT: ${{ matrix.shard_count }}
+          SHARD_INDEX: ${{ matrix.shard_index }}
         run: |
-          artifact_dir="artifacts/mutation/$PKG/$MODE"
+          artifact_dir="artifacts/mutation/$PKG/full"
           mkdir -p "$artifact_dir"
-          if [[ -f "$RUNNER_TEMP/mutation-selection/selection.txt" ]]; then
+          selection_dir="artifacts/mutation-selection/$PKG"
+          if [[ -f "$selection_dir/selection.txt" ]]; then
             cp -f \
-              "$RUNNER_TEMP/mutation-selection/selection.txt" \
+              "$selection_dir/selection.txt" \
               "$artifact_dir/selection.txt"
           fi
-          if [[ "${{ steps.changed.outputs.count }}" == 0 && \
-                -f "$RUNNER_TEMP/mutation-selection/console.txt" ]]; then
-            cp -f \
-              "$RUNNER_TEMP/mutation-selection/console.txt" \
-              "$artifact_dir/console.txt"
+          if [[ -f "$RUNNER_TEMP/mutation-files.txt" ]]; then
+            cp -f "$RUNNER_TEMP/mutation-files.txt" "$artifact_dir/files.txt"
+          else
+            : > "$artifact_dir/files.txt"
           fi
-      - name: Prove coverage input was applied
-        if: matrix.prove_uncovered == 'true' || (matrix.package == 'leonard_flutter' && steps.changed.outputs.count != '0')
-        run: >-
-          grep -Eq 'Not covered by tests: [0-9]+'
-          artifacts/mutation/${{ matrix.package }}/${{ matrix.mode }}/console.txt
-      - name: Upload mutation report
+          if [[ "${{ steps.shard.outputs.count }}" == 0 ]]; then
+            printf 'No files assigned to shard %s of %s.\n' \
+              "$SHARD_INDEX" "$SHARD_COUNT" > "$artifact_dir/console.txt"
+            printf '%s\n' \
+              'Found 0 mutations in 0 source files!' \
+              'Total tests: 0' \
+              'Undetected Mutations: 0 (0.00%)' \
+              'Not covered by tests: 0' >> "$artifact_dir/console.txt"
+            if [[ ! -f "$artifact_dir/mutation-test-report.md" ]]; then
+              printf '# Mutation report\n\nNo files were assigned to this shard.\n' \
+                > "$artifact_dir/mutation-test-report.md"
+            fi
+          fi
+      - name: Upload mutation shard
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-${{ matrix.package }}-${{ matrix.mode }}
-          path: artifacts/mutation/${{ matrix.package }}/${{ matrix.mode }}/
+          name: mutation-${{ matrix.package }}-full-shard-${{ matrix.shard_index }}
+          path: artifacts/mutation/${{ matrix.package }}/full/
+          if-no-files-found: error
+          retention-days: 1
+
+  mutation-nightly-aggregate:
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs: [mutation-nightly]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: leonard_native
+            shard_count: 3
+          - package: leonard_contract
+            shard_count: 1
+          - package: leonard_flutter
+            shard_count: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download mutation shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mutation-${{ matrix.package }}-full-shard-*
+          path: artifacts/mutation-shards
+          merge-multiple: false
+      - name: Aggregate mutation shards
+        shell: bash
+        env:
+          PKG: ${{ matrix.package }}
+          SHARD_COUNT: ${{ matrix.shard_count }}
+        run: |
+          mkdir -p "artifacts/mutation/$PKG"
+          ./tool/aggregate_mutation_shards.sh \
+            "$PKG" "$SHARD_COUNT" \
+            artifacts/mutation-shards \
+            "artifacts/mutation/$PKG/full"
+      - name: Prove coverage input was applied
+        shell: bash
+        env:
+          PKG: ${{ matrix.package }}
+        run: |
+          output="artifacts/mutation/$PKG/full"
+          if [[ "$PKG" == leonard_native || \
+                ( "$PKG" == leonard_flutter && -s "$output/files.txt" ) ]]; then
+            grep -Eq 'Not covered by tests: [0-9]+' "$output/console.txt"
+          fi
+      - name: Upload canonical mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-${{ matrix.package }}-full
+          path: artifacts/mutation/${{ matrix.package }}/full/
           if-no-files-found: error
           retention-days: 14
   # Stable required-check name for branch protection. Pin protection to

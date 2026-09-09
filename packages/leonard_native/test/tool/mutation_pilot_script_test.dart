@@ -32,14 +32,25 @@ void main() {
       ..writeAsStringSync(
         File('${source.path}/tool/run_mutation_pilot.sh').readAsStringSync(),
       );
-    final File portable =
+    final String runnerDirectory =
+        '${sandbox.path}/packages/leonard_cli/lib/assets/tools/leonard';
+    final File
+    portableImplementation = File('$runnerDirectory/run_mutation_impl.sh')
+      ..writeAsStringSync(
         File(
-          '${sandbox.path}/packages/leonard_cli/lib/assets/tools/leonard/run_mutation.sh',
-        )..writeAsStringSync(
-          File(
-            '${source.path}/packages/leonard_cli/lib/assets/tools/leonard/run_mutation.sh',
-          ).readAsStringSync(),
-        );
+          '${source.path}/packages/leonard_cli/lib/assets/tools/leonard/run_mutation.sh',
+        ).readAsStringSync(),
+      );
+    final File portable = File('$runnerDirectory/run_mutation.sh')
+      ..writeAsStringSync(r'''#!/usr/bin/env bash
+if [[ "${LOG_RUNNER_SEAM:-0}" == 1 ]]; then
+  printf 'runner %s\n' "$*" >> "$MUTATION_LOG"
+fi
+exec "$(dirname "$0")/run_mutation_impl.sh" "$@"
+''');
+    File(
+      '${sandbox.path}/tool/test_impact.dart',
+    ).writeAsStringSync('// PATH-backed fake handles this script.\n');
     package('leonard_native');
     package('leonard_contract');
     final Directory bin = Directory('${sandbox.path}/bin')..createSync();
@@ -48,6 +59,22 @@ void main() {
       ..writeAsStringSync(r'''#!/usr/bin/env bash
 printf 'dart %s\n' "$*" >> "$MUTATION_LOG"
 if [[ "${1:-}" == test ]]; then exit "${BASELINE_EXIT:-0}"; fi
+if [[ "${1:-}" == run && "${2:-}" == */tool/test_impact.dart ]]; then
+  output_dir="$4"
+  shift 4
+  mkdir -p "$output_dir"
+  index=0
+  for source in "$@"; do
+    document="$output_dir/$(printf '%03d' "$index")-input.xml"
+    printf '%s\n' \
+      '<?xml version="1.0" encoding="UTF-8"?>' \
+      "<mutations version=\"1.2\"><files><file>$source</file></files><commands><command>dart test</command></commands></mutations>" \
+      > "$document"
+    printf '%s\n' "$document"
+    index=$((index + 1))
+  done
+  exit 0
+fi
 if [[ "${1:-}" == run ]]; then
   [[ " $* " == *" --format all "* ]] && exit "${MUTATION_EXIT:-0}"
   echo "Found 3 mutations"
@@ -70,6 +97,7 @@ exit 70
     for (final File executable in <File>[
       pilot,
       portable,
+      portableImplementation,
       flutterRunner,
       dart,
       flutter,
@@ -163,6 +191,42 @@ exit 70
       0,
     );
     expect(log.readAsLinesSync().first, endsWith('lib/a.dart'));
+  });
+
+  test('test impact routes selected files only through pure Dart', () async {
+    final Map<String, String> seamEnvironment = <String, String>{
+      ...environment,
+      'LOG_RUNNER_SEAM': '1',
+    };
+    final ProcessResult native = await run(<String>[
+      'full',
+      'leonard_native',
+      'lib/a.dart',
+    ], env: seamEnvironment);
+    expect(native.exitCode, 0, reason: '${native.stdout}\n${native.stderr}');
+    final List<String> nativeSeam = log
+        .readAsLinesSync()
+        .where((String call) => call.startsWith('runner '))
+        .toList();
+    expect(nativeSeam, hasLength(1));
+    expect(
+      RegExp(r'(^| )--test-impact($| )').allMatches(nativeSeam.single),
+      hasLength(1),
+    );
+
+    log.writeAsStringSync('');
+    package('leonard_flutter', flutter: true);
+    final ProcessResult flutter = await run(<String>[
+      'full',
+      'leonard_flutter',
+      'lib/a.dart',
+    ], env: seamEnvironment);
+    expect(flutter.exitCode, 0, reason: '${flutter.stdout}\n${flutter.stderr}');
+    expect(log.readAsStringSync(), isNot(contains('--test-impact')));
+    expect(
+      log.readAsLinesSync().where((String call) => call.startsWith('runner ')),
+      isEmpty,
+    );
   });
 
   test('MUTATION_GATE delegates score failure policy', () async {
