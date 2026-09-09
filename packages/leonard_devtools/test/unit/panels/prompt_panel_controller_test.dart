@@ -236,9 +236,42 @@ void main() {
         handshakeResult: const HandshakeResult(
           contractVersion: '1.0',
           extensions: <ExtensionManifestEntry>[
-            // Handshake carries BARE tool names; buildExtensionTools prefixes
-            // the namespace to produce the qualified ToolDescriptor.name.
-            ExtensionManifestEntry(namespace: 'router', tools: <String>['go']),
+            ExtensionManifestEntry(
+              namespace: 'core',
+              tools: <String>['tap'],
+              toolDescriptors: <ToolDescriptor>[
+                ToolDescriptor(
+                  name: 'core.tap',
+                  description: 'Tap a semantics node.',
+                  inputSchema: <String, dynamic>{
+                    'type': 'object',
+                    'properties': <String, dynamic>{
+                      'node_id': <String, dynamic>{'type': 'integer'},
+                    },
+                    'required': <String>['node_id'],
+                    'additionalProperties': false,
+                  },
+                ),
+              ],
+            ),
+            ExtensionManifestEntry(
+              namespace: 'router',
+              tools: <String>['go'],
+              toolDescriptors: <ToolDescriptor>[
+                ToolDescriptor(
+                  name: 'router.go',
+                  description: 'Navigate to a route.',
+                  inputSchema: <String, dynamic>{
+                    'type': 'object',
+                    'properties': <String, dynamic>{
+                      'route': <String, dynamic>{'type': 'string'},
+                    },
+                    'required': <String>['route'],
+                    'additionalProperties': false,
+                  },
+                ),
+              ],
+            ),
             ExtensionManifestEntry(namespace: 'dio', tools: <String>['cancel']),
           ],
         ),
@@ -266,12 +299,21 @@ void main() {
       expect(fake.capturedHost, isA<DefaultLoopHost>());
 
       // mergedTools() must reflect enabledExtensionNamespaces ∩ the handshake
-      // extension manifest.
+      // extension manifest, with core arriving through the dedicated seam.
       final host = fake.capturedHost!;
-      final names = host.mergedTools().map((t) => t.name).toSet();
-      expect(names, <String>{
-        'router.go',
-      }, reason: 'only router (enabled & in handshake) tools should appear');
+      final tools = host.mergedTools();
+      final names = tools.map((t) => t.name).toSet();
+      expect(names, <String>{'core.tap', 'router.go'});
+      final ToolDescriptor coreTap = tools.singleWhere(
+        (ToolDescriptor tool) => tool.name == 'core.tap',
+      );
+      final ToolDescriptor routerGo = tools.singleWhere(
+        (ToolDescriptor tool) => tool.name == 'router.go',
+      );
+      expect(coreTap.inputSchema['required'], <String>['node_id']);
+      expect(coreTap.inputSchema['additionalProperties'], isFalse);
+      expect(routerGo.inputSchema['required'], <String>['route']);
+      expect(routerGo.inputSchema['additionalProperties'], isFalse);
       expect(host.activeExtensionNamespaces(), <String>{'router'});
 
       await c.dispose();

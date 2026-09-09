@@ -8,6 +8,60 @@ import 'package:leonard_agent/leonard_agent.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('manifestToolDescriptors', () {
+    test('reuses strict descriptors in authoritative tools order', () {
+      final strictTap = ToolDescriptor(
+        name: 'core.tap',
+        description: 'Tap a semantics node.',
+        inputSchema: const <String, dynamic>{
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'node_id': <String, dynamic>{'type': 'integer'},
+          },
+          'required': <String>['node_id'],
+          'additionalProperties': false,
+        },
+      );
+      final unadvertised = ToolDescriptor(
+        name: 'core.unadvertised',
+        description: 'Not in tools.',
+        inputSchema: const <String, dynamic>{'type': 'null'},
+      );
+      final out = manifestToolDescriptors(
+        ExtensionManifestEntry(
+          namespace: 'core',
+          tools: const <String>['wait', 'tap'],
+          toolDescriptors: <ToolDescriptor>[strictTap, unadvertised],
+        ),
+      );
+
+      expect(out.map((ToolDescriptor tool) => tool.name), <String>[
+        'core.wait',
+        'core.tap',
+      ]);
+      expect(out.last, same(strictTap));
+      expect(out.last.description, 'Tap a semantics node.');
+      expect(out.last.inputSchema['additionalProperties'], isFalse);
+      expect(out.first.inputSchema, <String, dynamic>{
+        'type': 'object',
+        'additionalProperties': true,
+      });
+    });
+
+    test('legacy names-only entry receives permissive descriptors', () {
+      final out = manifestToolDescriptors(
+        const ExtensionManifestEntry(
+          namespace: 'router',
+          tools: <String>['go'],
+        ),
+      );
+
+      expect(out.single.name, 'router.go');
+      expect(out.single.description, contains('permissive schema'));
+      expect(out.single.inputSchema['additionalProperties'], isTrue);
+    });
+  });
+
   group('buildExtensionTools', () {
     test('empty requested → empty map', () {
       final out = buildExtensionTools(
@@ -20,6 +74,14 @@ void main() {
     });
 
     test('intersects requested with handshake; descriptors per tool name', () {
+      const Map<String, dynamic> strictSchema = <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{
+          'route': <String, dynamic>{'type': 'string'},
+        },
+        'required': <String>['route'],
+        'additionalProperties': false,
+      };
       final out = buildExtensionTools(
         requested: const <String>['router', 'riverpod', 'dio'],
         handshake: const <ExtensionManifestEntry>[
@@ -28,6 +90,13 @@ void main() {
           ExtensionManifestEntry(
             namespace: 'router',
             tools: <String>['navigate'],
+            toolDescriptors: <ToolDescriptor>[
+              ToolDescriptor(
+                name: 'router.navigate',
+                description: 'Navigate to a route.',
+                inputSchema: strictSchema,
+              ),
+            ],
           ),
           ExtensionManifestEntry(
             namespace: 'riverpod',
@@ -45,7 +114,12 @@ void main() {
       expect(out['router'], hasLength(1));
       expect(out['router']!.single.name, 'router.navigate');
       expect(out['riverpod']!.single.name, 'riverpod.invalidate_provider');
-      expect(out['router']!.single.inputSchema['type'], 'object');
+      expect(out['router']!.single.description, 'Navigate to a route.');
+      expect(out['router']!.single.inputSchema, strictSchema);
+      expect(
+        out['riverpod']!.single.inputSchema['additionalProperties'],
+        isTrue,
+      );
     });
 
     test('non-empty requested yields non-empty extensionTools (regression: '

@@ -2,11 +2,11 @@
 /// a [SessionSurface] (a single-host `LeonardSession` or a multi-host
 /// `MultiHostSession`) plus caller-supplied tool descriptors.
 ///
-/// The handshake's `ExtensionManifestEntry` list only carries
-/// pre-namespaced tool *names*; full [ToolDescriptor]s (including
-/// `inputSchema`) are supplied by the caller (CLI / DevTools)
-/// keyed by extension namespace. This host intersects that
-/// descriptor map with the active handshake namespaces, then subtracts
+/// The handshake's `ExtensionManifestEntry` list carries bare tool names and,
+/// for schema-bearing bindings, qualified [ToolDescriptor]s. The caller
+/// (CLI / DevTools) projects core descriptors into [coreTools] and enabled
+/// extension descriptors into [extensionTools]. This host intersects that
+/// extension map with the active handshake namespaces, then subtracts
 /// auto-disabled namespaces to produce the per-turn merged tool list.
 ///
 /// Transport-level failures (`RPCError`s reported as

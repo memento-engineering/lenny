@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:leonard_agent/leonard_agent.dart'
+    show ExtensionManifestEntry, manifestToolDescriptors;
 import 'package:leonard_agent/src/observation/diff_models.dart';
 import 'package:leonard_agent/src/observation/models.dart';
 import 'package:leonard_agent/src/provider/action_schema.dart';
@@ -79,6 +81,67 @@ ConversationSnapshot _snapshot({Map<String, dynamic>? toolResult}) =>
 
 void main() {
   group('DartanticModelProvider.decide', () {
+    test('preserves strict core schema in the SwiftInfer request', () async {
+      const Map<String, dynamic> strictTapSchema = <String, dynamic>{
+        r'$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'object',
+        'properties': <String, dynamic>{
+          'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+        },
+        'required': <String>['node_id'],
+        'additionalProperties': false,
+      };
+      final strictTap = ToolDescriptor(
+        name: 'core.tap',
+        description: 'Tap a target semantics node.',
+        inputSchema: strictTapSchema,
+      );
+      final descriptor = manifestToolDescriptors(
+        ExtensionManifestEntry(
+          namespace: 'core',
+          tools: const <String>['tap'],
+          toolDescriptors: <ToolDescriptor>[strictTap],
+        ),
+      ).single;
+      final client = _FakeClient(const <Map<String, dynamic>>[]);
+      final provider = DartanticModelProvider(
+        backend: SwiftInferBackend(baseUrl: Uri.parse('http://localhost:8080')),
+        model: 'qwen',
+        capabilities: _caps,
+        client: client,
+      );
+      final snapshot = ConversationSnapshot(
+        systemMessage: 'sys',
+        turns: <ConversationTurn>[
+          UserTurn(
+            observation: Observation.empty(),
+            diff: ObservationDiff.empty(),
+          ),
+        ],
+        tools: <ToolDescriptor>[descriptor],
+      );
+
+      try {
+        await provider.decide(
+          snapshot,
+          ActionSchema.fromToolList(<ToolDescriptor>[descriptor]),
+        );
+      } on SchemaRejection {
+        // An empty response is sufficient to capture the outgoing request.
+      } finally {
+        provider.dispose();
+      }
+
+      final body = jsonDecode(client.body!) as Map<String, dynamic>;
+      final tools = (body['tools'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final tap = tools.singleWhere(
+        (Map<String, dynamic> tool) => tool['name'] == 'core_tap',
+      );
+      expect(tap['description'], descriptor.description);
+      expect(tap['input_schema'], strictTapSchema);
+    });
+
     test('decodes thinking + tool call into a ModelDecision', () async {
       final p = _provider([
         {

@@ -43,6 +43,30 @@ class _DottedTool extends LeonardTool {
       const ToolResult(ok: true);
 }
 
+class _StrictTapTool extends LeonardTool {
+  const _StrictTapTool();
+
+  @override
+  String get name => 'tap';
+
+  @override
+  String get description => 'Tap a semantics node.';
+
+  @override
+  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer'},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  });
+
+  @override
+  Future<ToolResult> call(Map<String, Object?> args) async =>
+      const ToolResult(ok: true);
+}
+
 class _Ext extends LeonardExtension {
   _Ext(this.namespace, this._tools);
   @override
@@ -156,6 +180,31 @@ void main() {
       expect(merged.keys, contains('core.echo'));
       expect(r.manifest.single.namespace, 'core');
       expect(r.manifest.single.tools, <String>['echo']);
+    });
+
+    test('handshakeManifest preserves ordered device tool descriptors', () {
+      final r = ExtensionRegistry();
+      r.register(_Ext('core', const <LeonardTool>[_StrictTapTool()]));
+
+      final entry = r.handshakeManifest.single;
+
+      expect(entry.namespace, 'core');
+      expect(entry.tools, <String>['tap']);
+      expect(entry.toolDescriptors, <Map<String, Object?>>[
+        <String, Object?>{
+          'name': 'tap',
+          'description': 'Tap a semantics node.',
+          'inputSchema': const <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'node_id': <String, Object?>{'type': 'integer'},
+            },
+            'required': <String>['node_id'],
+            'additionalProperties': false,
+          },
+        },
+      ]);
+      expect(r.manifest.single.tools, <String>['tap']);
     });
 
     test('rejects duplicate namespace', () {

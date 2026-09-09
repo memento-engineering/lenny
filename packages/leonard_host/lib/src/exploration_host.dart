@@ -80,16 +80,19 @@ class ExplorationHost {
   }
 
   /// The `core.handshake` response body (JSON string): protocol version plus
-  /// the `{namespace, tools}` manifest the driver lists with `tools`.
+  /// the schema-bearing extension manifest the driver lists with `tools`.
   Future<String> handshakeJson() async {
     await _prepare();
     return jsonEncode(<String, Object?>{
       'protocolVersion': _protocolVersion,
       'bindingType': 'LeonardHost',
       'extensions': <Map<String, Object?>>[
-        for (final ({String namespace, List<String> tools}) m
-            in _registry.manifest)
-          <String, Object?>{'namespace': m.namespace, 'tools': m.tools},
+        for (final m in _registry.handshakeManifest)
+          <String, Object?>{
+            'namespace': m.namespace,
+            'tools': m.tools,
+            'toolDescriptors': m.toolDescriptors,
+          },
       ],
       // A pure-Dart target has no widget tree, so no screenshot — but the
       // field is part of the handshake contract, so report it (empty) for

@@ -43,33 +43,87 @@ Response _resp(Map<String, dynamic> json) {
 
 void main() {
   group('VmServiceClient.handshake', () {
-    test('decodes protocolVersion and extension manifest', () async {
+    test(
+      'decodes protocolVersion and schema-bearing extension manifest',
+      () async {
+        const Map<String, dynamic> tapSchema = <String, dynamic>{
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'node_id': <String, dynamic>{'type': 'integer'},
+          },
+          'required': <String>['node_id'],
+          'additionalProperties': false,
+        };
+        final fake = _FakeVmService(
+          (method, iso, args) async => _resp(<String, dynamic>{
+            'protocolVersion': '2',
+            'bindingType': 'LeonardBinding',
+            'flutterMode': 'debug',
+            'extensionCount': 1,
+            'extensions': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'namespace': 'core',
+                'tools': <String>['tap'],
+                'toolDescriptors': <Object?>[
+                  <String, dynamic>{
+                    'name': 'tap',
+                    'description': 'Tap a semantics node.',
+                    'inputSchema': tapSchema,
+                  },
+                  <String, dynamic>{
+                    'name': 'unadvertised',
+                    'description': 'Must be ignored.',
+                    'inputSchema': <String, dynamic>{'type': 'object'},
+                  },
+                  <String, dynamic>{
+                    'name': 'tap',
+                    'description': 42,
+                    'inputSchema': <String, dynamic>{'type': 'object'},
+                  },
+                ],
+              },
+            ],
+            'capabilities': <String>['screenshot'],
+          }),
+        );
+        final client = VmServiceClient.forTest(fake, 'iso-1');
+
+        final result = await client.handshake();
+
+        expect(fake.lastMethod, equals('ext.leonard.core.handshake'));
+        expect(fake.lastIsolateId, equals('iso-1'));
+        expect(result.contractVersion, equals('2'));
+        expect(result.extensions, hasLength(1));
+        expect(result.extensions.first.namespace, equals('core'));
+        expect(result.extensions.first.tools, equals(<String>['tap']));
+        expect(result.extensions.first.toolDescriptors, hasLength(1));
+        final ToolDescriptor tap =
+            result.extensions.first.toolDescriptors.single;
+        expect(tap.name, 'core.tap');
+        expect(tap.description, 'Tap a semantics node.');
+        expect(tap.inputSchema, tapSchema);
+        expect(result.capabilities, equals(<String>['screenshot']));
+      },
+    );
+
+    test('legacy names-only manifest leaves descriptors empty', () async {
       final fake = _FakeVmService(
         (method, iso, args) async => _resp(<String, dynamic>{
           'protocolVersion': '2',
-          'bindingType': 'LeonardBinding',
-          'flutterMode': 'debug',
-          'extensionCount': 1,
           'extensions': <Map<String, dynamic>>[
             <String, dynamic>{
-              'namespace': 'router',
-              'tools': <String>['go'],
+              'namespace': 'core',
+              'tools': <String>['tap'],
             },
           ],
-          'capabilities': <String>['screenshot'],
         }),
       );
       final client = VmServiceClient.forTest(fake, 'iso-1');
 
       final result = await client.handshake();
 
-      expect(fake.lastMethod, equals('ext.leonard.core.handshake'));
-      expect(fake.lastIsolateId, equals('iso-1'));
-      expect(result.contractVersion, equals('2'));
-      expect(result.extensions, hasLength(1));
-      expect(result.extensions.first.namespace, equals('router'));
-      expect(result.extensions.first.tools, equals(<String>['go']));
-      expect(result.capabilities, equals(<String>['screenshot']));
+      expect(result.extensions.single.tools, <String>['tap']);
+      expect(result.extensions.single.toolDescriptors, isEmpty);
     });
 
     test('capabilities default to empty when a pre-0.1.5 binding omits '
