@@ -77,6 +77,9 @@ abstract interface class E2eRuntime {
   /// Reads a UTF-8 text file.
   Future<String> readFile(String path);
 
+  /// Writes a UTF-8 text file.
+  Future<void> writeFile(String path, String contents);
+
   /// Creates a distinct artifact directory.
   Future<String> createRunDirectory();
 
@@ -124,6 +127,10 @@ class SystemE2eRuntime implements E2eRuntime {
 
   @override
   Future<String> readFile(String path) => File(path).readAsString();
+
+  @override
+  Future<void> writeFile(String path, String contents) =>
+      File(path).writeAsString(contents);
 
   @override
   Future<String> createRunDirectory() async =>

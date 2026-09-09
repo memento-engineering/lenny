@@ -7,6 +7,8 @@
   circuit to the existing pack registry and manifest.
 - Pin the stable schema-aware Leonard agent and CLI wave that carries the
   device tool-schema handshake fix from lenny#123.
+- Pin Leonard's packaged operating guide on every E2E driver invocation so a
+  dependency-launched CLI never drives from a goal-only prompt.
 
 ## 0.1.0-rc.2
 

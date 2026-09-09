@@ -1,6 +1,7 @@
 /// Leonard child-process invocation and receipt data.
 library;
 
+import 'package:leonard_agent/leonard_agent.dart' show kDefaultAgentsMd;
 import 'package:path/path.dart' as p;
 
 import 'e2e_service.dart';
@@ -44,6 +45,8 @@ Future<E2eRunReceipt> performE2eRun(
     );
   }
   final String trajectoryPath = p.join(runDir, 'trajectory.jsonl');
+  final String agentsMdPath = p.join(runDir, 'AGENTS.md');
+  await runtime.writeFile(agentsMdPath, kDefaultAgentsMd);
   final List<String> argv = <String>[
     ...request.cliPrefix.skip(1),
     '--vm-uri',
@@ -58,6 +61,8 @@ Future<E2eRunReceipt> performE2eRun(
     'action-relative',
     '--output',
     trajectoryPath,
+    '--agents-md',
+    agentsMdPath,
     if (resolvedModelId != null && resolvedModelId.isNotEmpty) ...<String>[
       '--model-id',
       resolvedModelId,

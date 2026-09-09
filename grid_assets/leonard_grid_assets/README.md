@@ -4,8 +4,10 @@ Lenny's grid assets for a the_grid station: the station-driven `selfdrive` and
 `leonard-e2e` circuits, their shared capability registry, and the deterministic
 `E2eCommand`. The E2E service preflights a wired iOS device, launches a fresh
 Flutter app, invokes `leonard_cli`, and derives one structured verdict from the
-typed trajectory. The private sample-suite mode composes four calls to that
-same operation against `packages/leonard_flutter/example/sample_app`.
+typed trajectory. Each invocation explicitly pins Leonard's packaged operating
+guide so dependency-launched CLI snapshots cannot silently fall back to a
+goal-only prompt. The private sample-suite mode composes four calls to that same
+operation against `packages/leonard_flutter/example/sample_app`.
 
 The development runner registers only the Command:
 

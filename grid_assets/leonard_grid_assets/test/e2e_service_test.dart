@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:leonard_agent/leonard_agent.dart' show kDefaultAgentsMd;
 import 'package:leonard_grid_assets/leonard_grid_assets.dart';
 import 'package:test/test.dart';
 
@@ -400,10 +401,13 @@ void main() {
         'action-relative',
         '--output',
         '/run/trajectory.jsonl',
+        '--agents-md',
+        '/run/AGENTS.md',
         '--model-id',
         'exact-model',
       ]),
     );
+    expect(runtime.fileValues['/run/AGENTS.md'], kDefaultAgentsMd);
   });
 
   group('typed inspection', () {

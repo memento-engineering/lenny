@@ -112,6 +112,11 @@ class FakeE2eRuntime implements E2eRuntime {
   Future<String> readFile(String path) async => fileValues[path]!;
 
   @override
+  Future<void> writeFile(String path, String contents) async {
+    fileValues[path] = contents;
+  }
+
+  @override
   Future<String> createRunDirectory() async {
     final String path = '/tmp/leonard-e2e-${_runIndex++}';
     runDirectories.add(path);
