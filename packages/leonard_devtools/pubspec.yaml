@@ -1,6 +1,6 @@
 name: leonard_devtools
 description: DevTools extension for Leonard.
-version: 0.3.0-rc.1
+version: 0.3.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -16,14 +16,14 @@ dependencies:
   genesis_foundation: ^0.2.0
   http: ^1.2.0
   json_rpc_2: ^3.0.2
-  leonard_agent: ^0.3.0-rc.1
+  leonard_agent: ^0.3.0
   leonard_contract: ^0.2.2
   vm_service: ^14.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  leonard_flutter: ^0.4.0-rc.1
+  leonard_flutter: ^0.4.0
   lints: ^5.1.0
   test: any
 

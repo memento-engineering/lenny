@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5
+
+- Added: `ExtensionRegistry.handshakeManifest` — the schema-bearing manifest
+  carrying each registered tool's device-owned description and raw input schema
+  alongside the legacy bare-name list. `manifest` stays the names-only view and
+  is unchanged, so every existing caller is unaffected (lenny#123).
+
 ## 0.2.4
 
 - Added: tool dispatch carries a per-tool `carryForward` opt-in, so a tool's successful result is staged into the next turn only when the tool asks for it (`core.recall` does; `inspect_widget` and every other tool do not). Additive — existing dispatch call sites are unchanged (lenny#116).

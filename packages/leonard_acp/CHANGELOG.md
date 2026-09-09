@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+Promotes `0.2.0-rc.1` to stable.
+
+- **Breaking: requires `leonard_agent ^0.3.0`.** Migration: move the
+  `leonard_agent` constraint to `^0.3.0`. This package imports only the web-safe
+  `leonard_agent.dart` surface, which that version keeps unchanged, and has no
+  API changes of its own.
+
 ## 0.2.0-rc.1
 
 - Require `leonard_agent ^0.3.0-rc.1`. This package imports only the web-safe
