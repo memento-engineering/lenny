@@ -1,3 +1,6 @@
+// The test-impact cases spawn the runner end to end; under CI coverage
+// instrumentation they exceed the 30-second default (lenny#125 coverage job).
+@Timeout(Duration(minutes: 3))
 library;
 
 import 'dart:io';
