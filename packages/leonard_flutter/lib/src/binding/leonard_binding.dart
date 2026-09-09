@@ -408,9 +408,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
           'flutterMode': kDebugMode ? 'debug' : 'profile',
           'extensionCount': _extensions.length,
           'extensions': <Map<String, Object?>>[
-            for (final ({String namespace, List<String> tools}) m
-                in _extensionRegistry.manifest)
-              <String, Object?>{'namespace': m.namespace, 'tools': m.tools},
+            for (final m in _extensionRegistry.handshakeManifest)
+              <String, Object?>{
+                'namespace': m.namespace,
+                'tools': m.tools,
+                'toolDescriptors': m.toolDescriptors,
+              },
           ],
           // Host-level capabilities that are reachable but are NOT namespaced
           // tools, so they never appear under `extensions`. `screenshot` is

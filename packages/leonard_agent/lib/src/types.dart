@@ -1,6 +1,8 @@
 /// Public DTOs and progress events for [LeonardSession].
 library;
 
+import 'provider/types.dart';
+
 /// Result of the `ext.leonard.core.handshake` exchange.
 class HandshakeResult {
   const HandshakeResult({
@@ -12,7 +14,8 @@ class HandshakeResult {
   /// Contract version reported by the binding.
   final String contractVersion;
 
-  /// Active extensions reported by the binding, with pre-namespaced tools.
+  /// Active extensions reported by the binding, with bare tool names and any
+  /// qualified descriptors supplied by the handshake.
   final List<ExtensionManifestEntry> extensions;
 
   /// Host-level capabilities that are reachable but are NOT namespaced
@@ -27,7 +30,11 @@ class HandshakeResult {
 
 /// One entry in the handshake extension manifest.
 class ExtensionManifestEntry {
-  const ExtensionManifestEntry({required this.namespace, required this.tools});
+  const ExtensionManifestEntry({
+    required this.namespace,
+    required this.tools,
+    this.toolDescriptors = const <ToolDescriptor>[],
+  });
 
   /// Extension namespace (e.g. `router`).
   final String namespace;
@@ -37,6 +44,13 @@ class ExtensionManifestEntry {
   /// the fully-qualified `<namespace>.<tool>` form join them with
   /// [namespace].
   final List<String> tools;
+
+  /// Qualified tool descriptors supplied by a schema-bearing handshake.
+  ///
+  /// Empty for legacy names-only handshakes. Consumers must retain [tools] as
+  /// the authoritative ordered tool list and fall back only for names that do
+  /// not have a valid descriptor here.
+  final List<ToolDescriptor> toolDescriptors;
 }
 
 /// Per-session configuration consumed by later harness stories

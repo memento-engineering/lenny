@@ -77,6 +77,14 @@ class _FakeHost implements LoopHost {
   /// Recorded calls in order. Each entry is `(call, args)`.
   final List<String> calls = <String>[];
 
+  /// Actions that reached dispatch, including their exact argument maps.
+  final List<({String tool, Map<String, dynamic> args})> executedActions =
+      <({String tool, Map<String, dynamic> args})>[];
+
+  /// Actions that reached extension notification after dispatch.
+  final List<({String tool, Map<String, dynamic> args})> notifiedActions =
+      <({String tool, Map<String, dynamic> args})>[];
+
   void setActiveNamespaces(Set<String> ns) {
     _activeNamespaces = ns;
   }
@@ -103,6 +111,7 @@ class _FakeHost implements LoopHost {
     Map<String, dynamic> args,
   ) async {
     calls.add('executeAction:$tool');
+    executedActions.add((tool: tool, args: Map<String, dynamic>.from(args)));
     if (executeFn != null) return executeFn!(tool, args);
     return <String, dynamic>{'ok': true};
   }
@@ -114,6 +123,7 @@ class _FakeHost implements LoopHost {
     Map<String, dynamic> result,
   ) async {
     calls.add('notifyExtensions:$tool');
+    notifiedActions.add((tool: tool, args: Map<String, dynamic>.from(args)));
   }
 
   @override
@@ -207,6 +217,37 @@ ToolDescriptor _coreTap() => const ToolDescriptor(
       'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
     },
     'required': <String>['node_id'],
+    'additionalProperties': false,
+  },
+);
+
+ToolDescriptor _strictCoreWait() => const ToolDescriptor(
+  name: 'core.wait',
+  description: 'wait for a bounded duration',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'seconds': <String, dynamic>{
+        'type': 'number',
+        'exclusiveMinimum': 0,
+        'maximum': 5,
+      },
+    },
+    'required': <String>['seconds'],
+    'additionalProperties': false,
+  },
+);
+
+ToolDescriptor _coreEnterText() => const ToolDescriptor(
+  name: 'core.enter_text',
+  description: 'enter text in a semantics node',
+  inputSchema: <String, dynamic>{
+    'type': 'object',
+    'properties': <String, dynamic>{
+      'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+      'text': <String, dynamic>{'type': 'string', 'maxLength': 4096},
+    },
+    'required': <String>['node_id', 'text'],
     'additionalProperties': false,
   },
 );
@@ -361,6 +402,84 @@ void main() {
       expect(last['index'], 0);
       expect(last['validation']['ok'], isTrue);
     });
+
+    final invalidCoreArgumentCases =
+        <
+          ({
+            String name,
+            ToolDescriptor descriptor,
+            Map<String, dynamic> invalidArgs,
+            Map<String, dynamic> validArgs,
+          })
+        >[
+          (
+            name: 'core.tap id instead of node_id',
+            descriptor: _coreTap(),
+            invalidArgs: <String, dynamic>{'id': 5},
+            validArgs: <String, dynamic>{'node_id': 1},
+          ),
+          (
+            name: 'core.wait time_ms instead of seconds',
+            descriptor: _strictCoreWait(),
+            invalidArgs: <String, dynamic>{'time_ms': 2000},
+            validArgs: <String, dynamic>{'seconds': 2},
+          ),
+          (
+            name: 'core.enter_text without node_id',
+            descriptor: _coreEnterText(),
+            invalidArgs: <String, dynamic>{'text': 'x'},
+            validArgs: <String, dynamic>{'node_id': 1, 'text': 'x'},
+          ),
+        ];
+
+    for (final testCase in invalidCoreArgumentCases) {
+      test('${testCase.name} is retried before dispatch', () async {
+        final sink = _MemorySink();
+        final writer = await _newWriter(sink);
+        final host = _FakeHost(
+          observations: <Observation>[_obsWithEnabledTapNode()],
+          tools: <ToolDescriptor>[testCase.descriptor],
+        );
+        final provider = _FakeProvider(
+          script: <ModelDecision>[
+            ModelDecision(
+              action: (
+                tool: testCase.descriptor.name,
+                args: testCase.invalidArgs,
+              ),
+            ),
+            ModelDecision(
+              action: (
+                tool: testCase.descriptor.name,
+                args: testCase.validArgs,
+              ),
+            ),
+          ],
+        );
+
+        final turn = await _newDriver(
+          host: host,
+          provider: provider,
+          writer: writer,
+        ).runTurn();
+
+        expect(provider.calls, <String>['decide', 'decide']);
+        expect(provider.seenSnapshots, hasLength(2));
+        final retryTurn = provider.seenSnapshots.last.turns.last as UserTurn;
+        final rejection =
+            jsonDecode(retryTurn.toolResult!['validation_error'] as String)
+                as Map<String, dynamic>;
+        expect(rejection['reason'], 'schema_invalid');
+        expect(turn.validation['retries'], 1);
+        expect(turn.validation['rejections'], hasLength(1));
+        expect(host.executedActions, hasLength(1));
+        expect(host.executedActions.single.tool, testCase.descriptor.name);
+        expect(host.executedActions.single.args, testCase.validArgs);
+        expect(host.notifiedActions, hasLength(1));
+        expect(host.notifiedActions.single.tool, testCase.descriptor.name);
+        expect(host.notifiedActions.single.args, testCase.validArgs);
+      });
+    }
 
     test('persists provider response metadata and request id', () async {
       final sink = _MemorySink();

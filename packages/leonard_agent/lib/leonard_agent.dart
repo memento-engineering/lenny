@@ -18,7 +18,10 @@ export 'src/loop_driver/session_surface.dart' show SessionSurface;
 export 'src/loop_driver/extension_failure_tracker.dart'
     show ExtensionFailureTracker;
 export 'src/loop_driver/extension_tools.dart'
-    show buildExtensionTools, unknownExtensionNamespaces;
+    show
+        buildExtensionTools,
+        manifestToolDescriptors,
+        unknownExtensionNamespaces;
 export 'src/loop_driver/validation_retry.dart'
     show
         InvalidActionExhausted,

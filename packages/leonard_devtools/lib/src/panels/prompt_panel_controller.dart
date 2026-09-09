@@ -132,16 +132,18 @@ class PromptPanelController {
       ),
     );
 
-    // 'core' is unconditionally projected so the model always has action tools.
-    // coreTools param stays const <ToolDescriptor>[] — core travels via extensionTools['core'].
+    final List<ToolDescriptor> coreTools = <ToolDescriptor>[
+      for (final ExtensionManifestEntry entry in handshake.extensions)
+        if (entry.namespace == 'core') ...manifestToolDescriptors(entry),
+    ];
     final Map<String, List<ToolDescriptor>> extensionTools =
         buildExtensionTools(
-          requested: <String>{...panelCfg.enabledExtensionNamespaces, 'core'},
+          requested: panelCfg.enabledExtensionNamespaces,
           handshake: handshake.extensions,
         );
     final DefaultLoopHost host = DefaultLoopHost.fromSession(
       session: session,
-      coreTools: const <ToolDescriptor>[],
+      coreTools: coreTools,
       extensionTools: extensionTools,
       goal: panelCfg.goal,
       // The model needs the operating guide (methodology + the "Finishing"

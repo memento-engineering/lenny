@@ -18,10 +18,49 @@ void main() {
       expect(exts, hasLength(1));
       expect(exts.single['namespace'], 'demo');
       expect(exts.single['tools'], <String>['bump']);
+      expect(exts.single['toolDescriptors'], <Map<String, Object?>>[
+        <String, Object?>{
+          'name': 'bump',
+          'description': 'Increment the demo counter.',
+          'inputSchema': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'by': <String, Object?>{'type': 'integer'},
+            },
+          },
+        },
+      ]);
       // A pure-Dart target has no screenshot, but the field is part of the
       // handshake contract (parity with the Flutter binding), so it must be
       // present and empty rather than absent.
       expect(hs['capabilities'], isEmpty);
+    });
+
+    test('handshake carries a strict core.tap schema', () async {
+      final host = ExplorationHost(
+        extensions: <LeonardExtension>[_FakeCoreExtension()],
+      );
+
+      final hs = jsonDecode(await host.handshakeJson()) as Map<String, dynamic>;
+      final core = ((hs['extensions'] as List<dynamic>).single as Map)
+          .cast<String, dynamic>();
+      final tap = ((core['toolDescriptors'] as List<dynamic>).single as Map)
+          .cast<String, dynamic>();
+
+      expect(core['namespace'], 'core');
+      expect(core['tools'], <String>['tap']);
+      expect(tap, <String, Object?>{
+        'name': 'tap',
+        'description': 'Tap a semantics node.',
+        'inputSchema': <String, Object?>{
+          'type': 'object',
+          'properties': <String, Object?>{
+            'node_id': <String, Object?>{'type': 'integer'},
+          },
+          'required': <String>['node_id'],
+          'additionalProperties': false,
+        },
+      });
     });
 
     test(
@@ -190,4 +229,48 @@ class _NoopTool extends LeonardTool {
   @override
   Future<ToolResult> call(Map<String, Object?> args) async =>
       const ToolResult(ok: true, value: <String, Object?>{});
+}
+
+class _FakeCoreExtension extends LeonardExtension {
+  @override
+  String get namespace => 'core';
+
+  @override
+  List<LeonardTool> get tools => const <LeonardTool>[_StrictTapTool()];
+
+  @override
+  Future<void> initialize(ExtensionContext ctx) async {}
+
+  @override
+  Future<BusyState> busyState() async => BusyState.idle;
+
+  @override
+  Future<void> onActionExecuted(ExecutedAction action) async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _StrictTapTool extends LeonardTool {
+  const _StrictTapTool();
+
+  @override
+  String get name => 'tap';
+
+  @override
+  String get description => 'Tap a semantics node.';
+
+  @override
+  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
+    'type': 'object',
+    'properties': <String, Object?>{
+      'node_id': <String, Object?>{'type': 'integer'},
+    },
+    'required': <String>['node_id'],
+    'additionalProperties': false,
+  });
+
+  @override
+  Future<ToolResult> call(Map<String, Object?> args) async =>
+      const ToolResult(ok: true);
 }

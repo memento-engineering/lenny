@@ -234,11 +234,13 @@ Future<int> runCli(
         'report an extension with that namespace; ignoring.',
       );
     }
-    // 'core' is unconditionally projected so the model always has action tools.
-    // unknownExtensionNamespaces still uses args.extensions (no 'core' warning).
+    final List<ToolDescriptor> coreTools = <ToolDescriptor>[
+      for (final ExtensionManifestEntry entry in session.handshake.extensions)
+        if (entry.namespace == 'core') ...manifestToolDescriptors(entry),
+    ];
     final Map<String, List<ToolDescriptor>> extensionTools =
         buildExtensionTools(
-          requested: <String>{...args.extensions, 'core'},
+          requested: args.extensions,
           handshake: session.handshake.extensions,
         );
 
@@ -256,7 +258,7 @@ Future<int> runCli(
       modelIdentifier: args.tier.name,
       buildIdentifier: 'cli',
       harnessVersion: _kHarnessVersion,
-      coreTools: const <ToolDescriptor>[],
+      coreTools: coreTools,
       extensionTools: extensionTools,
       agentsMd: agents.content,
       agentsMdHash: agents.hash,

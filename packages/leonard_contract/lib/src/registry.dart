@@ -60,9 +60,11 @@ class ExtensionRegistry {
   ]);
 
   /// Extension manifest: ordered `(namespace, bare tool names)` records,
-  /// one per registered extension (post de-duplication). Read by the
-  /// binding's `core.handshake` extension to build the handshake
-  /// `extensions` array. Does not finalize the registry.
+  /// one per registered extension (post de-duplication).
+  ///
+  /// Retained as the names-only view for existing callers. Handshake writers
+  /// use [handshakeManifest] so tool descriptions and schemas cross the wire.
+  /// Does not finalize the registry.
   List<({String namespace, List<String> tools})> get manifest =>
       List<({String namespace, List<String> tools})>.unmodifiable(
         <({String namespace, List<String> tools})>[
@@ -75,6 +77,52 @@ class ExtensionRegistry {
             ),
         ],
       );
+
+  /// Handshake manifest carrying each registered tool's device-owned
+  /// description and raw input schema alongside the legacy bare-name list.
+  ///
+  /// Entries and tools preserve registration order. [manifest] remains the
+  /// names-only public view for callers that do not serialize a handshake.
+  /// Reading this getter does not finalize the registry.
+  List<
+    ({
+      String namespace,
+      List<String> tools,
+      List<Map<String, Object?>> toolDescriptors,
+    })
+  >
+  get handshakeManifest =>
+      List<
+        ({
+          String namespace,
+          List<String> tools,
+          List<Map<String, Object?>> toolDescriptors,
+        })
+      >.unmodifiable(<
+        ({
+          String namespace,
+          List<String> tools,
+          List<Map<String, Object?>> toolDescriptors,
+        })
+      >[
+        for (final _Entry e in _entries)
+          (
+            namespace: e.plugin.namespace,
+            tools: List<String>.unmodifiable(
+              e.plugin.tools.map((LeonardTool t) => t.name),
+            ),
+            toolDescriptors: List<Map<String, Object?>>.unmodifiable(
+              <Map<String, Object?>>[
+                for (final LeonardTool tool in e.plugin.tools)
+                  Map<String, Object?>.unmodifiable(<String, Object?>{
+                    'name': tool.name,
+                    'description': tool.description,
+                    'inputSchema': tool.inputSchema.raw,
+                  }),
+              ],
+            ),
+          ),
+      ]);
 
   /// All registered extensions, in registration order. Read by the binding's
   /// single observation loop, which gates on `is PerceptionExtension`.

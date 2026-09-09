@@ -14,6 +14,7 @@ import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart';
 
 import 'errors.dart';
+import 'provider/types.dart';
 import 'types.dart';
 
 /// JSON-RPC standard "method not found" code — what the VM service
@@ -135,8 +136,44 @@ class VmServiceClient {
             if (tool is String) toolList.add(tool);
           }
         }
+        final Set<String> advertisedTools = toolList.toSet();
+        final Map<String, ToolDescriptor> descriptorsByName =
+            <String, ToolDescriptor>{};
+        final Object? rawDescriptors = entry['toolDescriptors'];
+        if (rawDescriptors is List) {
+          for (final Object? descriptor in rawDescriptors) {
+            if (descriptor is! Map) continue;
+            final Object? name = descriptor['name'];
+            final Object? description = descriptor['description'];
+            final Object? inputSchema = descriptor['inputSchema'];
+            if (name is! String ||
+                name.isEmpty ||
+                name.contains('.') ||
+                !advertisedTools.contains(name) ||
+                description is! String ||
+                inputSchema is! Map) {
+              continue;
+            }
+            descriptorsByName.putIfAbsent(
+              name,
+              () => ToolDescriptor(
+                name: '$namespace.$name',
+                description: description,
+                inputSchema: Map<String, dynamic>.from(inputSchema),
+              ),
+            );
+          }
+        }
         extensions.add(
-          ExtensionManifestEntry(namespace: namespace, tools: toolList),
+          ExtensionManifestEntry(
+            namespace: namespace,
+            tools: toolList,
+            toolDescriptors: <ToolDescriptor>[
+              for (final String name in toolList)
+                if (descriptorsByName[name] case final ToolDescriptor tool)
+                  tool,
+            ],
+          ),
         );
       }
     }

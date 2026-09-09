@@ -68,9 +68,16 @@ void main() {
     expect(json['flutterMode'], 'debug');
     expect(json['extensionCount'], 1);
     final List<dynamic> extensions = json['extensions'] as List<dynamic>;
+    final Map<String, Map<String, dynamic>> entriesByNs =
+        <String, Map<String, dynamic>>{
+          for (final dynamic entry in extensions)
+            (entry as Map)['namespace'] as String: entry
+                .cast<String, dynamic>(),
+        };
     final Map<String, List<String>> byNs = <String, List<String>>{
-      for (final dynamic p in extensions)
-        (p as Map)['namespace'] as String: (p['tools'] as List).cast<String>(),
+      for (final MapEntry<String, Map<String, dynamic>> entry
+          in entriesByNs.entries)
+        entry.key: (entry.value['tools'] as List).cast<String>(),
     };
     expect(byNs.keys, containsAll(<String>['core', 'router']));
     expect(byNs['router'], <String>['go']);
@@ -79,6 +86,54 @@ void main() {
     expect(byNs['core'], contains('done'));
     // bare tokens — no namespacing
     expect(byNs['router']!.every((String t) => !t.contains('.')), isTrue);
+
+    final List<LeonardTool> expectedCoreTools = CoreExtension(
+      semantics: SemanticsCapture(),
+    ).tools;
+    final List<Map<String, Object?>> expectedCoreDescriptors =
+        <Map<String, Object?>>[
+          for (final LeonardTool tool in expectedCoreTools)
+            <String, Object?>{
+              'name': tool.name,
+              'description': tool.description,
+              'inputSchema': tool.inputSchema.raw,
+            },
+        ];
+    expect(entriesByNs['core']!['toolDescriptors'], expectedCoreDescriptors);
+
+    final List<dynamic> actualCoreDescriptors =
+        entriesByNs['core']!['toolDescriptors'] as List<dynamic>;
+    final Map<String, dynamic> tap =
+        (actualCoreDescriptors.firstWhere(
+                  (dynamic descriptor) => (descriptor as Map)['name'] == 'tap',
+                )
+                as Map)
+            .cast<String, dynamic>();
+    final Map<String, dynamic> tapAt =
+        (actualCoreDescriptors.firstWhere(
+                  (dynamic descriptor) =>
+                      (descriptor as Map)['name'] == 'tap_at',
+                )
+                as Map)
+            .cast<String, dynamic>();
+    expect(tap['inputSchema'], <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+      },
+      'required': <String>['node_id'],
+      'additionalProperties': false,
+    });
+    expect(tapAt['inputSchema'], <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'node_id': <String, Object?>{'type': 'integer', 'minimum': 1},
+        'x': <String, Object?>{'type': 'number', 'minimum': 0, 'maximum': 1},
+        'y': <String, Object?>{'type': 'number', 'minimum': 0, 'maximum': 1},
+      },
+      'required': <String>['node_id', 'x', 'y'],
+      'additionalProperties': false,
+    });
   });
 
   test(

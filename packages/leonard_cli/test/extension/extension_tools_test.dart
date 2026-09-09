@@ -85,21 +85,25 @@ void main() {
       expect(out.keys, <String>['router']);
     });
 
-    test('core tools are always included regardless of --extensions value', () {
+    test('core is routed separately and extensions do not synthesize it', () {
+      const Map<String, dynamic> strictTapSchema = <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{
+          'node_id': <String, dynamic>{'type': 'integer'},
+        },
+        'required': <String>['node_id'],
+        'additionalProperties': false,
+      };
       const List<ExtensionManifestEntry> handshake = <ExtensionManifestEntry>[
         ExtensionManifestEntry(
           namespace: 'core',
-          tools: <String>[
-            'tap',
-            'long_press',
-            'enter_text',
-            'scroll',
-            'scroll_until_visible',
-            'gesture',
-            'system_back',
-            'wait',
-            'inspect_widget',
-            'done',
+          tools: <String>['tap'],
+          toolDescriptors: <ToolDescriptor>[
+            ToolDescriptor(
+              name: 'core.tap',
+              description: 'Tap a semantics node.',
+              inputSchema: strictTapSchema,
+            ),
           ],
         ),
         ExtensionManifestEntry(
@@ -107,63 +111,32 @@ void main() {
           tools: <String>['navigate'],
         ),
       ];
-      // Simulate the fixed CLI call: args.extensions = ['router'], union 'core'.
-      final Map<String, List<ToolDescriptor>> out = buildExtensionTools(
-        requested: <String>{'router', 'core'},
-        handshake: handshake,
-      );
-      expect(
-        out.containsKey('core'),
-        isTrue,
-        reason: 'core namespace must always be projected',
-      );
-      expect(out['core'], hasLength(10));
-      final List<String> coreNames = out['core']!.map((t) => t.name).toList();
-      expect(
-        coreNames,
-        containsAll(<String>[
-          'core.tap',
-          'core.enter_text',
-          'core.done',
-          'core.scroll',
-          'core.scroll_until_visible',
-          'core.long_press',
-          'core.gesture',
-          'core.system_back',
-          'core.wait',
-          'core.inspect_widget',
-        ]),
-      );
+
+      final List<ToolDescriptor> coreTools = <ToolDescriptor>[
+        for (final ExtensionManifestEntry entry in handshake)
+          if (entry.namespace == 'core') ...manifestToolDescriptors(entry),
+      ];
+      final Map<String, List<ToolDescriptor>> extensionTools =
+          buildExtensionTools(
+            requested: const <String>{'router'},
+            handshake: handshake,
+          );
+
+      expect(coreTools.single.name, 'core.tap');
+      expect(coreTools.single.description, 'Tap a semantics node.');
+      expect(coreTools.single.inputSchema, strictTapSchema);
+      expect(extensionTools.keys, <String>['router']);
+      expect(extensionTools.containsKey('core'), isFalse);
     });
 
-    test(
-      'core tools present even when --extensions is empty (empty requested union core)',
-      () {
-        const List<ExtensionManifestEntry> handshake = <ExtensionManifestEntry>[
-          ExtensionManifestEntry(
-            namespace: 'core',
-            tools: <String>[
-              'tap',
-              'long_press',
-              'enter_text',
-              'scroll',
-              'scroll_until_visible',
-              'gesture',
-              'system_back',
-              'wait',
-              'inspect_widget',
-              'done',
-            ],
-          ),
-        ];
-        final Map<String, List<ToolDescriptor>> out = buildExtensionTools(
-          requested: <String>{'core'}, // args.extensions=[] union 'core'
-          handshake: handshake,
-        );
-        expect(out.containsKey('core'), isTrue);
-        expect(out['core'], hasLength(10));
-      },
-    );
+    test('legacy core names retain the permissive compatibility fallback', () {
+      final coreTools = manifestToolDescriptors(
+        const ExtensionManifestEntry(namespace: 'core', tools: <String>['tap']),
+      );
+
+      expect(coreTools.single.name, 'core.tap');
+      expect(coreTools.single.inputSchema['additionalProperties'], isTrue);
+    });
   });
 
   group('unknownExtensionNamespaces', () {
