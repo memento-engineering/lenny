@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that
+entry below.
+
+- **Breaking: requires `leonard_agent ^0.3.0`.** Migration: move the
+  `leonard_agent` constraint to `^0.3.0`. This package consumes
+  `SwiftInferReasoningEffort`, `defaultSwiftInferOptions` and
+  `SwiftInferChatOptions.reasoningEffort`, which exist only from that version.
+- Fix: the prompt panel carries the handshake's device tool descriptors into the
+  driver's tool set (lenny#123).
+
 ## 0.3.0-rc.1
 
 - Require `leonard_agent ^0.3.0-rc.1`. This package uses the borrowed

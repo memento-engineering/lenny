@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+Promotes `0.4.0-rc.2` to stable. The candidates' full change lists are under
+those entries below; the break is restated here because this is the version a
+consumer on 0.3.x upgrades to.
+
+- **Breaking: `captureScreenshot` no longer takes a `RendererBinding`.**
+  Migration: drop the argument — `captureScreenshot(binding)` becomes
+  `captureScreenshot()`.
+- Fix: `core.handshake` carries `toolDescriptors` — each registered tool's
+  description and raw input schema — beside the bare `tools` names, so a driver
+  can reject a malformed call before it reaches the device (lenny#123).
+- Add: the `core.remember` and `core.recall` tools — a trim-proof scratchpad
+  whose entries survive conversation trimming. Shipped in the 0.4.0-rc.2 archive
+  and undocumented there (lenny#116).
+- Raise the `leonard_contract` floor to `^0.2.5`, the version that introduces
+  `ExtensionRegistry.handshakeManifest`.
+
 ## 0.4.0-rc.2
 
 - Fix live `ext.leonard.core.screenshot` capture by calling Flutter's stock

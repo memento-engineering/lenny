@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+Promotes `0.4.0-rc.1` to stable.
+
+- **Breaking: requires `leonard_flutter ^0.4.0`** (the `captureScreenshot`
+  signature wave). Migration: move the `leonard_flutter` constraint to `^0.4.0`
+  and drop the `captureScreenshot` argument. No API changes in this package;
+  the effective-route reporting shipped in 0.3.1.
+
 ## 0.4.0-rc.1
 
 - Require `leonard_flutter ^0.4.0-rc.1` (the `captureScreenshot` signature wave).

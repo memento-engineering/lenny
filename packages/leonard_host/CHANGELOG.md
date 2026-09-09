@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3
+
+- Fix: `core.handshake` carries `toolDescriptors` — each registered tool's
+  description and raw input schema — beside the bare `tools` names, so a driver
+  can reject a malformed call before it reaches the device. The response is
+  additive and this package's Dart API is unchanged (lenny#123).
+- Raise the `leonard_contract` floor to `^0.2.5`, the version that introduces
+  `ExtensionRegistry.handshakeManifest`.
+
 ## 0.2.2
 
 - Fix: widen `genesis_perception` to `>=0.2.0 <0.4.0`. Published 0.2.1 pinned

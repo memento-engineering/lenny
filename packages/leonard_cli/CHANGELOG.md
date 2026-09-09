@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that
+entry below.
+
+- **Breaking: requires `leonard_agent ^0.3.0`** and adopts its I/O entrypoint.
+  Migration for anything embedding this package's library surface: import
+  `package:leonard_agent/leonard_agent_io.dart` for owning connections.
+- Fix: `core` tool descriptors are read from the handshake and passed as the
+  driver's `coreTools` instead of being projected as bare names, so the model
+  sees each core tool's description and input schema (lenny#123).
+- Add: `tool/live_macos_smoke.dart` — the live macOS smoke that gates a
+  `leonard_flutter` release (lenny#120).
+
 ## 0.3.0-rc.1
 
 - **Breaking: requires `leonard_agent ^0.3.0-rc.1`** and adopts its I/O

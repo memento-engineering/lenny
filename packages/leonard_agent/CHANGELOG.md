@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0
+
+Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that
+entry below; the break is restated here because this is the version a consumer
+on 0.2.x upgrades to.
+
+- **Breaking: owning VM-service connections live in `leonard_agent_io.dart`.**
+  The static `connect` constructors — `VmServiceClient.connect`,
+  `LeonardSession.connect` and `MultiHostSession.connectAll` — are gone from the
+  default, web-safe library. Migration: import
+  `package:leonard_agent/leonard_agent_io.dart` and call the top-level
+  `connectVmServiceClient`, `connectLeonardSession` or `connectMultiHostSession`.
+  A consumer that only wraps an already-connected `VmService`
+  (`VmServiceClient.fromVmService`) is unaffected.
+- **Breaking: `SwiftInferChatOptions`'s sampling fields are nullable.**
+  `maxTokens`, `temperature`, `topP`, `topK`, `presencePenalty` and
+  `repetitionPenalty` moved from `int`/`double` to `int?`/`double?`, so an unset
+  override is omitted from the request instead of being sent as a default.
+  Migration: null-check before reading one.
+- Fix: device tool descriptors carried in a handshake are parsed into agent
+  manifest entries and core descriptors route through `coreTools`, so validation
+  rejects a malformed call before device dispatch. A legacy names-only handshake
+  keeps the permissive projection (lenny#123).
+- Add: the loop driver and conversation builder carry the trim-proof scratchpad,
+  so a remembered result survives history trimming and is read back by recall
+  (lenny#116).
+
 ## 0.3.0-rc.1
 
 - **Breaking: owning VM-service connections moved to `leonard_agent_io.dart`.**

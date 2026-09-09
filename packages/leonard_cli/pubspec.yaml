@@ -1,6 +1,6 @@
 name: leonard_cli
 description: CLI frontend for Leonard.
-version: 0.3.0-rc.1
+version: 0.3.0
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -10,7 +10,7 @@ environment:
 dependencies:
   args: ^2.6.0
   image: ^4.9.2
-  leonard_agent: ^0.3.0-rc.1
+  leonard_agent: ^0.3.0
   meta: ^1.16.0
   path: ^1.9.0
 
