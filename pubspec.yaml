@@ -68,6 +68,13 @@ melos:
         packages/leonard_cli/integration_test
         packages/leonard_native/integration_test
 
+    test:live:macos:
+      description: >-
+        Requires macOS, boots the normal LeonardBinding sample app, and drives
+        external observe and screenshot operations. Fails rather than skipping
+        when the host or app is unavailable.
+      run: dart run packages/leonard_cli/tool/live_macos_smoke.dart
+
     test:e2e:auth0:
       description: >-
         Run the live Auth0 round-trip dogfood e2e (leonard_native m5). Requires a
