@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:beads_dart/beads_dart.dart';
 import 'package:grid_engine/grid_engine.dart';
 import 'package:grid_sdk/grid_sdk.dart' show WorkNoteAppender;
@@ -35,15 +33,18 @@ void main() {
     expect(registry.circuit('code'), isNotNull);
   });
 
-  test('the pack vends no command verb because the circuit is the surface', () {
-    for (final File file
-        in Directory('lib')
-            .listSync(recursive: true)
-            .whereType<File>()
-            .where((File file) => file.path.endsWith('.dart'))) {
-      final String source = file.readAsStringSync();
-      expect(source, isNot(contains('extends Command<')), reason: file.path);
-      expect(source, isNot(contains('CommandRunner')), reason: file.path);
-    }
+  test('the Command and both circuits coexist over the code registry', () {
+    final E2eCommand command = E2eCommand(
+      out: StringBuffer(),
+      err: StringBuffer(),
+    );
+    expect(command.name, 'e2e');
+
+    final CapabilityRegistry registry = buildLeonardRegistry(
+      (String _, String __) async {},
+    );
+    expect(registry.circuit(kSelfdriveCircuitId), same(kSelfdriveCircuit));
+    expect(registry.circuit(kE2eCircuitId), same(kE2eCircuit));
+    expect(registry.circuit('code'), isNotNull);
   });
 }
