@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0-rc.2
+
+- Fix live `ext.leonard.core.screenshot` capture by calling Flutter's stock
+  `WidgetInspectorService.screenshot` implementation in process. This removes
+  the app's VM-service self-connection and the package's runtime `vm_service`
+  dependency. Screenshot failures now expose six distinct unavailable reasons
+  while preserving the four-key success envelope and JSON-RPC error code 1.
+
 ## 0.4.0-rc.1
 
 - **Breaking: `captureScreenshot` no longer takes a `RendererBinding`.** The

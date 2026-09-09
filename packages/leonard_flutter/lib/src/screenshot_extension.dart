@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:isolate';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'dart:ui' show FlutterView, PlatformDispatcher;
 
-import 'package:vm_service/vm_service.dart' show Response, VmService;
-import 'package:vm_service/vm_service_io.dart' as vm_service_io;
+import 'package:flutter/widgets.dart'
+    show WidgetInspectorService, WidgetsBinding;
 
 import 'screenshot_config.dart';
 
@@ -55,117 +55,103 @@ class ScreenshotUnavailable implements Exception {
 /// Captures one screenshot for Leonard's service-extension response.
 typedef ScreenshotCapture = Future<ScreenshotResult> Function();
 
-/// Calls an inspector service extension with string-valued protocol arguments.
-typedef InspectorExtensionCaller =
-    Future<Map<String, dynamic>> Function(
-      String method,
-      Map<String, dynamic> args,
-    );
+/// Captures an inspector image for [object] within the requested pixel bounds.
+typedef InspectorScreenshotCapture =
+    Future<ui.Image?> Function(
+      Object? object, {
+      required double width,
+      required double height,
+      double margin,
+      double maxPixelRatio,
+      bool debugPaint,
+    });
 
-/// Captures the first Flutter view through the stock inspector extension.
-Future<ScreenshotResult> captureScreenshot() async {
-  final Iterable<FlutterView> views = PlatformDispatcher.instance.views;
-  if (views.isEmpty) {
-    throw const ScreenshotUnavailable('no_render_view');
-  }
-  final FlutterView view = views.first;
+/// Encodes an inspector [ui.Image] as PNG bytes.
+typedef ScreenshotPngEncoder = Future<ByteData?> Function(ui.Image image);
 
-  VmService? connection;
-  Future<VmService>? pendingConnection;
-  var captureEnded = false;
-  try {
-    final Uri? webSocketUri =
-        (await developer.Service.getInfo()).serverWebSocketUri;
-    final String? isolateId = developer.Service.getIsolateId(Isolate.current);
-    if (webSocketUri == null || isolateId == null) {
-      throw const ScreenshotUnavailable('inspector_unavailable');
-    }
-
-    Future<Map<String, dynamic>> callInspectorExtension(
-      String method,
-      Map<String, dynamic> args,
-    ) async {
-      final VmService service = await (pendingConnection ??= vm_service_io
-          .vmServiceConnectUri(webSocketUri.toString()));
-      if (captureEnded) {
-        try {
-          await service.dispose();
-        } catch (_) {
-          // The capture has already completed with a stable result or reason.
-        }
-        throw StateError('Screenshot capture ended before VM connection');
-      }
-      connection = service;
-      final Response response = await service.callServiceExtension(
-        method,
-        isolateId: isolateId,
-        args: args,
-      );
-      return response.json ?? <String, dynamic>{};
-    }
-
-    return await captureScreenshotFromInspector(view, callInspectorExtension);
-  } on ScreenshotUnavailable {
-    rethrow;
-  } catch (_) {
-    throw const ScreenshotUnavailable('inspector_unavailable');
-  } finally {
-    captureEnded = true;
-    try {
-      await connection?.dispose();
-    } catch (_) {
-      // Capture already has a result or a stable failure reason.
-    }
-  }
+/// Captures the first Flutter view through the stock inspector implementation.
+Future<ScreenshotResult> captureScreenshot() {
+  return captureScreenshotFromInspector(
+    views: PlatformDispatcher.instance.views,
+    rootElement: WidgetsBinding.instance.rootElement,
+    // This deliberately reuses the stock inspector's screenshot implementation.
+    // ignore: invalid_use_of_protected_member
+    capture: WidgetInspectorService.instance.screenshot,
+    encodePng: _encodePng,
+  );
 }
 
-/// Captures [view] by delegating root lookup and PNG production to [caller].
+/// Captures the first of [views] from [rootElement] using [capture].
 ///
-/// This public seam keeps inspector protocol behavior testable without opening
-/// a VM-service connection.
-Future<ScreenshotResult> captureScreenshotFromInspector(
-  FlutterView view,
-  InspectorExtensionCaller caller, {
+/// Inspector image creation and [encodePng] share the single [timeout] budget.
+Future<ScreenshotResult> captureScreenshotFromInspector({
+  required Iterable<FlutterView> views,
+  required Object? rootElement,
+  required InspectorScreenshotCapture capture,
+  ScreenshotPngEncoder encodePng = _encodePng,
   Duration timeout = ScreenshotConfig.inspectorCaptureTimeout,
 }) async {
-  try {
-    return await _captureScreenshotFromInspector(view, caller).timeout(timeout);
-  } on ScreenshotUnavailable {
-    rethrow;
-  } catch (_) {
-    throw const ScreenshotUnavailable('inspector_unavailable');
+  final Iterator<FlutterView> iterator = views.iterator;
+  if (!iterator.moveNext()) {
+    throw const ScreenshotUnavailable('no_render_view');
   }
+  if (rootElement == null) {
+    throw const ScreenshotUnavailable('no_root_widget');
+  }
+
+  return await _captureScreenshotFromInspector(
+    view: iterator.current,
+    rootElement: rootElement,
+    capture: capture,
+    encodePng: encodePng,
+  ).timeout(
+    timeout,
+    onTimeout: () => throw const ScreenshotUnavailable('capture_timeout'),
+  );
 }
 
-Future<ScreenshotResult> _captureScreenshotFromInspector(
-  FlutterView view,
-  InspectorExtensionCaller caller,
-) async {
-  const String group = ScreenshotConfig.inspectorObjectGroup;
-  ScreenshotUnavailable? stableFailure;
+Future<ScreenshotResult> _captureScreenshotFromInspector({
+  required FlutterView view,
+  required Object rootElement,
+  required InspectorScreenshotCapture capture,
+  required ScreenshotPngEncoder encodePng,
+}) async {
+  ui.Image? image;
   try {
-    final Map<String, dynamic> rootResponse = await caller(
-      'ext.flutter.inspector.getRootWidget',
-      const <String, dynamic>{'objectGroup': group},
+    image = await capture(
+      rootElement,
+      width: view.physicalSize.width,
+      height: view.physicalSize.height,
+      margin: 0,
+      maxPixelRatio: view.devicePixelRatio,
+      debugPaint: false,
     );
-    final Object? root = rootResponse['result'];
-    final Object? rootId = root is Map ? root['valueId'] : null;
-    if (rootId is! String || rootId.isEmpty) {
-      throw const ScreenshotUnavailable('no_render_view');
-    }
+  } on ScreenshotUnavailable {
+    rethrow;
+  } on Object {
+    throw const ScreenshotUnavailable('capture_failed');
+  }
 
-    final Map<String, dynamic> screenshotResponse = await caller(
-      'ext.flutter.inspector.screenshot',
-      ScreenshotConfig.inspectorScreenshotArguments(view, rootId),
-    );
-    final Object? encoded = screenshotResponse['result'];
-    if (encoded == null || encoded is String && encoded.isEmpty) {
-      throw const ScreenshotUnavailable('no_layer');
+  if (image == null) {
+    throw const ScreenshotUnavailable('no_layer');
+  }
+
+  try {
+    final ByteData? encodedBytes;
+    try {
+      encodedBytes = await encodePng(image);
+    } on Object {
+      throw const ScreenshotUnavailable('encode_failed');
     }
-    if (encoded is! String) {
+    if (encodedBytes == null) {
       throw const ScreenshotUnavailable('encode_failed');
     }
 
+    final Uint8List png = encodedBytes.buffer.asUint8List(
+      encodedBytes.offsetInBytes,
+      encodedBytes.lengthInBytes,
+    );
+    final String encoded = base64Encode(png);
     final ({int width, int height}) dimensions = _decodePngDimensions(encoded);
     return ScreenshotResult(
       pngBase64: encoded,
@@ -173,21 +159,13 @@ Future<ScreenshotResult> _captureScreenshotFromInspector(
       heightPx: dimensions.height,
       devicePixelRatio: view.devicePixelRatio,
     );
-  } on ScreenshotUnavailable catch (error) {
-    stableFailure = error;
-    rethrow;
   } finally {
-    try {
-      await caller(
-        'ext.flutter.inspector.disposeGroup',
-        const <String, dynamic>{'objectGroup': group},
-      );
-    } catch (_) {
-      if (stableFailure == null) {
-        rethrow;
-      }
-    }
+    image.dispose();
   }
+}
+
+Future<ByteData?> _encodePng(ui.Image image) {
+  return image.toByteData(format: ui.ImageByteFormat.png);
 }
 
 /// Builds the response for `ext.leonard.core.screenshot`.
