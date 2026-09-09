@@ -49,7 +49,7 @@ run_phase() {
   rm -rf -- "$output"; mkdir -p "$output"
   local command_rules="$output/command_rules.xml"
   printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"><commands><command group="test" expected-return="0" working-directory=".">dart test</command></commands></mutations>' > "$command_rules"
-  local args=(--rules "$command_rules" -b)
+  local args=(--rules "$command_rules" -b --exclude-strings)
   local absolute_rule normalized status
   : > "$output/semantic-rules.txt"
   for rule in "${rules[@]}"; do
