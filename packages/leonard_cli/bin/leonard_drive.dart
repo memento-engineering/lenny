@@ -508,32 +508,9 @@ Future<int> _up(ArgResults res) async {
     return 1;
   }
 
-  // Machine-readable handoff: a single stable JSON line on stdout. The
-  // external brain captures `ws_uri` from here (or from --uri-file) — no
-  // log-grepping, no http->ws conversion.
-  _emit(<String, dynamic>{
-    'event': 'vm_service_ready',
-    'ws_uri': handle.wsUri.toString(),
-    'runner': runner.name,
-    'pid': handle.process.pid,
-  });
-
-  final String? uriFile = res['uri-file'] as String?;
-  if (uriFile != null && uriFile.isNotEmpty) {
-    final File f = File(uriFile);
-    await f.parent.create(recursive: true);
-    await f.writeAsString('${handle.wsUri}\n', flush: true);
-  }
-  final String? pidFile = res['pid-file'] as String?;
-  if (pidFile != null && pidFile.isNotEmpty) {
-    // This process's own pid: `down` signals it, and its handler tears the
-    // target down cleanly (cleaner than killing the child out from under us).
-    final File f = File(pidFile);
-    await f.parent.create(recursive: true);
-    await f.writeAsString('$pid\n', flush: true);
-  }
-
-  // Hold until a signal or the target exits.
+  // Arm teardown before publishing any readiness artifact. Once callers can
+  // observe vm_service_ready (or its files), `down` must already be able to
+  // signal this owner and have it reap the launched target.
   final Completer<int> done = Completer<int>();
   Future<void> tearDown(String why) async {
     if (done.isCompleted) return;
@@ -562,6 +539,32 @@ Future<int> _up(ArgResults res) async {
       }
     }),
   );
+
+  final String? uriFile = res['uri-file'] as String?;
+  if (uriFile != null && uriFile.isNotEmpty) {
+    final File f = File(uriFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('${handle.wsUri}\n', flush: true);
+  }
+  final String? pidFile = res['pid-file'] as String?;
+  if (pidFile != null && pidFile.isNotEmpty) {
+    // This process's own pid: `down` signals it, and its handler tears the
+    // target down cleanly (cleaner than killing the child out from under us).
+    final File f = File(pidFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('$pid\n', flush: true);
+  }
+
+  // Machine-readable handoff: a single stable JSON line on stdout. The
+  // external brain captures `ws_uri` from here (or from --uri-file) — no
+  // log-grepping, no http->ws conversion. The teardown path and pid-file are
+  // now guaranteed to be usable before this line becomes observable.
+  _emit(<String, dynamic>{
+    'event': 'vm_service_ready',
+    'ws_uri': handle.wsUri.toString(),
+    'runner': runner.name,
+    'pid': handle.process.pid,
+  });
 
   final int code = await done.future;
   await sigint.cancel();
@@ -715,38 +718,9 @@ Future<int> _upDual(ArgResults res) async {
     return 1;
   }
 
-  // Machine-readable handoff: ONE extended vm_service_ready line carrying both
-  // endpoints + the shared device (back-compat: ws_uri stays the Flutter URI).
-  _emit(<String, dynamic>{
-    'event': 'vm_service_ready',
-    'ws_uri': handle.flutterWsUri.toString(),
-    'flutter_ws_uri': handle.flutterWsUri.toString(),
-    'native_endpoint': handle.nativeEndpoint.toString(),
-    'device_id': handle.deviceId,
-    'runner': 'flutter',
-    'pid': pid,
-  });
-
-  final String? uriFile = res['uri-file'] as String?;
-  if (uriFile != null && uriFile.isNotEmpty) {
-    final File f = File(uriFile);
-    await f.parent.create(recursive: true);
-    // Both URIs, newline-separated, FLUTTER FIRST. Line 1 is byte-compatible
-    // with the single-target single-URI file.
-    await f.writeAsString(
-      '${handle.flutterWsUri}\n${handle.nativeEndpoint}\n',
-      flush: true,
-    );
-  }
-  final String? pidFile = res['pid-file'] as String?;
-  if (pidFile != null && pidFile.isNotEmpty) {
-    final File f = File(pidFile);
-    await f.parent.create(recursive: true);
-    await f.writeAsString('$pid\n', flush: true);
-  }
-
-  // Hold until a signal or EITHER child exits; teardown tears BOTH channels
-  // (and, if owned, the sim) down via the composite shutdown.
+  // Arm the composite teardown before publishing any readiness artifact. The
+  // child-exit path uses DualLaunchHandle.shutdown so either exit still tears
+  // both channels down in dependency-reverse order.
   final Completer<int> done = Completer<int>();
   Future<void> tearDown(String why) async {
     if (done.isCompleted) return;
@@ -774,6 +748,37 @@ Future<int> _upDual(ArgResults res) async {
       }
     }),
   );
+
+  final String? uriFile = res['uri-file'] as String?;
+  if (uriFile != null && uriFile.isNotEmpty) {
+    final File f = File(uriFile);
+    await f.parent.create(recursive: true);
+    // Both URIs, newline-separated, FLUTTER FIRST. Line 1 is byte-compatible
+    // with the single-target single-URI file.
+    await f.writeAsString(
+      '${handle.flutterWsUri}\n${handle.nativeEndpoint}\n',
+      flush: true,
+    );
+  }
+  final String? pidFile = res['pid-file'] as String?;
+  if (pidFile != null && pidFile.isNotEmpty) {
+    final File f = File(pidFile);
+    await f.parent.create(recursive: true);
+    await f.writeAsString('$pid\n', flush: true);
+  }
+
+  // Machine-readable handoff: ONE extended vm_service_ready line carrying both
+  // endpoints + the shared device (back-compat: ws_uri stays the Flutter URI).
+  // Its publication guarantees the pid-file and teardown path are armed.
+  _emit(<String, dynamic>{
+    'event': 'vm_service_ready',
+    'ws_uri': handle.flutterWsUri.toString(),
+    'flutter_ws_uri': handle.flutterWsUri.toString(),
+    'native_endpoint': handle.nativeEndpoint.toString(),
+    'device_id': handle.deviceId,
+    'runner': 'flutter',
+    'pid': pid,
+  });
 
   final int code = await done.future;
   await sigint.cancel();
