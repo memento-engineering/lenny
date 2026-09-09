@@ -44,8 +44,40 @@ jobs:
           echo "directory=$dir" >> "$GITHUB_OUTPUT"
           echo "Publishing package: $pkg from $dir (tag $GITHUB_REF_NAME)"
 
-  publish:
+  live-flutter-macos:
     needs: parse
+    if: needs.parse.outputs.package == 'leonard_flutter'
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: stable
+      - run: flutter pub get
+      - run: dart run melos run test:live:macos --no-select
+
+  release-gate:
+    needs: [parse, live-flutter-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require live capability evidence for leonard_flutter
+        env:
+          PACKAGE: ${{ needs.parse.outputs.package }}
+          PARSE_RESULT: ${{ needs.parse.result }}
+          LIVE_RESULT: ${{ needs.live-flutter-macos.result }}
+        run: |
+          test "$PARSE_RESULT" = success
+          if [ "$PACKAGE" = leonard_flutter ]; then
+            test "$LIVE_RESULT" = success
+          else
+            test "$LIVE_RESULT" = skipped
+          fi
+
+  publish:
+    needs: [parse, release-gate]
     # Every package EXCEPT the DevTools panel, which needs its bundle built
     # first and therefore gets its own job below.
     if: needs.parse.outputs.package != 'leonard_devtools'
@@ -64,7 +96,7 @@ jobs:
     # This job builds the bundle before publishing. The OIDC exchange happens
     # inside pub under id-token, and setup-dart is what performs it: without
     # it pub falls back to the browser OAuth prompt and the job hangs.
-    needs: parse
+    needs: [parse, release-gate]
     if: needs.parse.outputs.package == 'leonard_devtools'
     runs-on: ubuntu-latest
     permissions:
