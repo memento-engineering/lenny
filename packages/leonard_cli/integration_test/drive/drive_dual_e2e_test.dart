@@ -17,9 +17,13 @@
 ///   * a reachable Appium server (default `http://127.0.0.1:4723`, override via
 ///     `LEONARD_NATIVE_APPIUM_SERVER`);
 ///   * an already-booted iOS simulator udid in `LEONARD_NATIVE_SIM_UDID`;
-///   * a built `Runner.app` path in `LEONARD_NATIVE_APP`;
-///   * the Flutter project root in `LEONARD_NATIVE_FLUTTER_PROJECT`;
 ///   * a Flutter entrypoint in `LEONARD_NATIVE_FLUTTER_TARGET`.
+///
+/// The target defaults to `packages/leonard_flutter/example/sample_app`. Build
+/// its app with:
+/// `cd packages/leonard_flutter/example/sample_app && flutter build ios --simulator --debug`
+/// `LEONARD_NATIVE_APP` and `LEONARD_NATIVE_FLUTTER_PROJECT` may override
+/// either target path independently.
 ///
 /// The env gate is synchronous at `main()`-time; Appium reachability is probed
 /// asynchronously INSIDE the test body (a `sleep`-based sync probe would
@@ -40,10 +44,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/dual_e2e_target.dart';
+
 const String _serverEnv = 'LEONARD_NATIVE_APPIUM_SERVER';
 const String _udidEnv = 'LEONARD_NATIVE_SIM_UDID';
-const String _appEnv = 'LEONARD_NATIVE_APP';
-const String _flutterProjectEnv = 'LEONARD_NATIVE_FLUTTER_PROJECT';
 const String _flutterTargetEnv = 'LEONARD_NATIVE_FLUTTER_TARGET';
 
 const String _defaultServer = 'http://127.0.0.1:4723';
@@ -80,32 +84,32 @@ Future<bool> _appiumReachable(String server) async {
   }
 }
 
-/// Env-only skip reason (synchronous): the udid/app/flutter-target must be set
-/// + the `.app` must exist. Appium reachability is probed asynchronously inside
-/// the test body (see [_appiumReachable]).
-String? _envSkipReason() {
+/// Synchronous skip reason: the udid/flutter-target must be set and the
+/// resolved target must exist. Appium reachability is probed asynchronously
+/// inside the test body (see [_appiumReachable]).
+String? _envSkipReason(DualE2eTarget target) {
   final String? udid = Platform.environment[_udidEnv];
-  final String? app = Platform.environment[_appEnv];
-  final String? flutterProject = Platform.environment[_flutterProjectEnv];
   final String? flutterTarget = Platform.environment[_flutterTargetEnv];
   if (udid == null ||
       udid.isEmpty ||
-      app == null ||
-      app.isEmpty ||
-      flutterProject == null ||
-      flutterProject.isEmpty ||
       flutterTarget == null ||
       flutterTarget.isEmpty) {
-    return '$_udidEnv + $_appEnv + $_flutterProjectEnv + $_flutterTargetEnv '
-        'must point at a booted iOS sim + a built .app + a Flutter project '
-        'root + an entrypoint — live drive-dual e2e skipped';
+    return '$_udidEnv + $_flutterTargetEnv must point at a booted iOS sim + '
+        'an entrypoint. The sample app target is selected by default; '
+        'LEONARD_NATIVE_APP and LEONARD_NATIVE_FLUTTER_PROJECT may override '
+        'its paths — live drive-dual e2e skipped';
   }
-  if (!File(app).existsSync() && !Directory(app).existsSync()) {
-    return '$_appEnv ($app) does not exist — live drive-dual e2e skipped';
+  if (!File(target.app).existsSync() && !Directory(target.app).existsSync()) {
+    return 'target app (${target.app}) does not exist. Build the default '
+        'sample app with `cd packages/leonard_flutter/example/sample_app && '
+        'flutter build ios --simulator --debug`, or override it with '
+        'LEONARD_NATIVE_APP — live drive-dual e2e skipped';
   }
-  if (!File(p.join(flutterProject, 'pubspec.yaml')).existsSync()) {
-    return '$_flutterProjectEnv ($flutterProject) is not a Flutter project '
-        '(no pubspec.yaml) — live drive-dual e2e skipped';
+  if (!File(p.join(target.flutterProject, 'pubspec.yaml')).existsSync()) {
+    return 'target Flutter project (${target.flutterProject}) is not a '
+        'Flutter project (no pubspec.yaml). The sample app is the default; '
+        'override it with LEONARD_NATIVE_FLUTTER_PROJECT — live drive-dual '
+        'e2e skipped';
   }
   return null;
 }
@@ -133,8 +137,9 @@ String _hostScript(String packageRoot) {
 }
 
 void main() {
-  final String? envSkip = _envSkipReason();
   final String packageRoot = _findPackageRoot();
+  final DualE2eTarget target = resolveDualE2eTarget(packageRoot: packageRoot);
+  final String? envSkip = _envSkipReason(target);
   final String driveBin = p.join(packageRoot, 'bin', 'leonard_drive.dart');
 
   test('drive-dual attaches BOTH channels, merges, and routes', () async {
@@ -150,8 +155,6 @@ void main() {
       return;
     }
     final String udid = Platform.environment[_udidEnv]!;
-    final String app = Platform.environment[_appEnv]!;
-    final String flutterProject = Platform.environment[_flutterProjectEnv]!;
     final String flutterTarget = Platform.environment[_flutterTargetEnv]!;
     final String nativeHost = _hostScript(packageRoot);
 
@@ -176,7 +179,7 @@ void main() {
           '--udid',
           udid,
           '--app',
-          app,
+          target.app,
           '--native-host',
           nativeHost,
           '--appium-server',
@@ -185,7 +188,7 @@ void main() {
           pidFile,
           '--uri-file',
           uriFile,
-        ], workingDirectory: flutterProject);
+        ], workingDirectory: target.flutterProject);
     up.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
       String line,
     ) {
