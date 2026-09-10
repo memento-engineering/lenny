@@ -14,12 +14,14 @@ Widget _host({
   ProviderConfig? initial,
   String conversationId = 'conv-1',
   ModelCatalog? catalog,
+  List<String> acpHarnessLabels = const <String>[],
 }) => MaterialApp(
   home: Scaffold(
     body: ProviderConfigForm(
       initial: initial,
       onChanged: onChanged,
       conversationId: conversationId,
+      acpHarnessLabels: acpHarnessLabels,
       catalog:
           catalog ??
           ModelCatalog(
@@ -35,6 +37,82 @@ Widget _host({
 );
 
 void main() {
+  testWidgets('ACP is disabled when no host advertises harnesses', (
+    tester,
+  ) async {
+    ProviderConfig? last;
+    await tester.pumpWidget(_host(onChanged: (config) => last = config));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('providerForm.providerSelect')));
+    await tester.pumpAndSettle();
+    const String label = 'acp — no ACP host is registered';
+    final DropdownMenuItem<String> item = tester.widget(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(DropdownMenuItem<String>),
+      ),
+    );
+    expect(item.value, 'acp');
+    expect(item.enabled, isFalse);
+
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+    expect(last, isNull);
+    expect(find.byKey(const Key('providerForm.acp')), findsNothing);
+  });
+
+  testWidgets(
+    'ACP renders supplied harness values without credential controls',
+    (tester) async {
+      ProviderConfig? last;
+      await tester.pumpWidget(
+        _host(
+          onChanged: (config) => last = config,
+          acpHarnessLabels: const <String>['codex-acp', 'copilot'],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('providerForm.providerSelect')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('acp').last);
+      await tester.pumpAndSettle();
+
+      expect(last, isA<AcpUiConfig>());
+      expect((last! as AcpUiConfig).harnessLabel, 'codex-acp');
+      expect((last! as AcpUiConfig).modelId, isEmpty);
+      expect(find.byKey(const Key('providerForm.acp')), findsOneWidget);
+      expect(find.byKey(const Key('providerForm.acp.harness')), findsOneWidget);
+      expect(find.text('codex-acp'), findsOneWidget);
+      expect(
+        find.byKey(const Key('providerForm.testConnection')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const Key('providerForm.acp.harness')));
+      await tester.pumpAndSettle();
+      expect(find.text('copilot'), findsOneWidget);
+      await tester.tap(find.text('copilot'));
+      await tester.pumpAndSettle();
+      expect((last! as AcpUiConfig).harnessLabel, 'copilot');
+      expect((last! as AcpUiConfig).modelId, isEmpty);
+
+      for (final String forbidden in <String>[
+        'providerForm.acp.apiKey',
+        'providerForm.acp.bearer',
+        'providerForm.acp.endpoint',
+        'providerForm.acp.permission',
+        'providerForm.acp.filesystem',
+        'providerForm.acp.terminal',
+        'providerForm.acp.codex',
+        'providerForm.acp.copilot',
+      ]) {
+        expect(find.byKey(Key(forbidden)), findsNothing);
+      }
+    },
+  );
+
   testWidgets('provider selector disables direct OpenAI in browsers', (
     tester,
   ) async {

@@ -1,4 +1,4 @@
-import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
+import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec, acpAgentSpecs;
 import 'package:leonard_agent/leonard_agent.dart'
     show StabilityPolicy, SwiftInferReasoningEffort;
 import 'package:leonard_cli/src/cli_args.dart';
@@ -129,6 +129,7 @@ void main() {
         };
 
         expect(acpHarnesses.keys, orderedEquals(expected.keys));
+        expect(acpHarnesses, same(acpAgentSpecs));
         for (final MapEntry<String, AcpAgentSpec> entry in expected.entries) {
           _expectSameSpec(acpHarnesses[entry.key]!, entry.value);
         }

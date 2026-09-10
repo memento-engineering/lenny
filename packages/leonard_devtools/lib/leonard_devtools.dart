@@ -27,7 +27,17 @@ export 'src/manifest_probe.dart'
         ManifestProbeResult,
         probeManifest;
 export 'src/dtd_acp_model_provider.dart'
-    show DtdAcpCall, DtdAcpModelProvider, DtdAcpRead, DtdAcpUnavailable;
+    show
+        DtdAcpCall,
+        DtdAcpHostInfo,
+        DtdAcpListServices,
+        DtdAcpModelProvider,
+        DtdAcpNewSession,
+        DtdAcpPanelClient,
+        DtdAcpProviderBuilder,
+        DtdAcpRead,
+        DtdAcpSessionModels,
+        DtdAcpUnavailable;
 export 'src/panels/prompt_panel.dart';
 export 'src/panels/prompt_panel_config.dart';
 export 'src/panels/prompt_panel_controller.dart';

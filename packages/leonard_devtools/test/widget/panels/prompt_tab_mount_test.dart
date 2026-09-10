@@ -8,9 +8,11 @@ library;
 
 import 'dart:async';
 
+import 'package:dart_service_protocol_shared/dart_service_protocol_shared.dart';
 import 'package:leonard_agent/leonard_agent.dart';
 import 'package:leonard_devtools/src/conversation/conversation_state.dart'
     show RunStatus;
+import 'package:leonard_devtools/src/dtd_acp_model_provider.dart';
 import 'package:leonard_devtools/src/panels/model_catalog.dart';
 import 'package:leonard_devtools/src/panels/prompt_panel_config.dart';
 import 'package:leonard_devtools/src/panels/prompt_panel_config_store.dart';
@@ -121,7 +123,148 @@ const _cfg = PromptPanelConfig(
 
 ProviderConfig _providerCfg() => AnthropicUiConfig(apiKey: 'k');
 
+const Map<String, Object?> _acpCapabilities = <String, Object?>{
+  'vision': false,
+  'preserve_thinking': true,
+  'max_context': 128000,
+  'supports_tool_use': false,
+};
+
+ClientServiceInfo _acpService() =>
+    ClientServiceInfo('leonard.acp', <String, ClientServiceMethodInfo>{
+      'decide': ClientServiceMethodInfo('decide', _acpCapabilities),
+      'session/new': ClientServiceMethodInfo('session/new', <String, Object?>{
+        'harness_labels': <String>['codex-acp', 'copilot'],
+      }),
+    });
+
+DtdAcpPanelClient _acpClient({
+  required Future<Map<String, Object?>> Function(String, String) open,
+  bool available = true,
+}) => DtdAcpPanelClient(
+  listServices: () async => available
+      ? <ClientServiceInfo>[_acpService()]
+      : const <ClientServiceInfo>[],
+  newSession: open,
+  providerBuilder: (capabilities, readiness) => DtdAcpModelProvider(
+    capabilities: capabilities,
+    read: () => const Stream<Map<String, Object?>>.empty(),
+    call: (_) async => const <String, Object?>{},
+    readiness: readiness,
+  ),
+);
+
 void main() {
+  testWidgets(
+    'ACP loads qualified host models, persists current id, and makes no HTTP request',
+    (tester) async {
+      final store = InMemoryProviderConfigStore();
+      await store.save(
+        const AcpUiConfig(harnessLabel: 'codex-acp', modelId: 'gpt-5.6-sol'),
+      );
+      int httpRequests = 0;
+      final ModelCatalog catalog = ModelCatalog(
+        client: MockClient((request) async {
+          httpRequests++;
+          return http.Response('{}', 500);
+        }),
+      );
+      final List<(String, String)> opens = <(String, String)>[];
+      final DtdAcpPanelClient client = _acpClient(
+        open: (harness, model) async {
+          opens.add((harness, model));
+          return <String, Object?>{
+            'available_models': <String>[
+              'gpt-5.6-sol[low]',
+              'gpt-5.6-sol[high]',
+            ],
+            'current_model_id': 'gpt-5.6-sol[high]',
+          };
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PromptTabMount(
+              extensions: const <ExtensionManifestEntry>[],
+              store: store,
+              catalog: catalog,
+              acpPanelClient: client,
+              initialProviderId: 'acp',
+              promptConfigStore: InMemoryPromptPanelConfigStore(),
+              controllerFactory: () => PromptPanelController(
+                factory: () async => _FakeSession(),
+                providerFactory: (_, __, ___) => _DummyProvider(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(opens, <(String, String)>[('codex-acp', 'gpt-5.6-sol')]);
+      expect(httpRequests, 0);
+      expect(find.byKey(const Key('providerForm.acp')), findsOneWidget);
+      final DropdownButtonFormField<String> modelPicker = tester.widget(
+        find.byKey(const Key('prompt.model')),
+      );
+      expect(modelPicker.initialValue, 'gpt-5.6-sol[high]');
+      final Text resolved = tester.widget(
+        find.byKey(const Key('prompt.resolvedModel')),
+      );
+      expect(resolved.data, contains('gpt-5.6-sol[high]'));
+      final AcpUiConfig persisted = await store.load('acp') as AcpUiConfig;
+      expect(persisted.modelId, 'gpt-5.6-sol[high]');
+    },
+  );
+
+  testWidgets('unavailable ACP host empties models and keeps Start invalid', (
+    tester,
+  ) async {
+    final store = InMemoryProviderConfigStore();
+    await store.save(
+      const AcpUiConfig(harnessLabel: 'codex-acp', modelId: 'model'),
+    );
+    int starts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PromptTabMount(
+            extensions: const <ExtensionManifestEntry>[],
+            store: store,
+            catalog: ModelCatalog(
+              client: MockClient((request) async => http.Response('{}', 500)),
+            ),
+            acpPanelClient: _acpClient(
+              available: false,
+              open: (_, __) async => throw StateError('must not open'),
+            ),
+            initialProviderId: 'acp',
+            promptConfigStore: InMemoryPromptPanelConfigStore(),
+            controllerFactory: () {
+              starts++;
+              return PromptPanelController(
+                factory: () async => _FakeSession(),
+                providerFactory: (_, __, ___) => _DummyProvider(),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('prompt.modelsError')), findsOneWidget);
+    expect(find.text('acp — no ACP host is registered'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('prompt.goal')), 'drive it');
+    await tester.ensureVisible(find.byKey(const Key('prompt.start')));
+    await tester.tap(find.byKey(const Key('prompt.start')));
+    await tester.pumpAndSettle();
+    expect(starts, 0);
+    expect(find.text('Select a model'), findsOneWidget);
+  });
+
   test(
     '_onStart pattern: form re-enables when runFuture completes naturally',
     () async {

@@ -5,7 +5,7 @@
 library;
 
 import 'package:args/args.dart';
-import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
+import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec, acpAgentSpecs;
 import 'package:leonard_agent/leonard_agent.dart'
     show StabilityPolicy, SwiftInferReasoningEffort;
 
@@ -18,11 +18,7 @@ enum ModelTier { qwenMlx, claude, openai }
 /// Agent-specific launch details live in [AcpAgentSpec] factory values so
 /// adding another harness remains a catalog entry rather than a provider or
 /// driver branch.
-final Map<String, AcpAgentSpec> acpHarnesses =
-    Map<String, AcpAgentSpec>.unmodifiable(<String, AcpAgentSpec>{
-      'codex': AcpAgentSpec.codex(),
-      'copilot': AcpAgentSpec.copilot(),
-    });
+final Map<String, AcpAgentSpec> acpHarnesses = acpAgentSpecs;
 
 /// How `--launch` boots the target. Pure mirror of `launcher.dart`'s
 /// `TargetRunner` (kept here so `cli_args` stays `dart:io`-free); mapped to

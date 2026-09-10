@@ -19,6 +19,28 @@ const List<String> _codexCatalogue = <String>[
 ];
 
 void main() {
+  group('AcpAgentSpec.withModelOverride', () {
+    test('keeps the same value for null or empty overrides', () {
+      final AcpAgentSpec spec = AcpAgentSpec.codex();
+      expect(spec.withModelOverride(null), same(spec));
+      expect(spec.withModelOverride(''), same(spec));
+    });
+
+    test('copies launch fields and replaces only the model', () {
+      final AcpAgentSpec spec = AcpAgentSpec.codex(
+        package: 'adapter-package',
+        env: const <String, String>{'A': 'B'},
+      );
+      final AcpAgentSpec changed = spec.withModelOverride('qualified[high]');
+
+      expect(changed.label, spec.label);
+      expect(changed.command, spec.command);
+      expect(changed.args, same(spec.args));
+      expect(changed.env, same(spec.env));
+      expect(changed.model, 'qualified[high]');
+    });
+  });
+
   group('baseModelId', () {
     test('strips the effort suffix', () {
       expect(baseModelId('gpt-5.6-sol[xhigh]'), 'gpt-5.6-sol');

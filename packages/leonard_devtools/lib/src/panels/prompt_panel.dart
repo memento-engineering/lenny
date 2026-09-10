@@ -32,6 +32,7 @@ class PromptPanel extends StatefulWidget {
     this.onUseFallback,
     this.initialConfig,
     this.configLoaded = false,
+    this.acpHarnessLabels = const <String>[],
   });
 
   /// Snapshot of the model catalog (provider config + resolved
@@ -85,6 +86,9 @@ class PromptPanel extends StatefulWidget {
   /// config), the settings section auto-opens so the user can enter their
   /// keys on first launch.
   final bool configLoaded;
+
+  /// Harness labels advertised by the live host-side ACP service.
+  final List<String> acpHarnessLabels;
 
   @override
   State<PromptPanel> createState() => _PromptPanelState();
@@ -216,6 +220,7 @@ class _PromptPanelState extends State<PromptPanel> {
           onChanged: widget.onProviderConfigChanged,
           conversationId: widget.conversationId,
           catalog: widget.catalog,
+          acpHarnessLabels: widget.acpHarnessLabels,
           onConnectionVerified: widget.onReloadModels,
         ),
         const SizedBox(height: 12),
@@ -251,7 +256,16 @@ class _PromptPanelState extends State<PromptPanel> {
                     .toList(),
                 onChanged: running
                     ? null
-                    : (v) => setState(() => _modelId = v ?? _modelId),
+                    : (String? value) {
+                        if (value == null) return;
+                        setState(() => _modelId = value);
+                        final ProviderConfig? config = state.config;
+                        if (config is AcpUiConfig && config.modelId != value) {
+                          widget.onProviderConfigChanged(
+                            config.copyWith(modelId: value),
+                          );
+                        }
+                      },
               ),
             ),
             Semantics(

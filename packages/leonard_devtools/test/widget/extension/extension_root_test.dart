@@ -20,6 +20,7 @@ import 'package:leonard_agent/leonard_agent.dart'
     show ExtensionManifestEntry, LeonardSession;
 import 'package:leonard_devtools/src/extension_root.dart';
 import 'package:leonard_devtools/src/diagnostics/diagnostics_snapshot.dart';
+import 'package:leonard_devtools/src/dtd_acp_model_provider.dart';
 import 'package:leonard_devtools/src/leonard_shell.dart';
 import 'package:leonard_devtools/src/manifest_probe.dart' show ManifestProbe;
 import 'package:leonard_devtools/src/panels/prompt_panel_config_store.dart';
@@ -100,6 +101,9 @@ class _FakeScope implements LeonardDevToolsScope {
   @override
   final PromptPanelConfigStore promptConfigStore =
       InMemoryPromptPanelConfigStore();
+
+  @override
+  final DtdAcpPanelClient acpPanelClient = DtdAcpPanelClient.unavailable();
 
   @override
   Listenable get probeRetrigger => _globals.retrigger;
@@ -218,6 +222,7 @@ void main() {
     );
     expect(shell.store, same(scope.providerConfigStore));
     expect(shell.promptConfigStore, same(scope.promptConfigStore));
+    expect(shell.acpPanelClient, same(scope.acpPanelClient));
     expect(shell.probeRetrigger, same(scope.probeRetrigger));
   });
 }
