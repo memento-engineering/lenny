@@ -18,6 +18,8 @@ dependencies:
   # newSession, prompt, cancel, plus the Client callback interface.
   acp_dart: ^0.4.0
   args: ^2.6.0
+  dtd: ^4.0.0
+  json_rpc_2: ^3.0.2
   leonard_agent: ^0.3.0
   meta: ^1.16.0
 
