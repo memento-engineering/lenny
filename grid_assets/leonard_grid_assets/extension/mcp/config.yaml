@@ -26,3 +26,23 @@ circuits:
         capability: verify
         kind: job
         depends_on: [outer-driver]
+  - id: leonard-e2e
+    terminal_step: inspect
+    supervision: rest_for_one
+    steps:
+      - id: preflight
+        capability: e2e-preflight
+        kind: job
+        depends_on: []
+      - id: launch
+        capability: e2e-launch
+        kind: daemon
+        depends_on: [preflight]
+      - id: run
+        capability: e2e-run
+        kind: job
+        depends_on: [launch]
+      - id: inspect
+        capability: e2e-inspect
+        kind: job
+        depends_on: [run]

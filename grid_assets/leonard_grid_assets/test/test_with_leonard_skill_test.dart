@@ -52,7 +52,7 @@ description: >
     'triage.md',
     'mutation.md',
   ];
-  const List<String> stubNames = <String>['scripted-device.md', 'triage.md'];
+  const List<String> stubNames = <String>['scripted-device.md'];
   const List<String> gotchaBullets = <String>[
     '* `SessionOutcome.done` is the MODEL calling `core.done`. It is a '
         'self-report, not an oracle. A test whose only assertion is '
@@ -205,7 +205,7 @@ description: >
     expect(skill.toLowerCase(), isNot(contains('see references/')));
   });
 
-  test('the two pending references are exact one-line epic stubs', () {
+  test('the pending reference is an exact one-line epic stub', () {
     const String stub =
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
