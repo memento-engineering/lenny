@@ -185,6 +185,47 @@ void main() {
     });
   });
 
+  group('AcpUiConfig', () {
+    test('round-trips exactly the non-secret harness and model values', () {
+      const AcpUiConfig config = AcpUiConfig(
+        harnessLabel: 'codex-acp',
+        modelId: 'gpt-5.6-sol[high]',
+      );
+
+      expect(config.id, 'acp');
+      expect(config.defaultModelId, 'gpt-5.6-sol[high]');
+      expect(config.toJson(), <String, dynamic>{
+        'id': 'acp',
+        'harnessLabel': 'codex-acp',
+        'modelId': 'gpt-5.6-sol[high]',
+      });
+      final AcpUiConfig decoded =
+          ProviderConfig.fromJson(config.toJson()) as AcpUiConfig;
+      expect(decoded.harnessLabel, 'codex-acp');
+      expect(decoded.modelId, 'gpt-5.6-sol[high]');
+    });
+
+    test('copyWith changes only selected values', () {
+      const AcpUiConfig config = AcpUiConfig(
+        harnessLabel: 'codex-acp',
+        modelId: 'one',
+      );
+      expect(config.copyWith(modelId: 'two').toJson(), <String, dynamic>{
+        'id': 'acp',
+        'harnessLabel': 'codex-acp',
+        'modelId': 'two',
+      });
+      expect(
+        config.copyWith(harnessLabel: 'copilot').toJson(),
+        <String, dynamic>{
+          'id': 'acp',
+          'harnessLabel': 'copilot',
+          'modelId': 'one',
+        },
+      );
+    });
+  });
+
   test('ProviderConfig.fromJson rejects unknown id', () {
     expect(
       () => ProviderConfig.fromJson(<String, dynamic>{'id': 'bogus'}),

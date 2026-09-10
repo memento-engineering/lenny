@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dart_service_protocol_shared/dart_service_protocol_shared.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:json_rpc_2/json_rpc_2.dart';
 import 'package:leonard_agent/leonard_agent.dart';
@@ -90,7 +91,196 @@ class _Fixture {
   Future<void> dispose() => thinking.close();
 }
 
+ClientServiceInfo _acpService({
+  Map<String, Object?>? decideCapabilities = _handshake,
+  Object? harnessLabels = const <String>['codex-acp', 'copilot'],
+  bool includeDecide = true,
+  bool includeSession = true,
+}) => ClientServiceInfo('leonard.acp', <String, ClientServiceMethodInfo>{
+  if (includeDecide)
+    'decide': ClientServiceMethodInfo('decide', decideCapabilities),
+  if (includeSession)
+    'session/new': ClientServiceMethodInfo('session/new', <String, Object?>{
+      'harness_labels': harnessLabels,
+    }),
+});
+
+DtdAcpPanelClient _panelClient({
+  required Future<List<ClientServiceInfo>> Function() listServices,
+  Future<Map<String, Object?>> Function(String, String)? newSession,
+  DtdAcpProviderBuilder? providerBuilder,
+}) => DtdAcpPanelClient(
+  listServices: listServices,
+  newSession:
+      newSession ??
+      (String harness, String model) async => <String, Object?>{
+        'available_models': <String>['model-a'],
+        'current_model_id': 'model-a',
+      },
+  providerBuilder:
+      providerBuilder ??
+      (Map<String, Object?> capabilities, Future<void> readiness) =>
+          DtdAcpModelProvider(
+            capabilities: capabilities,
+            read: () => const Stream<Map<String, Object?>>.empty(),
+            call: (Map<String, Object?> request) async => <String, Object?>{
+              'type': 'ModelDecision',
+              'decision': _decision.toJson(),
+            },
+            readiness: readiness,
+          ),
+);
+
 void main() {
+  group('DtdAcpPanelClient', () {
+    test('returns null only when no ACP service is registered', () async {
+      final DtdAcpPanelClient client = _panelClient(
+        listServices: () async => <ClientServiceInfo>[
+          ClientServiceInfo('another.service'),
+        ],
+      );
+
+      expect(await client.refreshHost(), isNull);
+      expect(
+        () => client.buildProvider(harnessLabel: 'codex-acp', modelId: ''),
+        throwsStateError,
+      );
+    });
+
+    test('validates and defensively retains the ACP handshake', () async {
+      final List<String> labels = <String>['codex-acp', 'copilot'];
+      final Map<String, Object?> capabilities = <String, Object?>{
+        ..._handshake,
+      };
+      final DtdAcpPanelClient client = _panelClient(
+        listServices: () async => <ClientServiceInfo>[
+          _acpService(decideCapabilities: capabilities, harnessLabels: labels),
+        ],
+      );
+
+      final DtdAcpHostInfo host = (await client.refreshHost())!;
+      labels.add('later');
+      capabilities['vision'] = false;
+      expect(host.harnessLabels, <String>['codex-acp', 'copilot']);
+      expect(host.capabilities['vision'], isTrue);
+      expect(() => host.harnessLabels.add('nope'), throwsUnsupportedError);
+      expect(() => host.capabilities['vision'] = false, throwsUnsupportedError);
+    });
+
+    test('rejects incomplete or wrongly typed registrations', () async {
+      for (final ClientServiceInfo service in <ClientServiceInfo>[
+        _acpService(includeDecide: false),
+        _acpService(includeSession: false),
+        _acpService(harnessLabels: <Object?>['codex-acp', 7]),
+        _acpService(
+          decideCapabilities: <String, Object?>{
+            ..._handshake,
+            'max_context': 'large',
+          },
+        ),
+      ]) {
+        final DtdAcpPanelClient client = _panelClient(
+          listServices: () async => <ClientServiceInfo>[service],
+        );
+        await expectLater(client.refreshHost(), throwsFormatException);
+      }
+    });
+
+    test('sends selected values and strictly decodes session models', () async {
+      String? harness;
+      String? model;
+      final List<String> source = <String>[
+        'gpt-5.6-sol[high]',
+        'gpt-5.6-sol[max]',
+      ];
+      final DtdAcpPanelClient client = _panelClient(
+        listServices: () async => <ClientServiceInfo>[_acpService()],
+        newSession: (String capturedHarness, String capturedModel) async {
+          harness = capturedHarness;
+          model = capturedModel;
+          return <String, Object?>{
+            'available_models': source,
+            'current_model_id': 'gpt-5.6-sol[high]',
+          };
+        },
+      );
+
+      final DtdAcpSessionModels session = await client.newSession(
+        harnessLabel: 'codex-acp',
+        modelId: 'gpt-5.6-sol[high]',
+      );
+      source.add('later');
+      expect(harness, 'codex-acp');
+      expect(model, 'gpt-5.6-sol[high]');
+      expect(session.availableModels, <String>[
+        'gpt-5.6-sol[high]',
+        'gpt-5.6-sol[max]',
+      ]);
+      expect(session.currentModelId, 'gpt-5.6-sol[high]');
+      expect(() => session.availableModels.add('nope'), throwsUnsupportedError);
+
+      for (final Map<String, Object?> invalid in <Map<String, Object?>>[
+        <String, Object?>{'current_model_id': null},
+        <String, Object?>{
+          'available_models': <Object?>['model', 1],
+          'current_model_id': 'model',
+        },
+        <String, Object?>{
+          'available_models': <String>['model'],
+          'current_model_id': 1,
+        },
+      ]) {
+        final DtdAcpPanelClient invalidClient = _panelClient(
+          listServices: () async => const <ClientServiceInfo>[],
+          newSession: (_, __) async => invalid,
+        );
+        await expectLater(
+          invalidClient.newSession(harnessLabel: 'h', modelId: 'm'),
+          throwsFormatException,
+        );
+      }
+    });
+
+    test('buildProvider awaits a new session before first decision', () async {
+      final Completer<Map<String, Object?>> opened =
+          Completer<Map<String, Object?>>();
+      bool decided = false;
+      Map<String, Object?>? builtCapabilities;
+      final DtdAcpPanelClient client = _panelClient(
+        listServices: () async => <ClientServiceInfo>[_acpService()],
+        newSession: (_, __) => opened.future,
+        providerBuilder: (capabilities, readiness) => DtdAcpModelProvider(
+          capabilities: capabilities,
+          read: () => const Stream<Map<String, Object?>>.empty(),
+          call: (request) async {
+            decided = true;
+            return <String, Object?>{
+              'type': 'ModelDecision',
+              'decision': _decision.toJson(),
+            };
+          },
+          readiness: readiness,
+        ),
+      );
+      builtCapabilities = (await client.refreshHost())!.capabilities;
+      final DtdAcpModelProvider provider = client.buildProvider(
+        harnessLabel: 'copilot',
+        modelId: 'model-a',
+      );
+
+      final Future<ModelDecision> pending = provider.decide(_snapshot, _schema);
+      await pumpEventQueue(times: 2);
+      expect(decided, isFalse);
+      expect(builtCapabilities, _handshake);
+      opened.complete(<String, Object?>{
+        'available_models': <String>['model-a'],
+        'current_model_id': 'model-a',
+      });
+      expect(await pending, _decision);
+      expect(decided, isTrue);
+    });
+  });
+
   test('decodes the synchronous capability handshake', () async {
     final _Fixture fixture = _Fixture();
     addTearDown(fixture.dispose);

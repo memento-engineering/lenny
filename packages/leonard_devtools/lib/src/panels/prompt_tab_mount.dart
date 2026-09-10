@@ -13,6 +13,7 @@ import 'package:leonard_agent/leonard_agent.dart'
 import 'package:flutter/material.dart';
 
 import '../conversation/conversation_state.dart' show RunStatus;
+import '../dtd_acp_model_provider.dart';
 import 'model_catalog.dart';
 import 'prompt_panel.dart';
 import 'prompt_panel_config.dart';
@@ -29,7 +30,7 @@ import 'provider_config_store.dart';
 ///     dropdown. Provider config edits persist via [store] and then
 ///     trigger a fetch through the shared [ModelCatalog].
 class PromptTabMount extends StatefulWidget {
-  const PromptTabMount({
+  PromptTabMount({
     super.key,
     required this.extensions,
     required this.store,
@@ -40,7 +41,8 @@ class PromptTabMount extends StatefulWidget {
     this.completionSink,
     this.sessionGenerationSink,
     this.initialProviderId = 'swift-infer',
-  });
+    DtdAcpPanelClient? acpPanelClient,
+  }) : acpPanelClient = acpPanelClient ?? DtdAcpPanelClient.unavailable();
 
   /// Extension manifest from the binding handshake.
   final List<ExtensionManifestEntry> extensions;
@@ -50,6 +52,9 @@ class PromptTabMount extends StatefulWidget {
 
   /// Shared model catalog (panel + form share its cache).
   final ModelCatalog catalog;
+
+  /// Web-safe client for ACP discovery, models, and provider construction.
+  final DtdAcpPanelClient acpPanelClient;
 
   /// Optional write-side seam — when non-null, [_ensureController]
   /// assigns the controller's live trajectory stream to this notifier
@@ -91,6 +96,8 @@ class _PromptTabMountState extends State<PromptTabMount> {
   String _conversationId = '';
   PromptPanelConfig? _initialPromptConfig;
   bool _configLoaded = false;
+  List<String> _acpHarnessLabels = const <String>[];
+  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -103,7 +110,16 @@ class _PromptTabMountState extends State<PromptTabMount> {
     if (loaded != null) {
       if (!mounted) return;
       _state.value = _state.value.copyWith(config: loaded);
+    }
+    if (loaded is AcpUiConfig) {
       await _refresh(reload: false);
+    } else {
+      try {
+        await _discoverAcpHost();
+      } on Object {
+        // ACP discovery is optional while another provider is selected.
+      }
+      if (loaded != null) await _refresh(reload: false);
     }
     if (!mounted) return;
     final liveNamespaces = widget.extensions.map((p) => p.namespace).toSet();
@@ -117,24 +133,72 @@ class _PromptTabMountState extends State<PromptTabMount> {
     });
   }
 
+  Future<DtdAcpHostInfo?> _discoverAcpHost() async {
+    try {
+      final DtdAcpHostInfo? host = await widget.acpPanelClient.refreshHost();
+      if (!mounted) return host;
+      setState(
+        () => _acpHarnessLabels = host?.harnessLabels ?? const <String>[],
+      );
+      return host;
+    } on Object {
+      if (mounted) setState(() => _acpHarnessLabels = const <String>[]);
+      rethrow;
+    }
+  }
+
   Future<void> _refresh({required bool reload}) async {
     final cfg = _state.value.config;
     if (cfg == null) return;
+    final int generation = ++_refreshGeneration;
     _state.value = _state.value.copyWith(loading: true, clearError: true);
     try {
-      final models = await widget.catalog.fetch(
-        cfg,
-        reload: reload,
-        conversationId: _conversationId,
-      );
-      if (!mounted) return;
-      _state.value = _state.value.copyWith(
+      final List<ResolvedModel> models;
+      ProviderConfig resolvedConfig = cfg;
+      switch (cfg) {
+        case HttpProviderConfig():
+          models = await widget.catalog.fetch(
+            cfg,
+            reload: reload,
+            conversationId: _conversationId,
+          );
+        case AcpUiConfig():
+          final DtdAcpHostInfo? host = await _discoverAcpHost();
+          if (host == null) {
+            throw const DtdAcpUnavailable(
+              'No ACP host is registered with the Dart Tooling Daemon.',
+            );
+          }
+          final DtdAcpSessionModels session = await widget.acpPanelClient
+              .newSession(harnessLabel: cfg.harnessLabel, modelId: cfg.modelId);
+          if (session.availableModels.isEmpty) {
+            throw StateError('ACP host returned no available models');
+          }
+          final String selected =
+              session.currentModelId != null &&
+                  session.availableModels.contains(session.currentModelId)
+              ? session.currentModelId!
+              : session.availableModels.first;
+          final capabilities = DtdAcpModelProvider.decodeCapabilities(
+            host.capabilities,
+          );
+          models = <ResolvedModel>[
+            for (final String id in session.availableModels)
+              ResolvedModel(id: id, label: id, capabilities: capabilities),
+          ];
+          resolvedConfig = cfg.copyWith(modelId: selected);
+      }
+      if (!mounted || generation != _refreshGeneration) return;
+      if (resolvedConfig != cfg) {
+        unawaited(widget.store.save(resolvedConfig));
+      }
+      _state.value = ModelCatalogState(
+        config: resolvedConfig,
         models: models,
         loading: false,
-        clearError: true,
       );
     } on Object catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _refreshGeneration) return;
       _state.value = _state.value.copyWith(loading: false, error: e);
     }
   }
@@ -287,6 +351,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
           onUseFallback: _onUseFallback,
           initialConfig: _initialPromptConfig,
           configLoaded: _configLoaded,
+          acpHarnessLabels: _acpHarnessLabels,
         ),
       );
 }

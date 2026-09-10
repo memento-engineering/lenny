@@ -35,6 +35,11 @@ Directory _libDirectory() => Directory('${_packageRoot().path}/lib');
 
 File _mainDart() => File('${_packageRoot().path}/lib/main.dart');
 
+File _extensionRoot() =>
+    File('${_packageRoot().path}/lib/src/extension_root.dart');
+
+File _shell() => File('${_packageRoot().path}/lib/src/leonard_shell.dart');
+
 File _selfDriveMain() => File('${_packageRoot().path}/dev/selfdrive_main.dart');
 
 File _pubspec() => File('${_packageRoot().path}/pubspec.yaml');
@@ -82,6 +87,18 @@ void main() {
     );
     expect(source, contains('serviceManager.connectedState'));
     expect(source, contains('serviceManager.isolateManager.mainIsolate'));
+  });
+
+  test('live DTD ACP client reaches discovery and provider construction', () {
+    final String rootSource = _extensionRoot().readAsStringSync();
+    final String shellSource = _shell().readAsStringSync();
+
+    expect(source, contains('DtdAcpPanelClient.fromConnection('));
+    expect(source, contains('() => dtdManager.connection.value'));
+    expect(rootSource, contains('acpPanelClient: scope.acpPanelClient'));
+    expect(shellSource, contains('acpPanelClient: acpPanelClient'));
+    expect(shellSource, contains('buildPanelProvider('));
+    expect(shellSource, contains('acpPanelClient: widget.acpPanelClient'));
   });
 
   test('_loadDiagnosticsSnapshot borrows the DevTools VM connection and '

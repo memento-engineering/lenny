@@ -52,6 +52,7 @@ class AcpSession {
   InitializeResponse? _initialize;
   String? _sessionId;
   String? _modelId;
+  List<String> _availableModelIds = const <String>[];
 
   final StringBuffer _message = StringBuffer();
   final StringBuffer _thought = StringBuffer();
@@ -73,6 +74,9 @@ class AcpSession {
   /// The model this session is actually running, after any pin was applied.
   /// Null when the agent reports no model state at all.
   String? get modelId => _modelId;
+
+  /// Model ids advertised by the most recent successful `session/new` reply.
+  List<String> get availableModelIds => _availableModelIds;
 
   /// The spec this session was spawned from.
   AcpAgentSpec get spec => _spec;
@@ -143,6 +147,12 @@ class AcpSession {
     );
     _sessionId = response.sessionId;
     _modelId = response.models?.currentModelId;
+    _availableModelIds = List<String>.unmodifiable(
+      response.models?.availableModels.map(
+            (ModelInfo model) => model.modelId,
+          ) ??
+          const <String>[],
+    );
 
     await _applyModelPin(response.models);
     return response.sessionId;

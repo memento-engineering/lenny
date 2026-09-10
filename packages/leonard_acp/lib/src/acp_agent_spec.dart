@@ -15,6 +15,16 @@ import 'package:meta/meta.dart';
 /// in power_station `grid_assets`.
 const String kCodexPinnedModel = 'gpt-5.6-sol';
 
+/// ACP harnesses available to every Leonard entry point.
+///
+/// Adding another supported harness is deliberately one configuration entry;
+/// consumers render and launch these values without branching on an agent.
+final Map<String, AcpAgentSpec> acpAgentSpecs =
+    Map<String, AcpAgentSpec>.unmodifiable(<String, AcpAgentSpec>{
+      'codex': AcpAgentSpec.codex(),
+      'copilot': AcpAgentSpec.copilot(),
+    });
+
 /// How to spawn one ACP agent over stdio.
 @immutable
 class AcpAgentSpec {
@@ -84,6 +94,21 @@ class AcpAgentSpec {
   /// Model id to pin over `session/set_model`, or null to accept whatever the
   /// agent defaults to. See [kCodexPinnedModel].
   final String? model;
+
+  /// Returns this launch value with only its model pin replaced by [modelId].
+  ///
+  /// A null or empty override preserves this exact value, including the
+  /// factory-provided default model pin.
+  AcpAgentSpec withModelOverride(String? modelId) {
+    if (modelId == null || modelId.isEmpty) return this;
+    return AcpAgentSpec(
+      label: label,
+      command: command,
+      args: args,
+      env: env,
+      model: modelId,
+    );
+  }
 
   @override
   String toString() =>

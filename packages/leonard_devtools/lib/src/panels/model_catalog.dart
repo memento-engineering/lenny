@@ -127,12 +127,12 @@ class ModelCatalog {
 
   /// Cache key — provider id + base URL so anthropic-prod vs
   /// anthropic-localhost-mock don't collide.
-  String _key(ProviderConfig cfg) => '${cfg.id}|${cfg.baseUrl}';
+  String _key(HttpProviderConfig cfg) => '${cfg.id}|${cfg.baseUrl}';
 
   /// Fetch models for [cfg]. Uses an in-memory cache; pass
   /// `reload: true` to bypass it.
   Future<List<ResolvedModel>> fetch(
-    ProviderConfig cfg, {
+    HttpProviderConfig cfg, {
     bool reload = false,
     String conversationId = '',
   }) async {
@@ -153,7 +153,7 @@ class ModelCatalog {
     return resolved;
   }
 
-  Uri _modelsUri(ProviderConfig cfg) => cfg.baseUrl.replace(
+  Uri _modelsUri(HttpProviderConfig cfg) => cfg.baseUrl.replace(
     path: cfg.baseUrl.path.endsWith('/')
         ? '${cfg.baseUrl.path}v1/models'
         : '${cfg.baseUrl.path}/v1/models',

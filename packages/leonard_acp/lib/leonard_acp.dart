@@ -9,13 +9,19 @@
 /// cannot be depended on by `leonard_agent` or `leonard_devtools`.
 library;
 
-export 'src/acp_agent_spec.dart' show AcpAgentSpec, kCodexPinnedModel;
+export 'src/acp_agent_spec.dart'
+    show AcpAgentSpec, acpAgentSpecs, kCodexPinnedModel;
 export 'src/acp_model_provider.dart'
     show AcpModelProvider, kAcpDefaultCapabilities;
 export 'src/acp_session.dart' show AcpSession, AcpTurn, kAcpProtocolVersion;
 export 'src/deny_all_client.dart' show AcpChunkSink, DenyAllAcpClient;
 export 'src/dtd_acp_host.dart'
-    show DtdAcpHost, DtdAcpPostEvent, DtdAcpRegisterService;
+    show
+        DtdAcpHost,
+        DtdAcpOpenSession,
+        DtdAcpPostEvent,
+        DtdAcpRegisterService,
+        DtdAcpSessionBinding;
 export 'src/model_pin.dart' show baseModelId, resolveModelId;
 export 'src/harness/counting_provider.dart' show CountingModelProvider;
 export 'src/harness/scripted_counter_host.dart'

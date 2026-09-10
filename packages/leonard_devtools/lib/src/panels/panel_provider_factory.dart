@@ -16,6 +16,7 @@ library;
 
 import 'package:leonard_agent/leonard_agent.dart';
 
+import '../dtd_acp_model_provider.dart';
 import 'provider_config.dart';
 
 /// Conservative capabilities when [capabilitiesFor] doesn't know the
@@ -33,6 +34,7 @@ ModelProvider buildPanelProvider(
   String modelId,
   String sessionId, {
   DateTime Function() now = DateTime.now,
+  DtdAcpPanelClient? acpPanelClient,
 }) {
   switch (cfg) {
     case SwiftInferUiConfig():
@@ -86,6 +88,15 @@ ModelProvider buildPanelProvider(
         ),
         model: modelId,
         capabilities: capabilitiesFor('openai', modelId) ?? _defaultCaps,
+      );
+    case AcpUiConfig():
+      final DtdAcpPanelClient? client = acpPanelClient;
+      if (client == null) {
+        throw StateError('ACP panel client is unavailable');
+      }
+      return client.buildProvider(
+        harnessLabel: cfg.harnessLabel,
+        modelId: modelId,
       );
   }
 }

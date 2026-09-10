@@ -32,6 +32,18 @@ void main() {
       final loaded = await store.load('anthropic') as AnthropicUiConfig;
       expect(loaded.apiKey, 'two');
     });
+
+    test('round-trip preserves ACP harness and model', () async {
+      final store = InMemoryProviderConfigStore();
+      const AcpUiConfig config = AcpUiConfig(
+        harnessLabel: 'copilot',
+        modelId: 'claude-sonnet-4.6',
+      );
+      await store.save(config);
+
+      final AcpUiConfig loaded = await store.load('acp') as AcpUiConfig;
+      expect(loaded.toJson(), config.toJson());
+    });
   });
 
   group('DtdProviderConfigStore', () {
@@ -67,6 +79,25 @@ void main() {
       await store.save(OpenAiUiConfig(apiKey: 'O'));
       expect((await store.load('anthropic') as AnthropicUiConfig).apiKey, 'A');
       expect((await store.load('openai') as OpenAiUiConfig).apiKey, 'O');
+    });
+
+    test('persists ACP without credential or endpoint data', () async {
+      final cells = <String, String>{};
+      final store = DtdProviderConfigStore(
+        read: (key) async => cells[key],
+        write: (key, value) async => cells[key] = value,
+      );
+      const AcpUiConfig config = AcpUiConfig(
+        harnessLabel: 'codex-acp',
+        modelId: 'gpt-5.6-sol[high]',
+      );
+
+      await store.save(config);
+      expect(cells.keys, contains('lenny.providerConfig.acp'));
+      expect(
+        (await store.load('acp') as AcpUiConfig).toJson(),
+        config.toJson(),
+      );
     });
 
     test(

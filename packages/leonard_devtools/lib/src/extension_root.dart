@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'dtd_acp_model_provider.dart' show DtdAcpPanelClient;
 import 'leonard_shell.dart';
 import 'diagnostics/diagnostics_snapshot.dart';
 import 'manifest_probe.dart' show ManifestProbe;
@@ -46,6 +47,9 @@ abstract class LeonardDevToolsScope {
 
   /// Prompt-form persistence (DTD + localStorage in production).
   PromptPanelConfigStore get promptConfigStore;
+
+  /// Host-side ACP discovery, session, and provider bridge.
+  DtdAcpPanelClient get acpPanelClient;
 }
 
 /// Builds a [LeonardDevToolsScope]. Called from inside the [Builder]
@@ -91,6 +95,7 @@ class LeonardExtensionRoot extends StatelessWidget {
           diagnosticsSnapshotLoader: scope.diagnosticsSnapshotLoader,
           store: scope.providerConfigStore,
           promptConfigStore: scope.promptConfigStore,
+          acpPanelClient: scope.acpPanelClient,
           probeRetrigger: scope.probeRetrigger,
         );
       },

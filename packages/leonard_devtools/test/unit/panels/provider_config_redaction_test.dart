@@ -31,6 +31,27 @@ void main() {
       expect(cfg.toString().contains(sentinel), isFalse);
       expect(jsonEncode(cfg.toJsonRedacted()).contains(sentinel), isFalse);
     });
+
+    test('ACP has nothing to redact', () {
+      const AcpUiConfig cfg = AcpUiConfig(
+        harnessLabel: 'codex-acp',
+        modelId: 'gpt-5.6-sol[high]',
+      );
+      final Map<String, dynamic> full = cfg.toJson();
+      final Map<String, dynamic> redacted = cfg.toJsonRedacted();
+
+      expect(redacted, full);
+      expect(redacted.keys, <String>['id', 'harnessLabel', 'modelId']);
+      for (final String forbidden in <String>[
+        'apiKey',
+        'bearerToken',
+        'endpoint',
+        'baseUrl',
+        'baseUrlOverride',
+      ]) {
+        expect(redacted, isNot(contains(forbidden)));
+      }
+    });
   });
 
   test(

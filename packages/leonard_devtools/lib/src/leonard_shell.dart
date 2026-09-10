@@ -8,9 +8,11 @@ import 'conversation/run_status_header.dart';
 import 'conversation/transcript_list.dart';
 import 'diagnostics/diagnostics_panel.dart';
 import 'diagnostics/diagnostics_snapshot.dart';
+import 'dtd_acp_model_provider.dart';
 import 'manifest_probe.dart';
 import 'panel_host.dart';
 import 'panels/model_catalog.dart';
+import 'panels/panel_provider_factory.dart' show buildPanelProvider;
 import 'panels/prompt_panel_config_store.dart';
 import 'panels/prompt_panel_controller.dart'
     show PromptPanelController, SessionFactory;
@@ -43,10 +45,12 @@ class LeonardShell extends StatefulWidget {
     ProviderConfigStore? store,
     ModelCatalog? catalog,
     PromptPanelConfigStore? promptConfigStore,
+    DtdAcpPanelClient? acpPanelClient,
   }) : store = store ?? InMemoryProviderConfigStore(),
        catalog = catalog ?? ModelCatalog(),
        promptConfigStore =
-           promptConfigStore ?? InMemoryPromptPanelConfigStore();
+           promptConfigStore ?? InMemoryPromptPanelConfigStore(),
+       acpPanelClient = acpPanelClient ?? DtdAcpPanelClient.unavailable();
 
   /// Loads the active extension manifest for [LeonardPanelHost].
   /// Production wires a closure over `serviceManager.service` + the main
@@ -75,6 +79,9 @@ class LeonardShell extends StatefulWidget {
 
   /// Persists and restores last-used prompt form state across reloads.
   final PromptPanelConfigStore promptConfigStore;
+
+  /// Web-safe bridge to the host-side ACP service.
+  final DtdAcpPanelClient acpPanelClient;
 
   @override
   State<LeonardShell> createState() => _LeonardShellState();
@@ -225,6 +232,7 @@ class _LeonardShellState extends State<LeonardShell> {
         store: widget.store,
         catalog: widget.catalog,
         promptConfigStore: widget.promptConfigStore,
+        acpPanelClient: widget.acpPanelClient,
         trajectorySink: _trajectory,
         completionSink: _completionStatus,
         sessionGenerationSink: _sessionGeneration,
@@ -244,6 +252,7 @@ class _PromptTabBody extends StatelessWidget {
     required this.store,
     required this.catalog,
     required this.promptConfigStore,
+    required this.acpPanelClient,
     required this.trajectorySink,
     required this.completionSink,
     required this.sessionGenerationSink,
@@ -253,6 +262,7 @@ class _PromptTabBody extends StatelessWidget {
   final ProviderConfigStore store;
   final ModelCatalog catalog;
   final PromptPanelConfigStore promptConfigStore;
+  final DtdAcpPanelClient acpPanelClient;
 
   /// Write-side seam — the prompt tab assigns the controller's live
   /// trajectory stream here when a session starts; the Timeline tab
@@ -294,9 +304,17 @@ class _PromptTabBody extends StatelessWidget {
             store: store,
             catalog: catalog,
             promptConfigStore: promptConfigStore,
+            acpPanelClient: acpPanelClient,
             controllerFactory: () => PromptPanelController(
               factory: hostState.ensureSession,
               onStop: hostState.endSession,
+              providerFactory: (providerConfig, modelId, sessionId) =>
+                  buildPanelProvider(
+                    providerConfig,
+                    modelId,
+                    sessionId,
+                    acpPanelClient: acpPanelClient,
+                  ),
             ),
             trajectorySink: trajectorySink,
             completionSink: completionSink,

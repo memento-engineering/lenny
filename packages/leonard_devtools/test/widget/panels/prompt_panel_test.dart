@@ -43,6 +43,7 @@ Widget _host({
   ModelCatalog? catalog,
   PromptPanelConfig? initialConfig,
   bool configLoaded = false,
+  List<String> acpHarnessLabels = const <String>[],
 }) => MaterialApp(
   home: Scaffold(
     body: PromptPanel(
@@ -60,11 +61,51 @@ Widget _host({
       catalog: catalog ?? _emptyCatalog(),
       initialConfig: initialConfig,
       configLoaded: configLoaded,
+      acpHarnessLabels: acpHarnessLabels,
     ),
   ),
 );
 
 void main() {
+  testWidgets('ACP model changes emit the exact selected model id', (
+    tester,
+  ) async {
+    ProviderConfig? changed;
+    await tester.pumpWidget(
+      _host(
+        running: false,
+        extensions: const <ExtensionManifestEntry>[],
+        acpHarnessLabels: const <String>['codex-acp'],
+        modelsState: _state(
+          config: const AcpUiConfig(
+            harnessLabel: 'codex-acp',
+            modelId: 'gpt-5.6-sol[high]',
+          ),
+          models: const <ResolvedModel>[
+            ResolvedModel(id: 'gpt-5.6-sol[high]', label: 'gpt-5.6-sol[high]'),
+            ResolvedModel(id: 'gpt-5.6-sol[max]', label: 'gpt-5.6-sol[max]'),
+          ],
+        ),
+        onProviderConfigChanged: (config) => changed = config,
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('prompt.settingsGear')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('prompt.model')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('gpt-5.6-sol[max]').last);
+    await tester.pumpAndSettle();
+
+    expect(changed, isA<AcpUiConfig>());
+    expect((changed! as AcpUiConfig).harnessLabel, 'codex-acp');
+    expect((changed! as AcpUiConfig).modelId, 'gpt-5.6-sol[max]');
+    final Text resolved = tester.widget(
+      find.byKey(const Key('prompt.resolvedModel')),
+    );
+    expect(resolved.data, contains('gpt-5.6-sol[max]'));
+  });
+
   testWidgets('renders all controls', (tester) async {
     await tester.pumpWidget(
       _host(

@@ -15,6 +15,7 @@ import 'dart:html' show window;
 
 import 'src/extension_root.dart';
 import 'src/diagnostics/diagnostics_snapshot.dart';
+import 'src/dtd_acp_model_provider.dart' show DtdAcpPanelClient;
 import 'src/manifest_probe.dart' show ManifestProbe, probeManifest;
 import 'src/panels/prompt_panel_config_store.dart'
     show DtdPromptPanelConfigStore, PromptPanelConfigStore;
@@ -85,6 +86,9 @@ class _LiveDevToolsScope implements LeonardDevToolsScope {
         write: _dtdWrite,
         localRead: _localRead,
         localWrite: _localWrite,
+      ),
+      acpPanelClient = DtdAcpPanelClient.fromConnection(
+        () => dtdManager.connection.value,
       );
 
   @override
@@ -95,6 +99,9 @@ class _LiveDevToolsScope implements LeonardDevToolsScope {
 
   @override
   final PromptPanelConfigStore promptConfigStore;
+
+  @override
+  final DtdAcpPanelClient acpPanelClient;
 
   @override
   ManifestProbe get manifestProbe => _probe;

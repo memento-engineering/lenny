@@ -3,8 +3,7 @@
 /// Usage:
 ///   dart run leonard_acp:dtd_host \
 ///     --dtd-uri ws://127.0.0.1:12345/abc=/ \
-///     --dtd-secret trustedJennieHex \
-///     --agent codex
+///     --dtd-secret trustedJennieHex
 library;
 
 import 'dart:io';
@@ -20,12 +19,6 @@ ArgParser buildDtdHostArgParser() => ArgParser()
     'dtd-secret',
     mandatory: true,
     help: 'DTD trusted-client secret (never logged).',
-  )
-  ..addOption(
-    'agent',
-    allowed: <String>['codex', 'copilot'],
-    defaultsTo: 'codex',
-    help: 'ACP agent to host.',
   )
   ..addOption(
     'cwd',
@@ -69,25 +62,35 @@ Future<void> main(List<String> argv) async {
   // executable does not invoke privileged filesystem or VM-service methods.
   final Uri dtdUri = Uri.parse(dtdUriArgument);
   final bool verbose = args['verbose'] == true;
-  final AcpAgentSpec spec = args['agent'] == 'copilot'
-      ? AcpAgentSpec.copilot()
-      : AcpAgentSpec.codex();
 
   DartToolingDaemon? dtd;
-  AcpSession? session;
   DtdAcpHost? host;
   try {
     dtd = await DartToolingDaemon.connect(dtdUri);
-    session = await AcpSession.start(
-      spec,
-      onStderr: verbose
-          ? (String line) => stderr.writeln('[agent] $line')
-          : null,
+    host = DtdAcpHost.fromDaemon(
+      dtd,
+      acpAgentSpecs: acpAgentSpecs,
+      openSession: (AcpAgentSpec spec) async {
+        final AcpSession session = await AcpSession.start(
+          spec,
+          onStderr: verbose
+              ? (String line) => stderr.writeln('[agent] $line')
+              : null,
+        );
+        try {
+          await session.newSession(cwd: args['cwd'] as String);
+          return DtdAcpSessionBinding(
+            provider: AcpModelProvider(session: session),
+            availableModels: session.availableModelIds,
+            currentModelId: session.modelId,
+            dispose: session.dispose,
+          );
+        } on Object {
+          await session.dispose();
+          rethrow;
+        }
+      },
     );
-    await session.newSession(cwd: args['cwd'] as String);
-
-    final AcpModelProvider provider = AcpModelProvider(session: session);
-    host = DtdAcpHost.fromDaemon(dtd, provider);
     final bool started = await host.start(reportError: stderr.writeln);
     if (!started) {
       exitCode = 1;
@@ -99,11 +102,7 @@ Future<void> main(List<String> argv) async {
     try {
       await host?.dispose();
     } finally {
-      try {
-        await session?.dispose();
-      } finally {
-        if (dtd != null && !dtd.isClosed) await dtd.close();
-      }
+      if (dtd != null && !dtd.isClosed) await dtd.close();
     }
   }
 }

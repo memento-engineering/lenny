@@ -14,12 +14,14 @@ Widget _host({
   ProviderConfig? initial,
   String conversationId = 'conv-1',
   ModelCatalog? catalog,
+  List<String> acpHarnessLabels = const <String>[],
 }) => MaterialApp(
   home: Scaffold(
     body: ProviderConfigForm(
       initial: initial,
       onChanged: onChanged,
       conversationId: conversationId,
+      acpHarnessLabels: acpHarnessLabels,
       catalog:
           catalog ??
           ModelCatalog(
@@ -35,6 +37,82 @@ Widget _host({
 );
 
 void main() {
+  testWidgets('ACP is disabled when no host advertises harnesses', (
+    tester,
+  ) async {
+    ProviderConfig? last;
+    await tester.pumpWidget(_host(onChanged: (config) => last = config));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('providerForm.providerSelect')));
+    await tester.pumpAndSettle();
+    const String label = 'acp — no ACP host is registered';
+    final DropdownMenuItem<String> item = tester.widget(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(DropdownMenuItem<String>),
+      ),
+    );
+    expect(item.value, 'acp');
+    expect(item.enabled, isFalse);
+
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+    expect(last, isNull);
+    expect(find.byKey(const Key('providerForm.acp')), findsNothing);
+  });
+
+  testWidgets(
+    'ACP renders supplied harness values without credential controls',
+    (tester) async {
+      ProviderConfig? last;
+      await tester.pumpWidget(
+        _host(
+          onChanged: (config) => last = config,
+          acpHarnessLabels: const <String>['codex-acp', 'copilot'],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('providerForm.providerSelect')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('acp').last);
+      await tester.pumpAndSettle();
+
+      expect(last, isA<AcpUiConfig>());
+      expect((last! as AcpUiConfig).harnessLabel, 'codex-acp');
+      expect((last! as AcpUiConfig).modelId, isEmpty);
+      expect(find.byKey(const Key('providerForm.acp')), findsOneWidget);
+      expect(find.byKey(const Key('providerForm.acp.harness')), findsOneWidget);
+      expect(find.text('codex-acp'), findsOneWidget);
+      expect(
+        find.byKey(const Key('providerForm.testConnection')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const Key('providerForm.acp.harness')));
+      await tester.pumpAndSettle();
+      expect(find.text('copilot'), findsOneWidget);
+      await tester.tap(find.text('copilot'));
+      await tester.pumpAndSettle();
+      expect((last! as AcpUiConfig).harnessLabel, 'copilot');
+      expect((last! as AcpUiConfig).modelId, isEmpty);
+
+      for (final String forbidden in <String>[
+        'providerForm.acp.apiKey',
+        'providerForm.acp.bearer',
+        'providerForm.acp.endpoint',
+        'providerForm.acp.permission',
+        'providerForm.acp.filesystem',
+        'providerForm.acp.terminal',
+        'providerForm.acp.codex',
+        'providerForm.acp.copilot',
+      ]) {
+        expect(find.byKey(Key(forbidden)), findsNothing);
+      }
+    },
+  );
+
   testWidgets('provider selector disables direct OpenAI in browsers', (
     tester,
   ) async {
@@ -259,6 +337,149 @@ void main() {
       Uri.parse('https://edited.example.com/v1'),
     );
   });
+
+  testWidgets(
+    'stale same-provider initial does not revert operator-edited fields',
+    (tester) async {
+      final probes =
+          <
+            ({
+              String name,
+              ProviderConfig initial,
+              ProviderConfig stale,
+              Key secretKey,
+              String editedSecret,
+              Key baseUrlKey,
+              String editedBaseUrl,
+              String headerName,
+              String expectedHeader,
+            })
+          >[
+            (
+              name: 'swift-infer',
+              initial: SwiftInferUiConfig(
+                bearerToken: 'initial-token',
+                endpoint: Uri.parse('http://initial.example.com/swift'),
+              ),
+              stale: SwiftInferUiConfig(
+                bearerToken: 'stale-token',
+                endpoint: Uri.parse('http://stale.example.com/swift'),
+              ),
+              secretKey: const Key('providerForm.swift-infer.bearer'),
+              editedSecret: 'edited-token',
+              baseUrlKey: const Key('providerForm.swift-infer.endpoint'),
+              editedBaseUrl: 'http://edited.example.com/swift',
+              headerName: 'authorization',
+              expectedHeader: 'Bearer edited-token',
+            ),
+            (
+              name: 'anthropic',
+              initial: AnthropicUiConfig(
+                apiKey: 'initial-key',
+                baseUrlOverride: Uri.parse(
+                  'https://initial.example.com/anthropic',
+                ),
+              ),
+              stale: AnthropicUiConfig(
+                apiKey: 'stale-key',
+                baseUrlOverride: Uri.parse(
+                  'https://stale.example.com/anthropic',
+                ),
+              ),
+              secretKey: const Key('providerForm.anthropic.apiKey'),
+              editedSecret: 'edited-key',
+              baseUrlKey: const Key('providerForm.anthropic.baseUrl'),
+              editedBaseUrl: 'https://edited.example.com/anthropic',
+              headerName: 'x-api-key',
+              expectedHeader: 'edited-key',
+            ),
+            (
+              name: 'proxied OpenAI',
+              initial: OpenAiUiConfig(
+                apiKey: 'initial-key',
+                baseUrlOverride: Uri.parse(
+                  'https://initial.example.com/openai',
+                ),
+              ),
+              stale: OpenAiUiConfig(
+                apiKey: 'stale-key',
+                baseUrlOverride: Uri.parse('https://stale.example.com/openai'),
+              ),
+              secretKey: const Key('providerForm.openai.apiKey'),
+              editedSecret: 'edited-key',
+              baseUrlKey: const Key('providerForm.openai.baseUrl'),
+              editedBaseUrl: 'https://edited.example.com/openai',
+              headerName: 'authorization',
+              expectedHeader: 'Bearer edited-key',
+            ),
+          ];
+
+      for (final probe in probes) {
+        ProviderConfig parentInitial = probe.initial;
+        late StateSetter rebuildParent;
+        http.Request? captured;
+        final ModelCatalog catalog = ModelCatalog(
+          client: MockClient((request) async {
+            captured = request;
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'data': <Map<String, Object?>>[
+                  <String, Object?>{'id': 'model'},
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              rebuildParent = setState;
+              return _host(
+                initial: parentInitial,
+                catalog: catalog,
+                onChanged: (_) {},
+              );
+            },
+          ),
+        );
+        await tester.pump();
+
+        await tester.enterText(find.byKey(probe.secretKey), probe.editedSecret);
+        await tester.enterText(
+          find.byKey(probe.baseUrlKey),
+          probe.editedBaseUrl,
+        );
+        await tester.pump();
+
+        rebuildParent(() => parentInitial = probe.stale);
+        await tester.pump();
+
+        final Finder testConnection = find.byKey(
+          const Key('providerForm.testConnection'),
+        );
+        await tester.ensureVisible(testConnection);
+        await tester.tap(testConnection);
+        await tester.pumpAndSettle();
+
+        expect(captured, isNotNull, reason: probe.name);
+        expect(
+          captured!.headers[probe.headerName],
+          probe.expectedHeader,
+          reason: probe.name,
+        );
+        expect(
+          captured!.url,
+          Uri.parse('${probe.editedBaseUrl}/v1/models'),
+          reason: probe.name,
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }
+    },
+  );
 
   testWidgets('Test connection success renders inline status', (tester) async {
     final catalog = ModelCatalog(

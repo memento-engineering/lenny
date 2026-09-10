@@ -29,20 +29,15 @@ const String kDefaultSwiftInferModelId = String.fromEnvironment(
   defaultValue: 'qwen3.6-35b-a3b-8bit',
 );
 
-/// Sealed configuration for one provider — swift-infer / anthropic /
-/// openai.
+/// Sealed configuration for one model provider.
 ///
 /// All variants expose:
-///   - [id] — stable provider id (`'swift-infer' | 'anthropic' | 'openai'`).
+///   - [id] — stable provider id.
 ///   - [defaultModelId] — the model id the panel pre-selects + the
 ///     swift-infer fallback model id if `/v1/models` is missing.
-///   - [baseUrl] — the URL the [ModelCatalog] hits.
-///   - [headersFor] — outgoing headers for the catalog request, given
-///     the active conversation id (some providers ignore it).
-///   - [toJson] — full state for persistence (INCLUDES the secret —
-///     persistence is local-only).
-///   - [toJsonRedacted] — safe to log/display; never includes the
-///     secret.
+///   - [toJson] — full state for local persistence (HTTP variants include
+///     their secret).
+///   - [toJsonRedacted] — safe to log/display; never includes a secret.
 sealed class ProviderConfig {
   const ProviderConfig();
 
@@ -54,20 +49,11 @@ sealed class ProviderConfig {
   /// fallback model id when `/v1/models` is not implemented.
   String get defaultModelId;
 
-  /// Base URL for `/v1/models` + `/v1/messages`.
-  Uri get baseUrl;
-
-  /// Outgoing headers for [ModelCatalog]. Per-conversation headers
-  /// (swift-infer's `X-Conversation-Id`) are seeded from
-  /// [conversationId].
-  Map<String, String> headersFor(String conversationId);
-
-  /// Full state for persistence. **Includes secrets** — never log this
-  /// map and never round-trip it across an untrusted boundary.
+  /// Full state for persistence. HTTP variants include secrets, so never log
+  /// this map or round-trip it across an untrusted boundary.
   Map<String, dynamic> toJson();
 
-  /// Same shape as [toJson] but with the secret replaced by
-  /// `'<redacted>'`. Safe to log / surface in the UI.
+  /// Safe-to-log form of [toJson], with any secret replaced by `'<redacted>'`.
   Map<String, dynamic> toJsonRedacted();
 
   /// Decode from [toJson] output. Used by [ProviderConfigStore].
@@ -80,10 +66,24 @@ sealed class ProviderConfig {
         return AnthropicUiConfig._fromJson(json);
       case 'openai':
         return OpenAiUiConfig._fromJson(json);
+      case 'acp':
+        return AcpUiConfig._fromJson(json);
       default:
         throw ArgumentError('unknown provider id: $id');
     }
   }
+}
+
+/// HTTP-backed provider configuration consumed by [ModelCatalog].
+sealed class HttpProviderConfig extends ProviderConfig {
+  /// Creates the shared HTTP-provider configuration base.
+  const HttpProviderConfig();
+
+  /// Base URL for the provider's HTTP API.
+  Uri get baseUrl;
+
+  /// Outgoing headers for the catalog request.
+  Map<String, String> headersFor(String conversationId);
 }
 
 /// swift-infer panel configuration.
@@ -97,7 +97,7 @@ sealed class ProviderConfig {
 ///     `GET /v1/conversations/<id>` introspection.
 ///   - [extraHeaders] are merged in FIRST; the four well-known headers
 ///     overwrite — they always win on conflict.
-class SwiftInferUiConfig extends ProviderConfig {
+class SwiftInferUiConfig extends HttpProviderConfig {
   SwiftInferUiConfig({
     required String bearerToken,
     required this.endpoint,
@@ -219,7 +219,7 @@ class SwiftInferUiConfig extends ProviderConfig {
 }
 
 /// Anthropic panel configuration.
-class AnthropicUiConfig extends ProviderConfig {
+class AnthropicUiConfig extends HttpProviderConfig {
   AnthropicUiConfig({
     required String apiKey,
     this.baseUrlOverride,
@@ -294,7 +294,7 @@ class AnthropicUiConfig extends ProviderConfig {
 }
 
 /// OpenAI panel configuration.
-class OpenAiUiConfig extends ProviderConfig {
+class OpenAiUiConfig extends HttpProviderConfig {
   OpenAiUiConfig({
     required String apiKey,
     this.baseUrlOverride,
@@ -354,6 +354,51 @@ class OpenAiUiConfig extends ProviderConfig {
   );
 }
 
+/// Agent-authenticated ACP harness selection persisted by the panel.
+///
+/// This value deliberately carries no endpoint or credential: the selected
+/// host-side harness owns its authentication and returns its models over DTD.
+class AcpUiConfig extends ProviderConfig {
+  /// Creates an ACP panel selection.
+  const AcpUiConfig({required this.harnessLabel, required this.modelId});
+
+  @override
+  String get id => 'acp';
+
+  /// Human-facing harness label advertised by the registered ACP host.
+  final String harnessLabel;
+
+  /// Exact ACP model id selected by the operator.
+  final String modelId;
+
+  @override
+  String get defaultModelId => modelId;
+
+  /// Copies this selection while replacing supplied fields.
+  AcpUiConfig copyWith({String? harnessLabel, String? modelId}) => AcpUiConfig(
+    harnessLabel: harnessLabel ?? this.harnessLabel,
+    modelId: modelId ?? this.modelId,
+  );
+
+  @override
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'harnessLabel': harnessLabel,
+    'modelId': modelId,
+  };
+
+  @override
+  Map<String, dynamic> toJsonRedacted() => toJson();
+
+  @override
+  String toString() => 'AcpUiConfig(${toJson()})';
+
+  static AcpUiConfig _fromJson(Map<String, dynamic> json) => AcpUiConfig(
+    harnessLabel: json['harnessLabel'] as String,
+    modelId: json['modelId'] as String,
+  );
+}
+
 // ===========================================================================
 // Form widget — implemented in step 5; declared here so step 6's prompt
 // panel can import the symbol without forward-reference noise.
@@ -367,6 +412,7 @@ class ProviderConfigForm extends StatefulWidget {
     required this.onChanged,
     required this.conversationId,
     required this.catalog,
+    this.acpHarnessLabels = const <String>[],
     this.onConnectionVerified,
   });
 
@@ -384,6 +430,9 @@ class ProviderConfigForm extends StatefulWidget {
   /// Used by the "Test connection" button to call
   /// [ModelCatalog.fetch] with `reload: true`.
   final ModelCatalog catalog;
+
+  /// Harness values advertised by the live `leonard.acp` registration.
+  final List<String> acpHarnessLabels;
 
   /// Fires after a successful "Test connection" fetch so the owner can
   /// refresh the model picker from the same provider config. `null` leaves
@@ -403,9 +452,25 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
       );
   String? _testResult;
   bool _testLoading = false;
+  bool _dirty = false;
+
+  @override
+  void didUpdateWidget(covariant ProviderConfigForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final ProviderConfig? next = widget.initial;
+    if (!identical(oldWidget.initial, next) &&
+        next != null &&
+        (!_dirty || next.id != _config.id)) {
+      _config = next;
+      _dirty = false;
+    }
+  }
 
   void _replace(ProviderConfig next) {
-    setState(() => _config = next);
+    setState(() {
+      _config = next;
+      _dirty = true;
+    });
     widget.onChanged(next);
   }
 
@@ -423,6 +488,11 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
         _replace(AnthropicUiConfig(apiKey: ''));
       case 'openai':
         _replace(OpenAiUiConfig(apiKey: ''));
+      case 'acp':
+        final List<String> labels = widget.acpHarnessLabels;
+        if (labels.isNotEmpty) {
+          _replace(AcpUiConfig(harnessLabel: labels.first, modelId: ''));
+        }
     }
   }
 
@@ -432,10 +502,12 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
       _testResult = null;
     });
     try {
-      final models = await widget.catalog.fetch(_config, reload: true);
-      if (!mounted) return;
-      setState(() => _testResult = 'OK (${models.length} models)');
-      widget.onConnectionVerified?.call();
+      if (_config case HttpProviderConfig config) {
+        final models = await widget.catalog.fetch(config, reload: true);
+        if (!mounted) return;
+        setState(() => _testResult = 'OK (${models.length} models)');
+        widget.onConnectionVerified?.call();
+      }
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => _testResult = 'Failed: $e');
@@ -455,17 +527,29 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
             initialValue: _config.id,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Provider'),
-            items: const <DropdownMenuItem<String>>[
-              DropdownMenuItem(
+            items: <DropdownMenuItem<String>>[
+              const DropdownMenuItem(
                 value: 'swift-infer',
                 child: Text('swift-infer'),
               ),
-              DropdownMenuItem(value: 'anthropic', child: Text('anthropic')),
-              DropdownMenuItem(
+              const DropdownMenuItem(
+                value: 'anthropic',
+                child: Text('anthropic'),
+              ),
+              const DropdownMenuItem(
                 value: 'openai',
                 enabled: false,
                 child: Text(
                   'openai — disabled in browsers; use a proxy through Base URL override',
+                ),
+              ),
+              DropdownMenuItem(
+                value: 'acp',
+                enabled: widget.acpHarnessLabels.isNotEmpty,
+                child: Text(
+                  widget.acpHarnessLabels.isEmpty
+                      ? 'acp — no ACP host is registered'
+                      : 'acp',
                 ),
               ),
             ],
@@ -476,18 +560,20 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
             duration: const Duration(milliseconds: 120),
             child: _buildSubform(),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              ElevatedButton(
-                key: const Key('providerForm.testConnection'),
-                onPressed: _testLoading ? null : _testConnection,
-                child: const Text('Test connection'),
-              ),
-              const SizedBox(width: 12),
-              if (_testResult != null) Text(_testResult!),
-            ],
-          ),
+          if (_config is HttpProviderConfig) ...<Widget>[
+            const SizedBox(height: 8),
+            Row(
+              children: <Widget>[
+                ElevatedButton(
+                  key: const Key('providerForm.testConnection'),
+                  onPressed: _testLoading ? null : _testConnection,
+                  child: const Text('Test connection'),
+                ),
+                const SizedBox(width: 12),
+                if (_testResult != null) Text(_testResult!),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -495,30 +581,62 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
 
   Widget _buildSubform() {
     final cfg = _config;
-    if (cfg is SwiftInferUiConfig) {
-      return _SwiftInferSubform(
+    return switch (cfg) {
+      SwiftInferUiConfig() => _SwiftInferSubform(
         key: const Key('providerForm.swift-infer'),
         config: cfg,
         conversationId: widget.conversationId,
         onChanged: _replace,
-      );
-    }
-    if (cfg is AnthropicUiConfig) {
-      return _AnthropicSubform(
+      ),
+      AnthropicUiConfig() => _AnthropicSubform(
         key: const Key('providerForm.anthropic'),
         config: cfg,
         onChanged: _replace,
-      );
-    }
-    if (cfg is OpenAiUiConfig) {
-      return _OpenAiSubform(
+      ),
+      OpenAiUiConfig() => _OpenAiSubform(
         key: const Key('providerForm.openai'),
         config: cfg,
         onChanged: _replace,
-      );
-    }
-    return const SizedBox.shrink();
+      ),
+      AcpUiConfig() => _AcpSubform(
+        key: const Key('providerForm.acp'),
+        config: cfg,
+        harnessLabels: widget.acpHarnessLabels,
+        onChanged: _replace,
+      ),
+    };
   }
+}
+
+class _AcpSubform extends StatelessWidget {
+  const _AcpSubform({
+    super.key,
+    required this.config,
+    required this.harnessLabels,
+    required this.onChanged,
+  });
+
+  final AcpUiConfig config;
+  final List<String> harnessLabels;
+  final void Function(AcpUiConfig) onChanged;
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+    key: const Key('providerForm.acp.harness'),
+    initialValue: harnessLabels.contains(config.harnessLabel)
+        ? config.harnessLabel
+        : null,
+    decoration: const InputDecoration(labelText: 'Harness'),
+    items: <DropdownMenuItem<String>>[
+      for (final String label in harnessLabels)
+        DropdownMenuItem<String>(value: label, child: Text(label)),
+    ],
+    onChanged: (String? label) {
+      if (label != null && label != config.harnessLabel) {
+        onChanged(config.copyWith(harnessLabel: label, modelId: ''));
+      }
+    },
+  );
 }
 
 class _SwiftInferSubform extends StatefulWidget {
