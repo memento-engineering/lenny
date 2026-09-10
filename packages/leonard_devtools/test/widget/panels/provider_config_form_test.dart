@@ -338,6 +338,149 @@ void main() {
     );
   });
 
+  testWidgets(
+    'stale same-provider initial does not revert operator-edited fields',
+    (tester) async {
+      final probes =
+          <
+            ({
+              String name,
+              ProviderConfig initial,
+              ProviderConfig stale,
+              Key secretKey,
+              String editedSecret,
+              Key baseUrlKey,
+              String editedBaseUrl,
+              String headerName,
+              String expectedHeader,
+            })
+          >[
+            (
+              name: 'swift-infer',
+              initial: SwiftInferUiConfig(
+                bearerToken: 'initial-token',
+                endpoint: Uri.parse('http://initial.example.com/swift'),
+              ),
+              stale: SwiftInferUiConfig(
+                bearerToken: 'stale-token',
+                endpoint: Uri.parse('http://stale.example.com/swift'),
+              ),
+              secretKey: const Key('providerForm.swift-infer.bearer'),
+              editedSecret: 'edited-token',
+              baseUrlKey: const Key('providerForm.swift-infer.endpoint'),
+              editedBaseUrl: 'http://edited.example.com/swift',
+              headerName: 'authorization',
+              expectedHeader: 'Bearer edited-token',
+            ),
+            (
+              name: 'anthropic',
+              initial: AnthropicUiConfig(
+                apiKey: 'initial-key',
+                baseUrlOverride: Uri.parse(
+                  'https://initial.example.com/anthropic',
+                ),
+              ),
+              stale: AnthropicUiConfig(
+                apiKey: 'stale-key',
+                baseUrlOverride: Uri.parse(
+                  'https://stale.example.com/anthropic',
+                ),
+              ),
+              secretKey: const Key('providerForm.anthropic.apiKey'),
+              editedSecret: 'edited-key',
+              baseUrlKey: const Key('providerForm.anthropic.baseUrl'),
+              editedBaseUrl: 'https://edited.example.com/anthropic',
+              headerName: 'x-api-key',
+              expectedHeader: 'edited-key',
+            ),
+            (
+              name: 'proxied OpenAI',
+              initial: OpenAiUiConfig(
+                apiKey: 'initial-key',
+                baseUrlOverride: Uri.parse(
+                  'https://initial.example.com/openai',
+                ),
+              ),
+              stale: OpenAiUiConfig(
+                apiKey: 'stale-key',
+                baseUrlOverride: Uri.parse('https://stale.example.com/openai'),
+              ),
+              secretKey: const Key('providerForm.openai.apiKey'),
+              editedSecret: 'edited-key',
+              baseUrlKey: const Key('providerForm.openai.baseUrl'),
+              editedBaseUrl: 'https://edited.example.com/openai',
+              headerName: 'authorization',
+              expectedHeader: 'Bearer edited-key',
+            ),
+          ];
+
+      for (final probe in probes) {
+        ProviderConfig parentInitial = probe.initial;
+        late StateSetter rebuildParent;
+        http.Request? captured;
+        final ModelCatalog catalog = ModelCatalog(
+          client: MockClient((request) async {
+            captured = request;
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'data': <Map<String, Object?>>[
+                  <String, Object?>{'id': 'model'},
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+        await tester.pumpWidget(
+          StatefulBuilder(
+            builder: (context, setState) {
+              rebuildParent = setState;
+              return _host(
+                initial: parentInitial,
+                catalog: catalog,
+                onChanged: (_) {},
+              );
+            },
+          ),
+        );
+        await tester.pump();
+
+        await tester.enterText(find.byKey(probe.secretKey), probe.editedSecret);
+        await tester.enterText(
+          find.byKey(probe.baseUrlKey),
+          probe.editedBaseUrl,
+        );
+        await tester.pump();
+
+        rebuildParent(() => parentInitial = probe.stale);
+        await tester.pump();
+
+        final Finder testConnection = find.byKey(
+          const Key('providerForm.testConnection'),
+        );
+        await tester.ensureVisible(testConnection);
+        await tester.tap(testConnection);
+        await tester.pumpAndSettle();
+
+        expect(captured, isNotNull, reason: probe.name);
+        expect(
+          captured!.headers[probe.headerName],
+          probe.expectedHeader,
+          reason: probe.name,
+        );
+        expect(
+          captured!.url,
+          Uri.parse('${probe.editedBaseUrl}/v1/models'),
+          reason: probe.name,
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }
+    },
+  );
+
   testWidgets('Test connection success renders inline status', (tester) async {
     final catalog = ModelCatalog(
       client: MockClient(

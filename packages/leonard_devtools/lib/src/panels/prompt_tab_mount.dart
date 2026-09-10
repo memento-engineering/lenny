@@ -97,6 +97,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
   PromptPanelConfig? _initialPromptConfig;
   bool _configLoaded = false;
   List<String> _acpHarnessLabels = const <String>[];
+  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -149,6 +150,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
   Future<void> _refresh({required bool reload}) async {
     final cfg = _state.value.config;
     if (cfg == null) return;
+    final int generation = ++_refreshGeneration;
     _state.value = _state.value.copyWith(loading: true, clearError: true);
     try {
       final List<ResolvedModel> models;
@@ -185,22 +187,19 @@ class _PromptTabMountState extends State<PromptTabMount> {
               ResolvedModel(id: id, label: id, capabilities: capabilities),
           ];
           resolvedConfig = cfg.copyWith(modelId: selected);
-          unawaited(widget.store.save(resolvedConfig));
       }
-      if (!mounted) return;
+      if (!mounted || generation != _refreshGeneration) return;
+      if (resolvedConfig != cfg) {
+        unawaited(widget.store.save(resolvedConfig));
+      }
       _state.value = ModelCatalogState(
         config: resolvedConfig,
         models: models,
         loading: false,
       );
     } on Object catch (e) {
-      if (!mounted) return;
-      _state.value = ModelCatalogState(
-        config: cfg,
-        models: const <ResolvedModel>[],
-        loading: false,
-        error: e,
-      );
+      if (!mounted || generation != _refreshGeneration) return;
+      _state.value = _state.value.copyWith(loading: false, error: e);
     }
   }
 

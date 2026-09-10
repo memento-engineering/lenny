@@ -452,18 +452,25 @@ class _ProviderConfigFormState extends State<ProviderConfigForm> {
       );
   String? _testResult;
   bool _testLoading = false;
+  bool _dirty = false;
 
   @override
   void didUpdateWidget(covariant ProviderConfigForm oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.initial, widget.initial) &&
-        widget.initial != null) {
-      _config = widget.initial!;
+    final ProviderConfig? next = widget.initial;
+    if (!identical(oldWidget.initial, next) &&
+        next != null &&
+        (!_dirty || next.id != _config.id)) {
+      _config = next;
+      _dirty = false;
     }
   }
 
   void _replace(ProviderConfig next) {
-    setState(() => _config = next);
+    setState(() {
+      _config = next;
+      _dirty = true;
+    });
     widget.onChanged(next);
   }
 

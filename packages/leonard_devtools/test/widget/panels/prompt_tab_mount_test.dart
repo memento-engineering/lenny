@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dart_service_protocol_shared/dart_service_protocol_shared.dart';
 import 'package:leonard_agent/leonard_agent.dart';
@@ -154,6 +155,15 @@ DtdAcpPanelClient _acpClient({
   ),
 );
 
+http.Response _modelsResponse(String id) => http.Response(
+  jsonEncode(<String, Object?>{
+    'data': <Map<String, Object?>>[
+      <String, Object?>{'id': id},
+    ],
+  }),
+  200,
+);
+
 void main() {
   testWidgets(
     'ACP loads qualified host models, persists current id, and makes no HTTP request',
@@ -263,6 +273,160 @@ void main() {
     await tester.pumpAndSettle();
     expect(starts, 0);
     expect(find.text('Select a model'), findsOneWidget);
+  });
+
+  testWidgets('error after success retains models and keeps Start enabled', (
+    tester,
+  ) async {
+    final store = InMemoryProviderConfigStore();
+    await store.save(
+      SwiftInferUiConfig(
+        bearerToken: 'token',
+        endpoint: Uri.parse('http://localhost:8080'),
+      ),
+    );
+    int requests = 0;
+    final ModelCatalog catalog = ModelCatalog(
+      client: MockClient((request) async {
+        requests++;
+        if (requests == 1) return _modelsResponse('stable-model');
+        return http.Response('{}', 401);
+      }),
+    );
+    late _FakeSession session;
+    int starts = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PromptTabMount(
+            extensions: const <ExtensionManifestEntry>[],
+            store: store,
+            catalog: catalog,
+            promptConfigStore: InMemoryPromptPanelConfigStore(),
+            controllerFactory: () {
+              starts++;
+              session = _FakeSession();
+              return PromptPanelController(
+                factory: () async => session,
+                providerFactory: (_, __, ___) => _DummyProvider(),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('prompt.model')),
+          )
+          .initialValue,
+      'stable-model',
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('prompt.modelsReload')));
+    await tester.tap(find.byKey(const Key('prompt.modelsReload')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('prompt.modelsError')), findsOneWidget);
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('prompt.model')),
+          )
+          .initialValue,
+      'stable-model',
+    );
+
+    await tester.enterText(find.byKey(const Key('prompt.goal')), 'drive it');
+    await tester.ensureVisible(find.byKey(const Key('prompt.start')));
+    await tester.tap(find.byKey(const Key('prompt.start')));
+    await tester.pump();
+    expect(starts, 1);
+
+    session.runCompleter!.complete(
+      const SessionTermination(SessionOutcome.done, finalSummary: ''),
+    );
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('slower stale refresh cannot overwrite a newer configuration', (
+    tester,
+  ) async {
+    final store = InMemoryProviderConfigStore();
+    await store.save(
+      SwiftInferUiConfig(
+        bearerToken: 'initial-token',
+        endpoint: Uri.parse('http://localhost:8080'),
+      ),
+    );
+    final Completer<http.Response> slow = Completer<http.Response>();
+    final Completer<http.Response> fast = Completer<http.Response>();
+    final ModelCatalog catalog = ModelCatalog(
+      client: MockClient((request) {
+        switch (request.headers['authorization']) {
+          case 'Bearer initial-token':
+            return Future<http.Response>.value(
+              _modelsResponse('initial-model'),
+            );
+          case 'Bearer slow-token':
+            return slow.future;
+          case 'Bearer fast-token':
+            return fast.future;
+          default:
+            return Future<http.Response>.error(
+              StateError('unexpected request: ${request.headers}'),
+            );
+        }
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PromptTabMount(
+            extensions: const <ExtensionManifestEntry>[],
+            store: store,
+            catalog: catalog,
+            promptConfigStore: InMemoryPromptPanelConfigStore(),
+            controllerFactory: () => PromptPanelController(
+              factory: () async => _FakeSession(),
+              providerFactory: (_, __, ___) => _DummyProvider(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final Finder bearer = find.byKey(
+      const Key('providerForm.swift-infer.bearer'),
+    );
+    await tester.enterText(bearer, 'slow-token');
+    await tester.pump();
+    await tester.enterText(bearer, 'fast-token');
+    await tester.pump();
+
+    fast.complete(_modelsResponse('fast-model'));
+    await tester.pumpAndSettle();
+    slow.complete(_modelsResponse('slow-model'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('prompt.model')),
+          )
+          .initialValue,
+      'fast-model',
+    );
+    expect(tester.widget<TextFormField>(bearer).controller!.text, 'fast-token');
+    final SwiftInferUiConfig persisted =
+        await store.load('swift-infer') as SwiftInferUiConfig;
+    expect(persisted.bearerToken, 'fast-token');
   });
 
   test(
