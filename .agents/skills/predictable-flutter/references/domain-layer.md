@@ -23,7 +23,7 @@ The general-purpose domain coordinator. Interactors read state from one or more 
 
 **Building an Interactor:**
 
-Use `StateNotifier` when the interactor manages derived state that updates reactively. Use a plain `Provider` when it only exposes methods with no observable state of its own.
+Use `StateNotifier` when the interactor manages derived state that updates reactively. In dependency-tracked tree builds, read reactive dependencies through `dependOn*` or `watch` on every build; never cache a first read with `??=` because `dependencyChanged` must re-run it. Use a plain `Provider` when it only exposes methods with no observable state of its own.
 
 **What interactors can depend on:**
 

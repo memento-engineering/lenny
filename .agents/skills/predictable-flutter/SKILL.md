@@ -58,7 +58,7 @@ Key clarifications:
 
 ## State Management Stack
 
-- **`StateNotifier` + `StateNotifierProvider`** for all observable state. Works identically with `provider` or `riverpod` — this skill is agnostic between them. Concepts are 1:1.
+- **`StateNotifier` + `StateNotifierProvider`** for all observable state. Expose the provider, never a public synchronous state mirror that consumers can read without subscribing. Works identically with `provider` or `riverpod` — this skill is agnostic between them. Concepts are 1:1.
 - **`freezed`** for all value types (models, state classes). No hand-written `==`, `hashCode`, `copyWith`, or `toString`. Every model gets a freezed union or data class.
 - **`StreamController` / `StreamTransformer`** in the domain layer when interactors need to compose, debounce, or transform streams of repo state. Keep stream logic in domain — never in views.
 

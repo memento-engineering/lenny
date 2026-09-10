@@ -6,7 +6,7 @@ Services and repositories. The longest-lived code in the app. Survives redesigns
 
 Stateless gateways to the outside world. One service per external data source. No caching, no state, no coordination — just async I/O that returns data or throws.
 
-**Constructor injection** for configuration. Methods are async, return raw types, throw on failure. Services know nothing about the rest of the app.
+**Constructor injection** for configuration. Tree seeds and branches may carry services only for DI/composition; their logic touches value types and reactive domain objects, while I/O services pass unchanged to the effect boundary. Methods are async, return raw types, throw on failure. Services know nothing about the rest of the app.
 
 ```dart
 import 'dart:convert';

@@ -90,7 +90,7 @@ final issueListViewModelProvider =
 
 ## Views
 
-Views are widgets that bind to VM state and forward user actions. No business logic. No data fetching. No conditional logic beyond simple null/empty guards.
+Views are widgets that bind to VM state and forward user actions. Pure-description delegate classes are acceptable in `build`. No business logic. No data fetching. No conditional logic beyond simple null/empty guards.
 
 Screens live in `{feature}/screens/`, reusable components in `{feature}/widgets/`.
 
