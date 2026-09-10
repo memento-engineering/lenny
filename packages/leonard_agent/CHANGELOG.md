@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Fix: schema-declared integer and number tool arguments now normalize lossless
+  quoted SwiftInfer numerics before strict `ActionSchema` validation. Outgoing
+  schemas, `ActionValidator`, and retry budgets remain strict.
+
 ## 0.3.0
 
 Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that
