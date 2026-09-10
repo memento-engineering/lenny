@@ -22,8 +22,8 @@ import 'package:test/test.dart';
 
 void main() {
   group('buildProvider', () {
-    test('qwen-mlx defaults vision ON (PRD §16.3)', () {
-      final ModelProvider p = buildProvider(
+    test('qwen-mlx defaults vision ON (PRD §16.3)', () async {
+      final ModelProvider p = await buildProvider(
         ModelTier.qwenMlx,
         sessionId: 'sess-1',
       );
@@ -41,36 +41,40 @@ void main() {
       expect(p.capabilities.supportsToolUse, isTrue);
     });
 
-    test('qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>', () {
-      final p =
-          buildProvider(
-                ModelTier.qwenMlx,
-                sessionId: 'sess-xyz',
-                now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
-              )
-              as DartanticModelProvider;
-      final backend = p.backend as SwiftInferBackend;
-      expect(
-        backend.headers['X-Conversation-Id'],
-        'leonard-sess-xyz-1700000000000',
-      );
-      expect(backend.headers['X-Session-Id'], 'sess-xyz');
-      expect(
-        backend.headers['X-Swift-Infer-Capture-Bodies'],
-        'true',
-        reason:
-            'CLI defaults captureBodies=true so /v1/conversations/<id> '
-            'returns the captured turn for inspection',
-      );
-      // bearerToken mirrors SWIFT_INFER_AGENT_TOKEN — the CI shell may or
-      // may not have it set; assert the field tracks the env var either
-      // way (null/empty → null; non-empty → that exact value).
-      final String? envToken = Platform.environment['SWIFT_INFER_AGENT_TOKEN'];
-      if (envToken == null || envToken.isEmpty) {
-        expect(backend.bearerToken, isNull);
-      } else {
-        expect(backend.bearerToken, envToken);
-      }
-    });
+    test(
+      'qwen-mlx: conversationId formed as leonard-<sessionId>-<unixMs>',
+      () async {
+        final p =
+            await buildProvider(
+                  ModelTier.qwenMlx,
+                  sessionId: 'sess-xyz',
+                  now: () => DateTime.fromMillisecondsSinceEpoch(1700000000000),
+                )
+                as DartanticModelProvider;
+        final backend = p.backend as SwiftInferBackend;
+        expect(
+          backend.headers['X-Conversation-Id'],
+          'leonard-sess-xyz-1700000000000',
+        );
+        expect(backend.headers['X-Session-Id'], 'sess-xyz');
+        expect(
+          backend.headers['X-Swift-Infer-Capture-Bodies'],
+          'true',
+          reason:
+              'CLI defaults captureBodies=true so /v1/conversations/<id> '
+              'returns the captured turn for inspection',
+        );
+        // bearerToken mirrors SWIFT_INFER_AGENT_TOKEN — the CI shell may or
+        // may not have it set; assert the field tracks the env var either
+        // way (null/empty → null; non-empty → that exact value).
+        final String? envToken =
+            Platform.environment['SWIFT_INFER_AGENT_TOKEN'];
+        if (envToken == null || envToken.isEmpty) {
+          expect(backend.bearerToken, isNull);
+        } else {
+          expect(backend.bearerToken, envToken);
+        }
+      },
+    );
   });
 }

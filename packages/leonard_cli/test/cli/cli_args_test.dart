@@ -1,7 +1,16 @@
+import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
 import 'package:leonard_agent/leonard_agent.dart'
     show StabilityPolicy, SwiftInferReasoningEffort;
 import 'package:leonard_cli/src/cli_args.dart';
 import 'package:test/test.dart';
+
+void _expectSameSpec(AcpAgentSpec actual, AcpAgentSpec expected) {
+  expect(actual.label, expected.label);
+  expect(actual.command, expected.command);
+  expect(actual.args, expected.args);
+  expect(actual.env, expected.env);
+  expect(actual.model, expected.model);
+}
 
 void main() {
   group('parseCliArgs', () {
@@ -110,6 +119,107 @@ void main() {
         ]),
         throwsA(isA<CliUsageError>()),
       );
+    });
+
+    group('--harness', () {
+      test('catalog contains only factory-backed codex and copilot specs', () {
+        final Map<String, AcpAgentSpec> expected = <String, AcpAgentSpec>{
+          'codex': AcpAgentSpec.codex(),
+          'copilot': AcpAgentSpec.copilot(),
+        };
+
+        expect(acpHarnesses.keys, orderedEquals(expected.keys));
+        for (final MapEntry<String, AcpAgentSpec> entry in expected.entries) {
+          _expectSameSpec(acpHarnesses[entry.key]!, entry.value);
+        }
+        expect(
+          () => acpHarnesses['another'] = AcpAgentSpec.copilot(),
+          throwsUnsupportedError,
+        );
+      });
+
+      test('parser option is catalog-backed with separate-axis help', () {
+        final option = buildParser().options['harness'];
+
+        expect(option, isNotNull);
+        expect(option!.allowed, unorderedEquals(acpHarnesses.keys));
+        expect(option.defaultsTo, isNull);
+        expect(
+          option.help,
+          'ACP agent process for inference (separate from --model); when set, '
+          'replaces the tier provider.',
+        );
+      });
+
+      test('defaults to no harness and retains the tier model identifier', () {
+        final args = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);
+
+        expect(args.harness, isNull);
+        expect(args.modelIdentifier, ModelTier.claude.name);
+      });
+
+      test('parses every catalog value by identity', () {
+        for (final MapEntry<String, AcpAgentSpec> entry
+            in acpHarnesses.entries) {
+          final args = parseCliArgs(<String>[
+            '--vm-uri',
+            'ws://h/ws',
+            '--harness',
+            entry.key,
+          ]);
+
+          expect(args.harness, same(entry.value));
+          expect(args.modelIdentifier, 'acp:${entry.value.label}');
+        }
+      });
+
+      test('rejects a value outside the catalog', () {
+        expect(
+          () => parseCliArgs(<String>[
+            '--vm-uri',
+            'ws://h/ws',
+            '--harness',
+            'unknown',
+          ]),
+          throwsA(isA<CliUsageError>()),
+        );
+      });
+
+      test('coexists with model tier selection as a separate axis', () {
+        final args = parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://h/ws',
+          '--model',
+          'qwen-mlx',
+          '--harness',
+          'codex',
+        ]);
+
+        expect(args.tier, ModelTier.qwenMlx);
+        expect(args.harness, same(acpHarnesses['codex']));
+        expect(args.modelIdentifier, 'acp:codex-acp');
+      });
+
+      test('adds no permission option or per-harness tool flag', () {
+        for (final String optionName in buildParser().options.keys) {
+          expect(optionName, isNot(contains('permission')));
+          for (final String harnessName in acpHarnesses.keys) {
+            expect(
+              optionName.contains(harnessName) && optionName.contains('tool'),
+              isFalse,
+              reason: 'unexpected per-harness tool option: $optionName',
+            );
+          }
+        }
+      });
+    });
+
+    test('model tiers remain the three direct-provider tiers', () {
+      expect(ModelTier.values, <ModelTier>[
+        ModelTier.qwenMlx,
+        ModelTier.claude,
+        ModelTier.openai,
+      ]);
     });
 
     test('--model-id parses and defaults to null', () {

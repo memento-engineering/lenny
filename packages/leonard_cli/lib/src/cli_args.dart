@@ -5,12 +5,24 @@
 library;
 
 import 'package:args/args.dart';
+import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
 import 'package:leonard_agent/leonard_agent.dart'
     show StabilityPolicy, SwiftInferReasoningEffort;
 
 /// Model tier selected via `--model`. Each tier has a fixed default
 /// configuration applied by `provider_factory.dart` (PRD §16.4).
 enum ModelTier { qwenMlx, claude, openai }
+
+/// ACP agent processes selectable independently from [ModelTier].
+///
+/// Agent-specific launch details live in [AcpAgentSpec] factory values so
+/// adding another harness remains a catalog entry rather than a provider or
+/// driver branch.
+final Map<String, AcpAgentSpec> acpHarnesses =
+    Map<String, AcpAgentSpec>.unmodifiable(<String, AcpAgentSpec>{
+      'codex': AcpAgentSpec.codex(),
+      'copilot': AcpAgentSpec.copilot(),
+    });
 
 /// How `--launch` boots the target. Pure mirror of `launcher.dart`'s
 /// `TargetRunner` (kept here so `cli_args` stays `dart:io`-free); mapped to
@@ -29,6 +41,7 @@ class CliArgs {
     required this.extensions,
     this.goalFile,
     this.modelId,
+    this.harness,
     this.reasoningEffort,
     this.maxTokens,
     this.actionEnvironmentNames = const <String>[],
@@ -78,10 +91,23 @@ class CliArgs {
   /// Selected model tier (`--model`).
   final ModelTier tier;
 
-  /// Exact model id for the selected [tier] (`--model-id`). Outranks the
+  /// ACP agent process selected by `--harness`, or null to use [tier].
+  final AcpAgentSpec? harness;
+
+  /// Exact model id for the selected provider (`--model-id`). With a
+  /// [harness], this becomes its ACP model pin. Otherwise it outranks the
   /// tier's environment variable (`SWIFT_INFER_MODEL` on qwen-mlx) and the
-  /// per-tier default. `null` leaves the tier default in force.
+  /// per-tier default. `null` leaves the selected provider's default in force.
   final String? modelId;
+
+  /// Provider identity recorded in trajectory metadata.
+  ///
+  /// Direct providers retain the selected tier name. ACP providers identify
+  /// the selected agent factory because the tier is bypassed for inference.
+  String get modelIdentifier {
+    final AcpAgentSpec? selectedHarness = harness;
+    return selectedHarness == null ? tier.name : 'acp:${selectedHarness.label}';
+  }
 
   /// swift-infer `reasoning_effort` for the qwen-mlx tier
   /// (`--reasoning-effort`). Outranks `SWIFT_INFER_REASONING_EFFORT` and the
@@ -208,10 +234,18 @@ ArgParser buildParser() => ArgParser()
     help: 'Model tier (PRD 16.4).',
   )
   ..addOption(
+    'harness',
+    allowed: acpHarnesses.keys,
+    help:
+        'ACP agent process for inference (separate from --model); when set, '
+        'replaces the tier provider.',
+  )
+  ..addOption(
     'model-id',
     help:
-        'Exact model id for the selected tier (e.g. qwen3.8-40b-a3b-8bit). '
-        'Outranks SWIFT_INFER_MODEL and the per-tier default.',
+        'Exact model id for the selected tier or ACP harness '
+        '(e.g. qwen3.8-40b-a3b-8bit). Outranks SWIFT_INFER_MODEL and the '
+        'selected provider default.',
   )
   ..addOption(
     'reasoning-effort',
@@ -386,6 +420,7 @@ CliArgs parseCliArgs(List<String> argv) {
     'openai' => ModelTier.openai,
     _ => throw CliUsageError('Invalid --model'),
   };
+  final AcpAgentSpec? harness = acpHarnesses[res['harness'] as String?];
   final String? rawModelId = res['model-id'] as String?;
   if (rawModelId != null && rawModelId.trim().isEmpty) {
     throw CliUsageError('--model-id must not be empty');
@@ -503,6 +538,7 @@ CliArgs parseCliArgs(List<String> argv) {
     goal: res['goal'] as String?,
     goalFile: goalFile,
     modelId: modelId,
+    harness: harness,
     reasoningEffort: reasoningEffort,
     maxTokens: maxTokens,
     vmUri: vmUri,
