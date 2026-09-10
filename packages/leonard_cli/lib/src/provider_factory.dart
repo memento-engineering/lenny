@@ -55,6 +55,31 @@ const ModelCapabilities _defaultCaps = ModelCapabilities(
 final Map<ModelProvider, AcpSession> _acpSessions =
     Map<ModelProvider, AcpSession>.identity();
 
+/// An operational failure while starting an ACP harness provider.
+///
+/// Programming errors are deliberately excluded from this configuration
+/// boundary and retain their original error and stack trace.
+class AcpProviderConfigurationException implements Exception {
+  const AcpProviderConfigurationException({
+    required this.harnessLabel,
+    required this.operation,
+    required this.cause,
+  });
+
+  /// Label of the ACP harness whose setup failed.
+  final String harnessLabel;
+
+  /// Setup operation that failed: `start` or `newSession`.
+  final String operation;
+
+  /// Original operational exception.
+  final Exception cause;
+
+  @override
+  String toString() =>
+      'ACP harness $harnessLabel failed during $operation: $cause';
+}
+
 /// Construct a [ModelProvider] for [harness], or for the chosen [tier] when no
 /// harness is present. Direct tiers retain their PRD §16.4 defaults. Frontier
 /// tiers require an API key in the environment; missing keys throw
@@ -74,6 +99,8 @@ final Map<ModelProvider, AcpSession> _acpSessions =
 ///
 /// [acpProviderBuilder] is the process-free test seam for the harness path.
 /// Production starts and owns an [AcpSession] rooted at [Directory.current].
+/// [acpSessionStarter] can replace only the process-start operation while
+/// retaining that production ownership path.
 ///
 /// [onModelDiagnostics] is retained for call-site compatibility but is a NO-OP
 /// after the dartantic cutover — the seam has no per-call diagnostics sink.
@@ -89,6 +116,7 @@ FutureOr<ModelProvider> buildProvider(
   Map<String, String>? environment,
   AcpAgentSpec? harness,
   Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
+  Future<AcpSession> Function(AcpAgentSpec spec)? acpSessionStarter,
 }) {
   if (harness != null) {
     final AcpAgentSpec selectedSpec = AcpAgentSpec(
@@ -98,7 +126,12 @@ FutureOr<ModelProvider> buildProvider(
       env: harness.env,
       model: modelId != null && modelId.isNotEmpty ? modelId : harness.model,
     );
-    return (acpProviderBuilder ?? _buildAcpProvider)(selectedSpec);
+    if (acpProviderBuilder != null) return acpProviderBuilder(selectedSpec);
+    return _buildAcpProvider(
+      selectedSpec,
+      starter:
+          acpSessionStarter ?? (AcpAgentSpec spec) => AcpSession.start(spec),
+    );
   }
 
   final Map<String, String> env = environment ?? Platform.environment;
@@ -127,16 +160,42 @@ FutureOr<ModelProvider> buildProvider(
   };
 }
 
-Future<ModelProvider> _buildAcpProvider(AcpAgentSpec spec) async {
-  final AcpSession session = await AcpSession.start(spec);
+Future<ModelProvider> _buildAcpProvider(
+  AcpAgentSpec spec, {
+  required Future<AcpSession> Function(AcpAgentSpec spec) starter,
+}) async {
+  final AcpSession session;
+  try {
+    session = await starter(spec);
+  } on Exception catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      AcpProviderConfigurationException(
+        harnessLabel: spec.label,
+        operation: 'start',
+        cause: error,
+      ),
+      stackTrace,
+    );
+  }
+
   try {
     await session.newSession(cwd: Directory.current.path);
     final AcpModelProvider provider = AcpModelProvider(session: session);
     _acpSessions[provider] = session;
     return provider;
-  } on Object {
+  } on Object catch (error, stackTrace) {
     await session.dispose();
-    rethrow;
+    if (error is Exception) {
+      Error.throwWithStackTrace(
+        AcpProviderConfigurationException(
+          harnessLabel: spec.label,
+          operation: 'newSession',
+          cause: error,
+        ),
+        stackTrace,
+      );
+    }
+    Error.throwWithStackTrace(error, stackTrace);
   }
 }
 

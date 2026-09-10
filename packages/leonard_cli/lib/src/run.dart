@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
 import 'package:leonard_agent/leonard_agent_io.dart';
 
 import 'action_environment_loop_host.dart';
@@ -36,6 +37,7 @@ Future<int> runCli(
   required Stdin stdin,
   required Stdout stdout,
   required IOSink stderr,
+  Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
 }) async {
   // ----- --help short-circuit ----------------------------------------
   if (argv.contains('-h') || argv.contains('--help')) {
@@ -123,6 +125,7 @@ Future<int> runCli(
       harness: args.harness,
       reasoningEffort: args.reasoningEffort,
       maxTokens: args.maxTokens,
+      acpProviderBuilder: acpProviderBuilder,
       onModelDiagnostics: (Map<String, Object?> d) {
         final StringBuffer line = StringBuffer('[model] ')
           ..write('${d['provider']} ${d['model']} ')
@@ -133,17 +136,18 @@ Future<int> runCli(
         stderr.writeln(line);
       },
     );
-  } on Object catch (e) {
-    stderr.writeln('error: $e');
-    await writer.close(
-      SessionFooter(
-        outcome: SessionOutcome.harnessError,
-        totalTurns: 0,
-        totalDurationMs: 0,
-        harnessError: 'config_error',
-      ),
+  } on StateError catch (error) {
+    return _reportProviderConfigurationError(
+      error,
+      stderr: stderr,
+      writer: writer,
     );
-    return 1;
+  } on AcpProviderConfigurationException catch (error) {
+    return _reportProviderConfigurationError(
+      error,
+      stderr: stderr,
+      writer: writer,
+    );
   }
 
   // ----- resolve the VM URI (boot the target first when --launch) ----
@@ -332,6 +336,23 @@ Future<int> runCli(
       await disposeProvider(provider);
     }
   }
+}
+
+Future<int> _reportProviderConfigurationError(
+  Object error, {
+  required IOSink stderr,
+  required TrajectoryWriter writer,
+}) async {
+  stderr.writeln('error: $error');
+  await writer.close(
+    const SessionFooter(
+      outcome: SessionOutcome.harnessError,
+      totalTurns: 0,
+      totalDurationMs: 0,
+      harnessError: 'config_error',
+    ),
+  );
+  return 1;
 }
 
 Map<String, String> _loadActionEnvironment(List<String> names) {
