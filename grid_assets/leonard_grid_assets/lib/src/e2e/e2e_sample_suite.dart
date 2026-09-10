@@ -101,7 +101,7 @@ class E2eScenarioVerdict {
   };
 }
 
-/// Aggregate result of the ordered four-scenario suite.
+/// Aggregate result of an ordered sample-suite selection.
 class E2eSuiteVerdict {
   /// Creates an aggregate suite verdict.
   E2eSuiteVerdict({
@@ -110,16 +110,16 @@ class E2eSuiteVerdict {
     required List<E2eScenarioVerdict> scenarios,
   }) : scenarios = List<E2eScenarioVerdict>.unmodifiable(scenarios);
 
-  /// Pass only when every scenario passed.
+  /// Pass only when every selected scenario passed.
   final E2eVerdictStatus status;
 
   /// Requested provider tier.
   final E2eModel model;
 
-  /// All four typed results in execution order.
+  /// Selected typed results in execution order.
   final List<E2eScenarioVerdict> scenarios;
 
-  /// Whether all four scenarios passed.
+  /// Whether all selected scenarios passed.
   bool get passed => status == E2eVerdictStatus.pass;
 
   /// Encodes the single JSON report emitted by the Command.
@@ -147,7 +147,7 @@ Future<String?> findLeonardSampleAppDir(
   }
 }
 
-/// Sequentially runs the four scenarios through [E2eService.runSession].
+/// Sequentially runs [scenarios] through [E2eService.runSession].
 Future<E2eSuiteVerdict> performE2eSampleSuite(
   E2eService service, {
   required String appDir,
@@ -156,9 +156,16 @@ Future<E2eSuiteVerdict> performE2eSampleSuite(
   String? device,
   required List<String> extensions,
   required List<String> cliPrefix,
+  required List<E2eScenario> scenarios,
 }) async {
+  if (scenarios.isEmpty) {
+    throw const E2ePhaseFailure(
+      E2eFailureCode.invalidRequest,
+      'e2e sample suite refused: scenarios must not be empty',
+    );
+  }
   final List<E2eScenarioVerdict> results = <E2eScenarioVerdict>[];
-  for (final E2eScenario scenario in kLeonardSampleSuite) {
+  for (final E2eScenario scenario in scenarios) {
     final E2eVerdict verdict = await service.runSession(
       E2eSessionRequest(
         goal: scenario.goal,

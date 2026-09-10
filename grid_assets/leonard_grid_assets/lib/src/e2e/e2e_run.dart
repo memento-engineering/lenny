@@ -45,6 +45,7 @@ Future<E2eRunReceipt> performE2eRun(
     );
   }
   final String trajectoryPath = p.join(runDir, 'trajectory.jsonl');
+  final String probeArtifactPath = p.join(runDir, 'probe.json');
   final String agentsMdPath = p.join(runDir, 'AGENTS.md');
   await runtime.writeFile(agentsMdPath, kDefaultAgentsMd);
   final List<String> argv = <String>[
@@ -61,6 +62,8 @@ Future<E2eRunReceipt> performE2eRun(
     'action-relative',
     '--output',
     trajectoryPath,
+    '--probe-artifact',
+    probeArtifactPath,
     '--agents-md',
     agentsMdPath,
     if (resolvedModelId != null && resolvedModelId.isNotEmpty) ...<String>[

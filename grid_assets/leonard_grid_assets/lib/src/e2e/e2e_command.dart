@@ -11,7 +11,7 @@ import 'e2e_sample_suite.dart';
 import 'e2e_service.dart';
 import 'e2e_session.dart';
 
-/// `e2e` — run one generic session or the private four-scenario sample suite.
+/// `e2e` — run one generic session or the private sample suite.
 class E2eCommand extends Command<int> {
   /// Creates the thin adapter over an injectable service and output sinks.
   E2eCommand({E2eService? service, StringSink? out, StringSink? err})
@@ -34,6 +34,10 @@ class E2eCommand extends Command<int> {
       ..addOption('expect-route')
       ..addOption('expect-label')
       ..addOption('expect-state')
+      ..addOption(
+        'sample-scenario',
+        help: 'Run one named scenario from the sample suite.',
+      )
       ..addFlag('sample-suite', negatable: false);
   }
 
@@ -53,10 +57,28 @@ class E2eCommand extends Command<int> {
     final arguments = argResults!;
     final String goal = arguments.option('goal')?.trim() ?? '';
     final bool sampleSuite = arguments.flag('sample-suite');
+    final bool hasSampleScenario = arguments.wasParsed('sample-scenario');
+    if (hasSampleScenario && !sampleSuite) {
+      return _refuse('--sample-scenario requires --sample-suite');
+    }
     if (goal.isNotEmpty == sampleSuite) {
       return _refuse(
         'exactly one of a non-empty --goal or --sample-suite is required',
       );
+    }
+    List<E2eScenario> scenarios = kLeonardSampleSuite;
+    if (hasSampleScenario) {
+      final String scenarioName =
+          arguments.option('sample-scenario')?.trim() ?? '';
+      final List<E2eScenario> matches = kLeonardSampleSuite
+          .where((E2eScenario scenario) => scenario.name == scenarioName)
+          .toList(growable: false);
+      if (matches.length != 1) {
+        return _refuse(
+          '--sample-scenario must be login, navigation, state_change, or scroll',
+        );
+      }
+      scenarios = <E2eScenario>[matches.single];
     }
 
     final E2eModel? model = E2eModel.tryParse(
@@ -112,6 +134,7 @@ class E2eCommand extends Command<int> {
         device: device,
         extensions: extensions,
         cliPrefix: cliPrefix,
+        scenarios: scenarios,
       );
       _out.writeln(jsonEncode(verdict.toJson()));
       return verdict.passed ? 0 : 1;

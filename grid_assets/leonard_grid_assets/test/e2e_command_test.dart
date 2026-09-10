@@ -34,6 +34,7 @@ class _RecordingService extends E2eService {
     String? device,
     List<String> extensions,
     List<String> cliPrefix,
+    List<E2eScenario> scenarios,
   })?
   suiteCall;
   E2eVerdict sessionVerdict = _verdict();
@@ -52,6 +53,7 @@ class _RecordingService extends E2eService {
     String? device,
     List<String> extensions = const <String>['router', 'riverpod', 'dio'],
     List<String> cliPrefix = const <String>['dart', 'run', 'leonard_cli'],
+    List<E2eScenario> scenarios = kLeonardSampleSuite,
   }) async {
     suiteCall = (
       appDir: appDir,
@@ -60,14 +62,15 @@ class _RecordingService extends E2eService {
       device: device,
       extensions: List<String>.from(extensions),
       cliPrefix: List<String>.from(cliPrefix),
+      scenarios: List<E2eScenario>.from(scenarios),
     );
     return E2eSuiteVerdict(
       status: E2eVerdictStatus.pass,
       model: model,
       scenarios: <E2eScenarioVerdict>[
-        for (var index = 0; index < kLeonardSampleSuite.length; index++)
+        for (var index = 0; index < scenarios.length; index++)
           E2eScenarioVerdict(
-            scenario: kLeonardSampleSuite[index],
+            scenario: scenarios[index],
             verdict: _verdict(path: '/trajectory-$index'),
           ),
       ],
@@ -183,7 +186,70 @@ void main() {
       expect(await _run(service, arguments, out, err), 64);
       expect(out, isEmpty);
       expect(err.toString(), contains('Usage:'));
+      expect(service.requests, isEmpty);
+      expect(service.suiteCall, isNull);
     }
+  });
+
+  test('sample scenario outside suite mode refuses before service', () async {
+    final _RecordingService service = _RecordingService(FakeE2eRuntime());
+    final StringBuffer out = StringBuffer();
+    final StringBuffer err = StringBuffer();
+
+    expect(
+      await _run(
+        service,
+        const <String>[
+          '--goal',
+          'goal',
+          '--app-dir',
+          '/app',
+          '--sample-scenario',
+          'login',
+        ],
+        out,
+        err,
+      ),
+      64,
+    );
+    expect(out, isEmpty);
+    expect(
+      err.toString(),
+      contains('--sample-scenario requires --sample-suite'),
+    );
+    expect(service.requests, isEmpty);
+    expect(service.suiteCall, isNull);
+  });
+
+  test('unknown sample scenario refuses before service', () async {
+    final _RecordingService service = _RecordingService(FakeE2eRuntime());
+    final StringBuffer out = StringBuffer();
+    final StringBuffer err = StringBuffer();
+
+    expect(
+      await _run(
+        service,
+        const <String>[
+          '--sample-suite',
+          '--sample-scenario',
+          'unknown',
+          '--app-dir',
+          '/app',
+        ],
+        out,
+        err,
+      ),
+      64,
+    );
+    expect(out, isEmpty);
+    expect(
+      err.toString(),
+      contains(
+        '--sample-scenario must be login, navigation, state_change, or scroll',
+      ),
+    );
+    expect(service.requests, isEmpty);
+    expect(service.suiteCall, isNull);
   });
 
   test(
@@ -206,6 +272,12 @@ void main() {
         'riverpod',
         'dio',
       ]);
+      expect(
+        service.suiteCall!.scenarios.map(
+          (E2eScenario scenario) => scenario.name,
+        ),
+        <String>['login', 'navigation', 'state_change', 'scroll'],
+      );
       final Map<String, dynamic> report =
           jsonDecode(out.toString()) as Map<String, dynamic>;
       expect(report['status'], 'pass');
@@ -214,6 +286,43 @@ void main() {
       expect(err, isEmpty);
     },
   );
+
+  test('sample scenario selects one matching scenario', () async {
+    final _RecordingService service = _RecordingService(FakeE2eRuntime());
+    final StringBuffer out = StringBuffer();
+    final StringBuffer err = StringBuffer();
+
+    expect(
+      await _run(
+        service,
+        const <String>[
+          '--sample-suite',
+          '--sample-scenario',
+          'login',
+          '--app-dir',
+          '/app',
+          '--model',
+          'qwen-mlx',
+        ],
+        out,
+        err,
+      ),
+      0,
+    );
+    expect(service.suiteCall!.model, E2eModel.qwenMlx);
+    expect(
+      service.suiteCall!.scenarios.map((E2eScenario scenario) => scenario.name),
+      <String>['login'],
+    );
+    final Map<String, dynamic> report =
+        jsonDecode(out.toString()) as Map<String, dynamic>;
+    expect(report['scenarios'] as List<dynamic>, hasLength(1));
+    expect(
+      (report['scenarios'] as List<dynamic>).single,
+      containsPair('scenario', 'login'),
+    );
+    expect(err, isEmpty);
+  });
 
   test(
     'failed verdict returns one while preserving JSON-only stdout',

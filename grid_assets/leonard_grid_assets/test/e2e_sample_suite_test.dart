@@ -166,10 +166,49 @@ void main() {
       model: E2eModel.claude,
       extensions: const <String>['router', 'riverpod', 'dio'],
       cliPrefix: const <String>['dart', 'run', 'leonard_cli'],
+      scenarios: kLeonardSampleSuite,
     );
     expect(suite.status, E2eVerdictStatus.fail);
     expect(suite.scenarios, hasLength(4));
     expect(service.requests, hasLength(4));
+  });
+
+  test('a selected scenario invokes one session', () async {
+    final _ScriptedService service = _ScriptedService(FakeE2eRuntime());
+    final E2eSuiteVerdict suite = await service.runSampleSuite(
+      appDir: '/app',
+      scenarios: <E2eScenario>[kLeonardSampleSuite.first],
+    );
+
+    expect(suite.status, E2eVerdictStatus.pass);
+    expect(
+      suite.scenarios.map((E2eScenarioVerdict result) => result.scenario.name),
+      <String>['login'],
+    );
+    expect(service.requests, hasLength(1));
+    expect(service.requests.single.goal, kLeonardSampleSuite.first.goal);
+  });
+
+  test('an empty scenario selection is rejected', () async {
+    final _ScriptedService service = _ScriptedService(FakeE2eRuntime());
+
+    await expectLater(
+      service.runSampleSuite(appDir: '/app', scenarios: const <E2eScenario>[]),
+      throwsA(
+        isA<E2ePhaseFailure>()
+            .having(
+              (E2ePhaseFailure failure) => failure.code,
+              'code',
+              E2eFailureCode.invalidRequest,
+            )
+            .having(
+              (E2ePhaseFailure failure) => failure.message,
+              'message',
+              'e2e sample suite refused: scenarios must not be empty',
+            ),
+      ),
+    );
+    expect(service.requests, isEmpty);
   });
 }
 

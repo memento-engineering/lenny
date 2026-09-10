@@ -384,29 +384,28 @@ void main() {
     expect(receipt.trajectoryPath, '/run/trajectory.jsonl');
     final ProcessCall call = runtime.processCalls.single;
     expect(call.executable, 'dart');
-    expect(
-      call.arguments,
-      containsAllInOrder(<String>[
-        'run',
-        'leonard_cli',
-        '--vm-uri',
-        'ws://vm/ws',
-        '--goal',
-        'reach the target',
-        '--extensions',
-        'router,riverpod,dio',
-        '--model',
-        'claude',
-        '--policy',
-        'action-relative',
-        '--output',
-        '/run/trajectory.jsonl',
-        '--agents-md',
-        '/run/AGENTS.md',
-        '--model-id',
-        'exact-model',
-      ]),
-    );
+    expect(call.arguments, <String>[
+      'run',
+      'leonard_cli',
+      '--vm-uri',
+      'ws://vm/ws',
+      '--goal',
+      'reach the target',
+      '--extensions',
+      'router,riverpod,dio',
+      '--model',
+      'claude',
+      '--policy',
+      'action-relative',
+      '--output',
+      '/run/trajectory.jsonl',
+      '--probe-artifact',
+      '/run/probe.json',
+      '--agents-md',
+      '/run/AGENTS.md',
+      '--model-id',
+      'exact-model',
+    ]);
     expect(runtime.fileValues['/run/AGENTS.md'], kDefaultAgentsMd);
   });
 

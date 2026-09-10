@@ -339,7 +339,7 @@ class E2eService {
     return verdict;
   }
 
-  /// Runs the four ordered sample scenarios through [runSession].
+  /// Runs the requested ordered sample [scenarios] through [runSession].
   Future<E2eSuiteVerdict> runSampleSuite({
     required String appDir,
     E2eModel model = E2eModel.claude,
@@ -347,6 +347,7 @@ class E2eService {
     String? device,
     List<String> extensions = const <String>['router', 'riverpod', 'dio'],
     List<String> cliPrefix = const <String>['dart', 'run', 'leonard_cli'],
+    List<E2eScenario> scenarios = kLeonardSampleSuite,
   }) => performE2eSampleSuite(
     this,
     appDir: appDir,
@@ -355,5 +356,6 @@ class E2eService {
     device: device,
     extensions: extensions,
     cliPrefix: cliPrefix,
+    scenarios: scenarios,
   );
 }

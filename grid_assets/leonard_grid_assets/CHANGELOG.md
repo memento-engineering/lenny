@@ -9,6 +9,14 @@
   device tool-schema handshake fix from lenny#123.
 - Pin Leonard's packaged operating guide on every E2E driver invocation so a
   dependency-launched CLI never drives from a goal-only prompt.
+- Allow a sample-suite invocation to select one named scenario while preserving
+  the default four-scenario order and refusing invalid selectors before launch.
+- Preserve Leonard CLI's raw VM attachment probe beside each trajectory without
+  changing the typed inspector's verdict authority.
+- Document the required `leonard_agent` 0.3.1 and `leonard_cli` 0.3.0 pairing.
+  Device probing confirmed app registration and VM attachment were already
+  healthy; the agent correction losslessly normalizes qwen-mlx's
+  schema-declared numeric strings before unchanged strict action validation.
 
 ## 0.1.0-rc.2
 
