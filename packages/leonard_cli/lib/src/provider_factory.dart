@@ -21,8 +21,10 @@
 ///   * `X-Swift-Infer-Capture-Bodies: true` for `GET /v1/conversations/<id>`.
 library;
 
-import 'dart:io' show Platform;
+import 'dart:async' show FutureOr;
+import 'dart:io' show Directory, Platform;
 
+import 'package:leonard_acp/leonard_acp.dart';
 import 'package:leonard_agent/leonard_agent.dart';
 
 import 'cli_args.dart';
@@ -50,9 +52,13 @@ const ModelCapabilities _defaultCaps = ModelCapabilities(
   supportsToolUse: true,
 );
 
-/// Construct a [ModelProvider] for the chosen [tier] with PRD §16.4
-/// defaults applied. Frontier tiers require an API key in the
-/// environment; missing keys throw [StateError].
+final Map<ModelProvider, AcpSession> _acpSessions =
+    Map<ModelProvider, AcpSession>.identity();
+
+/// Construct a [ModelProvider] for [harness], or for the chosen [tier] when no
+/// harness is present. Direct tiers retain their PRD §16.4 defaults. Frontier
+/// tiers require an API key in the environment; missing keys throw
+/// [StateError].
 ///
 /// [sessionId] is required so the qwen-mlx tier can mint a stable
 /// per-run `X-Conversation-Id` of the form `leonard-<sessionId>-<unixMs>`.
@@ -66,10 +72,13 @@ const ModelCapabilities _defaultCaps = ModelCapabilities(
 /// defaults to [Platform.environment] and is injected by tests (Fakes, not
 /// mocks — a plain map IS the fake).
 ///
+/// [acpProviderBuilder] is the process-free test seam for the harness path.
+/// Production starts and owns an [AcpSession] rooted at [Directory.current].
+///
 /// [onModelDiagnostics] is retained for call-site compatibility but is a NO-OP
 /// after the dartantic cutover — the seam has no per-call diagnostics sink.
 /// Re-plumbing CLI API-health logging is a 4dhv follow-up.
-ModelProvider buildProvider(
+FutureOr<ModelProvider> buildProvider(
   ModelTier tier, {
   required String sessionId,
   DateTime Function()? now,
@@ -78,7 +87,20 @@ ModelProvider buildProvider(
   SwiftInferReasoningEffort? reasoningEffort,
   int? maxTokens,
   Map<String, String>? environment,
+  AcpAgentSpec? harness,
+  Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
 }) {
+  if (harness != null) {
+    final AcpAgentSpec selectedSpec = AcpAgentSpec(
+      label: harness.label,
+      command: harness.command,
+      args: harness.args,
+      env: harness.env,
+      model: modelId != null && modelId.isNotEmpty ? modelId : harness.model,
+    );
+    return (acpProviderBuilder ?? _buildAcpProvider)(selectedSpec);
+  }
+
   final Map<String, String> env = environment ?? Platform.environment;
   final String anthropicModel = _resolveModelId(modelId, _kAnthropicSonnet);
   final String openAiModel = _resolveModelId(modelId, _kOpenAiGpt5);
@@ -103,6 +125,28 @@ ModelProvider buildProvider(
       capabilities: capabilitiesFor('openai', openAiModel) ?? _defaultCaps,
     ),
   };
+}
+
+Future<ModelProvider> _buildAcpProvider(AcpAgentSpec spec) async {
+  final AcpSession session = await AcpSession.start(spec);
+  try {
+    await session.newSession(cwd: Directory.current.path);
+    final AcpModelProvider provider = AcpModelProvider(session: session);
+    _acpSessions[provider] = session;
+    return provider;
+  } on Object {
+    await session.dispose();
+    rethrow;
+  }
+}
+
+/// Disposes the ACP session owned by [provider], when one exists.
+///
+/// Direct Dartantic providers and injected test fakes are no-ops. Removing
+/// the identity-map entry before disposal also makes repeated calls safe.
+Future<void> disposeProvider(ModelProvider provider) async {
+  final AcpSession? session = _acpSessions.remove(provider);
+  if (session != null) await session.dispose();
 }
 
 /// The first non-empty of [override] then [fallback]. An empty string is

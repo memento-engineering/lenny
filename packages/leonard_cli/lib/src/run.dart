@@ -116,10 +116,11 @@ Future<int> runCli(
       .replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
   final ModelProvider provider;
   try {
-    provider = buildProvider(
+    provider = await buildProvider(
       args.tier,
       sessionId: sessionId,
       modelId: args.modelId,
+      harness: args.harness,
       reasoningEffort: args.reasoningEffort,
       maxTokens: args.maxTokens,
       onModelDiagnostics: (Map<String, Object?> d) {
@@ -132,8 +133,8 @@ Future<int> runCli(
         stderr.writeln(line);
       },
     );
-  } on StateError catch (e) {
-    stderr.writeln('error: ${e.message}');
+  } on Object catch (e) {
+    stderr.writeln('error: $e');
     await writer.close(
       SessionFooter(
         outcome: SessionOutcome.harnessError,
@@ -173,6 +174,7 @@ Future<int> runCli(
           harnessError: 'connection_lost',
         ),
       );
+      await disposeProvider(provider);
       return 1;
     }
     vmUri = launched.wsUri;
@@ -198,6 +200,7 @@ Future<int> runCli(
         harnessError: 'connection_lost',
       ),
     );
+    await disposeProvider(provider);
     return 1;
   }
 
@@ -255,7 +258,7 @@ Future<int> runCli(
       session: session,
       goal: goal,
       policy: args.policy,
-      modelIdentifier: args.tier.name,
+      modelIdentifier: args.modelIdentifier,
       buildIdentifier: 'cli',
       harnessVersion: _kHarnessVersion,
       coreTools: coreTools,
@@ -320,10 +323,14 @@ Future<int> runCli(
     stderr.writeln('error: $e');
     return 1;
   } finally {
-    await sub.cancel();
-    await session.end();
-    // Tear down a target we booted (no-op when attaching to --vm-uri).
-    await launched?.shutdown();
+    try {
+      await sub.cancel();
+      await session.end();
+      // Tear down a target we booted (no-op when attaching to --vm-uri).
+      await launched?.shutdown();
+    } finally {
+      await disposeProvider(provider);
+    }
   }
 }
 
