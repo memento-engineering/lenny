@@ -1,4 +1,8 @@
-import 'package:leonard_acp/leonard_acp.dart' show AcpAgentSpec;
+import 'dart:async' show FutureOr;
+import 'dart:io' show Directory;
+
+import 'package:leonard_acp/leonard_acp.dart'
+    show AcpAgentSpec, AcpModelProvider, AcpSession;
 import 'package:leonard_agent/leonard_agent.dart';
 import 'package:leonard_cli/src/cli_args.dart';
 import 'package:leonard_cli/src/provider_factory.dart';
@@ -21,6 +25,34 @@ class _FakeModelProvider implements ModelProvider {
 
   @override
   Stream<ThinkingDelta> thinking() => const Stream<ThinkingDelta>.empty();
+}
+
+class _FakeAcpSession implements AcpSession {
+  _FakeAcpSession({this.newSessionFailure});
+
+  final Object? newSessionFailure;
+  String? newSessionCwd;
+  int disposeCalls = 0;
+
+  @override
+  Future<String> newSession({
+    required String cwd,
+    List<Object?> mcpServers = const <Object?>[],
+  }) {
+    newSessionCwd = cwd;
+    final Object? failure = newSessionFailure;
+    return failure == null
+        ? Future<String>.value('fake-session')
+        : Future<String>.error(failure, StackTrace.current);
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposeCalls++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void _expectCopiedSpec(AcpAgentSpec actual, AcpAgentSpec expected) {
@@ -127,5 +159,96 @@ void main() {
       await disposeProvider(fake);
       await disposeProvider(fake);
     });
+
+    test('real ACP builder owns and disposes the started session', () async {
+      final AcpAgentSpec harness = AcpAgentSpec.codex();
+      final _FakeAcpSession session = _FakeAcpSession();
+      late AcpAgentSpec startedSpec;
+
+      final ModelProvider provider = await buildProvider(
+        ModelTier.claude,
+        sessionId: 'session',
+        harness: harness,
+        acpSessionStarter: (AcpAgentSpec spec) async {
+          startedSpec = spec;
+          return session;
+        },
+      );
+
+      _expectCopiedSpec(startedSpec, harness);
+      expect(startedSpec.model, harness.model);
+      expect(session.newSessionCwd, Directory.current.path);
+      expect(provider, isA<AcpModelProvider>());
+
+      await disposeProvider(provider);
+      expect(session.disposeCalls, 1);
+      await disposeProvider(provider);
+      expect(session.disposeCalls, 1);
+    });
+
+    test(
+      'real ACP builder classifies setup failures and preserves Errors',
+      () async {
+        final AcpAgentSpec harness = AcpAgentSpec.codex();
+        final Exception startCause = Exception('start failed');
+
+        final AcpProviderConfigurationException startError = await _captureAcp(
+          buildProvider(
+            ModelTier.claude,
+            sessionId: 'session',
+            harness: harness,
+            acpSessionStarter: (AcpAgentSpec spec) =>
+                Future<AcpSession>.error(startCause, StackTrace.current),
+          ),
+        );
+        expect(startError.harnessLabel, harness.label);
+        expect(startError.operation, 'start');
+        expect(startError.cause, same(startCause));
+
+        final Exception newSessionCause = Exception('newSession failed');
+        final _FakeAcpSession failedSession = _FakeAcpSession(
+          newSessionFailure: newSessionCause,
+        );
+        final AcpProviderConfigurationException newSessionError =
+            await _captureAcp(
+              buildProvider(
+                ModelTier.claude,
+                sessionId: 'session',
+                harness: harness,
+                acpSessionStarter: (AcpAgentSpec spec) async => failedSession,
+              ),
+            );
+        expect(newSessionError.harnessLabel, harness.label);
+        expect(newSessionError.operation, 'newSession');
+        expect(newSessionError.cause, same(newSessionCause));
+        expect(failedSession.disposeCalls, 1);
+
+        final TypeError programmingError = TypeError();
+        final _FakeAcpSession errorSession = _FakeAcpSession(
+          newSessionFailure: programmingError,
+        );
+        await expectLater(
+          buildProvider(
+            ModelTier.claude,
+            sessionId: 'session',
+            harness: harness,
+            acpSessionStarter: (AcpAgentSpec spec) async => errorSession,
+          ),
+          throwsA(same(programmingError)),
+        );
+        expect(errorSession.disposeCalls, 1);
+      },
+    );
   });
+}
+
+Future<AcpProviderConfigurationException> _captureAcp(
+  FutureOr<ModelProvider> result,
+) async {
+  try {
+    await result;
+  } on AcpProviderConfigurationException catch (error) {
+    return error;
+  }
+  fail('expected AcpProviderConfigurationException');
 }
