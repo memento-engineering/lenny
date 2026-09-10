@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:json_schema/json_schema.dart';
 
+import '../json_value.dart';
 import 'types.dart';
 
 /// JSON Schema (draft-07) constraining a single model decision.
@@ -13,10 +14,19 @@ import 'types.dart';
 class ActionSchema {
   ActionSchema._(this.jsonSchema, this._validator);
 
+  /// Reconstructs a transported schema and its draft-07 validator.
+  factory ActionSchema.fromJson(Map<String, dynamic> root) => ActionSchema._(
+    root,
+    JsonSchema.create(root, schemaVersion: SchemaVersion.draft7),
+  );
+
   /// The composed JSON Schema document.
   final Map<String, dynamic> jsonSchema;
 
   final JsonSchema _validator;
+
+  /// Returns the composed JSON Schema document unchanged.
+  Map<String, dynamic> toJson() => jsonSchema;
 
   /// Compose a fresh schema from the merged tool list.
   ///
@@ -87,4 +97,11 @@ class ActionSchema {
     }
     return decoded;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActionSchema && jsonValuesEqual(jsonSchema, other.jsonSchema);
+
+  @override
+  int get hashCode => jsonValueHash(jsonSchema);
 }

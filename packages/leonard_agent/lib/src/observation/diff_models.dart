@@ -14,6 +14,27 @@ import 'models.dart';
 class ObservationDiff {
   const ObservationDiff({required this.core, required this.extensions});
 
+  /// Decodes the bundled shape emitted by [toJson].
+  factory ObservationDiff.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic> coreJson = Map<String, dynamic>.from(
+      json['core'] as Map? ?? const <String, dynamic>{},
+    );
+    final Map<String, ExtensionDiff> extensions = <String, ExtensionDiff>{};
+    final Object? rawExtensions = json['extensions'];
+    if (rawExtensions is Map) {
+      rawExtensions.forEach((Object? key, Object? value) {
+        if (key is! String || value is! Map) return;
+        extensions[key] = _extensionDiffFromJson(
+          Map<String, dynamic>.from(value),
+        );
+      });
+    }
+    return ObservationDiff(
+      core: _coreDiffFromJson(coreJson),
+      extensions: Map<String, ExtensionDiff>.unmodifiable(extensions),
+    );
+  }
+
   /// Empty diff — no route/node/error changes, no extension entries.
   /// Used by validation-retry to append synthetic UserTurns carrying only
   /// a `toolResult` (no real observation change).
@@ -202,4 +223,91 @@ class ChangedValue {
     'prev': prev,
     'curr': curr,
   };
+}
+
+CoreDiff _coreDiffFromJson(Map<String, dynamic> json) => CoreDiff(
+  routeChanges: <RouteChange>[
+    for (final Object? value in json['routeChanges'] as List? ?? const [])
+      if (value is Map) _routeChangeFromJson(Map<String, dynamic>.from(value)),
+  ],
+  nodesAdded: <SemanticsNode>[
+    for (final Object? value in json['nodesAdded'] as List? ?? const [])
+      if (value is Map) _semanticsNodeFromJson(value),
+  ],
+  nodesRemoved: <int>[
+    for (final Object? value in json['nodesRemoved'] as List? ?? const [])
+      if (value is num) value.toInt(),
+  ],
+  nodesChanged: <NodeChange>[
+    for (final Object? value in json['nodesChanged'] as List? ?? const [])
+      if (value is Map) _nodeChangeFromJson(value),
+  ],
+  errorsAdded: <RuntimeError>[
+    for (final Object? value in json['errorsAdded'] as List? ?? const [])
+      if (value is Map) RuntimeError.fromJson(Map<String, dynamic>.from(value)),
+  ],
+);
+
+RouteChange _routeChangeFromJson(Map<String, dynamic> json) => RouteChange(
+  previous: <String>[
+    for (final Object? value in json['previous'] as List? ?? const [])
+      if (value is String) value,
+  ],
+  current: <String>[
+    for (final Object? value in json['current'] as List? ?? const [])
+      if (value is String) value,
+  ],
+);
+
+NodeChange _nodeChangeFromJson(Map<dynamic, dynamic> json) => NodeChange(
+  prev: _semanticsNodeFromJson(json['prev']),
+  curr: _semanticsNodeFromJson(json['curr']),
+);
+
+SemanticsNode _semanticsNodeFromJson(Object? value) {
+  if (value is Map) {
+    final SemanticsNode? node = SemanticsNode.tryFromJson(
+      Map<String, dynamic>.from(value),
+    );
+    if (node != null) return node;
+  }
+  throw const FormatException('invalid semantics node in observation diff');
+}
+
+ChangedValue _changedValueFromJson(Map<dynamic, dynamic> json) =>
+    ChangedValue(prev: json['prev'], curr: json['curr']);
+
+ExtensionDiff _extensionDiffFromJson(Map<String, dynamic> json) {
+  switch (json['kind']) {
+    case 'structured':
+      final Map<String, ChangedValue> changed = <String, ChangedValue>{};
+      final Object? rawChanged = json['changed'];
+      if (rawChanged is Map) {
+        rawChanged.forEach((Object? key, Object? value) {
+          if (key is String && value is Map) {
+            changed[key] = _changedValueFromJson(value);
+          }
+        });
+      }
+      return ExtensionDiffStructured(
+        added: Map<String, dynamic>.from(
+          json['added'] as Map? ?? const <String, dynamic>{},
+        ),
+        removed: Map<String, dynamic>.from(
+          json['removed'] as Map? ?? const <String, dynamic>{},
+        ),
+        changed: changed,
+      );
+    case 'opaque':
+      return ExtensionDiffOpaque(
+        previous: json['previous'],
+        current: json['current'],
+      );
+    case 'added':
+      return ExtensionDiffAdded(current: json['current']);
+    case 'removed':
+      return ExtensionDiffRemoved(previous: json['previous']);
+    default:
+      throw FormatException('unknown extension diff kind: ${json['kind']}');
+  }
 }

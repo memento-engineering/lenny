@@ -21,9 +21,9 @@
 /// All types are `@immutable`, JSON round-trippable, and value-equal.
 library;
 
-import 'dart:collection';
-
 import 'package:meta/meta.dart';
+
+import '../json_value.dart';
 
 /// Top-level typed observation bundle.
 @immutable
@@ -45,14 +45,24 @@ class Observation {
   /// Decode a wire-format observation map. Tolerant of missing keys: any
   /// absent top-level field is treated as empty.
   factory Observation.fromJson(Map<String, dynamic> j) {
-    final Object? rawSemantics = j['semantics'];
-    final Object? rawRoutes = j['routes'];
-    final Object? rawErrors = j['errors'];
+    final Object? rawCore = j['core'];
+    final Map<dynamic, dynamic>? bundledCore = rawCore is Map ? rawCore : null;
+    final Object? rawSemantics = bundledCore?['nodes'] ?? j['semantics'];
+    final Object? rawRoutes = bundledCore?['routeStack'] ?? j['routes'];
+    final Object? rawErrors = bundledCore?['errors'] ?? j['errors'];
     final Object? rawStability = j['stability'];
     final Object? rawExtensions = j['extensions'];
 
     final Map<int, SemanticsNode> nodes = <int, SemanticsNode>{};
-    if (rawSemantics is List) {
+    if (rawSemantics is Map) {
+      for (final Object? entry in rawSemantics.values) {
+        if (entry is! Map) continue;
+        final SemanticsNode? node = SemanticsNode.tryFromJson(
+          entry.cast<String, dynamic>(),
+        );
+        if (node != null) nodes[node.id] = node;
+      }
+    } else if (rawSemantics is List) {
       for (final Object? entry in rawSemantics) {
         if (entry is! Map) continue;
         final SemanticsNode? node = SemanticsNode.tryFromJson(
@@ -136,21 +146,13 @@ class Observation {
   bool operator ==(Object other) =>
       other is Observation &&
       core == other.core &&
-      _mapEq(extensions, other.extensions) &&
+      jsonValuesEqual(extensions, other.extensions) &&
       stability == other.stability &&
       screenshot == other.screenshot;
 
   @override
-  int get hashCode => Object.hash(
-    core,
-    Object.hashAllUnordered(
-      extensions.entries.map(
-        (MapEntry<String, ExtensionFragment> e) => Object.hash(e.key, e.value),
-      ),
-    ),
-    stability,
-    screenshot,
-  );
+  int get hashCode =>
+      Object.hash(core, jsonValueHash(extensions), stability, screenshot);
 }
 
 /// Core fragment: route stack + semantics nodes (id-keyed) + recent errors.
@@ -486,10 +488,11 @@ class ExtensionFragment {
       other is ExtensionFragment &&
       namespace == other.namespace &&
       deltaFriendly == other.deltaFriendly &&
-      _deepEq(data, other.data);
+      jsonValuesEqual(data, other.data);
 
   @override
-  int get hashCode => Object.hash(namespace, deltaFriendly, _deepHash(data));
+  int get hashCode =>
+      Object.hash(namespace, deltaFriendly, jsonValueHash(data));
 }
 
 /// Subset of the binding's per-extension "busy at termination" descriptor.
@@ -591,7 +594,7 @@ class StabilityMetadata {
       policy == other.policy &&
       terminatedBy == other.terminatedBy &&
       durationMs == other.durationMs &&
-      _deepEq(frameworkBusy, other.frameworkBusy) &&
+      jsonValuesEqual(frameworkBusy, other.frameworkBusy) &&
       _listEq(extensionsBusy, other.extensionsBusy);
 
   @override
@@ -599,7 +602,7 @@ class StabilityMetadata {
     policy,
     terminatedBy,
     durationMs,
-    _deepHash(frameworkBusy),
+    jsonValueHash(frameworkBusy),
     Object.hashAll(extensionsBusy),
   );
 }
@@ -623,42 +626,4 @@ bool _mapEq<K, V>(Map<K, V> a, Map<K, V> b) {
     if (a[k] != b[k]) return false;
   }
   return true;
-}
-
-/// Deep value equality for arbitrary JSON values (Maps, Lists, scalars).
-bool _deepEq(Object? a, Object? b) {
-  if (identical(a, b)) return true;
-  if (a is Map && b is Map) {
-    if (a.length != b.length) return false;
-    for (final Object? k in a.keys) {
-      if (!b.containsKey(k)) return false;
-      if (!_deepEq(a[k], b[k])) return false;
-    }
-    return true;
-  }
-  if (a is List && b is List) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (!_deepEq(a[i], b[i])) return false;
-    }
-    return true;
-  }
-  return a == b;
-}
-
-int _deepHash(Object? v) {
-  if (v is Map) {
-    // Order-independent across keys, order-dependent within values for
-    // List values.
-    final SplayTreeMap<dynamic, dynamic> sorted =
-        SplayTreeMap<dynamic, dynamic>(
-          (dynamic a, dynamic b) => a.toString().compareTo(b.toString()),
-        )..addAll(v);
-    return Object.hashAll(<int>[
-      for (final MapEntry<dynamic, dynamic> e in sorted.entries)
-        Object.hash(e.key, _deepHash(e.value)),
-    ]);
-  }
-  if (v is List) return Object.hashAll(v.map(_deepHash));
-  return v.hashCode;
 }
