@@ -32,11 +32,15 @@ const String _kHarnessVersion = '0.5.0';
 ///   * 0  — clean session (any non-error termination)
 ///   * 64 — usage error (Unix convention)
 ///   * 1  — harness error or image-golden mismatch
+///
+/// [providerEnvironment] is the provider-construction environment seam. When
+/// omitted, providers read the process environment.
 Future<int> runCli(
   List<String> argv, {
   required Stdin stdin,
   required Stdout stdout,
   required IOSink stderr,
+  Map<String, String>? providerEnvironment,
   Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
 }) async {
   // ----- --help short-circuit ----------------------------------------
@@ -125,6 +129,7 @@ Future<int> runCli(
       harness: args.harness,
       reasoningEffort: args.reasoningEffort,
       maxTokens: args.maxTokens,
+      environment: providerEnvironment,
       acpProviderBuilder: acpProviderBuilder,
       onModelDiagnostics: (Map<String, Object?> d) {
         final StringBuffer line = StringBuffer('[model] ')
@@ -143,6 +148,12 @@ Future<int> runCli(
       writer: writer,
     );
   } on AcpProviderConfigurationException catch (error) {
+    return _reportProviderConfigurationError(
+      error,
+      stderr: stderr,
+      writer: writer,
+    );
+  } on CliUsageError catch (error) {
     return _reportProviderConfigurationError(
       error,
       stderr: stderr,

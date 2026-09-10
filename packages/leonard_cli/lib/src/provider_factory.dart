@@ -229,9 +229,21 @@ DartanticModelProvider _buildSwiftInferProvider({
   final String? envEndpoint = environment['SWIFT_INFER_ENDPOINT'];
   final String? envToken = environment['SWIFT_INFER_AGENT_TOKEN'];
   final String? envModel = environment['SWIFT_INFER_MODEL'];
-  final Uri baseUrl = (envEndpoint != null && envEndpoint.isNotEmpty)
-      ? Uri.parse(envEndpoint)
-      : Uri.parse(_kSwiftInferBaseUrl);
+  final Uri baseUrl;
+  if (envEndpoint != null && envEndpoint.isNotEmpty) {
+    final Uri? parsedEndpoint = Uri.tryParse(envEndpoint);
+    if (parsedEndpoint == null ||
+        !parsedEndpoint.hasScheme ||
+        parsedEndpoint.host.isEmpty) {
+      throw CliUsageError(
+        'Invalid SWIFT_INFER_ENDPOINT: "$envEndpoint" '
+        '(expected an absolute URI with scheme and host)',
+      );
+    }
+    baseUrl = parsedEndpoint;
+  } else {
+    baseUrl = Uri.parse(_kSwiftInferBaseUrl);
+  }
   final String model = _resolveModelId(
     modelId,
     _resolveModelId(envModel, _kSwiftInferModel),
