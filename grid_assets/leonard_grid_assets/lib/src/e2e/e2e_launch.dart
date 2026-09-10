@@ -36,7 +36,7 @@ class E2eLaunchHandle {
   final String logPath;
 }
 
-/// Kills stale launchers, starts Flutter, and waits for its VM-service URI.
+/// Kills stale launchers, reinstalls the app, and waits for its VM-service URI.
 Future<E2eLaunchHandle> performE2eLaunch(
   E2eRuntime runtime,
   E2eSessionRequest request,
@@ -47,6 +47,20 @@ Future<E2eLaunchHandle> performE2eLaunch(
   try {
     await runtime.runProcess('pkill', <String>['-f', 'run -d $deviceId']);
     await runtime.runProcess('pkill', <String>['-f', 'iproxy.*$deviceId']);
+    if (runtime is SystemE2eRuntime) {
+      final E2eProcessResult uninstall = await runtime.runProcess(
+        'flutter',
+        <String>['install', '--uninstall-only', '-d', deviceId],
+        workingDirectory: request.appDir,
+      );
+      if (uninstall.exitCode != 0) {
+        throw E2ePhaseFailure(
+          E2eFailureCode.launch,
+          'e2e launch refused: flutter uninstall exited '
+          '${uninstall.exitCode} for $deviceId',
+        );
+      }
+    }
     final String runDir = await runtime.createRunDirectory();
     final String logPath = p.join(runDir, 'flutter.log');
     final E2eChildProcess process = await runtime.startProcess(

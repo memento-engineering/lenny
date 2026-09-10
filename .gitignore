@@ -61,43 +61,6 @@ lenny-whn/
 # Never tracked — throwaway per-run working state, not source.
 .grid/
 
-# Gas City factory committee — DERIVED artifacts composed by
-# scripts/install-rig-committee.sh (the neutral factoryskills pack + the
-# .gascity-pack Dart overlay). Source of truth is .gascity-pack/ (tracked); the
-# composed copies are reproducible, so they are not committed. lenny's own
-# agents (lenny-pilot, lenny-driver) and skills (beads, debug-inference,
-# harden, predictable-flutter) stay tracked — canonical source in .agents/
-# (the cross-client convention), symlinked into .claude/ for Claude Code.
-# Ignore only the factory-composed agents, not lenny's own.
-.agents/agents/architect.md
-.agents/agents/bitsmith.md
-.agents/agents/critique.md
-.claude/agents/architect.md
-.claude/agents/bitsmith.md
-.claude/agents/critique.md
-.agents/skills/critique/
-.agents/skills/deliberate/
-.agents/skills/discover/
-.agents/skills/factory/
-.agents/skills/factoryskills/
-.agents/skills/forge/
-.agents/skills/land/
-.agents/skills/marshal/
-.agents/skills/merge/
-.agents/skills/route/
-.agents/skills/specify/
-.claude/skills/critique/
-.claude/skills/deliberate/
-.claude/skills/discover/
-.claude/skills/factory/
-.claude/skills/factoryskills/
-.claude/skills/forge/
-.claude/skills/land/
-.claude/skills/marshal/
-.claude/skills/merge/
-.claude/skills/route/
-.claude/skills/specify/
-
 # Local scratch / factory runtime state — not part of the repo
 spikes/
 .gc/

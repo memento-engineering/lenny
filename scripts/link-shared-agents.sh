@@ -8,8 +8,7 @@
 # plugin layout is the root `agents/`+`skills/` symlinks -> .agents/, and any
 # agentskills-compliant client scanning .agents/skills/, work with zero setup).
 # Claude Code reads .claude/; since that dir is local, we recreate the bridge
-# symlinks here rather than tracking them. Factory agents/skills are composed
-# separately by scripts/install-rig-committee.sh and are NOT touched here.
+# symlinks here rather than tracking them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,10 +32,6 @@ done
 echo "Linking lenny's shared skills into .claude/ ..."
 for d in .agents/skills/*/; do
   name="$(basename "$d")"
-  case "$name" in
-    # factory skills are composed by install-rig-committee.sh; skip.
-    critique|deliberate|discover|factory|factoryskills|forge|land|marshal|merge|route|specify) continue ;;
-  esac
   [ -f "$d/SKILL.md" ] || continue
   link "../../.agents/skills/$name" ".claude/skills/$name"
 done
