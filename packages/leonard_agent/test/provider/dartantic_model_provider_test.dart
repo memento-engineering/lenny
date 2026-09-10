@@ -142,6 +142,99 @@ void main() {
       expect(tap['input_schema'], strictTapSchema);
     });
 
+    test(
+      'normalizes captured quoted core_enter_text node_id without weakening request schema',
+      () async {
+        const strictEnterTextSchema = <String, dynamic>{
+          r'$schema': 'http://json-schema.org/draft-07/schema#',
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'node_id': <String, dynamic>{'type': 'integer', 'minimum': 1},
+            'text': <String, dynamic>{'type': 'string', 'maxLength': 4096},
+          },
+          'required': <String>['node_id', 'text'],
+          'additionalProperties': false,
+        };
+        final descriptor = ToolDescriptor(
+          name: 'core.enter_text',
+          description: 'Enter text into a semantics node.',
+          inputSchema: strictEnterTextSchema,
+        );
+        final client = _FakeClient(<Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'message_start',
+            'message': <String, dynamic>{'id': 'msg_enter_text'},
+          },
+          <String, dynamic>{
+            'type': 'content_block_start',
+            'index': 0,
+            'content_block': <String, dynamic>{
+              'type': 'tool_use',
+              'id': 'tu_enter_text',
+              'name': 'core_enter_text',
+              'input': <String, dynamic>{},
+            },
+          },
+          <String, dynamic>{
+            'type': 'content_block_delta',
+            'index': 0,
+            'delta': <String, dynamic>{
+              'type': 'input_json_delta',
+              'partial_json': '{"node_id":"5","text":"demo@example.com"}',
+            },
+          },
+          <String, dynamic>{'type': 'content_block_stop', 'index': 0},
+          <String, dynamic>{
+            'type': 'message_delta',
+            'delta': <String, dynamic>{'stop_reason': 'tool_use'},
+          },
+        ]);
+        final provider = DartanticModelProvider(
+          backend: SwiftInferBackend(
+            baseUrl: Uri.parse('http://localhost:8080'),
+          ),
+          model: 'qwen',
+          capabilities: _caps,
+          client: client,
+        );
+        final snapshot = ConversationSnapshot(
+          systemMessage: 'sys',
+          turns: <ConversationTurn>[
+            UserTurn(
+              observation: Observation.empty(),
+              diff: ObservationDiff.empty(),
+            ),
+          ],
+          tools: <ToolDescriptor>[descriptor],
+        );
+
+        late final ModelDecision decision;
+        try {
+          decision = await provider.decide(
+            snapshot,
+            ActionSchema.fromToolList(<ToolDescriptor>[descriptor]),
+          );
+        } finally {
+          provider.dispose();
+        }
+
+        expect(decision.action.tool, 'core.enter_text');
+        expect(decision.action.args, <String, dynamic>{
+          'node_id': 5,
+          'text': 'demo@example.com',
+        });
+        expect(decision.action.args['node_id'], isA<int>());
+
+        final body = jsonDecode(client.body!) as Map<String, dynamic>;
+        final tools = (body['tools'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final enterText = tools.singleWhere(
+          (tool) => tool['name'] == 'core_enter_text',
+        );
+        expect(enterText['input_schema'], strictEnterTextSchema);
+      },
+    );
+
     test('decodes thinking + tool call into a ModelDecision', () async {
       final p = _provider([
         {

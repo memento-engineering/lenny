@@ -68,8 +68,12 @@ class ActionSchema {
 
   /// Decode and validate a raw model output against this schema.
   ///
+  /// Lossless numeric values are normalized according to the emitted tool's
+  /// declared argument schema before validation. The original schema remains
+  /// unchanged and all of its constraints are applied to the normalized copy.
+  ///
   /// Throws [SchemaRejection] on JSON parse failure or schema violation;
-  /// returns the decoded map on success.
+  /// returns the normalized decoded map on success.
   Map<String, dynamic> validate(String rawOutput) {
     Map<String, dynamic> decoded;
     try {
@@ -88,14 +92,125 @@ class ActionSchema {
       );
     }
 
-    final result = _validator.validate(decoded);
+    final normalized = _normalizeActionEnvelope(decoded);
+    final result = _validator.validate(normalized);
     if (!result.isValid) {
       throw SchemaRejection(
         validationError: result.errors.map((e) => e.toString()).join('; '),
         rawOutput: rawOutput,
       );
     }
-    return decoded;
+    return normalized;
+  }
+
+  Map<String, dynamic> _normalizeActionEnvelope(Map<String, dynamic> decoded) {
+    final normalized = Map<String, dynamic>.from(decoded);
+    final action = decoded['action'];
+    if (action is! Map<String, dynamic>) return normalized;
+
+    final rootProperties = jsonSchema['properties'];
+    if (rootProperties is! Map<String, dynamic>) return normalized;
+    final actionSchema = rootProperties['action'];
+    if (actionSchema is! Map<String, dynamic>) return normalized;
+    final variants = actionSchema['oneOf'];
+    if (variants is! List<dynamic>) return normalized;
+
+    final matchingVariants = variants.where((variant) {
+      if (variant is! Map<String, dynamic>) return false;
+      final properties = variant['properties'];
+      if (properties is! Map<String, dynamic>) return false;
+      final toolSchema = properties['tool'];
+      return toolSchema is Map<String, dynamic> &&
+          toolSchema['const'] == action['tool'];
+    }).toList();
+    if (matchingVariants.length != 1) return normalized;
+
+    final selected = matchingVariants.single as Map<String, dynamic>;
+    final selectedProperties = selected['properties'];
+    if (selectedProperties is! Map<String, dynamic>) return normalized;
+    final argsSchema = selectedProperties['args'];
+    if (argsSchema is! Map<String, dynamic>) return normalized;
+
+    final normalizedAction = Map<String, dynamic>.from(action);
+    if (action.containsKey('args')) {
+      normalizedAction['args'] = _normalizeSchemaValue(
+        action['args'],
+        argsSchema,
+      );
+    }
+    normalized['action'] = normalizedAction;
+    return normalized;
+  }
+
+  Object? _normalizeSchemaValue(Object? value, Map<String, dynamic> schema) {
+    if (_schemaDeclaresType(schema, 'integer')) {
+      return _coerceSchemaInteger(value) ?? value;
+    }
+    if (_schemaDeclaresType(schema, 'number')) {
+      return _coerceSchemaNumber(value) ?? value;
+    }
+
+    if (_schemaDeclaresType(schema, 'object') &&
+        value is Map<String, dynamic>) {
+      final normalized = Map<String, dynamic>.from(value);
+      final properties = schema['properties'];
+      if (properties is! Map<String, dynamic>) return normalized;
+
+      for (final entry in properties.entries) {
+        final propertySchema = entry.value;
+        if (value.containsKey(entry.key) &&
+            propertySchema is Map<String, dynamic>) {
+          normalized[entry.key] = _normalizeSchemaValue(
+            value[entry.key],
+            propertySchema,
+          );
+        }
+      }
+      return normalized;
+    }
+
+    if (_schemaDeclaresType(schema, 'array') && value is List<dynamic>) {
+      final items = schema['items'];
+      if (items is! Map<String, dynamic>) return List<dynamic>.from(value);
+      return value
+          .map((element) => _normalizeSchemaValue(element, items))
+          .toList();
+    }
+
+    return value;
+  }
+
+  bool _schemaDeclaresType(Map<String, dynamic> schema, String expected) {
+    final type = schema['type'];
+    return type == expected || type is List<dynamic> && type.contains(expected);
+  }
+
+  int? _coerceSchemaInteger(Object? value) {
+    if (value is int) return value;
+    if (value is double) {
+      if (!value.isFinite || value != value.roundToDouble()) return null;
+      return value.toInt();
+    }
+    if (value is! String) return null;
+
+    final trimmed = value.trim();
+    final integer = int.tryParse(trimmed);
+    if (integer != null) return integer;
+    final decimal = double.tryParse(trimmed);
+    if (decimal == null ||
+        !decimal.isFinite ||
+        decimal != decimal.roundToDouble()) {
+      return null;
+    }
+    return decimal.toInt();
+  }
+
+  num? _coerceSchemaNumber(Object? value) {
+    if (value is num) return value.isFinite ? value : null;
+    if (value is! String) return null;
+
+    final number = num.tryParse(value.trim());
+    return number != null && number.isFinite ? number : null;
   }
 
   @override
