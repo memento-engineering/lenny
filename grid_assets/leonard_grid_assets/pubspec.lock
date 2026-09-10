@@ -421,10 +421,10 @@ packages:
     dependency: "direct main"
     description:
       name: leonard_agent
-      sha256: "26c61af1ddbb301797cd6fb20205ddb9b7ed2bc55ddc6fc3ee56cf04a17f1467"
+      sha256: "02bd3119ae9b10d3b2885ad399bd81ebc97ebab58c2b21c4fc5f17b96e4520b4"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.1"
   leonard_cli:
     dependency: "direct main"
     description:
