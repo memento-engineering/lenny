@@ -1,3 +1,162 @@
+# Project Instructions for AI Agents
+
+This file provides instructions and context for AI coding agents working on this project.
+
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
+## Beads Issue Tracker
+
+This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+
+### Quick Reference
+
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>         # Complete work
+```
+
+### Rules
+
+- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+- Run `bd prime` for detailed command reference and session close protocol
+- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+
+**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+
+## Agent Context Profiles
+
+The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
+
+- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
+- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
+- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
+
+## Session Completion
+
+This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
+
+1. **File issues for remaining work** - Create beads for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **Handle git/sync by active profile**:
+   ```bash
+   # Conservative/minimal/default: report status and proposed commands; wait for approval.
+   git status
+
+   # Team-maintainer opt-in only, unless current instructions forbid it:
+   git pull --rebase
+   git push
+   git status
+   ```
+5. **Hand off** - Summarize changes, validation, issue status, and any blocked sync/commit/push step
+
+**Critical rules:**
+- Explicit user or orchestrator instructions override this Beads block.
+- Do not commit or push without clear authority from the active profile or the current user request.
+- If a required sync or push is blocked, stop and report the exact command and error.
+<!-- END BEADS INTEGRATION -->
+
+
+## Build & Test
+
+Install Melos (once, globally):
+
+```bash
+dart pub global activate melos
+```
+
+Then, from the repo root:
+
+```bash
+melos run test       # Run all tests (pure-Dart + Flutter; excludes perf + dogfood e2e)
+melos run analyze    # Run dart analyze on the workspace
+melos run format     # Check formatting (fails if files need changes)
+melos run test:e2e   # Run the live dogfood e2e test (see env requirements below)
+melos run            # List all available scripts with descriptions
+```
+
+### Dogfood e2e (`melos run test:e2e`)
+
+Requires two environment variables:
+
+- `SWIFT_INFER_ENDPOINT` — base URL of the swift-infer service
+- `SWIFT_INFER_AGENT_TOKEN` — bearer token
+
+The test self-skips when these are absent, so `melos run test:e2e` is safe to run locally without them — all three scenarios will be reported as skipped.
+
+### Perf tests (`leonard_devtools`)
+
+Tests tagged `perf` are excluded from `melos run test` by default (via `dart_test.yaml` in that package). To run them explicitly:
+
+```bash
+flutter test packages/leonard_devtools --tags=perf
+```
+
+## Architecture Overview
+
+Leonard lets an LLM perceive and drive a *running* Dart program over the VM
+service. Layering (low → high):
+
+- **`leonard_contract`** — pure-Dart extension contract: `LeonardExtension` /
+  `LeonardTool`, the `PerceptionExtension` mixin (`buildPerception() → Seed`),
+  `ExtensionRegistry`, and the tool-dispatch/param-decode helpers. No Flutter.
+- **Hosts** serve the `ext.leonard.*` VM-service surface (handshake,
+  `get_stable_observation`, per-tool dispatch) from a set of extensions:
+  - `leonard_flutter` (`LeonardBinding`) — the Flutter host (semantics, routes,
+    screenshot, plus extensions).
+  - `leonard_host` (`ExplorationHost`) — the pure-Dart host for any non-Flutter
+    Dart program (extensions only; no Flutter core fragment).
+- **`leonard_agent`** — the brain/harness and driver client (`LeonardSession`,
+  `VmServiceClient`, the loop); `leonard_cli` / `leonard_drive` are its CLIs. It
+  is target-agnostic — it speaks the same `ext.leonard.*` surface whether
+  the target is Flutter or pure Dart — and can attach to **multiple hosts at
+  once** (`MultiHostSession`): it merges each host's perception fragment into one
+  observation and routes each tool call to the owning host by namespace, so the
+  brain can drive a Flutter app and the `native` channel together, switching by
+  perception rather than a mode flag.
+- **Extensions** contribute tools + an observation fragment under their
+  namespace: `core` (Flutter actions), `router`/`riverpod`/`dio` (Flutter),
+  `leonard_tmux` (pure-Dart, drives an external tmux process), `leonard_native`
+  (pure-Dart, drives the OS accessibility tree via Appium/XCUITest — the
+  `native` channel that perceives and drives UI *outside* the Flutter engine,
+  e.g. the real Auth0 hosted web-login).
+
+## Conventions & Patterns
+
+### Perception is pull-free: build synchronously, watch out-of-band
+
+A perception never gathers or performs I/O at observation time.
+`buildPerception()` is a **synchronous** read of already-current in-memory
+state. Whatever is observed — Flutter widget state, a Riverpod container, an
+external process — is tracked by an **out-of-band watcher** (a listener, stream
+subscription, or poll loop) that keeps a live snapshot current. The watcher's
+async startup belongs in `initialize()` (which is `async`); the observe/build
+path stays synchronous.
+
+**Never make `buildPerception()` async.** If you're tempted to, you actually
+need a stateful watcher feeding a snapshot.
+
+Why: it keeps observation cheap, deterministic, and *uniform across hosts* — the
+same sync contract serves the Flutter binding and the pure-Dart `ExplorationHost`
+regardless of whether the source is in-memory or async I/O. Gather-on-demand
+leaks the source's latency into the observation hot path and forces every host
+and consumer to be async.
+
+Precedents:
+- `RiverpodLeonardExtension` — a `ProviderObserver` watches the container;
+  `buildPerception()` reads the live observer state (`prepareForObservation()`
+  just drains pending changes).
+- `TmuxExtension` (`leonard_tmux`) — `initialize()` subscribes to a
+  `genesis_tmux` `PollObservationSource`; `TmuxEvent`s refresh a cached
+  `TmuxObservation`; `buildPerception()` reads it sync.
+
+Canonically this is a `genesis_tree` substrate invariant — it governs every
+`Seed`/`Branch` (not just perceptions), the same way Flutter's synchronous
+`build()` binds every widget. See genesis **ADR-0006 — Pull-free build**.
+
+---
+
 # Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
