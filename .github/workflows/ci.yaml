@@ -35,8 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
+        # Pinned to the station lane's SDK: the resolved grid_assets 0.6.0 generator formats at --language-version=latest, so a floating stable reports the committed pack STALE (lenny#140). Unpin when the lock resolves a grid_assets release carrying power_station#292 (pow-10fv).
         with:
-          sdk: stable
+          sdk: 3.12.2
       - run: dart pub get
       - run: dart analyze
       - run: dart format --output=none --set-exit-if-changed .
