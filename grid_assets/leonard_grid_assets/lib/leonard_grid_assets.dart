@@ -6,6 +6,7 @@
 /// creating a second package identity.
 library;
 
+export 'src/assets/grid_asset_pack.dart';
 export 'src/e2e/e2e_capabilities.dart';
 export 'src/e2e/e2e_circuit.dart';
 export 'src/e2e/e2e_command.dart';

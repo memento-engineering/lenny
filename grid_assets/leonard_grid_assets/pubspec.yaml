@@ -25,3 +25,103 @@ dev_dependencies:
   lints: ^5.1.0
   test: ^1.25.0
   yaml: ^3.1.2
+
+grid:
+  assets:
+    - id: test-with-leonard
+      kind: skill
+      description: "Route Dart and Flutter test authoring to the cheapest proving level and load only the selected Leonard reference."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/SKILL.md
+
+    - id: plain-dart-flutter
+      kind: resource
+      description: "Level 0 reference for tests that prove behavior without Leonard live driving."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/plain-dart-flutter.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/plain-dart-flutter.md
+
+    - id: widget
+      kind: resource
+      description: "Level 1 reference for testing Leonard extensions and observations without a device."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/widget.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/widget.md
+
+    - id: scripted-device
+      kind: resource
+      description: "Level 2 reference for scripted tests against a simulator or emulator."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/scripted-device.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/scripted-device.md
+
+    - id: hardware
+      kind: resource
+      description: "Level 3 reference for tests whose behavior exists only on physical hardware."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/hardware.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/hardware.md
+
+    - id: oracle
+      kind: resource
+      description: "Level 4 reference for scenarios graded by an independent oracle."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/oracle.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/oracle.md
+
+    - id: mutation
+      kind: resource
+      description: "Reference for improving assertion quality through mutation testing."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/mutation.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/mutation.md
+
+    - id: triage
+      kind: resource
+      description: "Reference for diagnosing a failed Leonard test run."
+      audience: agent
+      visibility: public
+      selector: any
+      artifacts:
+        - target: claude
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/triage.md
+        - target: mcp
+          path: extension/station_overlay/claude/skills/test-with-leonard/references/triage.md
+
+  station_overlay:
+    mappings:
+      claude: .claude
