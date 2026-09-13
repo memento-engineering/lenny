@@ -1,3 +1,8 @@
+---
+name: hardware
+description: "Prove behavior on physical hardware"
+---
+
 # Prove behavior on physical hardware
 
 Level 3 is a manual runbook; no automated lane runs level 3. The automated device suites use a simulator or emulator, while a human follows this reference on attached hardware. The router makes that distinction and sends independent judgment onward (`grid_assets/leonard_grid_assets/extension/station_overlay/claude/skills/test-with-leonard/SKILL.md:19-21`, `grid_assets/leonard_grid_assets/extension/station_overlay/claude/skills/test-with-leonard/SKILL.md:32-34`).

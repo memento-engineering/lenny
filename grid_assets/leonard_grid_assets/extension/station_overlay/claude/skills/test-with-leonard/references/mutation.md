@@ -1,3 +1,8 @@
+---
+name: mutation
+description: "Write tests that kill mutants"
+---
+
 # Write tests that kill mutants
 
 Use this reference while writing or reviewing tests when coverage exists but its quality is in question. Lint owns statically decidable patterns such as constructor echo-backs, type-only instantiation checks, and data-only `copyWith` checks. This reference owns the judgement question: does the precondition actually drive the assertion?

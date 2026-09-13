@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0-rc.3
+
+- Floors `grid_assets` to `^0.7.0-dev.1` so lunar's closure (which floors
+  `grid_assets` transitively through `space_station_assets` 0.5.0-dev.2)
+  resolves override-free (lenny-hbce). No other `grid_*` floor moves — the
+  0.7.0-dev.1 wave still resolves against this package's existing
+  `grid_engine`/`grid_runtime`/`grid_sdk`/`beads_dart` floors.
 - Add a typed live-device E2E service, one JSON-emitting `e2e` Command, the
   four-scenario sample-app composition, and the four-step `leonard-e2e`
   circuit to the existing pack registry and manifest.

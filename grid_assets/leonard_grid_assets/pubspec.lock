@@ -157,10 +157,10 @@ packages:
     dependency: transitive
     description:
       name: dart_grid_assets
-      sha256: "9e752153bb619f5be2f6b8c367869f00b70d557d06d624d758c90b20d6249f15"
+      sha256: "07e3074367c1d5eba74ade26ca582977b0830b7082e1c009a1ba844bbb590e15"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.2.1-dev.1"
   dart_style:
     dependency: transitive
     description:
@@ -301,10 +301,10 @@ packages:
     dependency: "direct main"
     description:
       name: grid_assets
-      sha256: a8e2f851ee9223d8539f3fa04de5c444bbb131962aa9e870dc5001f41d0958c0
+      sha256: "8026063d08c490e74601e1da927c950a361b8f809ef3e12dc732b4e4992ffa18"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.0"
+    version: "0.7.0-dev.1"
   grid_engine:
     dependency: "direct main"
     description:

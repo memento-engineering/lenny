@@ -1,3 +1,8 @@
+---
+name: widget
+description: "Test lenny extensions without a device"
+---
+
 # Test lenny extensions without a device
 
 Use plain `test()` cases so `LeonardBinding` installs before any Flutter test binding, then import `package:leonard_flutter_test/leonard_flutter_test.dart` and install `BindingVmServiceFake` to drive the binding in process. A tree-consuming extension can use the offline `BuildOwner` plus `RootWidget.attach` root-provider seam demonstrated at `packages/leonard_flutter/example/diagnostic_fixture/test/diagnostic_fixture_test.dart:15-22` and `packages/leonard_flutter/example/diagnostic_fixture/test/diagnostic_fixture_test.dart:44-68`.
