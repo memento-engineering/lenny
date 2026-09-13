@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0-rc.4
+
+- Untrack the package pubspec.lock (checked in while gitignored, which pub publish refuses); no source change.
+
 ## 0.1.0-rc.3
 
 - Floors `grid_assets` to `^0.7.0-dev.1` so lunar's closure (which floors
