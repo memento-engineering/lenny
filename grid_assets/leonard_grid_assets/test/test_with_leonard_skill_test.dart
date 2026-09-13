@@ -210,9 +210,11 @@ description: >
         'Content for this reference is not written yet; tracked by epic '
         'lenny-kgvz.\n';
     for (final String name in stubNames) {
-      final String contents = File(
-        p.join(referencesRoot, name),
-      ).readAsStringSync();
+      // A vended overlay .md must open on YAML frontmatter (the overlay stamps
+      // provenance inside it); the stub is the BODY below that block.
+      final String contents = File(p.join(referencesRoot, name))
+          .readAsStringSync()
+          .replaceFirst(RegExp(r'^---\n[\s\S]*?\n---\n\n?'), '');
       expect(contents, stub, reason: name);
       expect(
         RegExp(
