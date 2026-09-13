@@ -1,3 +1,8 @@
+---
+name: oracle
+description: "Grade a gauntlet run independently"
+---
+
 # Grade a gauntlet run independently
 
 Level 4 adds a separate grader after a live drive when the question is whether the agent reached the goal. `GauntletLiveHarness` is the gauntlet entrypoint (`packages/leonard_flutter/example/sample_app/test/gauntlet/gauntlet_live_harness.dart:100-164`). Use it only after the cheaper proving levels in `grid_assets/leonard_grid_assets/extension/station_overlay/claude/skills/test-with-leonard/SKILL.md:13-21` cannot answer that question.

@@ -1,3 +1,8 @@
+---
+name: triage
+description: "Triage a failed Leonard E2E run"
+---
+
 # Triage a failed Leonard E2E run
 
 Begin with the `e2e` Command's structured JSON. Read `status`,

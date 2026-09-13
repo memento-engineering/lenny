@@ -1,3 +1,8 @@
+---
+name: plain-dart-flutter
+description: "Prove it before launching an app"
+---
+
 # Prove it before launching an app
 
 Level 0 is the default when static checks or hermetic Dart and Flutter tests can distinguish the correct program from a named breaking change. Keep the proof here when it needs no running app. Run every command from the repository root.
