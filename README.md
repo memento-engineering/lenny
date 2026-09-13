@@ -215,7 +215,7 @@ Where it's headed: [`docs/leonard_prd_v0.5.md`](docs/leonard_prd_v0.5.md).
 - [How Leonard works](docs/how-leonard-works.md) — an illustrated tour of the loop and the extension contract.
 - [Extension authoring guide](docs/extension_authoring_guide.md) — write an extension for your stack.
 - [PRD v0.5](docs/leonard_prd_v0.5.md) — the full design rationale.
-- [Architecture decision records](docs/adrs) — the decisions and why.
+- [Decision register](docs/decisions) — the decisions and why.
 
 ## License
 

@@ -1,6 +1,6 @@
 # Community overlap: Dart-team "Packaged AI Assets" vs. lenny's consumer agent assets
 
-**Date:** 2026-06-16 · **Status:** finding + what-we-shipped — direction confirmed with Nico (2026-06-16). This is **not** an autonomous register entry: the call was made together, so it does not belong in `docs/adrs/0000` (the AI-decision register). This doc + the spike bead carry it. Sibling of the Genkit (A3, `community-overlap-genkit.md`) and Dart-team-plumbing (A2) overlap analyses.
+**Date:** 2026-06-16 · **Status:** finding + what-we-shipped — direction confirmed with Nico (2026-06-16). This is **not** an autonomous register entry: the call was made together, so it does not belong in the [decision register](../decisions) (the AI-decision entries). This doc + the spike bead carry it. Sibling of the Genkit (A3, `community-overlap-genkit.md`) and Dart-team-plumbing (A2) overlap analyses.
 
 Triggered by Nico pointing at the Dart-team **"Packaged AI Assets"** proposal
 ([Google Doc](https://docs.google.com/document/d/1k_X-Sp4GQyZP6k9lvZ1Itj0GvzQZuWl3iKzi5AIa69Q/edit)),
