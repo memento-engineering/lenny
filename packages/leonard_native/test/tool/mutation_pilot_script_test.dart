@@ -78,6 +78,7 @@ fi
 if [[ "${1:-}" == run ]]; then
   [[ " $* " == *" --format all "* ]] && exit "${MUTATION_EXIT:-0}"
   echo "Found 3 mutations"
+  [[ " $* " == *" --dry --format none "* ]] && exit "${DRY_EXIT:-0}"
   exit 0
 fi
 exit 70
@@ -191,6 +192,30 @@ exit 70
       0,
     );
     expect(log.readAsLinesSync().first, endsWith('lib/a.dart'));
+  });
+
+  test('pure Dart nightly packages accept counted dry failure', () async {
+    for (final String packageName in <String>[
+      'leonard_contract',
+      'leonard_native',
+    ]) {
+      log.writeAsStringSync('');
+      final ProcessResult result = await run(
+        <String>['full', packageName],
+        env: <String, String>{...environment, 'DRY_EXIT': '1'},
+      );
+      expect(
+        result.exitCode,
+        0,
+        reason: '$packageName: ${result.stdout}\n${result.stderr}',
+      );
+      expect(result.stdout, contains('Found 3 mutations'));
+      final List<String> calls = log.readAsLinesSync();
+      expect(calls, hasLength(3), reason: packageName);
+      expect(calls[0], contains('--dry --format none'));
+      expect(calls[1], 'dart test');
+      expect(calls[2], contains('--format all'));
+    }
   });
 
   test('test impact routes selected files only through pure Dart', () async {
