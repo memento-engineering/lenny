@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0-rc.5
+
+- Admit the 2026-09-13 the_grid dev.3 wave so lunar's closure resolves
+  override-free (lenny-8lf9): floors `grid_sdk`/`grid_engine` at
+  `^0.4.0-dev.3`, `genesis_tree` at `^0.4.0`, `grid_runtime` at
+  `^0.2.1-dev.2`, `grid_assets` at `^0.7.0-dev.2`, and `beads_dart` at
+  `^0.3.0-dev.2`. No source change; `dart analyze` and the package suite
+  pass unmodified against the resolved wave.
+
 ## 0.1.0-rc.4
 
 - Untrack the package pubspec.lock (checked in while gitignored, which pub publish refuses); no source change.
