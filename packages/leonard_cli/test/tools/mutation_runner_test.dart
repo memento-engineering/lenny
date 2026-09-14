@@ -323,66 +323,68 @@ exit 70
     expect(log.readAsLinesSync()[2], endsWith('lib/a.dart lib/b.dart'));
   });
 
-  test(
-    'test-impact passes selective and fallback XML in both phases',
-    () async {
-      final ProcessResult result = await run(<String>[
-        'full',
-        package.path,
-        '--test-impact',
-        '--',
-        'lib/imported.dart',
+  test('test-impact passes selective and fallback XML in both phases', () async {
+    final ProcessResult result = await run(<String>[
+      'full',
+      package.path,
+      '--test-impact',
+      '--',
+      'lib/imported.dart',
+      'lib/unimported.dart',
+      'lib/barrel.dart',
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+
+    final List<String> mutationCalls = log
+        .readAsLinesSync()
+        .where((String call) => call.startsWith('run mutation_test '))
+        .toList();
+    expect(mutationCalls, hasLength(2));
+    for (final String call in mutationCalls) {
+      expect(call, isNot(contains(' lib/imported.dart')));
+      expect(call, isNot(contains(' lib/unimported.dart')));
+      expect(call, isNot(contains(' lib/barrel.dart')));
+      expect(RegExp(r'\.xml($| )').allMatches(call), hasLength(4));
+    }
+
+    for (final String phase in <String>['dry', 'full']) {
+      final Directory impact = Directory('${output(phase)}/test-impact');
+      final List<File> documents = impact.listSync().whereType<File>().toList()
+        ..sort((File left, File right) => left.path.compareTo(right.path));
+      expect(documents, hasLength(3));
+      final Map<String, String> bySource = <String, String>{
+        for (final File document in documents)
+          RegExp(
+            r'<file>([^<]+)</file>',
+          ).firstMatch(document.readAsStringSync())!.group(1)!: document
+              .readAsStringSync(),
+      };
+      expect(
+        bySource['lib/imported.dart'],
+        contains(
+          'working-directory=".">dart test test/importing_test.dart</command>',
+        ),
+      );
+      expect(bySource['lib/imported.dart'], isNot(contains('&apos;')));
+      for (final String fallback in <String>[
         'lib/unimported.dart',
         'lib/barrel.dart',
-      ]);
-      expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
-
-      final List<String> mutationCalls = log
-          .readAsLinesSync()
-          .where((String call) => call.startsWith('run mutation_test '))
-          .toList();
-      expect(mutationCalls, hasLength(2));
-      for (final String call in mutationCalls) {
-        expect(call, isNot(contains(' lib/imported.dart')));
-        expect(call, isNot(contains(' lib/unimported.dart')));
-        expect(call, isNot(contains(' lib/barrel.dart')));
-        expect(RegExp(r'\.xml($| )').allMatches(call), hasLength(4));
-      }
-
-      for (final String phase in <String>['dry', 'full']) {
-        final Directory impact = Directory('${output(phase)}/test-impact');
-        final List<File> documents =
-            impact.listSync().whereType<File>().toList()..sort(
-              (File left, File right) => left.path.compareTo(right.path),
-            );
-        expect(documents, hasLength(3));
-        final Map<String, String> bySource = <String, String>{
-          for (final File document in documents)
-            RegExp(
-              r'<file>([^<]+)</file>',
-            ).firstMatch(document.readAsStringSync())!.group(1)!: document
-                .readAsStringSync(),
-        };
+      ]) {
         expect(
-          bySource['lib/imported.dart'],
-          contains('dart test &apos;test/importing_test.dart&apos;'),
-        );
-        for (final String fallback in <String>[
-          'lib/unimported.dart',
-          'lib/barrel.dart',
-        ]) {
-          expect(
-            bySource[fallback],
-            contains('working-directory=".">dart test</command>'),
-          );
-        }
-        expect(
-          File('${output(phase)}/command_rules.xml').readAsStringSync(),
-          isNot(contains('<commands>')),
+          bySource[fallback],
+          contains('working-directory=".">dart test</command>'),
         );
       }
-    },
-  );
+      expect(
+        File('${output(phase)}/command_rules.xml').readAsStringSync(),
+        isNot(contains('<commands>')),
+      );
+    }
+    expect(
+      File('${output('full')}/mutation-test-report.md').existsSync(),
+      isTrue,
+    );
+  });
 
   test('test-impact input failures happen before artifacts', () async {
     final ProcessResult noSources = await run(<String>[

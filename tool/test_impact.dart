@@ -92,7 +92,7 @@ List<String> _generate(List<String> arguments) {
           ..sort();
     final String command = impactedTests.isEmpty
         ? 'dart test'
-        : 'dart test ${impactedTests.map(_posixQuote).join(' ')}';
+        : 'dart test ${impactedTests.join(' ')}';
     final String sanitized = source.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '-');
     final String documentName =
         '${index.toString().padLeft(3, '0')}-$sanitized.xml';
@@ -147,8 +147,6 @@ List<String> _findTests(Directory packageDirectory) {
   tests.sort();
   return tests;
 }
-
-String _posixQuote(String value) => "'${value.replaceAll("'", "'\"'\"'")}'";
 
 String _xmlEscape(String value) => value
     .replaceAll('&', '&amp;')
