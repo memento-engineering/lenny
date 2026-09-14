@@ -61,15 +61,24 @@ void main() {
           .singleWhere((String xml) => xml.contains('<file>$source</file>'));
 
       final String base = document('lib/base.dart');
-      expect(base, contains('dart test &apos;test/diamond_test.dart&apos;'));
+      expect(
+        base,
+        contains(
+          'working-directory=".">dart test test/diamond_test.dart</command>',
+        ),
+      );
+      expect(base, isNot(contains('&apos;')));
       expect(RegExp('test/diamond_test.dart').allMatches(base), hasLength(1));
       expect(base, isNot(contains('unrelated_test.dart')));
 
       final String unrelated = document('lib/unrelated.dart');
       expect(
         unrelated,
-        contains('dart test &apos;test/unrelated_test.dart&apos;'),
+        contains(
+          'working-directory=".">dart test test/unrelated_test.dart</command>',
+        ),
       );
+      expect(unrelated, isNot(contains('&apos;')));
       expect(unrelated, isNot(contains('diamond_test.dart')));
 
       for (final String source in <String>[
