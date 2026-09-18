@@ -1,15 +1,19 @@
 /// VM-service host: serves the stateful `native` Leonard extension over
 /// `ext.leonard.*` so an external driver (`leonard_cli` / `leonard_drive`)
-/// can perceive and drive a native mobile app live — the same surface the
+/// can perceive and drive a native app live — the same surface the
 /// Flutter binding and the tmux host expose, but for a native target.
 ///
 /// Run with the VM service enabled against an ALREADY-RUNNING Appium server and
-/// an ALREADY-BOOTED iOS simulator or Android emulator (this host boots
-/// neither), then point a driver at the printed ws URI:
+/// an ALREADY-BOOTED iOS simulator, Android emulator, or running macOS app
+/// (this host starts none of them), then point a driver at the printed ws URI:
 ///
 ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
 ///     bin/leonard_native_host.dart --udid DEVICE_UDID --app /path/to/app \
 ///     [--platform ios|android] [--platform-version 13]
+///
+///   dart run --enable-vm-service=0 --disable-service-auth-codes \
+///     bin/leonard_native_host.dart --platform darwin \
+///     --bundle-id com.example.Runner
 ///
 /// Prints `LEONARD_HOST_READY` once installed. SIGTERM/SIGINT dispose the
 /// extension (cancelling the watcher + tearing down the device session) and
@@ -31,28 +35,26 @@ import 'package:leonard_native/leonard_native.dart';
 
 Future<void> main(List<String> args) async {
   final Map<String, String> o = _parseArgs(args);
-  final String? udid = o['udid'];
-  final String? app = o['app'];
-  if (udid == null || app == null) {
-    stderr.writeln(
-      'usage: leonard_native_host --udid <sim-udid> '
-      '--app <path-to-.app|.apk> [--server <url>] [--platform ios|android] '
-      '[--platform-version <version>]',
-    );
-    exit(64);
-  }
 
   final NativeBackend backend;
   try {
     backend = backendForPlatform(
       platform: o['platform'] ?? 'ios',
       server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
-      udid: udid,
-      app: app,
+      udid: o['udid'],
+      app: o['app'],
+      bundleId: o['bundle-id'],
       platformVersion: o['platform-version'],
     );
   } on ArgumentError catch (e) {
     stderr.writeln('error: ${e.message}');
+    stderr.writeln(
+      'usage: leonard_native_host --platform <ios|android> --udid <id> '
+      '--app <path-or-package> [--platform-version <version>] '
+      '[--server <url>]\n'
+      '   or: leonard_native_host --platform darwin '
+      '--bundle-id <bundle-id> [--server <url>]',
+    );
     exit(64);
   }
   final NativeExtension ext = NativeExtension(backend);

@@ -19,8 +19,8 @@ import 'package:meta/meta.dart';
 class NativeNode {
   /// Records one perceived node. [id]/[role]/[rect] are always present; the
   /// rest are optional. [a11yId] is the OS accessibility identifier — used as
-  /// resolver tier 2 on Android / tier 1 on iOS AND surfaced on the wire as
-  /// `identifier` (the stable,
+  /// resolver tier 2 on Android / tier 1 on iOS and macOS AND surfaced on the
+  /// wire as `identifier` (the stable,
   /// locale-proof addressing key, mirroring Flutter's `Semantics(identifier:)`).
   /// [xpath] stays selector-internal (never wired).
   const NativeNode({
@@ -52,29 +52,29 @@ class NativeNode {
   /// `[left, top, right, bottom]` device-space ints.
   final List<int> rect;
 
-  /// Carried for schema parity with Flutter; empty in m2 iOS.
+  /// Carried for schema parity with Flutter; empty in the Appium backends.
   final List<String> state;
 
-  /// Available actions (best-effort; may be empty in m2 iOS).
+  /// Available actions (best-effort; may be empty in the Appium backends).
   final List<String> actions;
 
-  /// Carried for schema parity with Flutter; null in m2 iOS.
+  /// Carried for schema parity with Flutter; null in the Appium backends.
   final Map<String, Object?>? scroll;
 
   /// Raw OS accessibility identifier — selector tier 2 on Android / tier 1 on
-  /// iOS, and the source of the
+  /// iOS and macOS, and the source of the
   /// wire `identifier` field ([toRecord]). On iOS this is what
   /// `Semantics(identifier:)` lowers to, giving the brain the same stable,
   /// locale-proof addressing key on the native channel as on Flutter.
   final String? a11yId;
 
   /// Node's synthesized/derived XPath — selector tier 4 on Android / tier 3 on
-  /// iOS.
+  /// iOS and macOS.
   final String? xpath;
 
   /// Android `resource-id` (e.g. `com.android.chrome:id/bottom_sheet`), or null
-  /// — on iOS always null, since XCUITest has no analogue (its `identifier` is
-  /// already carried by [a11yId]).
+  /// — on Apple platforms always null, since XCTest has no analogue (its
+  /// `identifier` is already carried by [a11yId]).
   ///
   /// Like [xpath] this is IN-MEMORY ONLY and deliberately absent from
   /// [toRecord]: that record is the canonical cross-host schema and must stay
@@ -116,11 +116,11 @@ class NativeNode {
 /// A point-in-time snapshot of the native app's flattened a11y tree.
 @immutable
 class NativeSnapshot {
-  /// Records the [platform] (`ios`/`android`) and the flattened [nodes] in
-  /// document order.
+  /// Records the [platform] (`ios`/`android`/`darwin`) and the flattened
+  /// [nodes] in document order.
   const NativeSnapshot({required this.platform, required this.nodes});
 
-  /// `ios` | `android`.
+  /// `ios` | `android` | `darwin`.
   final String platform;
 
   /// Flattened a11y tree, in document order.

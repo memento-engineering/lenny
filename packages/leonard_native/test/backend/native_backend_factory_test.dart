@@ -1,6 +1,6 @@
 /// UNIT: locks the `--platform` wiring the host runner depends on — that
-/// `android` selects the UiAutomator2 impl, `ios` selects the XCUITest impl,
-/// and an unknown platform fails LOUD instead of silently defaulting to iOS
+/// `android` selects UiAutomator2, `ios` selects XCUITest, `darwin` selects
+/// Mac2, and an unknown platform fails LOUD instead of silently defaulting
 /// (which would parse an Android tree with an XCUITest parser and observe
 /// nothing).
 library;
@@ -47,11 +47,72 @@ void main() {
     b.close();
   });
 
+  test('darwin -> bundle-targeted Mac2Backend', () {
+    final Uri server = Uri.parse('http://127.0.0.1:4998');
+    final NativeBackend backend = backendForPlatform(
+      platform: 'darwin',
+      bundleId: 'com.nicospencer.butaneHarness',
+      server: server,
+    );
+    expect(backend, isA<Mac2Backend>());
+    expect((backend as Mac2Backend).bundleId, 'com.nicospencer.butaneHarness');
+    expect(backend.server, server);
+    backend.close();
+  });
+
+  for (final String platform in <String>['ios', 'android']) {
+    for (final String target in <String>['udid', 'app']) {
+      for (final String? missing in <String?>[null, '']) {
+        test('$platform rejects ${missing == null ? 'missing' : 'empty'} '
+            '$target', () {
+          expect(
+            () => backendForPlatform(
+              platform: platform,
+              udid: target == 'udid' ? missing : 'DEVICE',
+              app: target == 'app' ? missing : '/x/app',
+            ),
+            throwsA(
+              isA<ArgumentError>().having(
+                (ArgumentError error) => error.name,
+                'name',
+                target,
+              ),
+            ),
+          );
+        });
+      }
+    }
+  }
+
+  for (final String? bundleId in <String?>[null, '']) {
+    test(
+      'darwin rejects ${bundleId == null ? 'missing' : 'empty'} bundleId',
+      () {
+        expect(
+          () => backendForPlatform(platform: 'darwin', bundleId: bundleId),
+          throwsA(
+            isA<ArgumentError>().having(
+              (ArgumentError error) => error.name,
+              'name',
+              'bundleId',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   test('an unknown platform throws ArgumentError (LOUD, no iOS fallback)', () {
     expect(
       () =>
           backendForPlatform(platform: 'windows', udid: 'W', app: '/x/app.exe'),
-      throwsA(isA<ArgumentError>()),
+      throwsA(
+        isA<ArgumentError>().having(
+          (ArgumentError error) => error.message.toString(),
+          'message',
+          allOf(contains('ios'), contains('android'), contains('darwin')),
+        ),
+      ),
     );
   });
 

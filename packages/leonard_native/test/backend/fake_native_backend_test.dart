@@ -76,6 +76,15 @@ void main() {
     expect(await backend.snapshot(), same(_snapshot));
   });
 
+  test('darwin default snapshot inherits the fake platform', () async {
+    final FakeNativeBackend backend = FakeNativeBackend(platform: 'darwin');
+    addTearDown(backend.close);
+
+    final NativeSnapshot snapshot = await backend.snapshot();
+    expect(snapshot.platform, 'darwin');
+    expect(snapshot.nodes, isEmpty);
+  });
+
   test('scripts enterText after recording the call', () async {
     final FakeNativeBackend backend = FakeNativeBackend();
     const NativeTarget target = NativeTarget(elementId: 'E', via: 'xpath');
@@ -145,6 +154,16 @@ void main() {
         _snapshot,
       );
       expect(ios?.via, 'a11y-id');
+
+      final FakeNativeBackend darwinBackend = FakeNativeBackend(
+        platform: 'darwin',
+      );
+      addTearDown(darwinBackend.close);
+      final NativeTarget? darwin = await darwinBackend.resolve(
+        const NativeSelector(resourceId: 'android:id/button1', a11yId: 'login'),
+        _snapshot,
+      );
+      expect(darwin?.via, 'a11y-id');
 
       final NativeTarget? a11y = await backend.resolve(
         const NativeSelector(

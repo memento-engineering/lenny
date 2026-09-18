@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AppiumAUT>
+  <XCUIElementTypeApplication type="XCUIElementTypeApplication" x="0" y="0" width="1512" height="982">
+    <XCUIElementTypeWindow type="XCUIElementTypeWindow" x="240" y="120" width="900" height="700">
+      <XCUIElementTypeStaticText type="XCUIElementTypeStaticText" identifier="central-title" label="Central" title="Central" x="284.2" y="164.4" width="120.4" height="28.2"/>
+      <XCUIElementTypeButton type="XCUIElementTypeButton" identifier="connect-button" label="Connect" title="Connect" x="284" y="220" width="96" height="36"/>
+      <XCUIElementTypeTextField type="XCUIElementTypeTextField" identifier="endpoint" label="Endpoint" value="http://127.0.0.1:8080" x="284" y="280" width="420" height="30"/>
+      <XCUIElementTypeImage type="XCUIElementTypeImage" x="720" y="160" width="32" height="32"/>
+    </XCUIElementTypeWindow>
+  </XCUIElementTypeApplication>
+  <XCUIElementTypeApplication type="XCUIElementTypeApplication" x="0" y="0" width="1512" height="982">
+    <XCUIElementTypeWindow type="XCUIElementTypeWindow" x="420" y="260" width="672" height="300">
+      <XCUIElementTypeSheet type="XCUIElementTypeSheet" title="System alert" x="420" y="260" width="672" height="300">
+        <XCUIElementTypeStaticText type="XCUIElementTypeStaticText" label="Butane would like to use Bluetooth" x="460" y="304" width="590" height="50"/>
+        <XCUIElementTypeButton type="XCUIElementTypeButton" identifier="permission-deny" label="Don't Allow" x="690" y="486" width="120" height="34"/>
+        <XCUIElementTypeButton type="XCUIElementTypeButton" identifier="permission-allow" label="Allow" x="830" y="486" width="120" height="34"/>
+      </XCUIElementTypeSheet>
+    </XCUIElementTypeWindow>
+  </XCUIElementTypeApplication>
+</AppiumAUT>

@@ -44,4 +44,58 @@ void main() {
       );
     });
   });
+
+  group('mac2AttachCapabilities', () {
+    test('owns the bundle-targeted attach and teardown lifecycle', () {
+      final Map<String, Object?> capabilities = mac2AttachCapabilities(
+        bundleId: 'com.nicospencer.butaneHarness',
+        extraCapabilities: const <String, Object?>{
+          'appium:showServerLogs': true,
+        },
+      );
+
+      expect(capabilities, <String, Object?>{
+        'platformName': 'mac',
+        'appium:automationName': 'Mac2',
+        'appium:bundleId': 'com.nicospencer.butaneHarness',
+        'appium:noReset': true,
+        'appium:skipAppKill': true,
+        'appium:showServerLogs': true,
+      });
+      expect(
+        () => capabilities['appium:showServerLogs'] = false,
+        throwsUnsupportedError,
+      );
+    });
+
+    for (final String key in <String>[
+      'appium:skipAppKill',
+      'skipAppKill',
+      'appium:appPath',
+      'appPath',
+    ]) {
+      test('rejects attach-critical $key', () {
+        expect(
+          () => mac2AttachCapabilities(
+            bundleId: 'com.nicospencer.butaneHarness',
+            extraCapabilities: <String, Object?>{key: false},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (ArgumentError error) => error.message.toString(),
+              'message',
+              contains(key),
+            ),
+          ),
+        );
+      });
+    }
+
+    test('rejects an empty bundle id', () {
+      expect(
+        () => mac2AttachCapabilities(bundleId: '  '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+  });
 }
