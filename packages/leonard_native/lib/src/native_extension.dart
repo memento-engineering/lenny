@@ -1,4 +1,4 @@
-/// The Leonard *contract* extension for a native mobile app.
+/// The Leonard *contract* extension for a native app.
 ///
 /// A stateful, self-watching extension — the same shape as `TmuxExtension` and
 /// the Flutter reference extensions: [initialize] connects the [NativeBackend]
@@ -101,6 +101,7 @@ class NativeExtension extends LeonardExtension with PerceptionExtension {
   /// Shared selector resolution: builds a [NativeSelector] from the tool args
   /// and delegates to [NativeBackend.resolve], which walks the chain
   /// resource-id (Android only) -> a11y-id -> label -> xpath -> rect-center.
+  /// iOS and macOS begin at a11y-id.
   Future<NativeTarget?> resolveTarget(Map<String, Object?> args) {
     final NativeSelector sel = NativeSelector(
       resourceId: args['resource-id'] as String?,
@@ -117,27 +118,28 @@ class NativeExtension extends LeonardExtension with PerceptionExtension {
 const Map<String, Object?> _selectorProps = <String, Object?>{
   'resource-id': <String, Object?>{
     'type': 'string',
-    'description': 'Android resource-id (tier 1; skipped on iOS)',
+    'description': 'Android resource-id (tier 1; skipped on iOS and macOS)',
   },
   'id': <String, Object?>{
     'type': 'string',
-    'description': 'a11y identifier (Android tier 2; iOS tier 1)',
+    'description': 'a11y identifier (Android tier 2; iOS/macOS tier 1)',
   },
   'label': <String, Object?>{
     'type': 'string',
-    'description': 'visible label (Android tier 3; iOS tier 2)',
+    'description': 'visible label (Android tier 3; iOS/macOS tier 2)',
   },
   'xpath': <String, Object?>{
     'type': 'string',
     'description':
         "XPath, e.g. //XCUIElementTypeTextField[@name='Email address'] "
-        '(Android tier 4; iOS tier 3)',
+        '(Android tier 4; iOS/macOS tier 3)',
   },
   'rect': <String, Object?>{
     'type': 'array',
     'items': <String, Object?>{'type': 'integer'},
     'description':
-        '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, last resort)',
+        '[l,t,r,b]; taps the center '
+        '(Android tier 5; iOS/macOS tier 4, last resort)',
   },
 };
 
@@ -188,7 +190,8 @@ class _EnterTextTool extends LeonardTool {
 
   @override
   String get description =>
-      'Clear and type text into a native field, then dismiss the keyboard. '
+      'Clear and type text into a native field. Mobile backends dismiss the '
+      'keyboard when supported. '
       'Returns the element-type-derived `masked` flag and the `readback` '
       'value (a secure field reads back masked bullets, never plaintext).';
 
@@ -263,7 +266,7 @@ class _PressTool extends LeonardTool {
 
   @override
   String get description =>
-      'Issue a logical key press. Shared by iOS and Android: '
+      'Issue a logical key press. Shared by iOS, Android, and macOS: '
       'enter/return/done. iOS-only: consent_accept/alert_dismiss '
       '(consent_accept accepts the iOS sign-in consent alert; alert_dismiss '
       'dismisses an iOS system alert, e.g. the Save Password '

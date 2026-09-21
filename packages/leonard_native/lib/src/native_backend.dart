@@ -3,8 +3,8 @@
 /// round-trips, a11y-tree polling) lives behind it; the extension never
 /// touches the device directly.
 ///
-/// `XcuiTestBackend` (iOS) and `UiAutomator2Backend` (Android) are the
-/// concrete impls; `FakeNativeBackend` is the test impl.
+/// `XcuiTestBackend` (iOS), `UiAutomator2Backend` (Android), and `Mac2Backend`
+/// (macOS) are the concrete impls; `FakeNativeBackend` is the test impl.
 library;
 
 import 'package:meta/meta.dart';
@@ -62,7 +62,7 @@ class NativeSelector {
         '/ancestor-or-self::*[@clickable="true"][1]',
   );
 
-  /// Android tier 1: exact `resource-id`. Skipped on iOS.
+  /// Android tier 1: exact `resource-id`. Skipped on iOS and macOS.
   ///
   /// The a11y tree carries TWO kinds of `resource-id`, and they resolve
   /// differently (measured on a Pixel 7a / Android 16 / Chrome 150, Appium
@@ -81,16 +81,18 @@ class NativeSelector {
   /// a genuine miss and does NOT fall through.
   final String? resourceId;
 
-  /// Android tier 2 / iOS tier 1: a11y identifier.
+  /// Android tier 2 / iOS and macOS tier 1: a11y identifier.
   final String? a11yId;
 
-  /// Android tier 3 / iOS tier 2: visible label (matched against `node.label`).
+  /// Android tier 3 / iOS and macOS tier 2: visible label (matched against
+  /// `node.label`).
   final String? label;
 
-  /// Android tier 4 / iOS tier 3: XPath (load-bearing for anonymous fields).
+  /// Android tier 4 / iOS and macOS tier 3: XPath (load-bearing for anonymous
+  /// fields).
   final String? xpath;
 
-  /// Android tier 5 / iOS tier 4: `[l,t,r,b]`; tap at its center.
+  /// Android tier 5 / iOS and macOS tier 4: `[l,t,r,b]`; tap at its center.
   final List<int>? rect;
 }
 
@@ -225,23 +227,23 @@ class NativeException implements Exception {
   String toString() => 'NativeException: $message';
 }
 
-/// The seam the watcher drives and the tools act through. `XcuiTestBackend` is
-/// the first impl; `FakeNativeBackend` is the test impl. Per-platform behavior
-/// (iOS ASWebAuthenticationSession consent, iOS Done vs Android back keyboard
-/// dismiss, iOS-vs-Android readback attribute) lives INSIDE the impl, never in
-/// the extension/tools.
+/// The seam the watcher drives and the tools act through. Appium backends
+/// implement iOS, Android, and macOS; `FakeNativeBackend` is the test impl.
+/// Per-platform behavior (iOS ASWebAuthenticationSession consent, mobile
+/// keyboard dismissal, macOS key injection, readback attributes) lives INSIDE
+/// the impl, never in the extension/tools.
 ///
 /// Recognized [press] keys are platform-specific and documented on the impl,
-/// NOT enforced by an allowlist on the tool. The shared iOS/Android set is
+/// NOT enforced by an allowlist on the tool. All three platforms recognize
 /// `enter`/`return`/`done`; the iOS-only set is
 /// `consent_accept`/`alert_dismiss`; the Android-only set is `back`, the
 /// internal `dismiss_overlay` recovery action, and
 /// `permission_allow`/`permission_deny`. An unrecognized key surfaces as a
 /// [NativeException] from the impl.
 abstract class NativeBackend {
-  /// Open the device session against an ALREADY-RUNNING Appium server and an
-  /// ALREADY-BOOTED simulator. The backend does NOT spawn Appium or boot the
-  /// sim (that lifecycle is m4). Idempotent.
+  /// Open the session against an ALREADY-RUNNING Appium server and target. The
+  /// backend does NOT spawn Appium, boot a simulator, or launch helper
+  /// processes. Idempotent.
   ///
   /// [extraCapabilities] are merged over orthogonal Appium defaults when a new
   /// session is created. Attach-critical capabilities are rejected with
@@ -251,7 +253,7 @@ abstract class NativeBackend {
   });
 
   /// Out-of-band poll loop: emits a fresh [NativeSnapshot] each tick (reading
-  /// `/source` for Appium, parsing the XCUITest XML). This is the watcher's
+  /// `/source` for Appium and parsing the platform XML). This is the watcher's
   /// source — the snapshot IS the event payload.
   Stream<NativeSnapshot> watch();
 
@@ -262,8 +264,8 @@ abstract class NativeBackend {
 
   /// Resolve [selector] against the device into a [NativeTarget], walking the
   /// Android walks resource-id -> a11y-id -> label -> xpath -> rect-center.
-  /// iOS has no resource-id lookup and skips that field, walking a11y-id ->
-  /// label -> xpath -> rect-center. Returns null when nothing
+  /// iOS and macOS have no resource-id lookup and skip that field, walking
+  /// a11y-id -> label -> xpath -> rect-center. Returns null when nothing
   /// resolves. [cached] is the current snapshot (for label-match and
   /// rect-center synthesis) — pass it so resolution can fall back to a node
   /// rect without an extra round-trip.
@@ -298,11 +300,10 @@ abstract class NativeBackend {
   /// Tap a resolved [target] (element click, or a point tap for rect-center).
   Future<void> tap(NativeTarget target);
 
-  /// Clear + type [text] into [target], then dismiss the keyboard per-platform
-  /// (iOS Done / Android back) INSIDE this method. Returns `(readback,
-  /// masked)`: `readback` is the `GET .../attribute/value` result; `masked` is
-  /// derived from the ELEMENT TYPE (true iff the element is a SecureTextField),
-  /// NOT from `readback != text`.
+  /// Clear + type [text] into [target], dismissing a mobile keyboard where the
+  /// platform supports it. Returns `(readback, masked)`: `readback` is the
+  /// platform value attribute; `masked` is derived from the ELEMENT TYPE (true
+  /// iff the element is a SecureTextField), NOT from `readback != text`.
   ///
   /// WHEN A PLATFORM OVERLAY HIDES THE FIELD this throws
   /// [NativeException] with [NativeException.fieldObscuredCode] and does NOT
@@ -315,7 +316,8 @@ abstract class NativeBackend {
     String text,
   );
 
-  /// A logical platform action. Shared: `enter`|`return`|`done`. iOS-only:
+  /// A logical platform action. Shared by iOS, Android, and macOS:
+  /// `enter`|`return`|`done`. iOS-only:
   /// `consent_accept`|`alert_dismiss`; `consent_accept` issues
   /// `POST /session/{id}/alert/accept` and `alert_dismiss` issues
   /// `POST /session/{id}/alert/dismiss`. Android-only: `back`, the internal
@@ -330,10 +332,10 @@ abstract class NativeBackend {
   /// is open surfaces the W3C "no alert open" error as a [NativeException].
   Future<void> press(String key);
 
-  /// Swipe gesture (W3C actions / `mobile: swipe`).
+  /// Swipe gesture using the platform's W3C pointer actions.
   Future<void> swipe(NativeSwipe gesture);
 
-  /// Tear down the device session and any HTTP client. Does NOT stop Appium or
-  /// shut down the sim.
+  /// Tear down the session and any HTTP client. Does NOT stop Appium, shut down
+  /// a simulator, or terminate a macOS app attached with `skipAppKill`.
   Future<void> close();
 }

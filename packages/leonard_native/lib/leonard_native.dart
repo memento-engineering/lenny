@@ -1,17 +1,18 @@
-/// A pure-Dart Leonard *contract* extension for a native mobile app.
+/// A pure-Dart Leonard *contract* extension for a native app.
 ///
 /// [NativeExtension] is a stateful, self-watching `LeonardExtension` (the same
 /// shape as `TmuxExtension`): it subscribes to a [NativeBackend]'s a11y-tree
 /// poll loop and keeps a live snapshot current, projecting it into a
 /// genesis_perception tree that the host serializes into the `native`
 /// observation fragment, and exposes `tap` / `enter_text` / `press` / `swipe`
-/// tools. It observes the OS accessibility tree (via Appium/XCUITest) rather
-/// than a Flutter widget tree — so it is pure Dart and uses no Flutter. Host it
-/// over the VM service with `leonard_host`'s `ExplorationHost` to drive a
-/// native app live.
+/// tools. It observes the OS accessibility tree (via Appium's XCUITest,
+/// UiAutomator2, or mac2 driver) rather than a Flutter widget tree — so it is
+/// pure Dart and uses no Flutter. Host it over the VM service with
+/// `leonard_host`'s `ExplorationHost` to drive a native app live.
 library;
 
 export 'src/xcuitest_backend.dart' show XcuiTestBackend;
+export 'src/mac2_backend.dart' show Mac2Backend;
 export 'src/fake_native_backend.dart' show FakeNativeBackend, FakeNativeCall;
 export 'src/native_backend.dart'
     show

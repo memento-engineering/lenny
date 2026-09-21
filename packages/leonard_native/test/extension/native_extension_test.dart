@@ -92,28 +92,31 @@ void main() {
             'properties': <String, Object?>{
               'resource-id': <String, Object?>{
                 'type': 'string',
-                'description': 'Android resource-id (tier 1; skipped on iOS)',
+                'description':
+                    'Android resource-id (tier 1; skipped on iOS and macOS)',
               },
               'id': <String, Object?>{
                 'type': 'string',
-                'description': 'a11y identifier (Android tier 2; iOS tier 1)',
+                'description':
+                    'a11y identifier (Android tier 2; iOS/macOS tier 1)',
               },
               'label': <String, Object?>{
                 'type': 'string',
-                'description': 'visible label (Android tier 3; iOS tier 2)',
+                'description':
+                    'visible label (Android tier 3; iOS/macOS tier 2)',
               },
               'xpath': <String, Object?>{
                 'type': 'string',
                 'description':
                     "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
-                    "address'] (Android tier 4; iOS tier 3)",
+                    "address'] (Android tier 4; iOS/macOS tier 3)",
               },
               'rect': <String, Object?>{
                 'type': 'array',
                 'items': <String, Object?>{'type': 'integer'},
                 'description':
-                    '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, '
-                    'last resort)',
+                    '[l,t,r,b]; taps the center '
+                    '(Android tier 5; iOS/macOS tier 4, last resort)',
               },
             },
             'additionalProperties': false,
@@ -123,8 +126,9 @@ void main() {
         <String, Object?>{
           'name': 'enter_text',
           'description':
-              'Clear and type text into a native field, then dismiss the '
-              'keyboard. Returns the element-type-derived `masked` flag and '
+              'Clear and type text into a native field. Mobile backends '
+              'dismiss the keyboard when supported. Returns the '
+              'element-type-derived `masked` flag and '
               'the `readback` value (a secure field reads back masked bullets, '
               'never plaintext).',
           'inputSchema': <String, Object?>{
@@ -132,28 +136,31 @@ void main() {
             'properties': <String, Object?>{
               'resource-id': <String, Object?>{
                 'type': 'string',
-                'description': 'Android resource-id (tier 1; skipped on iOS)',
+                'description':
+                    'Android resource-id (tier 1; skipped on iOS and macOS)',
               },
               'id': <String, Object?>{
                 'type': 'string',
-                'description': 'a11y identifier (Android tier 2; iOS tier 1)',
+                'description':
+                    'a11y identifier (Android tier 2; iOS/macOS tier 1)',
               },
               'label': <String, Object?>{
                 'type': 'string',
-                'description': 'visible label (Android tier 3; iOS tier 2)',
+                'description':
+                    'visible label (Android tier 3; iOS/macOS tier 2)',
               },
               'xpath': <String, Object?>{
                 'type': 'string',
                 'description':
                     "XPath, e.g. //XCUIElementTypeTextField[@name='Email "
-                    "address'] (Android tier 4; iOS tier 3)",
+                    "address'] (Android tier 4; iOS/macOS tier 3)",
               },
               'rect': <String, Object?>{
                 'type': 'array',
                 'items': <String, Object?>{'type': 'integer'},
                 'description':
-                    '[l,t,r,b]; taps the center (Android tier 5; iOS tier 4, '
-                    'last resort)',
+                    '[l,t,r,b]; taps the center '
+                    '(Android tier 5; iOS/macOS tier 4, last resort)',
               },
               'text': <String, Object?>{'type': 'string'},
             },
@@ -165,7 +172,7 @@ void main() {
         <String, Object?>{
           'name': 'press',
           'description':
-              'Issue a logical key press. Shared by iOS and Android: '
+              'Issue a logical key press. Shared by iOS, Android, and macOS: '
               'enter/return/done. iOS-only: consent_accept/alert_dismiss '
               '(consent_accept accepts the iOS sign-in consent alert; '
               'alert_dismiss dismisses an iOS system alert, e.g. the Save '
@@ -284,6 +291,142 @@ void main() {
       'value',
     ]);
   });
+
+  test(
+    'darwin fake keeps perception synchronous and drives all four tools',
+    () async {
+      final FakeNativeBackend fake = FakeNativeBackend(
+        platform: 'darwin',
+        snapshotPayload: const NativeSnapshot(
+          platform: 'darwin',
+          nodes: <NativeNode>[
+            NativeNode(
+              id: 1,
+              role: 'button',
+              label: 'Central',
+              rect: <int>[20, 30, 120, 70],
+              a11yId: 'central',
+              xpath: "//XCUIElementTypeButton[@identifier='central']",
+            ),
+            NativeNode(
+              id: 2,
+              role: 'textfield',
+              label: 'Endpoint',
+              rect: <int>[20, 90, 300, 130],
+              a11yId: 'endpoint',
+            ),
+          ],
+        ),
+      );
+      final NativeExtension ext = await _initialized(fake);
+      addTearDown(ext.dispose);
+
+      final int callsBeforeBuild = fake.calls.length;
+      ext.prepareForObservation();
+      final Map<String, Object?> initial = _fragment(ext);
+      expect(fake.calls, hasLength(callsBeforeBuild));
+      expect(initial['platform'], 'darwin');
+      expect(initial['node_count'], 2);
+      expect(initial['elements'], <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 1,
+          'role': 'button',
+          'rect': <int>[20, 30, 120, 70],
+          'label': 'Central',
+          'identifier': 'central',
+        },
+        <String, Object?>{
+          'id': 2,
+          'role': 'textfield',
+          'rect': <int>[20, 90, 300, 130],
+          'label': 'Endpoint',
+          'identifier': 'endpoint',
+        },
+      ]);
+
+      final Map<String, LeonardTool> tools = <String, LeonardTool>{
+        for (final LeonardTool tool in ext.tools) tool.name: tool,
+      };
+      final ToolResult tap = await tools['tap']!.call(<String, Object?>{
+        'resource-id': 'must-be-skipped',
+        'id': 'central',
+      });
+      final ToolResult enterText = await tools['enter_text']!.call(
+        <String, Object?>{'id': 'endpoint', 'text': 'http://localhost:8080'},
+      );
+      final ToolResult press = await tools['press']!.call(<String, Object?>{
+        'key': 'return',
+      });
+
+      fake.snapshotPayload = const NativeSnapshot(
+        platform: 'darwin',
+        nodes: <NativeNode>[
+          NativeNode(
+            id: 1,
+            role: 'text',
+            label: 'Refreshed',
+            rect: <int>[20, 30, 120, 70],
+          ),
+        ],
+      );
+      final ToolResult swipe = await tools['swipe']!.call(<String, Object?>{
+        'from': <int>[40, 50],
+        'to': <int>[60, 50],
+        'duration_ms': 175,
+      });
+
+      expect(tap.ok, isTrue);
+      expect((tap.value! as Map)['via'], 'a11y-id');
+      expect(enterText.ok, isTrue);
+      expect((enterText.value! as Map)['readback'], 'http://localhost:8080');
+      expect((enterText.value! as Map)['masked'], isFalse);
+      expect(
+        press,
+        isA<ToolResult>().having((ToolResult r) => r.ok, 'ok', true),
+      );
+      expect(swipe.ok, isTrue);
+
+      final NativeTarget tapped =
+          fake.calls.singleWhere((FakeNativeCall c) => c.name == 'tap').detail!
+              as NativeTarget;
+      expect(tapped.elementId, 'el-central');
+      expect(tapped.via, 'a11y-id');
+      final ({NativeTarget target, String text}) entered =
+          fake.calls
+                  .singleWhere((FakeNativeCall c) => c.name == 'enterText')
+                  .detail!
+              as ({NativeTarget target, String text});
+      expect(entered.target.elementId, 'el-endpoint');
+      expect(entered.text, 'http://localhost:8080');
+      expect(
+        fake.calls.singleWhere((FakeNativeCall c) => c.name == 'press').detail,
+        'return',
+      );
+      final NativeSwipe gesture =
+          fake.calls
+                  .singleWhere((FakeNativeCall c) => c.name == 'swipe')
+                  .detail!
+              as NativeSwipe;
+      expect(
+        (
+          gesture.fromX,
+          gesture.fromY,
+          gesture.toX,
+          gesture.toY,
+          gesture.durationMs,
+        ),
+        (40, 50, 60, 50, 175),
+      );
+
+      final Map<String, Object?> refreshed = _fragment(ext);
+      expect(refreshed['platform'], 'darwin');
+      expect(refreshed['node_count'], 1);
+      expect(
+        ((refreshed['elements']! as List).single as Map)['label'],
+        'Refreshed',
+      );
+    },
+  );
 
   test('selector chain resolves each tier with the right `via`', () async {
     final FakeNativeBackend fake = FakeNativeBackend(
