@@ -538,6 +538,8 @@ class UiAutomator2Backend implements NativeBackend {
           // For Dart consumers needing a stable, non-localising key (overlay
           // detection). Deliberately NOT wired — see NativeNode.resourceId.
           resourceId: rid,
+          platformType: cls,
+          depth: el.ancestorElements.length,
         ),
       );
     }

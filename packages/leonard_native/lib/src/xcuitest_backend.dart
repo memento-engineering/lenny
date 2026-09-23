@@ -328,6 +328,8 @@ class XcuiTestBackend implements NativeBackend {
           rect: <int>[x, y, x + w, y + h],
           a11yId: name,
           xpath: _xpathFor(el, type, name, typeIndex, nameCountByType),
+          platformType: type,
+          depth: el.ancestorElements.length,
         ),
       );
     }
