@@ -14,6 +14,7 @@ import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
 import 'appium_capabilities.dart';
+import 'appium_endpoint.dart';
 import 'native_backend.dart';
 import 'native_snapshot.dart';
 
@@ -57,7 +58,7 @@ class Mac2Backend implements NativeBackend {
   final http.Client _client;
   String? _sessionId;
 
-  Uri _u(String path) => server.resolve(path);
+  Uri _u(String path) => appiumEndpoint(server, path);
 
   String get _sid =>
       _sessionId ?? (throw NativeException('no session: call connect() first'));

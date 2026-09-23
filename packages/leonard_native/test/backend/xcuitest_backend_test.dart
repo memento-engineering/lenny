@@ -498,4 +498,34 @@ void main() {
       }
     },
   );
+
+  group('XcuiTestBackend server base path', () {
+    test('keeps /wd/hub on every request it sends', () async {
+      final List<http.Request> requests = <http.Request>[];
+      final MockClient client = MockClient((http.Request request) async {
+        requests.add(request);
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'value': <String, Object?>{'sessionId': 'base-path-session'},
+          }),
+          200,
+        );
+      });
+      final XcuiTestBackend backend = XcuiTestBackend(
+        server: Uri.parse('http://h:4723/wd/hub'),
+        udid: 'iphone',
+        app: '/x/Runner.app',
+        client: client,
+      );
+
+      await backend.connect();
+      await backend.close();
+
+      expect(requests.first.method, 'POST');
+      expect(requests.first.url.toString(), 'http://h:4723/wd/hub/session');
+      for (final http.Request request in requests) {
+        expect(request.url.path, startsWith('/wd/hub/session'));
+      }
+    });
+  });
 }
