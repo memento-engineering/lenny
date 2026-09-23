@@ -42,6 +42,7 @@ import 'package:meta/meta.dart';
 import 'package:xml/xml.dart';
 
 import 'appium_capabilities.dart';
+import 'appium_endpoint.dart';
 import 'native_backend.dart';
 import 'native_snapshot.dart';
 
@@ -237,7 +238,7 @@ class UiAutomator2Backend implements NativeBackend {
   // Transport (the platform-neutral W3C machinery, with the B5 hardening).
   // ---------------------------------------------------------------------------
 
-  Uri _u(String path) => server.resolve(path);
+  Uri _u(String path) => appiumEndpoint(server, path);
 
   /// Throws [NativeException] (never `StateError`) when no session is open.
   String get _sid =>

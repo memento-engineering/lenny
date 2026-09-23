@@ -437,4 +437,33 @@ void main() {
     expect(hits, before);
     await backend.close();
   });
+
+  group('Mac2Backend server base path', () {
+    test('keeps /wd/hub on every request it sends', () async {
+      final List<http.Request> requests = <http.Request>[];
+      final MockClient client = MockClient((http.Request request) async {
+        requests.add(request);
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'value': <String, Object?>{'sessionId': 'base-path-session'},
+          }),
+          200,
+        );
+      });
+      final Mac2Backend backend = Mac2Backend(
+        server: Uri.parse('http://h:4723/wd/hub'),
+        bundleId: 'com.nicospencer.butaneHarness',
+        client: client,
+      );
+
+      await backend.connect();
+      await backend.close();
+
+      expect(requests.first.method, 'POST');
+      expect(requests.first.url.toString(), 'http://h:4723/wd/hub/session');
+      for (final http.Request request in requests) {
+        expect(request.url.path, startsWith('/wd/hub/session'));
+      }
+    });
+  });
 }
