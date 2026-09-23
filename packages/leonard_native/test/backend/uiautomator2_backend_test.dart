@@ -688,6 +688,52 @@ void main() {
       ]);
     });
 
+    test('platformType carries the raw Android class', () {
+      for (final String label in <String>['Email address', 'Password']) {
+        final NativeNode field = _byLabel(nodes, label);
+        expect(field.role, 'textfield');
+        expect(field.platformType, 'android.widget.EditText');
+      }
+      expect(_byLabel(nodes, 'Log in').platformType, 'android.widget.Button');
+    });
+
+    test('depth counts the raw source tree from the root element', () {
+      // hierarchy (0) > FrameLayout (1) > every kept node (2).
+      for (final NativeNode node in nodes) {
+        expect(node.depth, 2, reason: node.label);
+      }
+    });
+
+    test('platformType and depth are NOT emitted to the wire record', () {
+      final NativeNode email = _byLabel(nodes, 'Email address');
+      expect(email.platformType, isNotNull);
+      expect(email.depth, isNotNull);
+      expect(email.toRecord().keys.toList(), <String>[
+        'id',
+        'role',
+        'rect',
+        'label',
+        'identifier',
+      ]);
+    });
+
+    test('a nested kept node is deeper than its kept ancestor', () {
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'fixture',
+        app: 'com.example.app',
+      );
+      final List<NativeNode> parsed = backend.parseSource(
+        '<android.widget.FrameLayout class="android.widget.FrameLayout" '
+        'content-desc="outer" bounds="[0,0][10,10]">'
+        '<android.widget.Button class="android.widget.Button" text="inner" '
+        'bounds="[1,1][9,9]"/>'
+        '</android.widget.FrameLayout>',
+      );
+      backend.close();
+      expect(_byLabel(parsed, 'outer').depth, 0);
+      expect(_byLabel(parsed, 'inner').depth, 1);
+    });
+
     test('duplicate resource-ids fall through to positional xpath', () {
       // Two same-class, same-resource-id buttons: the uniqueness gate pushes
       // BOTH to positional, while a uniquely-identified sibling stays named.

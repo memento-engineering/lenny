@@ -31,6 +31,40 @@ void main() {
 
   tearDownAll(() => backend.close());
 
+  test('every node carries platformType and depth', () {
+    for (final NativeNode node in nodes) {
+      expect(node.platformType, isNotNull, reason: node.label);
+      expect(node.depth, isNotNull, reason: node.label);
+    }
+    expect(
+      _byLabel(nodes, 'Endpoint').platformType,
+      'XCUIElementTypeTextField',
+    );
+  });
+
+  test('a node inside the kept sheet is deeper than the sheet', () {
+    // AppiumAUT (0) > Application (1) > Window (2) > Sheet (3) > Button (4).
+    final NativeNode sheet = _byLabel(nodes, 'System alert');
+    expect(sheet.platformType, 'XCUIElementTypeSheet');
+    expect(sheet.depth, 3);
+    expect(_byLabel(nodes, 'Allow').depth, 4);
+    expect(_byLabel(nodes, "Don't Allow").depth, 4);
+  });
+
+  test('platformType and depth are NOT emitted to the wire record', () {
+    final NativeNode endpoint = _byLabel(nodes, 'Endpoint');
+    expect(endpoint.toRecord().containsKey('platformType'), isFalse);
+    expect(endpoint.toRecord().containsKey('depth'), isFalse);
+  });
+
+  test('the root element has depth 0', () {
+    final List<NativeNode> parsed = backend.parseSource(
+      '<XCUIElementTypeButton type="XCUIElementTypeButton" '
+      'identifier="solo" label="Solo" x="0" y="0" width="1" height="1"/>',
+    );
+    expect(parsed.single.depth, 0);
+  });
+
   test('keeps controls from the Butane app and layered system alert', () {
     expect(nodes.map((NativeNode node) => node.id), <int>[
       1,

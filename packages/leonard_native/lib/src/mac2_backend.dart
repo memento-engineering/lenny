@@ -227,6 +227,8 @@ class Mac2Backend implements NativeBackend {
             typeIndex,
             identifierCountByType,
           ),
+          platformType: type,
+          depth: element.ancestorElements.length,
         ),
       );
     }

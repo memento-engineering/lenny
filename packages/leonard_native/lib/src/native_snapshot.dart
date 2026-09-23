@@ -35,6 +35,8 @@ class NativeNode {
     this.a11yId,
     this.xpath,
     this.resourceId,
+    this.platformType,
+    this.depth,
   });
 
   /// Dense per-session int (NOT the raw a11y-id).
@@ -90,13 +92,30 @@ class NativeNode {
   /// summary — LOCALISES, so string matching breaks on a non-English device.
   final String? resourceId;
 
+  /// The unnormalized platform element type [role] was derived from:
+  /// `XCUIElementTypeSecureTextField` on iOS and macOS, `android.widget.EditText`
+  /// on Android. [role] folds a secure field and a plain field into the same
+  /// `textfield`; this keeps the distinction. Null when the parser had none.
+  ///
+  /// In-memory only, for Dart consumers, like [resourceId]: not in [toRecord].
+  final String? platformType;
+
+  /// The element's depth in the platform source XML, where the root element is
+  /// 0. Counted over the raw tree, so containers the parser drops still count
+  /// and leave gaps: it orders nesting, it does not index kept nodes. Null when
+  /// the parser had none.
+  ///
+  /// In-memory only, for Dart consumers, like [resourceId]: not in [toRecord].
+  final int? depth;
+
   /// Emits the canonical cross-host record, matching the Flutter `_Rec.toJson`
   /// key order EXACTLY: `id`/`role`/`rect` always present;
   /// `label`/`identifier`/`value`/`state`/`actions`/`scroll` OMITTED when
   /// null/empty. `identifier` carries [a11yId] (the stable addressing key);
-  /// `xpath` and [resourceId] are NOT emitted to the wire (selector-internal /
-  /// Dart-consumer-only) and live on the in-memory node alone — the record must
-  /// stay byte-identical to the Flutter semantics fragment.
+  /// `xpath`, [resourceId], [platformType] and [depth] are NOT emitted to the
+  /// wire (selector-internal / Dart-consumer-only) and live on the in-memory
+  /// node alone — the record must stay byte-identical to the Flutter semantics
+  /// fragment.
   Map<String, Object?> toRecord() {
     final Map<String, Object?> m = <String, Object?>{
       'id': id,

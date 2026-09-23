@@ -212,4 +212,58 @@ void main() {
     // Uniquely-named sibling -> stays named.
     expect(buttons[2].xpath, "//XCUIElementTypeButton[@name='Cancel']");
   });
+
+  test('platformType tells a secure field from a plain one', () {
+    final NativeNode email = _byLabel(nodes, 'Email address');
+    final NativeNode password = _byLabel(nodes, 'Password');
+    expect(email.role, 'textfield');
+    expect(password.role, 'textfield');
+    expect(email.platformType, 'XCUIElementTypeTextField');
+    expect(password.platformType, 'XCUIElementTypeSecureTextField');
+  });
+
+  test('depth counts the raw source tree, filtered containers included', () {
+    // AppiumAUT (0) > Application (1) > Window (2) > Other (3) > form (4).
+    final NativeNode form = _byLabel(nodes, 'form');
+    expect(form.depth, 4);
+    for (final String label in <String>['Email address', 'Password']) {
+      expect(_byLabel(nodes, label).depth, greaterThan(form.depth!));
+      expect(_byLabel(nodes, label).depth, 5);
+    }
+    for (final NativeNode node in nodes) {
+      expect(node.platformType, isNotNull, reason: node.label);
+      expect(node.depth, isNotNull, reason: node.label);
+    }
+  });
+
+  test('platformType and depth are NOT emitted to the wire record', () {
+    final NativeNode password = _byLabel(nodes, 'Password');
+    final NativeNode bare = NativeNode(
+      id: password.id,
+      role: password.role,
+      label: password.label,
+      value: password.value,
+      rect: password.rect,
+      state: password.state,
+      actions: password.actions,
+      scroll: password.scroll,
+      a11yId: password.a11yId,
+      xpath: password.xpath,
+    );
+    expect(password.toRecord(), bare.toRecord());
+  });
+
+  test('the root element has depth 0', () {
+    final XcuiTestBackend backend = XcuiTestBackend(
+      udid: 'fixture',
+      app: '/dev/null',
+    );
+    final List<NativeNode> parsed = backend.parseSource(
+      '<XCUIElementTypeButton type="XCUIElementTypeButton" name="Solo" '
+      'label="Solo" x="0" y="0" width="1" height="1"/>',
+    );
+    backend.close();
+    expect(parsed.single.depth, 0);
+    expect(parsed.single.platformType, 'XCUIElementTypeButton');
+  });
 }
