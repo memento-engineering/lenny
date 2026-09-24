@@ -87,4 +87,44 @@ void main() {
       ),
     );
   });
+
+  test(
+    'a late listener receives the session so far, then live records',
+    () async {
+      final sink = BroadcastTrajectorySink();
+      SessionHeader header(String goal) => SessionHeader(
+        goal: goal,
+        agentsMdHash: '',
+        buildIdentifier: 'devtools',
+        modelIdentifier: 'm',
+        harnessVersion: 'v',
+        extensions: const <ExtensionManifestRecord>[],
+        config: const <String, dynamic>{},
+      );
+      await sink.writeLine(jsonEncode(header('first').toJson()));
+      await sink.writeLine(jsonEncode(header('second').toJson()));
+
+      final late = <String>[];
+      final sub = sink.records.listen(
+        (TrajectoryRecord r) => late.add((r as SessionHeader).goal),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(late, <String>['first', 'second']);
+
+      await sink.writeLine(jsonEncode(header('third').toJson()));
+      await Future<void>.delayed(Duration.zero);
+      expect(late, <String>['first', 'second', 'third']);
+
+      final second = <String>[];
+      final sub2 = sink.records.listen(
+        (TrajectoryRecord r) => second.add((r as SessionHeader).goal),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(second, <String>['first', 'second', 'third']);
+
+      await sub.cancel();
+      await sub2.cancel();
+      await sink.close();
+    },
+  );
 }

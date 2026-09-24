@@ -17,10 +17,27 @@ import 'package:leonard_agent/leonard_agent.dart';
 class BroadcastTrajectorySink implements TrajectorySink {
   final StreamController<TrajectoryRecord> _ctrl =
       StreamController<TrajectoryRecord>.broadcast();
+  final List<TrajectoryRecord> _history = <TrajectoryRecord>[];
   bool _closed = false;
 
-  /// Live broadcast of every record the writer hands to [writeLine].
-  Stream<TrajectoryRecord> get records => _ctrl.stream;
+  /// Every record the writer hands to [writeLine]: each listener first
+  /// receives the session so far, then live records. The Timeline tab
+  /// subscribes only when first opened, often after the run has emitted.
+  Stream<TrajectoryRecord> get records => Stream<TrajectoryRecord>.multi((
+    MultiStreamController<TrajectoryRecord> out,
+  ) {
+    _history.forEach(out.addSync);
+    if (_closed) {
+      out.closeSync();
+      return;
+    }
+    final StreamSubscription<TrajectoryRecord> live = _ctrl.stream.listen(
+      out.addSync,
+      onError: out.addErrorSync,
+      onDone: out.closeSync,
+    );
+    out.onCancel = live.cancel;
+  });
 
   @override
   Future<void> writeLine(String line) async {
@@ -28,7 +45,9 @@ class BroadcastTrajectorySink implements TrajectorySink {
       throw StateError('BroadcastTrajectorySink is closed');
     }
     final Map<String, dynamic> json = jsonDecode(line) as Map<String, dynamic>;
-    _ctrl.add(TrajectoryRecord.fromJson(json));
+    final TrajectoryRecord record = TrajectoryRecord.fromJson(json);
+    _history.add(record);
+    _ctrl.add(record);
   }
 
   /// In-memory sink: nothing to flush.
