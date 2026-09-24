@@ -43,6 +43,15 @@ Measured on `leonard_native` at one source revision, the AST engine produced
 C, in 22 minutes 6 seconds. That engine is now `butcher`, published from an
 org repository, which is what makes this adoptable rather than a personal fork.
 
+Re-measured on the cut-over lane itself (`tool/run_mutation_pilot.sh full
+leonard_native`, 2026-09-24, butcher 0.1.0), the whole library now yields 663
+mutants: 457 killed, 101 survived, 96 uncovered, 7 that did not compile and 2
+that timed out, for a mutation score of **69.88 percent** and a covered-code
+score of **81.90 percent**, in **226 seconds** of wall time covering dry sizing
+and the scored phase together. The spike measured 499 mutants at the revision
+it ran on and this run measures 663 at the current main, so the mutant counts
+are not comparable; the two scores and the order-of-magnitude speed are.
+
 ## Decision
 
 - The vended runner's engine is `butcher`. Its interface is unchanged: the
