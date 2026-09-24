@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1-dev.1
+
+- Add ACP harness inference: drive the loop through a `leonard_acp` harness
+  and select it among the registered agent specs.
+- Add `--wall-clock-minutes`, the whole-session wall-clock budget (default 15).
+- Fix: provider-build errors are caught only for configuration failures.
+
 ## 0.3.0
 
 Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that
