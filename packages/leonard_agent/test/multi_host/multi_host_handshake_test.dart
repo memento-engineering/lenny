@@ -53,12 +53,13 @@ void main() {
       // Contract version = primary (first) channel's.
       expect(merged.contractVersion, equals('2'));
 
-      // buildExtensionTools emits core.*, router.*, AND native.* descriptors.
+      // buildExtensionTools emits router.* AND native.* descriptors; core.*
+      // reaches the host as coreTools, never as an extension.
       final Map<String, List<ToolDescriptor>> tools = buildExtensionTools(
         requested: <String>{'core', 'router', 'native'},
         handshake: merged.extensions,
       );
-      expect(tools.keys, containsAll(<String>['core', 'router', 'native']));
+      expect(tools.keys, unorderedEquals(<String>['router', 'native']));
       expect(
         tools['native']!.map((ToolDescriptor t) => t.name),
         containsAll(<String>[

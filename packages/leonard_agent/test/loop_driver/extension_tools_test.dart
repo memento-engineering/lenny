@@ -63,6 +63,22 @@ void main() {
   });
 
   group('buildExtensionTools', () {
+    test('core is never an extension: requesting it adds no second copy', () {
+      const List<ExtensionManifestEntry> handshake = <ExtensionManifestEntry>[
+        ExtensionManifestEntry(
+          namespace: 'core',
+          tools: <String>['done', 'tap'],
+        ),
+        ExtensionManifestEntry(namespace: 'router', tools: <String>['go']),
+      ];
+      final out = buildExtensionTools(
+        requested: const <String>['core', 'router'],
+        handshake: handshake,
+      );
+      expect(out.keys, <String>['router']);
+      expect(out['router']!.single.name, 'router.go');
+    });
+
     test('empty requested → empty map', () {
       final out = buildExtensionTools(
         requested: const <String>[],
