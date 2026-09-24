@@ -19,6 +19,9 @@
 ///     caller may log unknown namespaces using [unknownExtensionNamespaces].
 ///   * `requested` namespaces that *are* in the handshake produce a
 ///     [ToolDescriptor] per tool name reported by that handshake entry.
+///   * `core` is never an extension: its tools always reach the host as
+///     `coreTools`, so a `requested` `core` is dropped rather than listed a
+///     second time (duplicate names make every action fail the schema).
 ///
 /// Pure (no `dart:io`), so this lives in `leonard_agent` and is
 /// shared by both the CLI (`leonard_cli`) and the DevTools panel
@@ -68,7 +71,7 @@ Map<String, List<ToolDescriptor>> buildExtensionTools({
   final Map<String, List<ToolDescriptor>> out =
       <String, List<ToolDescriptor>>{};
   for (final ExtensionManifestEntry p in handshake) {
-    if (!wanted.contains(p.namespace)) continue;
+    if (p.namespace == 'core' || !wanted.contains(p.namespace)) continue;
     out[p.namespace] = manifestToolDescriptors(p);
   }
   return out;
