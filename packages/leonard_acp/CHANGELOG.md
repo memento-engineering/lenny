@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1-dev.1
+
+- Add `DtdAcpHost`, which bridges ACP model providers over the Dart Tooling
+  Daemon so the DevTools panel can run inference sessions through them.
+- Add the `acpAgentSpecs` registry (`codex`, `copilot`),
+  `AcpAgentSpec.withModelOverride`, and `AcpSession.availableModelIds` for
+  selectable inference sessions.
+
 ## 0.2.0
 
 Promotes `0.2.0-rc.1` to stable.

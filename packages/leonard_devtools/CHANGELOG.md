@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0-dev.1
+
+- Breaking: `ProviderConfig` no longer has `baseUrl` or `headersFor`; they
+  moved to the new `HttpProviderConfig` (swift-infer, anthropic, openai), since
+  the ACP provider has no HTTP endpoint. `ModelCatalog.fetch` now takes an
+  `HttpProviderConfig`. Migration: match `HttpProviderConfig` before reading
+  `baseUrl`/`headersFor` or calling `fetch`; `AcpUiConfig` resolves its models
+  through the Dart Tooling Daemon.
+- Add model-provider sessions over the Dart Tooling Daemon: the prompt panel
+  can select an ACP harness and its models.
+- Fix: on a panel with no stored provider config, the Model picker now loads
+  from the default swift-infer config the settings form shows. It stayed empty
+  while Test connection reported OK, and Start silently did nothing.
+- Fix: the Timeline replays the session's records to a listener that attaches
+  late, so opening the tab after a run no longer shows "Waiting for trajectory
+  records..." for the whole session.
+- The panel's "Wall-clock budget" and "Max turns" fields now take effect
+  (requires `leonard_agent` ^0.3.2-dev.1, which also stops the panel listing
+  `core` tools twice).
+
 ## 0.3.0
 
 Promotes `0.3.0-rc.1` to stable. The candidate's full change list is under that

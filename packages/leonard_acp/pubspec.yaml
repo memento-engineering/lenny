@@ -3,7 +3,7 @@ description: >-
   ACP (Agent Client Protocol) model provider for Leonard — drives any
   ACP-compatible coding agent as a per-turn decision oracle behind
   leonard_agent's ModelProvider seam.
-version: 0.2.0
+version: 0.2.1-dev.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -20,7 +20,7 @@ dependencies:
   args: ^2.6.0
   dtd: ^4.0.0
   json_rpc_2: ^3.0.2
-  leonard_agent: ^0.3.0
+  leonard_agent: ^0.3.1
   meta: ^1.16.0
 
 dev_dependencies:

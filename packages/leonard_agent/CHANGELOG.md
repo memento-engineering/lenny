@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2-dev.1
+
+- Fix: `buildExtensionTools` never lists `core` as an extension. `core` always
+  reaches the host as `coreTools`; a caller that also requested it (the DevTools
+  panel does by default) listed every `core.*` tool twice, so every action
+  matched two `ActionSchema` branches and failed validation.
+- Fix: `LeonardSession.run()` and `MultiHostSession.run()` honor
+  `LeonardConfig.sessionBudget` and `LeonardConfig.maxTurns` from `start()`.
+  Every session previously ran on the loop's fixed 15 minutes / 50 turns
+  whatever was configured. Defaults are unchanged.
+
 ## 0.3.1
 
 - Fix: schema-declared integer and number tool arguments now normalize lossless
