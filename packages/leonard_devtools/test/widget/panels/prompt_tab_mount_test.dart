@@ -604,4 +604,55 @@ void main() {
     expect(sink.value, RunStatus.done);
     await c.dispose();
   });
+
+  testWidgets(
+    'an empty store still resolves a model from the default swift-infer config and Start runs',
+    (tester) async {
+      final List<Uri> requested = <Uri>[];
+      int starts = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PromptTabMount(
+              extensions: const <ExtensionManifestEntry>[],
+              store: InMemoryProviderConfigStore(),
+              catalog: ModelCatalog(
+                client: MockClient((request) async {
+                  requested.add(request.url);
+                  return _modelsResponse(kDefaultSwiftInferModelId);
+                }),
+              ),
+              acpPanelClient: _acpClient(
+                available: false,
+                open: (_, __) async => throw StateError('must not open'),
+              ),
+              promptConfigStore: InMemoryPromptPanelConfigStore(),
+              controllerFactory: () {
+                starts++;
+                return PromptPanelController(
+                  factory: () async => _FakeSession(),
+                  providerFactory: (_, __, ___) => _DummyProvider(),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(requested, isNotEmpty);
+      expect(requested.first.toString(), 'http://localhost:8080/v1/models');
+      final Text resolved = tester.widget(
+        find.byKey(const Key('prompt.resolvedModel')),
+      );
+      expect(resolved.data, contains(kDefaultSwiftInferModelId));
+
+      await tester.enterText(find.byKey(const Key('prompt.goal')), 'drive it');
+      await tester.ensureVisible(find.byKey(const Key('prompt.start')));
+      await tester.tap(find.byKey(const Key('prompt.start')));
+      await tester.pump();
+      expect(starts, 1);
+      expect(find.text('Select a model'), findsNothing);
+    },
+  );
 }

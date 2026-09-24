@@ -106,11 +106,11 @@ class _PromptTabMountState extends State<PromptTabMount> {
   }
 
   Future<void> _bootstrap() async {
-    final loaded = await widget.store.load(widget.initialProviderId);
-    if (loaded != null) {
-      if (!mounted) return;
-      _state.value = _state.value.copyWith(config: loaded);
-    }
+    final ProviderConfig loaded =
+        await widget.store.load(widget.initialProviderId) ??
+        defaultProviderConfig();
+    if (!mounted) return;
+    _state.value = _state.value.copyWith(config: loaded);
     if (loaded is AcpUiConfig) {
       await _refresh(reload: false);
     } else {
@@ -119,7 +119,7 @@ class _PromptTabMountState extends State<PromptTabMount> {
       } on Object {
         // ACP discovery is optional while another provider is selected.
       }
-      if (loaded != null) await _refresh(reload: false);
+      await _refresh(reload: false);
     }
     if (!mounted) return;
     final liveNamespaces = widget.extensions.map((p) => p.namespace).toSet();

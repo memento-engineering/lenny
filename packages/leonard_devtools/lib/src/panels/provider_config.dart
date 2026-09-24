@@ -29,6 +29,16 @@ const String kDefaultSwiftInferModelId = String.fromEnvironment(
   defaultValue: 'qwen3.6-35b-a3b-8bit',
 );
 
+/// The provider config the panel runs with when nothing is stored.
+///
+/// The settings form displays it and the prompt mount fetches models with
+/// it, so both must read this one value: a mount that saw no config while
+/// the form showed this one left the model picker empty and Start inert.
+ProviderConfig defaultProviderConfig() => SwiftInferUiConfig(
+  bearerToken: '',
+  endpoint: Uri.parse('http://localhost:8080'),
+);
+
 /// Sealed configuration for one model provider.
 ///
 /// All variants expose:
@@ -444,12 +454,7 @@ class ProviderConfigForm extends StatefulWidget {
 }
 
 class _ProviderConfigFormState extends State<ProviderConfigForm> {
-  late ProviderConfig _config =
-      widget.initial ??
-      SwiftInferUiConfig(
-        bearerToken: '',
-        endpoint: Uri.parse('http://localhost:8080'),
-      );
+  late ProviderConfig _config = widget.initial ?? defaultProviderConfig();
   String? _testResult;
   bool _testLoading = false;
   bool _dirty = false;
