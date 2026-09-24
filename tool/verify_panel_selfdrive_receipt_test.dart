@@ -203,6 +203,21 @@ void main() {
     },
   );
 
+  test(
+    'terminal marker transition reads the panel\'s multi-line chip labels',
+    () {
+      // The real chip renders a second line: a hint while idle, token use once a
+      // session has run (observed live on the panel, 2026-09-24).
+      final records = <Map<String, dynamic>>[
+        _markerTurn('Session 0 · idle\nStart a session to see the transcript.'),
+        _markerTurn('Session 1 · running · Turn 1 · 00:00'),
+        _markerTurn('Session 1 · done\n~1k / 32k'),
+      ];
+
+      expect(terminalSessionTransitionObserved(records), isTrue);
+    },
+  );
+
   test('terminal marker transition rejects insufficient evidence', () {
     final cases = <String, List<Map<String, dynamic>>>{
       'lone terminal marker': <Map<String, dynamic>>[
