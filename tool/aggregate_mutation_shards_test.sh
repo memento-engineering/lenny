@@ -31,9 +31,38 @@ expect_exit() {
 
 downloads="$temporary/downloads"
 mkdir -p "$downloads"
-write_shard() {
-  local index="$1" file="$2" found="$3" undetected="$4" not_covered="$5"
+
+# A butcher shard: the Stryker report is the source of truth and summary.txt
+# is its counts, which is all the aggregator sums.
+write_butcher_shard() {
+  local index="$1" file="$2" killed="$3" survived="$4" no_coverage="$5"
   local shard="$downloads/mutation-leonard_native-full-shard-$index"
+  local total=$((killed + survived + no_coverage))
+  mkdir -p "$shard"
+  printf '%s\n' "$file" > "$shard/files.txt"
+  printf 'selection from shard %s\n' "$index" > "$shard/selection.txt"
+  printf '%s mutants:\n  killed: %s\n' "$total" "$killed" > "$shard/console.txt"
+  printf '%s\n' \
+    "mutants=$total" "killed=$killed" "survived=$survived" \
+    "no_coverage=$no_coverage" 'compile_error=0' 'runtime_error=0' \
+    'timeout=0' 'ignored=0' 'pending=0' 'msi=0.00' 'covered_msi=0.00' \
+    > "$shard/summary.txt"
+  {
+    printf '{"schemaVersion": "1", "thresholds": {"high": 80, "low": 60},'
+    printf ' "files": {"%s": {"language": "dart", "source": "x", "mutants": [' "$file"
+    printf '{"id": "%s-0", "mutatorName": "equality", "status": "Survived",' "$file"
+    printf ' "location": {"start": {"line": 1, "column": 1},'
+    printf ' "end": {"line": 1, "column": 2}}, "replacement": "!="}'
+    printf ']}}}\n'
+  } > "$shard/mutation-report.json"
+  printf '# Mutation report\n\n## Surviving mutants in %s\n\n- 1:1 equality: `!=`\n' \
+    "$file" > "$shard/mutation-report.md"
+}
+
+# A regex-engine shard, which leonard_flutter still produces.
+write_legacy_shard() {
+  local index="$1" file="$2" found="$3" undetected="$4" not_covered="$5"
+  local shard="$downloads/mutation-leonard_flutter-full-shard-$index"
   mkdir -p "$shard"
   printf '%s\n' "$file" > "$shard/files.txt"
   printf 'selection from shard %s\n' "$index" > "$shard/selection.txt"
@@ -45,8 +74,8 @@ write_shard() {
     "$file" "$index" > "$shard/mutation-test-report.md"
 }
 
-write_shard 0 lib/a.dart 3 1 1
-write_shard 1 lib/b.dart 2 1 0
+write_butcher_shard 0 lib/a.dart 1 1 1
+write_butcher_shard 1 lib/b.dart 1 1 0
 output="$temporary/output/mutation/leonard_native/full"
 mkdir -p "$(dirname "$output")"
 "$aggregator" leonard_native 2 "$downloads" "$output"
@@ -55,23 +84,78 @@ assert_contains 'Found 5 mutations across 2 file shards' "$output/console.txt"
 assert_contains 'Total tests: 5' "$output/console.txt"
 assert_contains 'Undetected Mutations: 2 (40.00%)' "$output/console.txt"
 assert_contains 'Not covered by tests: 1' "$output/console.txt"
+assert_contains 'MSI: 50.00%' "$output/console.txt"
+assert_contains 'Covered-code MSI: 50.00%' "$output/console.txt"
 [[ "$(sed -n '1p' "$output/files.txt")" == 'lib/a.dart' ]] || fail 'first file row is out of order'
 [[ "$(sed -n '2p' "$output/files.txt")" == 'lib/b.dart' ]] || fail 'second file row is out of order'
-assert_count 1 '## Undetected mutations in file : lib/a.dart' "$output/mutation-test-report.md"
-assert_count 1 '## Undetected mutations in file : lib/b.dart' "$output/mutation-test-report.md"
+assert_count 1 '## Surviving mutants in lib/a.dart' "$output/mutation-report.md"
+assert_count 1 '## Surviving mutants in lib/b.dart' "$output/mutation-report.md"
+[[ ! -f "$output/mutation-test-report.md" ]] ||
+  fail 'the retired report name must not appear on the pure-Dart path'
+merged_files="$(jq -r '.files | keys | join(",")' "$output/mutation-report.json")"
+[[ "$merged_files" == 'lib/a.dart,lib/b.dart' ]] ||
+  fail "merged report names '$merged_files'"
+[[ "$(jq -r '.schemaVersion' "$output/mutation-report.json")" == '1' ]] ||
+  fail 'merged report lost its schema version'
 [[ -f "$output/shards/0/console.txt" && -f "$output/shards/1/console.txt" ]] ||
   fail 'raw shard reports were not preserved'
 assert_contains 'selection from shard 0' "$output/selection.txt"
 
+# A survivor count that moves must move the aggregate.
+write_butcher_shard 1 lib/b.dart 0 2 0
+"$aggregator" leonard_native 2 "$downloads" "$temporary/moved"
+assert_contains 'Undetected Mutations: 3 (60.00%)' "$temporary/moved/console.txt"
+assert_contains 'MSI: 20.00%' "$temporary/moved/console.txt"
+write_butcher_shard 1 lib/b.dart 1 1 0
+
 printf '%s\n' 'lib/a.dart' > "$downloads/mutation-leonard_native-full-shard-1/files.txt"
 expect_exit 66 "$aggregator" leonard_native 2 "$downloads" "$temporary/duplicate"
 printf '%s\n' 'lib/b.dart' > "$downloads/mutation-leonard_native-full-shard-1/files.txt"
-printf '%s\n' 'Found two mutations' > "$downloads/mutation-leonard_native-full-shard-1/console.txt"
+printf '%s\n' 'mutants=two' > "$downloads/mutation-leonard_native-full-shard-1/summary.txt"
 expect_exit 66 "$aggregator" leonard_native 2 "$downloads" "$temporary/malformed"
+rm -f "$downloads/mutation-leonard_native-full-shard-1/summary.txt"
+expect_exit 66 "$aggregator" leonard_native 2 "$downloads" "$temporary/mixed"
+write_butcher_shard 1 lib/b.dart 1 1 0
 expect_exit 64 "$aggregator"
 expect_exit 64 "$aggregator" 'Unsafe-Package' 2 "$downloads" "$temporary/unsafe"
 expect_exit 64 "$aggregator" leonard_native 0 "$downloads" "$temporary/zero"
 expect_exit 66 "$aggregator" leonard_native 3 "$downloads" "$temporary/missing"
+
+# The Flutter leg still takes the old path and still aggregates.
+write_legacy_shard 0 lib/a.dart 3 1 1
+write_legacy_shard 1 lib/b.dart 2 1 0
+flutter_output="$temporary/output/mutation/leonard_flutter/full"
+mkdir -p "$(dirname "$flutter_output")"
+"$aggregator" leonard_flutter 2 "$downloads" "$flutter_output"
+assert_contains 'Found 5 mutations across 2 file shards' "$flutter_output/console.txt"
+assert_contains 'Undetected Mutations: 2 (40.00%)' "$flutter_output/console.txt"
+assert_contains 'Not covered by tests: 1' "$flutter_output/console.txt"
+assert_count 1 '## Undetected mutations in file : lib/a.dart' \
+  "$flutter_output/mutation-test-report.md"
+assert_count 1 '## Undetected mutations in file : lib/b.dart' \
+  "$flutter_output/mutation-test-report.md"
+[[ ! -f "$flutter_output/mutation-report.json" ]] ||
+  fail 'the regex engine produces no Stryker report to merge'
+printf '%s\n' 'Found two mutations' > "$downloads/mutation-leonard_flutter-full-shard-1/console.txt"
+expect_exit 66 "$aggregator" leonard_flutter 2 "$downloads" "$temporary/legacy-malformed"
+
+# An unassigned shard still uploads what its engine's aggregate needs.
+empty="$temporary/empty-native"
+"$repo_root/tool/empty_mutation_shard.sh" leonard_native "$empty" 2 3
+assert_contains 'mutants=0' "$empty/summary.txt"
+[[ "$(jq -r '.files | length' "$empty/mutation-report.json")" == '0' ]] ||
+  fail 'the empty native shard must carry an empty Stryker report'
+[[ ! -f "$empty/mutation-test-report.md" ]] ||
+  fail 'the empty native shard must not carry the retired report name'
+empty_flutter="$temporary/empty-flutter"
+"$repo_root/tool/empty_mutation_shard.sh" leonard_flutter "$empty_flutter" 2 6
+assert_contains 'Not covered by tests: 0' "$empty_flutter/console.txt"
+[[ -f "$empty_flutter/mutation-test-report.md" ]] ||
+  fail 'the empty flutter shard keeps the old report name'
+[[ ! -f "$empty_flutter/summary.txt" ]] ||
+  fail 'the empty flutter shard must not claim a butcher summary'
+expect_exit 64 "$repo_root/tool/empty_mutation_shard.sh" leonard_native "$empty"
+expect_exit 66 "$repo_root/tool/empty_mutation_shard.sh" no_such_package "$empty" 0 1
 
 # Binding acceptance probes: each load-bearing workflow fact gets an
 # independent assertion so wrong matrix wiring cannot pass on "shard" alone.
@@ -118,9 +202,11 @@ assert_contains "awk -v shard_count=\"\$SHARD_COUNT\" -v shard_index=\"\$SHARD_I
 assert_contains 'if [[ "$PKG" == leonard_flutter ]]' "$shard_job"
 assert_contains './tool/run_mutation_pilot.sh dry "$PKG" "${shard_files[@]}"' "$shard_job"
 assert_contains './tool/run_mutation_pilot.sh full "$PKG" "${shard_files[@]}"' "$shard_job"
+assert_count 2 './tool/empty_mutation_shard.sh' "$shard_job"
 assert_contains 'name: mutation-${{ matrix.package }}-full-shard-${{ matrix.shard_index }}' "$shard_job"
 assert_contains 'if-no-files-found: error' "$shard_job"
 assert_count 0 './tool/select_mutation_files.sh' "$shard_job"
+assert_count 0 'mutation-test-report.md' "$shard_job"
 
 assert_contains 'needs: [mutation-nightly]' "$aggregate_job"
 assert_contains 'if: always() &&' "$aggregate_job"

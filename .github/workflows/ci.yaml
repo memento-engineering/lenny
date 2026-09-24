@@ -190,17 +190,8 @@ jobs:
             fi
             ./tool/run_mutation_pilot.sh full "$PKG" "${shard_files[@]}"
           else
-            artifact_dir="artifacts/mutation/$PKG/full"
-            mkdir -p "$artifact_dir"
-            printf 'No files assigned to shard %s of %s.\n' \
-              "$SHARD_INDEX" "$SHARD_COUNT" > "$artifact_dir/console.txt"
-            printf '%s\n' \
-              'Found 0 mutations in 0 source files!' \
-              'Total tests: 0' \
-              'Undetected Mutations: 0 (0.00%)' \
-              'Not covered by tests: 0' >> "$artifact_dir/console.txt"
-            printf '# Mutation report\n\nNo files were assigned to this shard.\n' \
-              > "$artifact_dir/mutation-test-report.md"
+            ./tool/empty_mutation_shard.sh \
+              "$PKG" "artifacts/mutation/$PKG/full" "$SHARD_INDEX" "$SHARD_COUNT"
           fi
       - name: Preserve mutation selection
         if: always()
@@ -224,17 +215,8 @@ jobs:
             : > "$artifact_dir/files.txt"
           fi
           if [[ "${{ steps.shard.outputs.count }}" == 0 ]]; then
-            printf 'No files assigned to shard %s of %s.\n' \
-              "$SHARD_INDEX" "$SHARD_COUNT" > "$artifact_dir/console.txt"
-            printf '%s\n' \
-              'Found 0 mutations in 0 source files!' \
-              'Total tests: 0' \
-              'Undetected Mutations: 0 (0.00%)' \
-              'Not covered by tests: 0' >> "$artifact_dir/console.txt"
-            if [[ ! -f "$artifact_dir/mutation-test-report.md" ]]; then
-              printf '# Mutation report\n\nNo files were assigned to this shard.\n' \
-                > "$artifact_dir/mutation-test-report.md"
-            fi
+            ./tool/empty_mutation_shard.sh \
+              "$PKG" "$artifact_dir" "$SHARD_INDEX" "$SHARD_COUNT"
           fi
       - name: Upload mutation shard
         if: always()
