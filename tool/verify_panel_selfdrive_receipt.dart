@@ -135,8 +135,10 @@ String assertInnerModelResolved(
 /// later turn at a strictly higher generation. Any generation decrease makes
 /// the sequence invalid.
 bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
+  // multiLine: the chip carries a second line (a hint, or token use).
   final RegExp marker = RegExp(
     r'^Session ([0-9]+) · (idle|running|done|stopped|error)(?: ·|$)',
+    multiLine: true,
   );
   int? baselineGeneration;
   int? baselineTurn;
