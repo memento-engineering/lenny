@@ -1,11 +1,18 @@
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../../tool/verify_mutation_rebaseline.dart'
+    show maximumSurvivors, maximumSurvivorsPerFile;
+
 void main() {
   final Directory packageRoot = _packageRoot();
+  final File checkedIn = File(
+    '${packageRoot.path}/test/tool/fixtures/mutation-report.json',
+  );
   late Directory reports;
 
   setUp(() {
@@ -22,103 +29,95 @@ void main() {
     workingDirectory: packageRoot.path,
   );
 
+  /// The checked-in fixture, decoded so a case can move one file's mutants.
+  Map<String, Object?> fixture() =>
+      jsonDecode(checkedIn.readAsStringSync()) as Map<String, Object?>;
+
+  void write(Map<String, Object?> document) => File(
+    '${reports.path}/mutation-report.json',
+  ).writeAsStringSync(jsonEncode(document));
+
+  /// Replaces [file]'s mutants with [survivors] survivors and one kill.
+  void setSurvivors(Map<String, Object?> document, String file, int survivors) {
+    final Map<String, Object?> files =
+        document['files']! as Map<String, Object?>;
+    (files[file]! as Map<String, Object?>)['mutants'] = <Map<String, Object?>>[
+      for (var index = 0; index <= survivors; index++)
+        <String, Object?>{
+          'id': '$file:$index',
+          'mutatorName': 'equality',
+          'location': <String, Object?>{
+            'start': <String, Object?>{'line': index + 1, 'column': 3},
+            'end': <String, Object?>{'line': index + 1, 'column': 9},
+          },
+          'status': index < survivors ? 'Survived' : 'Killed',
+          'replacement': '!=',
+        },
+    ];
+  }
+
   test(
-    'accepts a code-operator survivor and prints the audited receipt',
+    'accepts the checked-in report and prints the audited receipt',
     () async {
-      _writeReports(
-        reports,
-        total: 10,
-        undetected: 1,
-        rating: 'B',
-        survivors: const <_Mutation>[
-          _Mutation(
-            'final result = left - right;',
-            'final result = left + right;',
-          ),
-        ],
-      );
+      checkedIn.copySync('${reports.path}/mutation-report.json');
 
       final ProcessResult result = await verify(<String>[reports.path]);
 
       expect(result.exitCode, 0, reason: result.stderr.toString());
       expect(
         result.stdout.toString().trim(),
-        'MUTATION_REBASELINE PASS: 10 mutants, 1 undetected, 90.00% '
-        'killed, rating B; 0 string-interior survivors; 2026-08-01 '
-        '542/215/60.33%/C is not comparable (string exclusion disabled); '
-        'mutation_test 1.8.0 compile-error inflation remains.',
+        'MUTATION_REBASELINE PASS: 10 mutants across 2 files, 5 killed, '
+        '3 survived (budget $maximumSurvivors), 1 uncovered, 1 not compiling; '
+        'MSI 55.56%, covered-code MSI 62.50%; worst file lib/src/beta.dart '
+        'with 2 survivors (budget $maximumSurvivorsPerFile).',
       );
     },
   );
 
-  test('rejects survivors inside every supported string delimiter', () async {
-    final List<String> originals = <String>[
-      "final value = 'element-type';",
-      'final value = "element-type";',
-      "final value = '''element-type''';",
-      'final value = """element-type""";',
-      "final value = r'element-type';",
-      'final value = R"element-type";',
-      "final value = r'''element-type''';",
-      'final value = R"""element-type""";',
-      r"final value = 'element\'-type';",
-      "final value = <String, String>{'element-type': 'value'};",
-      r"final value = 'element-type $suffix';",
-      r"final value = '${2 - 1}';",
-    ];
-    _writeReports(
-      reports,
-      total: 20,
-      undetected: originals.length,
-      rating: 'D',
-      survivors: originals
-          .map(
-            (String original) =>
-                _Mutation(original, original.replaceFirst('-', '+')),
-          )
-          .toList(),
+  test('reds when one file exceeds the per-file survivor budget', () async {
+    final Map<String, Object?> document = fixture();
+    setSurvivors(document, 'lib/src/beta.dart', maximumSurvivorsPerFile);
+    write(document);
+    expect(
+      (await verify(<String>[reports.path])).exitCode,
+      0,
+      reason: 'the budget itself is still a pass',
     );
+
+    setSurvivors(document, 'lib/src/beta.dart', maximumSurvivorsPerFile + 1);
+    write(document);
 
     final ProcessResult result = await verify(<String>[reports.path]);
 
     expect(result.exitCode, 1);
-    expect(result.stderr, contains('12 string-interior survivors remain'));
+    expect(
+      result.stderr,
+      contains(
+        'lib/src/beta.dart has ${maximumSurvivorsPerFile + 1} survivors',
+      ),
+    );
+    expect(result.stderr, isNot(contains('lib/src/alpha.dart')));
   });
 
-  test('rejects the 215-undetected boundary', () async {
-    final List<_Mutation> survivors = List<_Mutation>.generate(215, (int i) {
-      return _Mutation('final value$i = $i - 1;', 'final value$i = $i + 1;');
-    });
-    _writeReports(
-      reports,
-      total: 300,
-      undetected: survivors.length,
-      rating: 'D',
-      survivors: survivors,
+  test('reds when the package total exceeds its budget', () async {
+    final Map<String, Object?> document = fixture();
+    // Two files, each inside the per-file budget, whose sum is not: the total
+    // budget has to be its own check.
+    setSurvivors(document, 'lib/src/alpha.dart', maximumSurvivorsPerFile);
+    setSurvivors(
+      document,
+      'lib/src/beta.dart',
+      maximumSurvivors - maximumSurvivorsPerFile + 1,
     );
+    write(document);
 
     final ProcessResult result = await verify(<String>[reports.path]);
 
     expect(result.exitCode, 1);
-    expect(result.stderr, contains('expected fewer than 215'));
-    expect(result.stderr, isNot(contains('XML has')));
-  });
-
-  test('rejects XML and Markdown survivor-count disagreement', () async {
-    _writeReports(
-      reports,
-      total: 10,
-      undetected: 2,
-      rating: 'C',
-      survivors: const <_Mutation>[
-        _Mutation('final value = 2 - 1;', 'final value = 2 + 1;'),
-      ],
+    expect(
+      result.stderr,
+      contains('${maximumSurvivors + 1} survivors across the package'),
     );
-
-    final ProcessResult result = await verify(<String>[reports.path]);
-
-    expect(result.exitCode, 1);
-    expect(result.stderr, contains('XML has 1 survivors'));
   });
 
   test('uses exit 64 for wrong arity', () async {
@@ -126,80 +125,45 @@ void main() {
     expect((await verify(<String>[reports.path, reports.path])).exitCode, 64);
   });
 
-  test('uses exit 66 for absent and malformed reports', () async {
+  test('uses exit 66 for absent, malformed and empty reports', () async {
     expect((await verify(<String>[reports.path])).exitCode, 66);
 
-    _writeReports(
-      reports,
-      total: 10,
-      undetected: 1,
-      rating: 'B',
-      survivors: const <_Mutation>[
-        _Mutation('final value = 2 - 1;', 'final value = 2 + 1;'),
-      ],
-    );
-    File('${reports.path}/mutation-test-report.xml').writeAsStringSync('<');
+    File('${reports.path}/mutation-report.json').writeAsStringSync('{');
     expect((await verify(<String>[reports.path])).exitCode, 66);
 
-    _writeReports(
-      reports,
-      total: 10,
-      undetected: 1,
-      rating: 'B',
-      survivors: const <_Mutation>[
-        _Mutation('final value = 2 - 1;', 'final value = 2 + 1;'),
-      ],
-    );
-    File(
-      '${reports.path}/mutation-test-report.md',
-    ).writeAsStringSync('| Mutations | not-a-number |\n');
+    write(<String, Object?>{'schemaVersion': '1'});
+    ProcessResult result = await verify(<String>[reports.path]);
+    expect(result.exitCode, 66);
+    expect(result.stderr, contains('no per-file map'));
+
+    write(<String, Object?>{'files': <String, Object?>{}});
     expect((await verify(<String>[reports.path])).exitCode, 66);
+
+    final Map<String, Object?> unknown = fixture();
+    ((((unknown['files']! as Map<String, Object?>)['lib/src/beta.dart']!
+                        as Map<String, Object?>)['mutants']!
+                    as List<Object?>)
+                .first!
+            as Map<String, Object?>)['status'] =
+        'Pulverised';
+    write(unknown);
+    result = await verify(<String>[reports.path]);
+    expect(result.exitCode, 66);
+    expect(result.stderr, contains('unknown mutant status'));
+  });
+
+  test('the checked-in fixture is a report, not a transcript', () {
+    final Map<String, Object?> document = fixture();
+    expect(document['schemaVersion'], '1');
+    final Map<String, Object?> files =
+        document['files']! as Map<String, Object?>;
+    expect(files.keys, <String>['lib/src/alpha.dart', 'lib/src/beta.dart']);
+    for (final Object? file in files.values) {
+      expect((file! as Map<String, Object?>)['source'], isA<String>());
+      expect((file as Map<String, Object?>)['mutants'], isA<List<Object?>>());
+    }
   });
 }
-
-void _writeReports(
-  Directory directory, {
-  required int total,
-  required int undetected,
-  required String rating,
-  required List<_Mutation> survivors,
-}) {
-  final String undetectedPercentage = (100 * undetected / total)
-      .toStringAsFixed(2);
-  File('${directory.path}/mutation-test-report.md').writeAsStringSync('''
-# Mutation report
-
-| Key | Value |
-| --- | --- |
-| Mutations | $total |
-| Undetected | $undetected |
-| Undetected% | $undetectedPercentage% |
-| Quality Rating | $rating |
-''');
-
-  final StringBuffer xml = StringBuffer(
-    '<?xml version="1.0" encoding="UTF-8"?>\n'
-    '<undetected-mutations>\n'
-    '<file name="lib/example.dart">\n',
-  );
-  for (var index = 0; index < survivors.length; index++) {
-    final _Mutation survivor = survivors[index];
-    xml
-      ..writeln('<mutation line="${index + 1}">')
-      ..writeln('<original>${_escapeXml(survivor.original)}</original>')
-      ..writeln('<modified>${_escapeXml(survivor.modified)}</modified>')
-      ..writeln('</mutation>');
-  }
-  xml.write('</file>\n</undetected-mutations>\n');
-  File(
-    '${directory.path}/mutation-test-report.xml',
-  ).writeAsStringSync(xml.toString());
-}
-
-String _escapeXml(String value) => value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
 
 Directory _packageRoot() {
   Directory current = Directory.current.absolute;
@@ -211,11 +175,4 @@ Directory _packageRoot() {
     current = current.parent;
   }
   return current;
-}
-
-class _Mutation {
-  const _Mutation(this.original, this.modified);
-
-  final String original;
-  final String modified;
 }

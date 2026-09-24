@@ -16,8 +16,15 @@ void main() {
     File('${dir.path}/pubspec.yaml').writeAsStringSync(
       flutter
           ? 'name: $name\ndependencies:\n  flutter:\n    sdk: flutter\n'
-          : 'name: $name\ndev_dependencies:\n  mutation_test: ^1.8.0\n',
+          : 'name: $name\ndev_dependencies:\n  butcher: ^0.1.0\n',
     );
+    if (!flutter) {
+      // The exclusion generator runs for real in this sandbox, so the
+      // selectable sources have to be real too.
+      Directory('${dir.path}/lib').createSync();
+      File('${dir.path}/lib/a.dart').writeAsStringSync('const int a = 1;\n');
+      File('${dir.path}/lib/b.dart').writeAsStringSync('const int b = 2;\n');
+    }
   }
 
   setUp(() {
@@ -48,9 +55,12 @@ if [[ "${LOG_RUNNER_SEAM:-0}" == 1 ]]; then
 fi
 exec "$(dirname "$0")/run_mutation_impl.sh" "$@"
 ''');
-    File(
-      '${sandbox.path}/tool/test_impact.dart',
-    ).writeAsStringSync('// PATH-backed fake handles this script.\n');
+    for (final String tool in <String>[
+      'butcher_excludes.dart',
+      'butcher_report_summary.dart',
+    ]) {
+      File('${source.path}/tool/$tool').copySync('${sandbox.path}/tool/$tool');
+    }
     package('leonard_native');
     package('leonard_contract');
     final Directory bin = Directory('${sandbox.path}/bin')..createSync();
@@ -59,23 +69,30 @@ exec "$(dirname "$0")/run_mutation_impl.sh" "$@"
       ..writeAsStringSync(r'''#!/usr/bin/env bash
 printf 'dart %s\n' "$*" >> "$MUTATION_LOG"
 if [[ "${1:-}" == test ]]; then exit "${BASELINE_EXIT:-0}"; fi
-if [[ "${1:-}" == run && "${2:-}" == */tool/test_impact.dart ]]; then
-  output_dir="$4"
-  shift 4
-  mkdir -p "$output_dir"
-  index=0
-  for source in "$@"; do
-    document="$output_dir/$(printf '%03d' "$index")-input.xml"
-    printf '%s\n' \
-      '<?xml version="1.0" encoding="UTF-8"?>' \
-      "<mutations version=\"1.2\"><files><file>$source</file></files><commands><command>dart test</command></commands></mutations>" \
-      > "$document"
-    printf '%s\n' "$document"
-    index=$((index + 1))
-  done
-  exit 0
+if [[ "${1:-}" == run && "${2:-}" == */tool/butcher_*.dart ]]; then
+  exec "$REAL_DART" "$@"
 fi
-if [[ "${1:-}" == run ]]; then
+if [[ "${1:-}" == run && "${2:-}" == butcher:butcher ]]; then
+  # butcher verifies its own baseline and writes no report when it is red.
+  [[ "${BASELINE_EXIT:-0}" == 0 ]] || exit 70
+  output=""
+  previous=""
+  for argument in "$@"; do
+    [[ "$previous" == --output ]] && output="$argument"
+    previous="$argument"
+  done
+  if [[ "$output" == */dry/mutation-report.json ]]; then
+    status=NoCoverage
+    exit_code="${DRY_EXIT:-0}"
+  else
+    status=Survived
+    exit_code="${MUTATION_EXIT:-0}"
+  fi
+  printf '{"schemaVersion": "1", "thresholds": {"high": 80, "low": 60}, "files": {"lib/a.dart": {"language": "dart", "source": "x", "mutants": [{"id": "m0", "mutatorName": "equality", "location": {"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 2}}, "status": "%s", "replacement": "!="}]}}}\n' \
+    "$status" > "$output"
+  exit "$exit_code"
+fi
+if [[ "${1:-}" == run && "${2:-}" == mutation_test ]]; then
   [[ " $* " == *" --format all "* ]] && exit "${MUTATION_EXIT:-0}"
   echo "Found 3 mutations"
   [[ " $* " == *" --dry --format none "* ]] && exit "${DRY_EXIT:-0}"
@@ -112,6 +129,7 @@ exit 70
       ...Platform.environment,
       'PATH': '${bin.path}:${Platform.environment['PATH'] ?? ''}',
       'MUTATION_LOG': log.path,
+      'REAL_DART': Platform.resolvedExecutable,
     };
   });
 
@@ -158,9 +176,14 @@ exit 70
     () async {
       final ProcessResult first = await run(const <String>[]);
       expect(first.exitCode, 0, reason: first.stderr.toString());
-      expect(log.readAsLinesSync(), hasLength(3));
-      expect(log.readAsLinesSync().first, contains('--dry --format none'));
-      expect(log.readAsStringSync(), isNot(contains('--coverage')));
+      final List<String> firstCalls = log.readAsLinesSync();
+      expect(firstCalls, hasLength(6));
+      expect(firstCalls.first, contains('butcher_excludes.dart'));
+      expect(
+        firstCalls[1],
+        contains('/artifacts/mutation/leonard_native/dry/mutation-report.json'),
+      );
+      expect(firstCalls[4], isNot(contains('--coverage')));
       File('${sandbox.path}/artifacts/coverage/leonard_native.lcov')
         ..createSync(recursive: true)
         ..writeAsStringSync('SF:packages/leonard_native/lib/a.dart\n');
@@ -182,10 +205,10 @@ exit 70
 
   test('named package and dry/full/pr compatibility', () async {
     expect((await run(<String>['dry', 'leonard_contract'])).exitCode, 0);
-    expect(log.readAsLinesSync(), hasLength(1));
+    expect(log.readAsLinesSync(), hasLength(3));
     log.writeAsStringSync('');
     expect((await run(<String>['full', 'leonard_contract'])).exitCode, 0);
-    expect(log.readAsLinesSync(), hasLength(3));
+    expect(log.readAsLinesSync(), hasLength(6));
     log.writeAsStringSync('');
     expect(
       (await run(<String>['pr', 'leonard_contract', 'lib/a.dart'])).exitCode,
@@ -209,12 +232,17 @@ exit 70
         0,
         reason: '$packageName: ${result.stdout}\n${result.stderr}',
       );
-      expect(result.stdout, contains('Found 3 mutations'));
       final List<String> calls = log.readAsLinesSync();
-      expect(calls, hasLength(3), reason: packageName);
-      expect(calls[0], contains('--dry --format none'));
-      expect(calls[1], 'dart test');
-      expect(calls[2], contains('--format all'));
+      expect(calls, hasLength(6), reason: packageName);
+      expect(calls[1], contains('/$packageName/dry/mutation-report.json'));
+      expect(calls[4], contains('/$packageName/full/mutation-report.json'));
+      expect(
+        File(
+          '${sandbox.path}/artifacts/mutation/$packageName/dry/summary.txt',
+        ).readAsStringSync(),
+        contains('mutants=1'),
+        reason: packageName,
+      );
     }
   });
 
@@ -279,11 +307,15 @@ exit 70
   );
 
   test('a red baseline remains an unconditional failure', () async {
+    // butcher owns the baseline now: a red suite aborts it before any mutant
+    // runs and leaves no report, so the sizing check stops the run whether or
+    // not gating is on.
     final ProcessResult result = await run(
       <String>['full'],
       env: <String, String>{...environment, 'BASELINE_EXIT': '8'},
     );
-    expect(result.exitCode, 8);
+    expect(result.exitCode, 70);
+    expect(result.stderr, contains('dry sizing failed'));
     expect(log.readAsLinesSync(), hasLength(2));
   });
 
