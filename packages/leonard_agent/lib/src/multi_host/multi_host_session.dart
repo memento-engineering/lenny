@@ -155,6 +155,7 @@ class MultiHostSession implements SessionSurface {
   bool _started = false;
   bool _ended = false;
   int? _coreBudgetBytes;
+  LeonardConfig _config = const LeonardConfig();
   Observation _prevObservation = Observation.empty();
 
   /// Live progress events (mirrors [LeonardSession.progress]).
@@ -195,6 +196,7 @@ class MultiHostSession implements SessionSurface {
       throw StateError('Session already started');
     }
     _storeCoreBudget(config);
+    _config = config;
     // Rebuild routing from scratch: a prior start() that threw a collision
     // mid-loop (below) leaves _started false but _route partially populated, so
     // a retry-after-detach must not route against stale entries.
@@ -374,6 +376,8 @@ class MultiHostSession implements SessionSurface {
       onTurnEvent: emitTurnEvent,
       tokenBudget: tokenBudget,
       turnBudget: effectiveTurnBudget,
+      sessionBudget: _config.sessionBudget,
+      maxTurns: _config.maxTurns,
     );
     return driver.runSession();
   }

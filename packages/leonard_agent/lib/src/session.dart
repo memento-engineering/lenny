@@ -78,6 +78,7 @@ class LeonardSession implements SessionSurface {
   bool _started = false;
   bool _ended = false;
   int? _coreBudgetBytes;
+  LeonardConfig _config = const LeonardConfig();
   Observation _prevObservation = Observation.empty();
 
   /// Live progress events for the DevTools thinking panel and the CLI's
@@ -125,6 +126,7 @@ class LeonardSession implements SessionSurface {
       throw StateError('Session already started');
     }
     _storeCoreBudget(config);
+    _config = config;
     final result = await _client.handshake();
     _handshake = result;
     _started = true;
@@ -312,6 +314,8 @@ class LeonardSession implements SessionSurface {
       onTurnEvent: emitTurnEvent,
       tokenBudget: tokenBudget,
       turnBudget: effectiveTurnBudget,
+      sessionBudget: _config.sessionBudget,
+      maxTurns: _config.maxTurns,
     );
     return driver.runSession();
   }
