@@ -907,17 +907,19 @@ description: >
     expect(
       reference,
       contains(
-        '- `leonard_native`: no valid post-fix calibration is available. '
-        'A full 2026-09-09 run with `--exclude-strings` produced 502 mutants, '
-        '114 survivors, 77.29% killed, rating C, in 1h50m19s, but the audit '
-        'rejected it because 19 string-interior survivors remain. The '
-        '2026-08-01 542/215/60.33%/C result is not comparable because string '
-        'exclusion was disabled; `mutation_test` 1.8.0 compile-error inflation '
-        'remains. Survivor triage produced the initial four checks and found '
-        '`lenny-i2j6`.',
+        '- `leonard_native` on butcher, the cut-over run of 2026-09-24: '
+        '663 mutants — 457 killed, 101 survived, 96 uncovered, 7 that did not '
+        'compile and 2 that timed out — for a 69.88% mutation score and '
+        '81.90% over covered code, in 226 seconds of dry sizing plus the '
+        'scored phase.',
       ),
     );
     for (final String receipt in <String>[
+      '31 in `xcuitest_backend.dart`',
+      'The earlier numbers are not comparable',
+      '502 mutants, 114 survivors and 77.29% in 1h50m19s',
+      '542 mutants, 215 survivors and 60.33%',
+      '`lenny-i2j6`',
       '49.09% killed',
       '54/55 killed, 98.18%',
       '126 of 777 mutants',

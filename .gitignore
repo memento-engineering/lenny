@@ -76,3 +76,9 @@ spikes/
 # reads — same residue class, never source.
 artifacts/
 coverage/
+
+# The mutation runner generates packages/<name>/butcher.yaml from the selected
+# files and removes it again; a run killed outright is the only way one
+# survives, and it must never be committed. A hand-authored one is a different
+# file — the generator refuses to overwrite it — and needs `git add -f`.
+packages/*/butcher.yaml

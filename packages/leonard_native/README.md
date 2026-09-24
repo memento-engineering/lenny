@@ -165,34 +165,49 @@ against that; see its dartdoc before sizing your own budget.
 ## Mutation-testing pilot
 
 Mutation score is this pilot's primary test-quality metric: it measures the
-share of generated behavior changes detected by assertions. Line coverage is
-used only to skip instrumented lines with zero hits.
+share of generated behavior changes detected by assertions. Coverage decides
+what is worth running: a mutant no test reaches is reported as uncovered
+without being run, which lowers the mutation score and leaves the covered-code
+score intact.
+
+The engine is [butcher](https://pub.dev/packages/butcher), which parses with
+the analyzer and rewrites the AST. `leonard_flutter` is the one exception: it
+stays on `mutation_test` through `tool/run_mutation_flutter.sh` until butcher
+grows a runner seam for `flutter test`, and the pilot forks on the package type
+so that split needs no flag.
 
 From the workspace root, size the run before spending the full mutation cost:
 
     ./tool/run_mutation_pilot.sh dry
 
-The measured mutant count is recorded in
-`artifacts/mutation/leonard_native/dry/console.txt`. Then run the calibration,
-which repeats dry sizing before its baseline and full mutation phases:
+Dry sizing enumerates the mutants without evaluating one; the count is the
+`mutants=` line of `artifacts/mutation/leonard_native/dry/summary.txt`. Then
+run the calibration, which repeats dry sizing before the scored phase:
 
     ./tool/run_mutation_pilot.sh full
 
-If `artifacts/coverage/leonard_native.lcov` exists, the runner supplies a
-package-relative copy to `mutation_test`; if it is absent, all candidate lines
-remain eligible. The human report is
-`artifacts/mutation/leonard_native/full/mutation-test-report.html`. The stable
-machine-readable score and survivor data are in
-`artifacts/mutation/leonard_native/full/mutation-test-report.xml`; JUnit,
-XUnit, and Markdown reports are emitted beside it. The portable entry point
-installed in any repository is:
+The report is `artifacts/mutation/leonard_native/full/mutation-report.json`, a
+Stryker JSON document the [Stryker report
+viewer](https://microsoft.github.io/mutation-testing-elements/) renders.
+`summary.txt` beside it carries the same counts one per line, and
+`mutation-report.md` lists the survivors per file.
+`tool/verify_mutation_rebaseline.dart` reads that JSON document's per-file map.
+
+If `artifacts/coverage/leonard_native.lcov` exists, the runner hands it over as
+routing input; an lcov names no test files, so every covered mutant runs the
+whole suite. Passing files — which the nightly does — adds `--test-impact`
+instead, which drops the lcov and lets butcher collect coverage itself and run
+each mutant against only the test files that reach its line, cheapest first.
+The portable entry point installed in any repository is:
 
     ./tool/leonard/run_mutation.sh full path/to/pure_dart_package \
-      --repo-root . --coverage artifacts/coverage/package.lcov \
-      --rules tool/leonard/custom_rules.xml \
-      --rules tool/team/another_rules.xml
+      --repo-root . --coverage artifacts/coverage/package.lcov
 
-Custom documents add semantic rules alongside the enabled builtin rules.
+`--rules` is refused: it described the regex engine's semantic rules, and
+butcher's mutators are built in. Scope is configured by exclusion instead. The
+runner generates a `butcher.yaml` at the package root holding the complement of
+the selected files and removes it when the run ends, so a hand-authored one is
+never overwritten and a generated one is never committed.
 
 The vended runner at `tool/leonard/run_mutation.sh` supports pure Dart only
 and rejects Flutter SDK dependencies. Lenny's compatibility pilot at
@@ -200,11 +215,10 @@ and rejects Flutter SDK dependencies. Lenny's compatibility pilot at
 forking Flutter packages to its local `flutter test` path; pure-Dart packages
 delegate to the vended runner.
 
-Run `./tool/run_mutation_pilot.sh dry` for sizing before
-`./tool/run_mutation_pilot.sh full` calibration. Portable consumers may pass
-repeatable `--rules XML` arguments; custom rules add to builtins. Full runs
-emit HTML, stable XML, JUnit, XUnit, and Markdown reports. Score gating remains
-opt-in through `--gate` or `MUTATION_GATE=1`.
+Score gating remains opt-in through `--gate` or `MUTATION_GATE=1`, which
+propagates butcher's own exit instead of reporting only. A red suite is not
+gated: butcher verifies the baseline before it mutates anything and aborts on a
+red one either way.
 
 The deferred `lenny-mab` flake must be cleared before mutation expands to
 `leonard_devtools`.
