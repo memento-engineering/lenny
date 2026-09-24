@@ -102,6 +102,46 @@ class _StubHost implements LoopHost {
   Set<String> activeExtensionNamespaces() => const <String>{};
 }
 
+class _WaitingProvider extends _StubProvider {
+  @override
+  Future<ModelDecision> decide(
+    ConversationSnapshot snapshot,
+    ActionSchema schema,
+  ) async =>
+      ModelDecision(action: (tool: 'core.wait', args: <String, dynamic>{}));
+}
+
+class _WaitingHost extends _StubHost {
+  @override
+  List<ToolDescriptor> mergedTools() => <ToolDescriptor>[
+    ...super.mergedTools(),
+    const ToolDescriptor(
+      name: 'core.wait',
+      description: 'wait',
+      inputSchema: <String, dynamic>{
+        'type': 'object',
+        'additionalProperties': false,
+      },
+    ),
+  ];
+}
+
+Future<TrajectoryWriter> _writer([_MemorySink? sink]) async {
+  final writer = TrajectoryWriter(sink ?? _MemorySink());
+  await writer.writeHeader(
+    const SessionHeader(
+      goal: 'goal',
+      agentsMdHash: 'h',
+      buildIdentifier: 'b',
+      modelIdentifier: 'fake',
+      harnessVersion: '0.1',
+      extensions: <ExtensionManifestRecord>[],
+      config: <String, dynamic>{},
+    ),
+  );
+  return writer;
+}
+
 void main() {
   test(
     'LeonardSession.run() drives a session and returns the termination',
@@ -160,5 +200,38 @@ void main() {
       ),
       throwsStateError,
     );
+  });
+
+  test('run() honors LeonardConfig.sessionBudget from start()', () async {
+    final session = LeonardSession.forTest(
+      VmServiceClient.forTest(_FakeVm(), 'iso'),
+    );
+    await session.start(
+      'goal',
+      const LeonardConfig(sessionBudget: Duration.zero),
+    );
+    final t = await session.run(
+      host: _StubHost(),
+      provider: _StubProvider(),
+      writer: await _writer(),
+    );
+    expect(t.outcome, SessionOutcome.budgetExhausted);
+    await session.end();
+  });
+
+  test('run() honors LeonardConfig.maxTurns from start()', () async {
+    final session = LeonardSession.forTest(
+      VmServiceClient.forTest(_FakeVm(), 'iso'),
+    );
+    await session.start('goal', const LeonardConfig(maxTurns: 2));
+    final sink = _MemorySink();
+    final t = await session.run(
+      host: _WaitingHost(),
+      provider: _WaitingProvider(),
+      writer: await _writer(sink),
+    );
+    expect(t.outcome, SessionOutcome.budgetExhausted);
+    expect(sink.lines.where((l) => l.contains('"type":"turn"')), hasLength(2));
+    await session.end();
   });
 }

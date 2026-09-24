@@ -372,6 +372,33 @@ void main() {
       expect(args.turnBudget, isNull);
     });
 
+    test('--wall-clock-minutes 30 sets wallClockBudget to 30 minutes', () {
+      final args = parseCliArgs(<String>[
+        '--vm-uri',
+        'ws://h/ws',
+        '--wall-clock-minutes',
+        '30',
+      ]);
+      expect(args.wallClockBudget, const Duration(minutes: 30));
+    });
+
+    test('--wall-clock-minutes 0 throws CliUsageError', () {
+      expect(
+        () => parseCliArgs(<String>[
+          '--vm-uri',
+          'ws://h/ws',
+          '--wall-clock-minutes',
+          '0',
+        ]),
+        throwsA(isA<CliUsageError>()),
+      );
+    });
+
+    test('--wall-clock-minutes absent leaves wallClockBudget null', () {
+      final args = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);
+      expect(args.wallClockBudget, isNull);
+    });
+
     group('--core-budget-bytes / --probe-artifact', () {
       test('both are null when absent', () {
         final args = parseCliArgs(<String>['--vm-uri', 'ws://h/ws']);

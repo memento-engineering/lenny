@@ -228,7 +228,12 @@ Future<int> runCli(
     // ----- start session --------------------------------------------
     await session.start(
       goal,
-      LeonardConfig(coreBudgetBytes: args.coreBudgetBytes),
+      args.wallClockBudget == null
+          ? LeonardConfig(coreBudgetBytes: args.coreBudgetBytes)
+          : LeonardConfig(
+              coreBudgetBytes: args.coreBudgetBytes,
+              sessionBudget: args.wallClockBudget!,
+            ),
     );
 
     final String? probeArtifactPath = args.probeArtifactPath;

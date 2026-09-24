@@ -142,6 +142,7 @@ DRIVER_ARGS=(
   --model qwen-mlx
   --output "$TRAJECTORY"
   --turn-budget 180
+  --wall-clock-minutes 30
   --done-reason-pattern "$DONE_REASON_PATTERN"
   --done-evidence-pattern "$DONE_EVIDENCE_PATTERN"
   --core-budget-bytes "$CORE_BUDGET_BYTES"

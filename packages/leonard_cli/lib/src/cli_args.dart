@@ -47,6 +47,7 @@ class CliArgs {
     this.target,
     this.agentsMdPath,
     this.turnBudget,
+    this.wallClockBudget,
     this.coreBudgetBytes,
     this.probeArtifactPath,
     this.doneReasonPattern,
@@ -160,6 +161,10 @@ class CliArgs {
   /// Optional `--turn-budget` override. `null` means use the LoopDriver
   /// default (120 s).
   final Duration? turnBudget;
+
+  /// Optional `--wall-clock-minutes` session budget. `null` keeps the
+  /// LeonardConfig default (15 min).
+  final Duration? wallClockBudget;
 
   /// Positive core-observation byte budget forwarded on every pull.
   /// `null` uses the binding default.
@@ -309,6 +314,10 @@ ArgParser buildParser() => ArgParser()
   ..addOption(
     'turn-budget',
     help: 'Per-turn inference timeout in seconds (default: 120).',
+  )
+  ..addOption(
+    'wall-clock-minutes',
+    help: 'Whole-session wall-clock budget in minutes (default: 15).',
   )
   ..addOption(
     'core-budget-bytes',
@@ -509,6 +518,18 @@ CliArgs parseCliArgs(List<String> argv) {
     turnBudget = Duration(seconds: secs);
   }
 
+  final String? rawWallClock = res['wall-clock-minutes'] as String?;
+  Duration? wallClockBudget;
+  if (rawWallClock != null) {
+    final int? minutes = int.tryParse(rawWallClock);
+    if (minutes == null || minutes <= 0) {
+      throw CliUsageError(
+        '--wall-clock-minutes must be a positive integer; got "$rawWallClock"',
+      );
+    }
+    wallClockBudget = Duration(minutes: minutes);
+  }
+
   final String? rawCoreBudgetBytes = res['core-budget-bytes'] as String?;
   int? coreBudgetBytes;
   if (rawCoreBudgetBytes != null) {
@@ -549,6 +570,7 @@ CliArgs parseCliArgs(List<String> argv) {
     target: target,
     agentsMdPath: res['agents-md'] as String?,
     turnBudget: turnBudget,
+    wallClockBudget: wallClockBudget,
     coreBudgetBytes: coreBudgetBytes,
     probeArtifactPath: res['probe-artifact'] as String?,
     doneReasonPattern: doneReasonPattern,
