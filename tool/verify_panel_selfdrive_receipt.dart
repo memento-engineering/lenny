@@ -134,7 +134,12 @@ String assertInnerModelResolved(
 /// baseline. A terminal marker proves a transition only when it appears in a
 /// later turn at a strictly higher generation. Any generation decrease makes
 /// the sequence invalid.
-bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
+bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) =>
+    _terminalTransitionTurn(records) != null;
+
+/// Index (among `turn` records) of the first turn that proves the terminal
+/// transition, or null when none does or a generation ever decreases.
+int? _terminalTransitionTurn(List<Map<String, dynamic>> records) {
   // multiLine: the chip carries a second line (a hint, or token use).
   final RegExp marker = RegExp(
     r'^Session ([0-9]+) · (idle|running|done|stopped|error)(?: ·|$)',
@@ -143,7 +148,7 @@ bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
   int? baselineGeneration;
   int? baselineTurn;
   int? previousGeneration;
-  bool terminalTransition = false;
+  int? transitionTurn;
   var turnIndex = -1;
 
   for (final Map<String, dynamic> record in records) {
@@ -156,7 +161,7 @@ bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
       final String status = match.group(2)!;
 
       if (previousGeneration != null && generation < previousGeneration) {
-        return false;
+        return null;
       }
       previousGeneration = generation;
       if (baselineGeneration == null) {
@@ -168,11 +173,34 @@ bool terminalSessionTransitionObserved(List<Map<String, dynamic>> records) {
       if (turnIndex > baselineTurn! &&
           generation > baselineGeneration &&
           (status == 'done' || status == 'stopped' || status == 'error')) {
-        terminalTransition = true;
+        transitionTurn ??= turnIndex;
       }
     }
   }
-  return terminalTransition;
+  return transitionTurn;
+}
+
+/// Whether the prompt form was usable again after the run: an enabled Start
+/// observed on a turn from the terminal transition through the final
+/// `core.done`. Not required in the `core.done` turn itself: the evidence gate
+/// needs the Timeline row there, and Start is not tappable behind that tab.
+bool startReenabledAfterTerminal(List<Map<String, dynamic>> records) {
+  final int? transition = _terminalTransitionTurn(records);
+  if (transition == null) return false;
+  final List<Map<String, dynamic>> turns = records
+      .where((Map<String, dynamic> record) => record['type'] == 'turn')
+      .toList(growable: false);
+  final int done = turns.lastIndexWhere((Map<String, dynamic> turn) {
+    final Map<dynamic, dynamic> action =
+        turn['proposed_action'] as Map<dynamic, dynamic>? ??
+        const <dynamic, dynamic>{};
+    return action['tool'] == 'core.done';
+  });
+  if (done < transition) return false;
+  for (var i = transition; i <= done; i++) {
+    if (_startEnabled(turns[i])) return true;
+  }
+  return false;
 }
 
 /// Trajectory-derived evidence a negative receipt quotes verbatim.
@@ -371,17 +399,10 @@ void _assertReceipt(
     _fail('no non-empty Proposed action detail observed');
   }
 
-  final Map<String, dynamic>? doneTurn = turns
-      .cast<Map<String, dynamic>?>()
-      .lastWhere((Map<String, dynamic>? turn) {
-        final Map<dynamic, dynamic> action =
-            turn?['proposed_action'] as Map<dynamic, dynamic>? ??
-            const <dynamic, dynamic>{};
-        return action['tool'] == 'core.done';
-      }, orElse: () => null);
-  if (doneTurn == null || !_startEnabled(doneTurn)) {
+  if (!startReenabledAfterTerminal(records)) {
     _fail(
-      'final core.done observation did not contain an enabled Start button',
+      'no enabled Start observed between the terminal session transition '
+      'and the final core.done',
     );
   }
 

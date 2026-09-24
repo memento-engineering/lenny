@@ -12,6 +12,7 @@ import 'verify_panel_selfdrive_receipt.dart'
         redactCapturesInPlace,
         redactSecrets,
         resolvedInnerModelId,
+        startReenabledAfterTerminal,
         terminalSessionTransitionObserved;
 
 Map<String, dynamic> _markerTurn(String label) => <String, dynamic>{
@@ -24,6 +25,28 @@ Map<String, dynamic> _markerTurn(String label) => <String, dynamic>{
     },
   },
   'proposed_action': <String, dynamic>{'tool': 'core.wait'},
+};
+
+Map<String, dynamic> _panelTurn(
+  List<Map<String, dynamic>> nodes, {
+  String tool = 'core.wait',
+}) => <String, dynamic>{
+  'type': 'turn',
+  'observation': <String, dynamic>{
+    'core': <String, dynamic>{'nodes': nodes},
+  },
+  'proposed_action': <String, dynamic>{'tool': tool},
+};
+
+Map<String, dynamic> _chip(String label) => <String, dynamic>{'label': label};
+
+Map<String, dynamic> _start({bool tappable = true}) => <String, dynamic>{
+  'label': 'Start',
+  if (tappable) 'actions': <String>['tap'],
+};
+
+Map<String, dynamic> _row() => <String, dynamic>{
+  'label': '#0 core.done(reason=x)',
 };
 
 List<Map<String, dynamic>> _trajectory(String? resolvedModelId) =>
@@ -217,6 +240,53 @@ void main() {
       expect(terminalSessionTransitionObserved(records), isTrue);
     },
   );
+
+  test(
+    'Start re-enabled on Conversation after the run satisfies the check even when core.done is called from Timeline',
+    () {
+      // The live 2026-09-24 shape: the evidence gate needs the Timeline row in
+      // the core.done observation, and Start is not tappable behind that tab.
+      final records = <Map<String, dynamic>>[
+        _panelTurn(<Map<String, dynamic>>[_chip('Session 0 · idle'), _start()]),
+        _panelTurn(<Map<String, dynamic>>[
+          _chip('Session 1 · running · Turn 1 · 00:00'),
+        ]),
+        _panelTurn(<Map<String, dynamic>>[
+          _chip('Session 1 · done\n~1k / 32k'),
+          _start(),
+        ]),
+        _panelTurn(<Map<String, dynamic>>[
+          _row(),
+          _start(tappable: false),
+        ], tool: 'core.done'),
+      ];
+      expect(startReenabledAfterTerminal(records), isTrue);
+    },
+  );
+
+  test(
+    'Start must be re-enabled after the terminal transition, not before',
+    () {
+      final records = <Map<String, dynamic>>[
+        _panelTurn(<Map<String, dynamic>>[_chip('Session 0 · idle'), _start()]),
+        _panelTurn(<Map<String, dynamic>>[
+          _chip('Session 1 · done\n~1k / 32k'),
+        ]),
+        _panelTurn(<Map<String, dynamic>>[_row()], tool: 'core.done'),
+      ];
+      expect(startReenabledAfterTerminal(records), isFalse);
+    },
+  );
+
+  test('an enabled Start after core.done does not count', () {
+    final records = <Map<String, dynamic>>[
+      _panelTurn(<Map<String, dynamic>>[_chip('Session 0 · idle'), _start()]),
+      _panelTurn(<Map<String, dynamic>>[_chip('Session 1 · done\n~1k / 32k')]),
+      _panelTurn(<Map<String, dynamic>>[_row()], tool: 'core.done'),
+      _panelTurn(<Map<String, dynamic>>[_start()]),
+    ];
+    expect(startReenabledAfterTerminal(records), isFalse);
+  });
 
   test('terminal marker transition rejects insufficient evidence', () {
     final cases = <String, List<Map<String, dynamic>>>{
