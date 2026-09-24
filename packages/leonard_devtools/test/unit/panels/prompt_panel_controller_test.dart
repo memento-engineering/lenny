@@ -348,14 +348,11 @@ void main() {
       providerFactory: (_, __, ___) => _DummyProvider(),
     );
 
-    // Subscribe before start so we don't miss the header.
     final emitted = <TrajectoryRecord>[];
-    // Listen lazily by deferring until trajectory is non-empty.
     await c.start(_cfg, providerCfg: _providerCfg());
+    // Subscribe AFTER start, as the Timeline tab does when first opened:
+    // the header written during start is replayed, then live records follow.
     final sub = c.trajectory.listen(emitted.add);
-    // The header was written before this subscription. To verify
-    // observability for *future* records, write one through the
-    // captured writer.
     final writer = fake.capturedWriter!;
     await writer.writeTurn(
       const TurnRecord(
@@ -371,8 +368,9 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    expect(emitted, hasLength(1));
-    expect(emitted.single, isA<TurnRecord>());
+    expect(emitted, hasLength(2));
+    expect(emitted.first, isA<SessionHeader>());
+    expect(emitted.last, isA<TurnRecord>());
 
     await sub.cancel();
     await c.dispose();
