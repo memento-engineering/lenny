@@ -201,6 +201,41 @@ class XcuiTestBackend implements NativeBackend {
     await _post('/session/$_sid/context', const <String, Object?>{
       'name': 'NATIVE_APP',
     });
+    if (bundleId case final String bundleId) {
+      await _requireAttachedAppRunning(bundleId);
+    }
+  }
+
+  /// Attach must not disturb the app. On Xcode 27 the simulator UI is
+  /// DeviceHub, which XCUITest driver <= 11 does not recognise: it reboots the
+  /// booted simulator on session create and the app is SIGTERMed. Only a
+  /// definite `queryAppState` below 3 (not installed / not running /
+  /// suspended) fails; an unanswered probe is unknown, not a failure.
+  Future<void> _requireAttachedAppRunning(String bundleId) async {
+    final Object? state;
+    try {
+      final Map<String, Object?> j = await _post(
+        '/session/$_sid/execute/sync',
+        <String, Object?>{
+          'script': 'mobile: queryAppState',
+          'args': <Object?>[
+            <String, Object?>{'bundleId': bundleId},
+          ],
+        },
+      );
+      state = j['value'];
+    } on NativeException {
+      return;
+    }
+    if (state is int && state < 3) {
+      throw NativeException(
+        'attach to $bundleId: the app is not running after session create '
+        '(queryAppState $state). On Xcode 27 the simulator UI is DeviceHub '
+        '(com.apple.dt.Devices); Appium XCUITest driver 11.x or older does '
+        'not recognise it, reboots the simulator and kills the app. Upgrade '
+        'to XCUITest driver 12 or newer (appium driver update xcuitest).',
+      );
+    }
   }
 
   @override

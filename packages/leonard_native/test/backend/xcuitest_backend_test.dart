@@ -154,6 +154,99 @@ void main() {
       },
     );
 
+    group('attach preflight (Xcode 27 DeviceHub)', () {
+      MockClient attachClient(Object? appState, List<http.Request> requests) =>
+          MockClient((http.Request request) async {
+            requests.add(request);
+            if (request.url.path == '/session') {
+              return http.Response(
+                jsonEncode(<String, Object?>{
+                  'value': <String, Object?>{'sessionId': 'ios-attach-session'},
+                }),
+                200,
+              );
+            }
+            if (request.url.path.endsWith('/execute/sync')) {
+              return http.Response(
+                jsonEncode(<String, Object?>{'value': appState}),
+                200,
+              );
+            }
+            return http.Response(
+              jsonEncode(<String, Object?>{'value': null}),
+              200,
+            );
+          });
+
+      Iterable<http.Request> probes(List<http.Request> requests) =>
+          requests.where((r) => r.url.path.endsWith('/execute/sync'));
+
+      test('fails loudly when the app did not survive the attach', () async {
+        final List<http.Request> requests = <http.Request>[];
+        final XcuiTestBackend backend = XcuiTestBackend.attach(
+          udid: 'iphone',
+          bundleId: 'engineering.memento.Runner',
+          client: attachClient(1, requests),
+        );
+
+        await expectLater(
+          backend.connect(),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              allOf(contains('XCUITest driver 12'), contains('DeviceHub')),
+            ),
+          ),
+        );
+      });
+
+      test(
+        'passes when the app is still running and probes its bundle',
+        () async {
+          final List<http.Request> requests = <http.Request>[];
+          final XcuiTestBackend backend = XcuiTestBackend.attach(
+            udid: 'iphone',
+            bundleId: 'engineering.memento.Runner',
+            client: attachClient(4, requests),
+          );
+
+          await backend.connect();
+
+          final Map<String, Object?> body =
+              jsonDecode(probes(requests).single.body) as Map<String, Object?>;
+          expect(body['script'], 'mobile: queryAppState');
+          expect(body['args'], <Object?>[
+            <String, Object?>{'bundleId': 'engineering.memento.Runner'},
+          ]);
+        },
+      );
+
+      test('an unanswered probe is unknown, not a failure', () async {
+        final List<http.Request> requests = <http.Request>[];
+        final XcuiTestBackend backend = XcuiTestBackend.attach(
+          udid: 'iphone',
+          bundleId: 'engineering.memento.Runner',
+          client: attachClient(null, requests),
+        );
+
+        await backend.connect();
+        expect(probes(requests), hasLength(1));
+      });
+
+      test('launch mode sends no probe', () async {
+        final List<http.Request> requests = <http.Request>[];
+        final XcuiTestBackend backend = XcuiTestBackend(
+          udid: 'iphone',
+          app: '/x/Runner.app',
+          client: attachClient(1, requests),
+        );
+
+        await backend.connect();
+        expect(probes(requests), isEmpty);
+      });
+    });
+
     const List<String> deniedKeys = <String>[
       'appium:app',
       'appium:bundleId',
