@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:leonard_contract/testing.dart';
 import 'package:test/test.dart';
-
-import '../../../leonard_host/test/support/runtime_dependency_guard.dart';
+import 'package:yaml/yaml.dart';
 
 void main() {
   // lenny-oz64: keep this list closed because a model-stack runtime
@@ -18,7 +18,8 @@ void main() {
 
   test('runtime dependencies match the closed allow-list', () {
     final Set<String> actual = runtimeDependencyNames(
-      File('pubspec.yaml').readAsStringSync(),
+      loadYaml(File('pubspec.yaml').readAsStringSync())
+          as Map<Object?, Object?>,
     );
 
     expect(
@@ -30,29 +31,5 @@ void main() {
         expected: allowedRuntimeDependencies,
       ),
     );
-  });
-
-  test('dependency drift names additions and removals', () {
-    expect(
-      dependencyDriftMessage(
-        package: 'leonard_native',
-        actual: <String>{'genesis_perception', 'leonard_agent'},
-        expected: <String>{'genesis_perception', 'xml'},
-      ),
-      'leonard_agent was re-added to leonard_native runtime dependencies.\n'
-      'xml was removed from leonard_native runtime dependencies.',
-    );
-  });
-
-  test('dev dependencies are not part of the runtime set', () {
-    const String pubspec = '''
-name: example
-dependencies:
-  genesis_perception: ^0.3.0
-dev_dependencies:
-  leonard_agent: ^0.2.0
-''';
-
-    expect(runtimeDependencyNames(pubspec), <String>{'genesis_perception'});
   });
 }

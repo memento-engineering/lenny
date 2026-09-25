@@ -1,13 +1,15 @@
-import 'package:yaml/yaml.dart';
-
-/// Returns the names in the manifest's top-level runtime dependency map.
-Set<String> runtimeDependencyNames(String pubspecSource) {
-  final YamlMap pubspec = loadYaml(pubspecSource) as YamlMap;
-  final YamlMap dependencies = pubspec['dependencies'] as YamlMap;
+/// The runtime (non-dev) dependency names of a parsed pubspec.
+///
+/// Takes the already-parsed document (a `YamlMap` is a `Map`) so this
+/// package needs no YAML parser of its own.
+Set<String> runtimeDependencyNames(Map<Object?, Object?> pubspec) {
+  final Object? dependencies = pubspec['dependencies'];
+  if (dependencies is! Map) return <String>{};
   return dependencies.keys.cast<String>().toSet();
 }
 
-/// Describes unexpected additions before unexpected removals, sorted by name.
+/// Explains how [actual] drifted from [expected], one sorted line per
+/// re-added or removed dependency of [package]. Empty when they match.
 String dependencyDriftMessage({
   required String package,
   required Set<String> actual,

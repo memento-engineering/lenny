@@ -1,13 +1,14 @@
 import 'dart:io';
 
+import 'package:leonard_contract/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 void main() {
+  // lenny-oz64: keep this list closed because a model-stack runtime
+  // dependency drags in sse_channel and breaks signalr_netcore
+  // co-installation for leonard_flutter consumers.
   const Set<String> allowedRuntimeDependencies = <String>{
-    // lenny-oz64: keep this list closed because a model-stack runtime
-    // dependency drags in sse_channel and breaks signalr_netcore
-    // co-installation for leonard_flutter consumers.
     'flutter',
     'genesis_perception',
     'leonard_contract',
@@ -15,63 +16,19 @@ void main() {
   };
 
   test('runtime dependencies match the closed allow-list', () {
-    final Set<String> actual = _runtimeDependencyNames(
-      File('pubspec.yaml').readAsStringSync(),
+    final Set<String> actual = runtimeDependencyNames(
+      loadYaml(File('pubspec.yaml').readAsStringSync())
+          as Map<Object?, Object?>,
     );
 
     expect(
       actual,
       allowedRuntimeDependencies,
-      reason: _dependencyDriftMessage(
+      reason: dependencyDriftMessage(
+        package: 'leonard_flutter',
         actual: actual,
         expected: allowedRuntimeDependencies,
       ),
     );
   });
-
-  test('dependency drift names additions and removals', () {
-    expect(
-      _dependencyDriftMessage(
-        actual: <String>{'flutter', 'leonard_agent'},
-        expected: <String>{'flutter', 'leonard_contract'},
-      ),
-      'leonard_agent was re-added to leonard_flutter runtime dependencies.\n'
-      'leonard_contract was removed from leonard_flutter runtime dependencies.',
-    );
-  });
-
-  test('dev dependencies are not part of the runtime set', () {
-    const String pubspec = '''
-name: example
-dependencies:
-  flutter:
-    sdk: flutter
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  leonard_agent: ^0.2.0
-''';
-
-    expect(_runtimeDependencyNames(pubspec), <String>{'flutter'});
-  });
-}
-
-Set<String> _runtimeDependencyNames(String source) {
-  final YamlMap pubspec = loadYaml(source) as YamlMap;
-  final YamlMap dependencies = pubspec['dependencies'] as YamlMap;
-  return dependencies.keys.cast<String>().toSet();
-}
-
-String _dependencyDriftMessage({
-  required Set<String> actual,
-  required Set<String> expected,
-}) {
-  final List<String> additions = actual.difference(expected).toList()..sort();
-  final List<String> removals = expected.difference(actual).toList()..sort();
-  return <String>[
-    for (final String package in additions)
-      '$package was re-added to leonard_flutter runtime dependencies.',
-    for (final String package in removals)
-      '$package was removed from leonard_flutter runtime dependencies.',
-  ].join('\n');
 }
