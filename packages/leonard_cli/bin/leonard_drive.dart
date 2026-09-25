@@ -53,10 +53,12 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:args/args.dart';
 import 'package:leonard_agent/leonard_agent_io.dart';
 import 'package:leonard_cli/src/launcher.dart';
+import 'package:leonard_cli/src/native_host_resolution.dart';
 import 'package:leonard_cli/src/png_file_writer.dart';
 
 Future<void> main(List<String> argv) async {
@@ -581,21 +583,28 @@ Future<int> _up(ArgResults res) async {
   return code;
 }
 
-/// Best-effort auto-resolve the native host relative to the workspace root,
-/// mirroring `native_host_e2e_test._hostScript()`'s dual-path resolver. Returns
-/// the first candidate that exists, or `null` when none does.
-String? _resolveNativeHost(String? explicit) {
+/// Resolves the native host: an explicit `--native-host` must exist; otherwise
+/// the running isolate's package config locates `leonard_native` (a hosted
+/// install works from any directory), then the in-repo cwd candidates.
+Future<NativeHostResolution> _resolveNativeHost(String? explicit) async {
   if (explicit != null && explicit.isNotEmpty) {
-    return File(explicit).existsSync() ? explicit : null;
+    return NativeHostResolution(
+      File(explicit).existsSync() ? explicit : null,
+      <String>[explicit],
+    );
   }
-  const List<String> candidates = <String>[
-    'bin/leonard_native_host.dart',
-    'packages/leonard_native/bin/leonard_native_host.dart',
-  ];
-  for (final String c in candidates) {
-    if (File(c).existsSync()) return c;
+  Uri? nativeLibrary;
+  try {
+    nativeLibrary = await Isolate.resolvePackageUri(
+      Uri.parse('package:leonard_native/leonard_native.dart'),
+    );
+  } on UnsupportedError {
+    // An AOT-compiled executable has no package config to consult.
   }
-  return null;
+  return resolveNativeHost(
+    nativeLibraryUri: nativeLibrary,
+    exists: (String path) => File(path).existsSync(),
+  );
 }
 
 /// `up` (native dual path) — boot a Flutter target AND the leonard_native host
@@ -629,7 +638,10 @@ Future<int> _upDual(ArgResults res) async {
     if (udid == null || udid.isEmpty) '--udid',
     if (app == null || app.isEmpty) '--app',
   ];
-  final String? nativeHost = _resolveNativeHost(nativeHostFlag);
+  final NativeHostResolution resolution = await _resolveNativeHost(
+    nativeHostFlag,
+  );
+  final String? nativeHost = resolution.path;
   if (nativeHost == null) {
     if (nativeHostFlag != null && nativeHostFlag.isNotEmpty) {
       stderr.writeln(
@@ -644,6 +656,13 @@ Future<int> _upDual(ArgResults res) async {
       'error: native channel requires ${missing.join(', ')} '
       '(any of --udid/--app/--native-host present requires all three)',
     );
+    if (nativeHost == null) {
+      stderr.writeln(
+        'note: --native-host was not found automatically; tried: '
+        '${resolution.tried.join(', ')}. Depend on leonard_native or pass '
+        '--native-host <path to leonard_native/bin/leonard_native_host.dart>.',
+      );
+    }
     return 64;
   }
 
