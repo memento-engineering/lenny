@@ -154,6 +154,39 @@ void main() {
         },
       );
 
+      test(
+        'without --native-host, the host resolves through the package config '
+        'from outside the repo',
+        () async {
+          // A working directory with no lenny layout: the old cwd-relative
+          // candidates cannot exist here. The conflicting -d is validated
+          // right AFTER the native host, so the run stops before any spawn.
+          final Directory elsewhere = await Directory.systemTemp.createTemp(
+            'leonard_drive_consumer_',
+          );
+          addTearDown(() => elsewhere.delete(recursive: true));
+          final ProcessResult r =
+              await Process.run(Platform.resolvedExecutable, <String>[
+                'run',
+                entrypoint,
+                'up',
+                '--runner',
+                'flutter',
+                '-t',
+                'lib/main.dart',
+                '--udid',
+                'SIM-UDID',
+                '--app',
+                fixtureApp,
+                '-d',
+                'OTHER-DEVICE',
+              ], workingDirectory: elsewhere.path);
+          expect(r.exitCode, 64);
+          expect(r.stderr, isNot(contains('--native-host')));
+          expect(r.stderr, contains('superseded by --udid'));
+        },
+      );
+
       test('a nonexistent --app path exits 64', () async {
         final ProcessResult r = await run(<String>[
           'up',
