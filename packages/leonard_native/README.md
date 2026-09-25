@@ -43,6 +43,35 @@ Args:
 - `--app <path>` — path to the `.app` bundle (required)
 - `--platform ios` — target platform (default `ios`)
 
+### iOS simulators on Xcode 27: XCUITest driver 12 or newer
+
+On Xcode 27 the simulator UI is no longer Simulator.app but DeviceHub
+(`Xcode.app/Contents/Applications/DeviceHub.app`, bundle id
+`com.apple.dt.Devices`). Appium's XCUITest driver **11.x and older** only looks
+for Simulator.app, decides the booted simulator is headless, and on session
+create **reboots it** "with the Simulator window visible". That kills the app
+under test even with attach-safe capabilities, so an attach comes up on the
+home screen. Use **XCUITest driver 12.x or newer** (verified: 12.13.2, which
+bundles `appium-ios-simulator` 10.1.1 and recognises DeviceHub):
+
+```bash
+appium driver update xcuitest
+```
+
+Driver 12 is ESM and imports `appium` as a peer. When the Appium server is
+installed globally (for example through Volta), the driver fails to load with
+`Cannot find package 'appium' imported from …/appium-xcuitest-driver/…` until
+`appium`, at the server's own version, is installed into `APPIUM_HOME`:
+
+```bash
+cd ~/.appium && npm install --save-dev appium@$(appium --version)
+```
+
+`XcuiTestBackend.attach` checks for this after session create: if the driver
+reports the attached bundle is no longer running, `connect()` throws a
+`NativeException` naming this cause, instead of leaving you driving the home
+screen.
+
 ## Selecting Flutter widgets through the native channel on Android
 
 Flutter's projection into Android's accessibility tree is engine-version
