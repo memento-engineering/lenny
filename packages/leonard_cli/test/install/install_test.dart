@@ -51,14 +51,12 @@ void main() {
     expect(runner.existsSync(), isTrue);
     expect(
       runner.readAsStringSync(),
-      contains(
-        r'''local args=(--rules "$command_rules" -b --exclude-strings)''',
-      ),
+      contains(r'''dart run butcher:butcher "${args[@]}"'''),
     );
     expect(runner.readAsStringSync(), contains('--test-impact'));
     expect(
       File('${tmp.path}/tool/leonard/custom_rules.example.xml').existsSync(),
-      isTrue,
+      isFalse,
     );
     if (!Platform.isWindows) {
       expect(Process.runSync('test', <String>['-x', runner.path]).exitCode, 0);

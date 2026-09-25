@@ -1,5 +1,5 @@
-// The test-impact cases spawn the runner end to end; under CI coverage
-// instrumentation they exceed the 30-second default (lenny#125 coverage job).
+// Every case spawns the runner end to end; under CI coverage instrumentation
+// they exceed the 30-second default (lenny#125 coverage job).
 @Timeout(Duration(minutes: 3))
 library;
 
@@ -31,7 +31,7 @@ void main() {
     package = Directory('${repo.path}/nested/package')
       ..createSync(recursive: true);
     File('${package.path}/pubspec.yaml').writeAsStringSync(
-      'name: portable_package\ndev_dependencies:\n  mutation_test: ^1.8.0\n',
+      'name: portable_package\ndev_dependencies:\n  butcher: ^0.1.0\n',
     );
     Directory('${package.path}/lib').createSync();
     File(
@@ -48,9 +48,12 @@ void main() {
       "import 'package:portable_package/imported.dart';\nvoid main() {}\n",
     );
     Directory('${repo.path}/tool').createSync();
-    File(
-      '${root.path}/tool/test_impact.dart',
-    ).copySync('${repo.path}/tool/test_impact.dart');
+    for (final String tool in <String>[
+      'butcher_excludes.dart',
+      'butcher_report_summary.dart',
+    ]) {
+      File('${root.path}/tool/$tool').copySync('${repo.path}/tool/$tool');
+    }
     Directory('${repo.path}/.dart_tool').createSync();
     File(
       '${root.path}/.dart_tool/package_config.json',
@@ -60,39 +63,43 @@ void main() {
     final File dart = File('${bin.path}/dart');
     dart.writeAsStringSync(r'''#!/usr/bin/env bash
 printf '%s\n' "$*" >> "$MUTATION_LOG"
-if [[ "${1:-}" == run && "${2:-}" == */tool/test_impact.dart ]]; then
-  [[ "${TEST_IMPACT_FAIL:-0}" == 1 ]] && exit 23
-  [[ "${TEST_IMPACT_EMPTY:-0}" == 1 ]] && exit 0
+if [[ "${1:-}" == run && "${2:-}" == */tool/butcher_*.dart ]]; then
   exec "$REAL_DART" "$@"
 fi
-if [[ "${1:-}" == test ]]; then
-  echo baseline
-  exit "${BASELINE_EXIT:-0}"
-fi
-if [[ "${1:-}" == run && "${2:-}" == mutation_test ]]; then
-  echo "mutations: $*"
-  dry=0
+if [[ "${1:-}" == run && "${2:-}" == butcher:butcher ]]; then
+  echo "butcher: $*"
   output=""
   previous=""
   for argument in "$@"; do
-    if [[ "$previous" == --rules && -f "$argument" ]]; then
-      sed -n 's/.* id="\([^"]*\)".*/semantic mutant: \1/p' "$argument"
-    fi
-    [[ "$argument" == --dry ]] && dry=1
     [[ "$previous" == --output ]] && output="$argument"
     previous="$argument"
   done
-  if (( dry )); then
-    [[ "${OMIT_DRY_COUNT:-0}" == 1 ]] || echo "Found ${DRY_MUTATIONS:-3} mutations"
-    exit "${DRY_EXIT:-0}"
+  if [[ "$output" == */dry/mutation-report.json ]]; then
+    count="${DRY_MUTANTS:-3}"
+    status=NoCoverage
+    [[ "${OMIT_DRY_REPORT:-0}" == 1 ]] && count=-1
+    exit_code="${DRY_EXIT:-0}"
+  else
+    count="${FULL_MUTANTS:-3}"
+    status=Survived
+    exit_code="${MUTATION_EXIT:-0}"
   fi
-  if [[ -n "$output" ]]; then
-    echo "--- Results ---"
-    for report in mutation-test-report.html mutation-test-report.xml mutation-test-report.junit.xml mutation-test-report.xunit.xml mutation-test-report.md; do
-      : > "$output/$report"
-    done
-    exit "${MUTATION_EXIT:-0}"
+  if (( count >= 0 )); then
+    {
+      printf '{\n  "schemaVersion": "1",\n  "thresholds": {"high": 80, "low": 60},\n'
+      printf '  "files": {\n    "lib/imported.dart": {\n'
+      printf '      "language": "dart",\n      "source": "const a = 1;\\n",\n'
+      printf '      "mutants": ['
+      for (( index = 0; index < count; index++ )); do
+        (( index )) && printf ','
+        printf '\n        {"id": "m%s", "mutatorName": "equality", ' "$index"
+        printf '"location": {"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 2}}, '
+        printf '"status": "%s", "replacement": "!="}' "$status"
+      done
+      printf '\n      ]\n    }\n  }\n}\n'
+    } > "$output"
   fi
+  exit "$exit_code"
 fi
 exit 70
 ''');
@@ -110,10 +117,15 @@ exit 70
   Future<ProcessResult> run(List<String> args, {Map<String, String>? env}) =>
       Process.run(runner.path, args, environment: env ?? environment);
 
-  test('vended runner forwards exclude strings in dry, pr, and full', () async {
+  List<String> butcherCalls() => log
+      .readAsLinesSync()
+      .where((String call) => call.startsWith('run butcher:butcher '))
+      .toList();
+
+  test('the runner drives butcher in dry, pr, and full', () async {
     final Map<String, List<String>> modes = <String, List<String>>{
       'dry': <String>['dry', package.path],
-      'pr': <String>['pr', package.path, '--', 'lib/a.dart'],
+      'pr': <String>['pr', package.path, '--', 'lib/imported.dart'],
       'full': <String>['full', package.path],
     };
     for (final MapEntry<String, List<String>> mode in modes.entries) {
@@ -124,76 +136,83 @@ exit 70
         0,
         reason: '${mode.key}: ${result.stdout}\n${result.stderr}',
       );
-      final List<String> mutationCalls = log
-          .readAsLinesSync()
-          .where((String call) => call.startsWith('run mutation_test '))
-          .toList();
-      expect(mutationCalls, isNotEmpty, reason: mode.key);
-      for (final String call in mutationCalls) {
-        expect(
-          RegExp(r'(^| )--exclude-strings($| )').allMatches(call),
-          hasLength(1),
-          reason: '${mode.key}: $call',
-        );
-      }
-    }
-  });
-
-  test('full sizes before five-format report from any installation', () async {
-    final ProcessResult result = await run(<String>['full', package.path]);
-    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
-    final List<String> calls = log.readAsLinesSync();
-    expect(calls, hasLength(3));
-    expect(calls[0], contains('--dry --format none'));
-    expect(calls[1], 'test');
-    expect(calls[2], contains('--format all --output ${output('full')}'));
-    for (final String report in <String>[
-      'mutation-test-report.html',
-      'mutation-test-report.xml',
-      'mutation-test-report.junit.xml',
-      'mutation-test-report.xunit.xml',
-      'mutation-test-report.md',
-    ]) {
-      expect(File('${output('full')}/$report').existsSync(), isTrue);
-    }
-    expect(File('${output('dry')}/console.txt').existsSync(), isTrue);
-    expect(File('${output('full')}/console.txt').existsSync(), isTrue);
-  });
-
-  test('repeatable custom rules preserve builtin and M1-M8 IDs', () async {
-    final String example =
-        '${_workspaceRoot().path}/packages/leonard_cli/lib/assets/tools/'
-        'leonard/custom_rules.example.xml';
-    final ProcessResult result = await run(<String>[
-      'dry',
-      package.path,
-      '--rules',
-      example,
-      '--rules',
-      example,
-    ]);
-    expect(result.exitCode, 0, reason: result.stderr.toString());
-    final String call = log.readAsStringSync();
-    expect(call, contains(' -b '));
-    expect(RegExp(RegExp.escape(example)).allMatches(call), hasLength(2));
-    final String ledger = File(
-      '${output('dry')}/semantic-rules.txt',
-    ).readAsStringSync();
-    for (int i = 1; i <= 8; i++) {
-      expect(ledger, contains('semantic rule: M$i.'));
+      expect(butcherCalls(), isNotEmpty, reason: mode.key);
       expect(
-        File('${output('dry')}/console.txt').readAsStringSync(),
-        contains('semantic mutant: M$i.'),
+        butcherCalls().first,
+        contains('--coverage ${output('dry')}/empty.lcov'),
+        reason: '${mode.key}: the dry phase sizes without evaluating',
+      );
+      expect(
+        File('${package.path}/butcher.yaml').existsSync(),
+        isFalse,
+        reason: '${mode.key}: the generated configuration outlives no run',
       );
     }
   });
 
+  test('full sizes before the scored phase and writes both reports', () async {
+    final ProcessResult result = await run(<String>['full', package.path]);
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+
+    final List<String> calls = butcherCalls();
+    expect(calls, hasLength(2));
+    expect(
+      calls[0],
+      contains('--output ${output('dry')}/mutation-report.json'),
+    );
+    expect(
+      calls[1],
+      contains('--output ${output('full')}/mutation-report.json'),
+    );
+    for (final String phase in <String>['dry', 'full']) {
+      for (final String artifact in <String>[
+        'console.txt',
+        'mutation-report.json',
+        'mutation-report.md',
+        'summary.txt',
+        'excludes.txt',
+      ]) {
+        expect(
+          File('${output(phase)}/$artifact').existsSync(),
+          isTrue,
+          reason: '$phase/$artifact',
+        );
+      }
+    }
+    expect(
+      File('${output('full')}/summary.txt').readAsStringSync(),
+      allOf(contains('mutants=3'), contains('survived=3'), contains('msi=')),
+    );
+    expect(
+      File('${output('full')}/mutation-report.md').readAsStringSync(),
+      contains('## Surviving mutants in lib/imported.dart'),
+    );
+  });
+
+  test('custom rules are refused, because butcher has no rules seam', () async {
+    final File rules = File('${repo.path}/rules.xml')
+      ..writeAsStringSync('<mutations/>\n');
+
+    final ProcessResult result = await run(<String>[
+      'dry',
+      package.path,
+      '--rules',
+      rules.path,
+    ]);
+
+    expect(result.exitCode, 65);
+    expect(result.stderr, contains('retired regex engine'));
+    expect(Directory('${repo.path}/artifacts').existsSync(), isFalse);
+  });
+
   test('coverage is optional and normalized when supplied', () async {
     final File coverage = File('${repo.path}/source.lcov')
-      ..writeAsStringSync('SF:packages/portable_package/lib/a.dart\nDA:1,1\n');
+      ..writeAsStringSync(
+        'SF:packages/portable_package/lib/imported.dart\nDA:1,1\n',
+      );
     expect(
       (await run(<String>['full', package.path])).stdout,
-      contains('no LCOV supplied'),
+      contains('butcher collects its own coverage'),
     );
     log.writeAsStringSync('');
     final ProcessResult covered = await run(<String>[
@@ -204,11 +223,11 @@ exit 70
     ]);
     expect(covered.exitCode, 0);
     final File normalized = File('${output('full')}/portable_package.lcov');
-    expect(normalized.readAsStringSync(), contains('SF:lib/a.dart'));
-    expect(log.readAsStringSync(), contains('--coverage ${normalized.path}'));
+    expect(normalized.readAsStringSync(), contains('SF:lib/imported.dart'));
+    expect(butcherCalls()[1], contains('--coverage ${normalized.path}'));
   });
 
-  test('score and baseline failure policy', () async {
+  test('score and red-baseline failure policy', () async {
     final Map<String, String> mutationFailure = <String, String>{
       ...environment,
       'MUTATION_EXIT': '23',
@@ -228,14 +247,23 @@ exit 70
       ], env: mutationFailure)).exitCode,
       23,
     );
+
+    // butcher verifies its own baseline and aborts on a red suite without
+    // writing a report, so the run stops before the scored phase whether or
+    // not gating is on.
     Directory(output('full')).deleteSync(recursive: true);
     log.writeAsStringSync('');
     final ProcessResult baseline = await run(
       <String>['full', package.path],
-      env: <String, String>{...environment, 'BASELINE_EXIT': '9'},
+      env: <String, String>{
+        ...environment,
+        'DRY_EXIT': '70',
+        'OMIT_DRY_REPORT': '1',
+      },
     );
-    expect(baseline.exitCode, 9);
-    expect(log.readAsLinesSync(), hasLength(2));
+    expect(baseline.exitCode, 70);
+    expect(baseline.stderr, contains('dry sizing failed'));
+    expect(butcherCalls(), hasLength(1));
     expect(Directory(output('full')).existsSync(), isFalse);
   });
 
@@ -243,7 +271,7 @@ exit 70
     'non-dry sizing accepts counted failure and rejects missing or zero counts',
     () async {
       final ProcessResult counted = await run(
-        <String>['pr', package.path, '--', 'lib/a.dart'],
+        <String>['pr', package.path, '--', 'lib/imported.dart'],
         env: <String, String>{...environment, 'DRY_EXIT': '1'},
       );
       expect(
@@ -251,41 +279,37 @@ exit 70
         0,
         reason: '${counted.stdout}\n${counted.stderr}',
       );
-      expect(log.readAsLinesSync(), hasLength(3));
+      expect(butcherCalls(), hasLength(2));
       expect(
-        File('${output('dry')}/console.txt').readAsStringSync(),
-        contains('Found 3 mutations'),
-      );
-      expect(
-        File('${output('pr')}/console.txt').readAsStringSync(),
-        contains('--- Results ---'),
+        File('${output('dry')}/summary.txt').readAsStringSync(),
+        contains('mutants=3'),
       );
 
       log.writeAsStringSync('');
       final ProcessResult missing = await run(
-        <String>['pr', package.path, '--', 'lib/a.dart'],
+        <String>['pr', package.path, '--', 'lib/imported.dart'],
         env: <String, String>{
           ...environment,
           'DRY_EXIT': '1',
-          'OMIT_DRY_COUNT': '1',
+          'OMIT_DRY_REPORT': '1',
         },
       );
       expect(missing.exitCode, 70);
       expect(missing.stderr, contains('dry sizing failed'));
-      expect(log.readAsLinesSync(), hasLength(1));
+      expect(butcherCalls(), hasLength(1));
 
       log.writeAsStringSync('');
       final ProcessResult zero = await run(
-        <String>['pr', package.path, '--', 'lib/a.dart'],
+        <String>['pr', package.path, '--', 'lib/imported.dart'],
         env: <String, String>{
           ...environment,
           'DRY_EXIT': '1',
-          'DRY_MUTATIONS': '0',
+          'DRY_MUTANTS': '0',
         },
       );
       expect(zero.exitCode, 70);
       expect(zero.stderr, contains('dry sizing failed'));
-      expect(log.readAsLinesSync(), hasLength(1));
+      expect(butcherCalls(), hasLength(1));
     },
   );
 
@@ -310,83 +334,84 @@ exit 70
     expect(gated.stdout, isNot(contains('Reporting only (gating off).')));
   });
 
-  test('pr forwards package-relative files', () async {
+  test('a per-file selection becomes a generated exclude list', () async {
     final ProcessResult result = await run(<String>[
       'pr',
       package.path,
       '--',
-      'lib/a.dart',
-      'lib/b.dart',
+      'lib/imported.dart',
+      'lib/barrel.dart',
     ]);
-    expect(result.exitCode, 0);
-    expect(log.readAsLinesSync()[0], endsWith('lib/a.dart lib/b.dart'));
-    expect(log.readAsLinesSync()[2], endsWith('lib/a.dart lib/b.dart'));
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    final List<String> excludeCalls = log
+        .readAsLinesSync()
+        .where((String call) => call.contains('butcher_excludes.dart'))
+        .toList();
+    expect(excludeCalls, hasLength(2));
+    for (final String call in excludeCalls) {
+      expect(call, endsWith('lib/imported.dart lib/barrel.dart'));
+    }
+    expect(
+      File('${output('pr')}/excludes.txt').readAsStringSync(),
+      contains('1 of 3 sources excluded'),
+    );
+    expect(File('${package.path}/butcher.yaml').existsSync(), isFalse);
   });
 
-  test('test-impact passes selective and fallback XML in both phases', () async {
+  test('an empty selection leaves the whole library in scope', () async {
+    final ProcessResult result = await run(<String>['full', package.path]);
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    expect(
+      File('${output('full')}/excludes.txt').readAsStringSync(),
+      contains('the whole library is in scope'),
+    );
+    expect(File('${package.path}/butcher.yaml').existsSync(), isFalse);
+  });
+
+  test('a hand-authored butcher.yaml stops the run untouched', () async {
+    final File authored = File('${package.path}/butcher.yaml')
+      ..writeAsStringSync('exclude:\n  - lib/barrel.dart\n');
+
+    final ProcessResult result = await run(<String>[
+      'pr',
+      package.path,
+      '--',
+      'lib/imported.dart',
+    ]);
+
+    expect(result.exitCode, 70);
+    expect(result.stderr, contains('exclusion generation failed'));
+    expect(authored.readAsStringSync(), contains('lib/barrel.dart'));
+  });
+
+  test('test-impact hands routing to butcher instead of an lcov', () async {
+    final File coverage = File('${repo.path}/source.lcov')
+      ..writeAsStringSync(
+        'SF:packages/portable_package/lib/imported.dart\nDA:1,1\n',
+      );
+
     final ProcessResult result = await run(<String>[
       'full',
       package.path,
+      '--coverage',
+      coverage.path,
       '--test-impact',
       '--',
       'lib/imported.dart',
-      'lib/unimported.dart',
-      'lib/barrel.dart',
     ]);
+
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
-
-    final List<String> mutationCalls = log
-        .readAsLinesSync()
-        .where((String call) => call.startsWith('run mutation_test '))
-        .toList();
-    expect(mutationCalls, hasLength(2));
-    for (final String call in mutationCalls) {
-      expect(call, isNot(contains(' lib/imported.dart')));
-      expect(call, isNot(contains(' lib/unimported.dart')));
-      expect(call, isNot(contains(' lib/barrel.dart')));
-      expect(RegExp(r'\.xml($| )').allMatches(call), hasLength(4));
-    }
-
-    for (final String phase in <String>['dry', 'full']) {
-      final Directory impact = Directory('${output(phase)}/test-impact');
-      final List<File> documents = impact.listSync().whereType<File>().toList()
-        ..sort((File left, File right) => left.path.compareTo(right.path));
-      expect(documents, hasLength(3));
-      final Map<String, String> bySource = <String, String>{
-        for (final File document in documents)
-          RegExp(
-            r'<file>([^<]+)</file>',
-          ).firstMatch(document.readAsStringSync())!.group(1)!: document
-              .readAsStringSync(),
-      };
-      expect(
-        bySource['lib/imported.dart'],
-        contains(
-          'working-directory=".">dart test test/importing_test.dart</command>',
-        ),
-      );
-      expect(bySource['lib/imported.dart'], isNot(contains('&apos;')));
-      for (final String fallback in <String>[
-        'lib/unimported.dart',
-        'lib/barrel.dart',
-      ]) {
-        expect(
-          bySource[fallback],
-          contains('working-directory=".">dart test</command>'),
-        );
-      }
-      expect(
-        File('${output(phase)}/command_rules.xml').readAsStringSync(),
-        isNot(contains('<commands>')),
-      );
-    }
+    expect(result.stdout, contains('butcher collects that itself'));
+    expect(butcherCalls()[1], isNot(contains('--coverage')));
     expect(
-      File('${output('full')}/mutation-test-report.md').existsSync(),
-      isTrue,
+      File('${output('full')}/portable_package.lcov').existsSync(),
+      isFalse,
     );
   });
 
-  test('test-impact input failures happen before artifacts', () async {
+  test('test-impact without sources fails before artifacts', () async {
     final ProcessResult noSources = await run(<String>[
       'full',
       package.path,
@@ -394,37 +419,6 @@ exit 70
     ]);
     expect(noSources.exitCode, 64);
     expect(Directory('${repo.path}/artifacts').existsSync(), isFalse);
-
-    File('${repo.path}/tool/test_impact.dart').deleteSync();
-    final ProcessResult missingMapper = await run(<String>[
-      'full',
-      package.path,
-      '--test-impact',
-      '--',
-      'lib/imported.dart',
-    ]);
-    expect(missingMapper.exitCode, 66);
-    expect(Directory('${repo.path}/artifacts').existsSync(), isFalse);
-  });
-
-  test('test-impact rejects failed or empty document generation', () async {
-    for (final String variable in <String>[
-      'TEST_IMPACT_FAIL',
-      'TEST_IMPACT_EMPTY',
-    ]) {
-      final ProcessResult result = await run(
-        <String>[
-          'dry',
-          package.path,
-          '--test-impact',
-          '--',
-          'lib/imported.dart',
-        ],
-        env: <String, String>{...environment, variable: '1'},
-      );
-      expect(result.exitCode, 70, reason: variable);
-      expect(result.stderr, contains('test-impact generation'));
-    }
   });
 
   test('invalid inputs fail before full artifacts', () async {
@@ -461,6 +455,8 @@ exit 70
       '--coverage',
       '${repo.path}/x',
     ], 66);
+    File('${repo.path}/tool/butcher_excludes.dart').deleteSync();
+    await fails(<String>['full', package.path], 66);
     final Directory unnamed = Directory('${repo.path}/unnamed')..createSync();
     File('${unnamed.path}/pubspec.yaml').writeAsStringSync('version: 1.0.0\n');
     await fails(<String>['full', unnamed.path], 65);

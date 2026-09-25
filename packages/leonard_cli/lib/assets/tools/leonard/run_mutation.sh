@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Drives butcher, the AST mutation engine, behind this runner's own interface:
+# the same three modes, the same flags, the same artifact layout under
+# artifacts/mutation/<package>/<phase>. Only the engine changed.
+#
+# Two things about butcher shape the body. Its configuration is exclude-only,
+# so a per-file selection is expressed as its complement in a generated
+# butcher.yaml at the package root, removed again by a trap. And it has no
+# sizing-only mode, so the dry phase hands it an lcov that records nothing:
+# every mutant routes to noCoverage, which enumerates the selection without
+# evaluating a single mutant.
+
 usage() {
   echo "usage: $0 [dry|full|pr] PACKAGE_PATH [--repo-root PATH] [--coverage LCOV] [--rules XML]... [--test-impact] [--gate] [-- FILE...]" >&2
 }
@@ -41,62 +52,61 @@ if [[ -z "$repo_root" ]]; then
   repo_root="$probe"
 fi
 for rule in "${rules[@]}"; do [[ -f "$rule" ]] || die 66 "rules file not found: $rule"; done
+# The rules seam belonged to the regex engine: butcher's mutators are built in
+# and its scope is configured by exclusion. Saying so beats accepting a file
+# that would silently change nothing about the measurement.
+(( ${#rules[@]} == 0 )) ||
+  die 65 "--rules describes the retired regex engine; butcher's mutators are built in"
 [[ -z "$coverage_arg" || -f "$coverage_arg" ]] || die 66 "coverage file not found: $coverage_arg"
+excludes_tool="$repo_root/tool/butcher_excludes.dart"
+summary_tool="$repo_root/tool/butcher_report_summary.dart"
+[[ -f "$excludes_tool" ]] || die 66 "exclusion generator not found: $excludes_tool"
+[[ -f "$summary_tool" ]] || die 66 "report summary tool not found: $summary_tool"
 if (( test_impact )); then
   (( ${#files[@]} > 0 )) || die 64 "--test-impact needs at least one package-relative source"
-  [[ -f "$repo_root/tool/test_impact.dart" ]] || die 66 "test-impact mapper not found: $repo_root/tool/test_impact.dart"
 fi
+
+generated_excludes=""
+cleanup() { [[ -z "$generated_excludes" ]] || rm -f -- "$generated_excludes"; }
+trap cleanup EXIT HUP INT TERM
 
 run_phase() {
   local phase="$1"; shift
+  local inputs=("$@")
   local output="$repo_root/artifacts/mutation/$package_name/$phase"
   case "$output" in "$repo_root"/artifacts/mutation/*) ;; *) die 70 "unsafe artifact path: $output" ;; esac
   rm -rf -- "$output"; mkdir -p "$output"
-  local command_rules="$output/command_rules.xml"
-  if (( test_impact )); then
-    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"></mutations>' > "$command_rules"
-  else
-    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<mutations version="1.2"><commands><command group="test" expected-return="0" working-directory=".">dart test</command></commands></mutations>' > "$command_rules"
-  fi
-  local args=(--rules "$command_rules" -b --exclude-strings)
-  local absolute_rule normalized status document manifest
-  local inputs=("$@")
-  : > "$output/semantic-rules.txt"
-  for rule in "${rules[@]}"; do
-    absolute_rule="$(cd "$(dirname "$rule")" && pwd -P)/$(basename "$rule")"
-    args+=(--rules "$absolute_rule")
-    sed -n 's/.* id="\([^"]*\)".*/semantic rule: \1/p' "$absolute_rule" |
-      tee -a "$output/semantic-rules.txt"
-  done
+
+  # The generated configuration belongs to this run alone; the trap removes it
+  # even when the run is interrupted, so a checkout never carries one around.
+  dart run "$excludes_tool" "$package_dir" "${inputs[@]}" > "$output/excludes.txt" ||
+    die 70 "exclusion generation failed"
+  generated_excludes="$package_dir/butcher.yaml"
+
+  local report="$output/mutation-report.json"
+  local args=(--output "$report")
+  local status normalized
   if [[ "$phase" == dry ]]; then
-    args+=(--dry --format none)
+    : > "$output/empty.lcov"
+    args+=(--coverage "$output/empty.lcov")
+  elif (( test_impact )); then
+    echo "note: --test-impact routes each mutant to its covering tests; butcher collects that itself."
+  elif [[ -n "$coverage_arg" ]]; then
+    normalized="$output/$package_name.lcov"
+    sed "s#^SF:packages/$package_name/#SF:#" "$coverage_arg" > "$normalized"
+    args+=(--coverage "$normalized")
   else
-    args+=(--format all --output "$output")
-    if [[ -n "$coverage_arg" ]]; then
-      normalized="$output/$package_name.lcov"
-      sed "s#^SF:packages/$package_name/#SF:#" "$coverage_arg" > "$normalized"
-      args+=(--coverage "$normalized")
-    else
-      echo "note: no LCOV supplied; running without coverage input."
-    fi
+    echo "note: no LCOV supplied; butcher collects its own coverage."
   fi
-  if (( test_impact )); then
-    manifest="$output/test-impact-manifest.txt"
-    if ! dart run "$repo_root/tool/test_impact.dart" \
-      "$package_dir" "$output/test-impact" "${inputs[@]}" > "$manifest"; then
-      die 70 "test-impact generation failed"
-    fi
-    mapfile -t inputs < "$manifest"
-    (( ${#inputs[@]} > 0 )) || die 70 "test-impact generation returned no documents"
-    for document in "${inputs[@]}"; do
-      [[ -n "$document" && -f "$document" ]] || die 70 "test-impact manifest contains a missing document: $document"
-    done
-  fi
-  args+=("${inputs[@]}")
+  args+=("$package_dir")
   set +e
-  (cd "$package_dir" && dart run mutation_test "${args[@]}") 2>&1 | tee -a "$output/console.txt"
+  (cd "$package_dir" && dart run butcher:butcher "${args[@]}") 2>&1 | tee -a "$output/console.txt"
   status=${PIPESTATUS[0]}
   set -e
+  if [[ -f "$report" ]]; then
+    dart run "$summary_tool" "$report" --markdown "$output/mutation-report.md" \
+      > "$output/summary.txt" || die 70 "report summary failed"
+  fi
   return "$status"
 }
 
@@ -105,11 +115,11 @@ if [[ "$mode" == dry ]]; then
   exit 0
 fi
 run_phase dry "${files[@]}" || true
-grep -Eq 'Found [1-9][0-9]* mutations' \
-  "$repo_root/artifacts/mutation/$package_name/dry/console.txt" || die 70 "dry sizing failed"
-(cd "$package_dir" && dart test)
+grep -qE '^mutants=[1-9][0-9]*$' \
+  "$repo_root/artifacts/mutation/$package_name/dry/summary.txt" 2>/dev/null ||
+  die 70 "dry sizing failed"
 run_phase "$mode" "${files[@]}" || {
   status=$?
   (( gate )) && exit "$status"
-  echo "mutation_test exited $status; reporting only (gating off)."
+  echo "butcher exited $status; reporting only (gating off)."
 }
