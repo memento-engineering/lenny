@@ -234,4 +234,48 @@ impact_line="$(grep -n -- 'args+=(--test-impact)' "$repo_root/tool/run_mutation_
 [[ -n "$flutter_exec_line" && -n "$impact_line" && "$impact_line" -gt "$flutter_exec_line" ]] ||
   fail '--test-impact must remain after the immediate Flutter exec branch'
 
+# The coverage proof runs the workflow's OWN step body, not a copy of it, over
+# a real aggregate of each engine's shards. Asserting the grep literal and the
+# aggregate's four console lines separately leaves a gap: the literal is the
+# regex engine's console format, so nothing above would notice if the butcher
+# path stopped emitting it. This closes that gap by executing the step.
+coverage_proof="$temporary/coverage-proof.sh"
+awk '
+  $0 == "      - name: Prove coverage input was applied" {found = 1; next}
+  found && !body && $0 == "        run: |" {body = 1; next}
+  body && $0 ~ /^      - name:/ {exit}
+  body && $0 ~ /^  [A-Za-z0-9_-]+:$/ {exit}
+  body {sub(/^          /, ""); print}
+' "$aggregate_job" > "$coverage_proof"
+[[ -s "$coverage_proof" ]] ||
+  fail 'the aggregate job must keep a Prove coverage input was applied step'
+assert_contains 'Not covered by tests: [0-9]+' "$coverage_proof"
+
+proof_root="$temporary/proof"
+mkdir -p "$proof_root"
+ln -snf "$temporary/output" "$proof_root/artifacts"
+run_coverage_proof() {
+  local package="$1"
+  ( cd "$proof_root" && PKG="$package" bash "$coverage_proof" ) ||
+    fail "the workflow's coverage proof rejects the $package aggregate"
+}
+run_coverage_proof leonard_native
+run_coverage_proof leonard_flutter
+
+# The same proof over a native aggregate whose every shard was unassigned. The
+# leonard_native branch is unconditional, so a zeroed butcher aggregate has to
+# satisfy it as well.
+empty_downloads="$temporary/empty-downloads"
+empty_shard="$empty_downloads/mutation-leonard_native-full-shard-0"
+mkdir -p "$empty_shard"
+"$repo_root/tool/empty_mutation_shard.sh" leonard_native "$empty_shard" 0 1
+: > "$empty_shard/files.txt"
+empty_proof_root="$temporary/proof-empty"
+empty_aggregate="$empty_proof_root/artifacts/mutation/leonard_native/full"
+mkdir -p "$(dirname "$empty_aggregate")"
+"$aggregator" leonard_native 1 "$empty_downloads" "$empty_aggregate"
+assert_contains 'Not covered by tests: 0' "$empty_aggregate/console.txt"
+( cd "$empty_proof_root" && PKG=leonard_native bash "$coverage_proof" ) ||
+  fail "the workflow's coverage proof rejects an all-empty butcher aggregate"
+
 echo 'aggregate_mutation_shards_test: PASS'
