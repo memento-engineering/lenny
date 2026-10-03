@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 import 'dart:ui' show ErrorCallback, PlatformDispatcher;
 import 'package:flutter/foundation.dart' hide DiagnosticsProperty;
 import 'package:flutter/widgets.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:leonard_contract/leonard_contract.dart'
     show kLeonardExtensionPrefix, kLeonardProtocolVersion;
 import '../contract/perception_extension.dart';
@@ -115,7 +115,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
 
   /// Owns the perception tree for perception-native extensions. Mounted and
   /// unmounted per observation turn; disposed via teardown in [_wireExtensions].
-  final PerceptionOwner _perceptionOwner = PerceptionOwner();
+  final genesis.PerceptionOwner _perceptionOwner = genesis.PerceptionOwner();
 
   /// Async teardown callbacks registered by user code via
   /// `LeonardAppContext.onTeardown`. Drained LIFO from
@@ -487,7 +487,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         String method,
         Map<String, String> parameters,
       ) async {
-        final TreeSnapshot snapshot = await _buildDiagnosticsTree();
+        final genesis.TreeSnapshot snapshot = await _buildDiagnosticsTree();
         final encoded = _budgetDiagnosticsTree(
           snapshot,
           _diagnosticsBudgetBytes,
@@ -675,7 +675,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     }
 
     // Core fragment via the SINGLE perception path: compute the core
-    // primitives, build the core Seed from them, mount/serialize.
+    // primitives, build the core Component from them, mount/serialize.
     // serializePerceptionFragment strips the top Node('core') name and
     // emits {semantics, routes, errors, stability [, screenshot_png_b64]}
     // in that key order.
@@ -688,8 +688,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       errorCursor: req.errorCursor,
     );
     _perceptionOwner.unmountRoot();
-    final Branch coreRoot = _perceptionOwner.mountRoot(
-      buildCorePerceptionSeed(
+    final genesis.Element coreRoot = _perceptionOwner.mountRoot(
+      buildCorePerceptionComponent(
         semantics: coreValues.semantics,
         routes: coreValues.routes,
         errors: coreValues.errors,
@@ -697,7 +697,9 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         screenshot: coreValues.screenshot,
       ),
     );
-    final Map<String, Object?> core = serializePerceptionFragment(coreRoot);
+    final Map<String, Object?> core = genesis.serializePerceptionFragment(
+      coreRoot,
+    );
 
     // Enforce the core budget: on overrun, drop semantics from the tail while
     // preserving routes, errors, and stability, and warn.
@@ -738,8 +740,12 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         pp.prepareForObservation();
         if (pp.isPerceptionIdle()) continue;
         _perceptionOwner.unmountRoot();
-        final Branch root = _perceptionOwner.mountRoot(pp.buildPerception());
-        final Map<String, Object?> frag = serializePerceptionFragment(root);
+        final genesis.Element root = _perceptionOwner.mountRoot(
+          pp.buildPerception(),
+        );
+        final Map<String, Object?> frag = genesis.serializePerceptionFragment(
+          root,
+        );
         final BudgetedJson enc = encodeWithBudget(frag, budgets[ns] ?? 0);
         if (enc.truncated) {
           developer.log(
@@ -772,7 +778,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// timestamp for all `projectPerceptionTree` calls — repeating the hot
   /// path's `prepareForObservation` → idle gate → mount/build
   /// failure-isolation order.
-  Future<TreeSnapshot> _buildDiagnosticsTree() async {
+  Future<genesis.TreeSnapshot> _buildDiagnosticsTree() async {
     final DateTime projectedAt = DateTime.now().toUtc();
     final StabilityMetadata stability = StabilityMetadata(
       policy: StabilityPolicy.actionRelative,
@@ -790,8 +796,8 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       errorCursor: null,
     );
     _perceptionOwner.unmountRoot();
-    final Branch coreRoot = _perceptionOwner.mountRoot(
-      buildCorePerceptionSeed(
+    final genesis.Element coreRoot = _perceptionOwner.mountRoot(
+      buildCorePerceptionComponent(
         semantics: coreValues.semantics,
         routes: coreValues.routes,
         errors: coreValues.errors,
@@ -799,22 +805,22 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         screenshot: null,
       ),
     );
-    final TreeSnapshot core = projectPerceptionTree(
+    final genesis.TreeSnapshot core = genesis.projectPerceptionTree(
       coreRoot,
       projectedAt: projectedAt,
     );
-    final List<TreeNode> children = <TreeNode>[core.root];
+    final List<genesis.TreeNode> children = <genesis.TreeNode>[core.root];
     for (final LeonardExtension extension in _extensionRegistry.extensions) {
       if (extension is! PerceptionExtension) continue;
       try {
         extension.prepareForObservation();
         if (extension.isPerceptionIdle()) continue;
         _perceptionOwner.unmountRoot();
-        final Branch root = _perceptionOwner.mountRoot(
+        final genesis.Element root = _perceptionOwner.mountRoot(
           extension.buildPerception(),
         );
         children.add(
-          projectPerceptionTree(root, projectedAt: projectedAt).root,
+          genesis.projectPerceptionTree(root, projectedAt: projectedAt).root,
         );
       } catch (error, stack) {
         developer.log(
@@ -824,13 +830,13 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         );
       }
     }
-    return TreeSnapshot(
+    return genesis.TreeSnapshot(
       contractVersion: core.contractVersion,
       projectedAt: projectedAt,
-      root: TreeNode(
-        seedType: 'LeonardObservation',
+      root: genesis.TreeNode(
+        componentType: 'LeonardObservation',
         id: 'leonard:observation',
-        properties: const <DiagnosticsProperty>[],
+        properties: const <genesis.DiagnosticsProperty>[],
         children: children,
       ),
     );
@@ -842,7 +848,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// TAIL until the contract remains decodable and within budget. A
   /// root-only snapshot that still cannot fit is refused loudly.
   ({Map<String, Object?> tree, bool truncated}) _budgetDiagnosticsTree(
-    TreeSnapshot snapshot,
+    genesis.TreeSnapshot snapshot,
     int budget,
   ) {
     final BudgetedJson full = encodeWithBudget(snapshot.toJson(), budget);
@@ -852,16 +858,16 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         truncated: false,
       );
     }
-    TreeSnapshot partial = snapshot.copyWith(
-      root: snapshot.root.copyWith(children: const <TreeNode>[]),
+    genesis.TreeSnapshot partial = snapshot.copyWith(
+      root: snapshot.root.copyWith(children: const <genesis.TreeNode>[]),
     );
     if (encodeWithBudget(partial.toJson(), budget).truncated) {
       throw StateError('diagnostics root exceeds $budget-byte budget');
     }
-    for (final TreeNode child in snapshot.root.children) {
-      final TreeSnapshot candidate = partial.copyWith(
+    for (final genesis.TreeNode child in snapshot.root.children) {
+      final genesis.TreeSnapshot candidate = partial.copyWith(
         root: partial.root.copyWith(
-          children: <TreeNode>[...partial.root.children, child],
+          children: <genesis.TreeNode>[...partial.root.children, child],
         ),
       );
       if (encodeWithBudget(candidate.toJson(), budget).truncated) break;

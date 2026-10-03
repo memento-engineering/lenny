@@ -112,5 +112,5 @@ class RiverpodLeonardExtension extends LeonardExtension
   }
 
   @override
-  Seed buildPerception() => RiverpodPerception(_o);
+  Component buildPerception() => RiverpodPerception(_o);
 }

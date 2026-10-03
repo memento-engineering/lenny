@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:leonard_dio/leonard_dio.dart';
 import 'package:leonard_flutter/contract.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:flutter_test/flutter_test.dart';
 
 class _HangingAdapter implements HttpClientAdapter {
@@ -43,10 +43,10 @@ Future<void> _pumpUntil(
 }
 
 Map<String, Object?> _harvestFragment(LeonardDioExtension extension) {
-  final PerceptionOwner owner = PerceptionOwner();
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(extension.buildPerception());
-    return serializePerceptionFragment(root);
+    final genesis.Element root = owner.mountRoot(extension.buildPerception());
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }

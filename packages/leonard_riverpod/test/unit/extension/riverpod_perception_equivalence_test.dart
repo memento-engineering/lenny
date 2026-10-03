@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_flutter/contract.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:leonard_flutter_test/leonard_flutter_test.dart';
 import 'package:leonard_riverpod/leonard_riverpod.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,10 +29,10 @@ _wired() {
 }
 
 Map<String, Object?> _harvestFragment(RiverpodLeonardExtension extension) {
-  final PerceptionOwner owner = PerceptionOwner();
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(extension.buildPerception());
-    return serializePerceptionFragment(root);
+    final genesis.Element root = owner.mountRoot(extension.buildPerception());
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }

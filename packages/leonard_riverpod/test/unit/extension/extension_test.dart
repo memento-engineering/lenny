@@ -1,5 +1,5 @@
 import 'package:leonard_flutter/contract.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:leonard_riverpod/leonard_riverpod.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,10 +19,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// prepareForObservation() (flush), then harvest the perception fragment.
 Map<String, Object?> harvest(RiverpodLeonardExtension extension) {
   extension.prepareForObservation();
-  final PerceptionOwner owner = PerceptionOwner();
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(extension.buildPerception());
-    return serializePerceptionFragment(root);
+    final genesis.Element root = owner.mountRoot(extension.buildPerception());
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }

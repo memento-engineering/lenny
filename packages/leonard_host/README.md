@@ -15,4 +15,14 @@ await host.install(); // registers ext.leonard.core.handshake,
 Run the hosting program with the VM service enabled (e.g.
 `dart run --enable-vm-service`); the driver connects to the printed `ws://…/ws`.
 
+[`example/canonical_perception_extension.dart`](example/canonical_perception_extension.dart)
+is a runnable pure-Dart extension using the canonical synchronous
+`Component` contract:
+
+```bash
+dart run example/canonical_perception_extension.dart
+```
+
+Its observation remains nested under `extensions.example`.
+
 Pre-1.0 and experimental; APIs may change before 1.0.

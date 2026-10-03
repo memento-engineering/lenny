@@ -9,7 +9,7 @@ import 'package:leonard_flutter/src/observation/stability_metadata.dart';
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:leonard_flutter/src/errors/error_ring_buffer.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
 /// Dual-prefix golden resolver (mirrors
 /// test/harness/observation_equivalence_test.dart) so the test passes whether
@@ -30,13 +30,13 @@ Map<String, Object?> _loadGolden(String name) =>
     (jsonDecode(_goldenFile(name).readAsStringSync()) as Map)
         .cast<String, Object?>();
 
-/// Serialize the core perception fragment from a [Seed] via a throwaway
-/// [PerceptionOwner], disposed in finally (mirrors dio's `_harvestFragment`).
-Map<String, Object?> _harvestCoreFragment(Seed seed) {
-  final PerceptionOwner owner = PerceptionOwner();
+/// Serialize the core perception fragment from a [genesis.Component] via a
+/// throwaway [genesis.PerceptionOwner], disposed in finally.
+Map<String, Object?> _harvestCoreFragment(genesis.Component component) {
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(seed);
-    return serializePerceptionFragment(root);
+    final genesis.Element root = owner.mountRoot(component);
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }
@@ -86,7 +86,7 @@ void main() {
 
     final Map<String, Object?> legacy = values.toMap();
     final Map<String, Object?> perception = _harvestCoreFragment(
-      buildCorePerceptionSeed(
+      buildCorePerceptionComponent(
         semantics: semantics,
         routes: routes,
         errors: errors,
@@ -125,7 +125,7 @@ void main() {
   });
 
   test(
-    'live shape: legacy map seams == perception seed (byte-equal)',
+    'live shape: legacy map seams == perception component (byte-equal)',
     () async {
       // Exercise the legacy map path through computeCoreFragmentValues.toMap()
       // with real seam closures, then drive the perception path from the SAME
@@ -170,7 +170,7 @@ void main() {
       );
       final Map<String, Object?> legacy = values.toMap();
       final Map<String, Object?> perception = _harvestCoreFragment(
-        buildCorePerceptionSeed(
+        buildCorePerceptionComponent(
           semantics: values.semantics,
           routes: values.routes,
           errors: values.errors,
@@ -215,7 +215,7 @@ void main() {
       );
       final Map<String, Object?> legacyWith = valuesWith.toMap();
       final Map<String, Object?> perceptionWith = _harvestCoreFragment(
-        buildCorePerceptionSeed(
+        buildCorePerceptionComponent(
           semantics: valuesWith.semantics,
           routes: valuesWith.routes,
           errors: valuesWith.errors,
@@ -239,7 +239,7 @@ void main() {
       );
       final Map<String, Object?> legacyWithout = valuesWithout.toMap();
       final Map<String, Object?> perceptionWithout = _harvestCoreFragment(
-        buildCorePerceptionSeed(
+        buildCorePerceptionComponent(
           semantics: valuesWithout.semantics,
           routes: valuesWithout.routes,
           errors: valuesWithout.errors,

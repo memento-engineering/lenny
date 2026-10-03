@@ -21,9 +21,9 @@ class NativePerception extends StatelessPerception {
   final NativeSnapshot snapshot;
 
   @override
-  Seed build(PerceptionContext ctx) => Node(
+  Component build(PerceptionContext ctx) => Node(
     'native',
-    children: <Seed>[
+    children: <Component>[
       Field('platform', snapshot.platform),
       Field('node_count', snapshot.nodes.length),
       Field('elements', <Map<String, Object?>>[

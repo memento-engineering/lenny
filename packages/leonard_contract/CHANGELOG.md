@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.6
+
+- `PerceptionExtension.buildPerception()` now uses the canonical Genesis
+  `Component` spelling. Genesis's deprecated `Seed` typedef remains an
+  identity-preserving compatibility bridge for existing extension overrides.
+- Require `genesis_perception ^0.4.0-dev.1`.
+
 ## 0.2.5
 
 - Added: `ExtensionRegistry.handshakeManifest` — the schema-bearing manifest

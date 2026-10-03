@@ -24,7 +24,7 @@ class RiverpodPerception extends StatelessPerception {
   final LeonardProviderObserver _o;
 
   @override
-  Seed build(PerceptionContext ctx) {
+  Component build(PerceptionContext ctx) {
     final List<String> ids = _o.live.keys.toList(growable: false);
     final List<Map<String, Object?>> ch = _o
         .recentChanges()
@@ -32,7 +32,7 @@ class RiverpodPerception extends StatelessPerception {
         .toList(growable: false);
     return Node(
       'riverpod',
-      children: <Seed>[
+      children: <Component>[
         Field('invalidatable_providers', ids),
         Field('recent_state_changes', ch),
       ],

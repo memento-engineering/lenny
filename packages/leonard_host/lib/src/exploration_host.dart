@@ -119,7 +119,7 @@ class ExplorationHost {
         pp.prepareForObservation();
         if (pp.isPerceptionIdle()) continue;
         final PerceptionOwner owner = PerceptionOwner();
-        final Branch root = owner.mountRoot(pp.buildPerception());
+        final Element root = owner.mountRoot(pp.buildPerception());
         extensions[ns] = serializePerceptionFragment(root);
         owner.unmountRoot();
       } catch (err, st) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- Build cached tmux observations with canonical Genesis `Component` and
+  `Element` types. Polling remains in the out-of-band watcher.
+- Require `genesis_perception ^0.4.0-dev.1`, `leonard_contract ^0.2.6`, and
+  `leonard_host ^0.2.4`.
+
 ## 0.2.2
 
 - Fix: widen `genesis_perception` to `>=0.2.0 <0.4.0`. Published 0.2.1 pinned

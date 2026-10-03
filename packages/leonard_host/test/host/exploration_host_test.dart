@@ -153,7 +153,7 @@ class _DemoExtension extends LeonardExtension with PerceptionExtension {
   Future<void> dispose() async {}
 
   @override
-  Seed buildPerception() => _DemoPerception(_count);
+  Component buildPerception() => _DemoPerception(_count);
 }
 
 class _DemoPerception extends StatelessPerception {
@@ -162,8 +162,8 @@ class _DemoPerception extends StatelessPerception {
   final int count;
 
   @override
-  Seed build(PerceptionContext ctx) =>
-      Node('demo', children: <Seed>[Field('count', count)]);
+  Component build(PerceptionContext ctx) =>
+      Node('demo', children: <Component>[Field('count', count)]);
 }
 
 class _BumpTool extends LeonardTool {

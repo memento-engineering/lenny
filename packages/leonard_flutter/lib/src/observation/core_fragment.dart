@@ -60,8 +60,9 @@ List<String> bestEffortRouteStack() {
 }
 
 /// The already-computed core primitives, captured once so the legacy map
-/// ([CoreFragmentValues.toMap]) and the perception `Seed`
-/// (`buildCorePerceptionSeed`) are driven from one identical set of values.
+/// ([CoreFragmentValues.toMap]) and the perception `Component`
+/// (`buildCorePerceptionComponent`) are driven from one identical set of
+/// values.
 ///
 /// Field order here mirrors the legacy map's key order
 /// (semantics, routes, errors, stability, then the optional screenshot),
@@ -114,7 +115,7 @@ class CoreFragmentValues {
 /// `ScreenshotUnavailable` for known failure modes).
 ///
 /// The returned [CoreFragmentValues] is the single source both the legacy
-/// map ([CoreFragmentValues.toMap]) and the perception `Seed` consume, so
+/// map ([CoreFragmentValues.toMap]) and the perception `Component` consume, so
 /// the two paths are fed byte-identical inputs.
 Future<CoreFragmentValues> computeCoreFragmentValues({
   required Future<List<Map<String, Object>>> Function() captureSemantics,

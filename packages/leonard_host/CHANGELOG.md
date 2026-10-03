@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+
+- Consume canonical Genesis `Component` and `Element` types while preserving
+  synchronous extension builds and existing observation JSON.
+- Require `genesis_perception ^0.4.0-dev.1` and `leonard_contract ^0.2.6`.
+
 ## 0.2.3
 
 - Fix: `core.handshake` carries `toolDescriptors` — each registered tool's

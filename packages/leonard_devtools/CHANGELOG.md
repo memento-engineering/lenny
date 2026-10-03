@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0-dev.2
+
+- Render and construct diagnostics nodes through `TreeNode.componentType`.
+  Diagnostics contract 1 continues to decode and encode the literal
+  `seedType` JSON key.
+- Require `genesis_foundation ^0.3.0-dev.1`.
+
 ## 0.4.0-dev.1
 
 - Breaking: `ProviderConfig` no longer has `baseUrl` or `headersFor`; they

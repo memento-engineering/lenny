@@ -20,20 +20,20 @@ class TmuxPerception extends StatelessPerception {
   final TmuxObservation observation;
 
   @override
-  Seed build(PerceptionContext ctx) {
+  Component build(PerceptionContext ctx) {
     return Node(
       'tmux',
-      children: <Seed>[
+      children: <Component>[
         Field('socket', observation.socketLabel),
         Field('session_count', observation.sessions.length),
         Field('pane_count', observation.panes.length),
         Node(
           'sessions',
-          children: <Seed>[
+          children: <Component>[
             for (final s in observation.sessions)
               Node(
                 s.name,
-                children: <Seed>[
+                children: <Component>[
                   Field('id', s.id),
                   Field('attached', s.attached),
                   Field('windows', s.windows),
@@ -43,11 +43,11 @@ class TmuxPerception extends StatelessPerception {
         ),
         Node(
           'panes',
-          children: <Seed>[
+          children: <Component>[
             for (final p in observation.panes)
               Node(
                 p.info.id,
-                children: <Seed>[
+                children: <Component>[
                   Field('window', p.info.windowId),
                   Field('command', p.info.currentCommand),
                   Field('pid', p.info.pid),

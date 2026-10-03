@@ -6,7 +6,7 @@ import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
 const String _ext = 'ext.leonard.core.get_stable_observation';
 
@@ -19,7 +19,7 @@ class _ThrowsInBuild extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() {
+  genesis.Component buildPerception() {
     throw StateError('boom in buildPerception');
   }
 
@@ -40,8 +40,10 @@ class _Healthy extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() =>
-      Node('healthy', children: <Seed>[Field('ok', true)]);
+  genesis.Component buildPerception() => genesis.Node(
+    'healthy',
+    children: <genesis.Component>[genesis.Field('ok', true)],
+  );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -59,9 +61,11 @@ class _BigFragment extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() => Node(
+  genesis.Component buildPerception() => genesis.Node(
     'big',
-    children: <Seed>[Field('payload', List<int>.filled(2000, 7))],
+    children: <genesis.Component>[
+      genesis.Field('payload', List<int>.filled(2000, 7)),
+    ],
   );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
