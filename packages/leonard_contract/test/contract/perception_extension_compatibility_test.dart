@@ -5,27 +5,30 @@ import 'package:leonard_contract/leonard_contract.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('canonical and deprecated overrides remain synchronous and identical', () {
-    const CanonicalExtension canonical = CanonicalExtension();
-    const LegacyExtension legacy = LegacyExtension();
-    final Component Function() canonicalBuild = canonical.buildPerception;
-    final Seed Function() legacyBuild = legacy.buildPerception;
-    final PerceptionOwner owner = PerceptionOwner();
+  test(
+    'canonical and deprecated overrides remain synchronous and identical',
+    () {
+      const CanonicalExtension canonical = CanonicalExtension();
+      const LegacyExtension legacy = LegacyExtension();
+      final Component Function() canonicalBuild = canonical.buildPerception;
+      final Seed Function() legacyBuild = legacy.buildPerception;
+      final PerceptionOwner owner = PerceptionOwner();
 
-    final Element canonicalRoot = owner.mountRoot(canonicalBuild());
-    final Map<String, Object?> canonicalFragment =
-        serializePerceptionFragment(canonicalRoot);
-    owner.unmountRoot();
+      final Element canonicalRoot = owner.mountRoot(canonicalBuild());
+      final Map<String, Object?> canonicalFragment =
+          serializePerceptionFragment(canonicalRoot);
+      owner.unmountRoot();
 
-    final Element legacyRoot = owner.mountRoot(legacyBuild());
-    final Map<String, Object?> legacyFragment = serializePerceptionFragment(
-      legacyRoot,
-    );
-    owner.dispose();
+      final Element legacyRoot = owner.mountRoot(legacyBuild());
+      final Map<String, Object?> legacyFragment = serializePerceptionFragment(
+        legacyRoot,
+      );
+      owner.dispose();
 
-    expect(legacyFragment, canonicalFragment);
-    expect(canonicalFragment, <String, Object?>{'value': 1});
-  });
+      expect(legacyFragment, canonicalFragment);
+      expect(canonicalFragment, <String, Object?>{'value': 1});
+    },
+  );
 }
 
 class CanonicalExtension extends LeonardExtension with PerceptionExtension {
@@ -82,8 +85,6 @@ class _ExamplePerception extends StatelessPerception {
   const _ExamplePerception();
 
   @override
-  Component build(PerceptionContext context) => const Node(
-    'example',
-    children: <Component>[Field('value', 1)],
-  );
+  Component build(PerceptionContext context) =>
+      const Node('example', children: <Component>[Field('value', 1)]);
 }

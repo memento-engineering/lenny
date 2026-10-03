@@ -86,8 +86,7 @@ void main() {
   for (final MapEntry<String, Map<String, String>> manifest
       in _siblingFloors.entries) {
     final String contents = File(manifest.key).readAsStringSync();
-    for (final MapEntry<String, String> dependency
-        in manifest.value.entries) {
+    for (final MapEntry<String, String> dependency in manifest.value.entries) {
       _expectYamlValue(
         contents,
         manifest.key,
@@ -177,7 +176,9 @@ void _auditMigrationGuide(List<String> failures) {
 }
 
 void _auditDartVocabulary(List<String> failures) {
-  final RegExp legacyTypes = RegExp(r'\b(?:Seed|Branch|TreeContext|TreeOwner)\b');
+  final RegExp legacyTypes = RegExp(
+    r'\b(?:Seed|Branch|TreeContext|TreeOwner)\b',
+  );
   final List<RegExp> legacyMembers = <RegExp>[
     RegExp(r'\bbuildCorePerceptionSeed\b'),
     RegExp(r'\.seedType\b'),
@@ -189,9 +190,9 @@ void _auditDartVocabulary(List<String> failures) {
   ];
 
   for (final String root in _sourceRoots) {
-    for (final FileSystemEntity entity in Directory(root).listSync(
-      recursive: true,
-    )) {
+    for (final FileSystemEntity entity in Directory(
+      root,
+    ).listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       if (entity.path.contains('/.dart_tool/')) continue;
       if (entity.path.endsWith(
@@ -208,9 +209,7 @@ void _auditDartVocabulary(List<String> failures) {
         }
         for (final RegExp pattern in legacyMembers) {
           if (pattern.hasMatch(line)) {
-            failures.add(
-              '${entity.path}:${index + 1}: legacy Genesis member',
-            );
+            failures.add('${entity.path}:${index + 1}: legacy Genesis member');
           }
         }
       }
