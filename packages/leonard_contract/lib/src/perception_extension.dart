@@ -20,7 +20,7 @@ import 'extension.dart';
 ///   calls it BEFORE [isPerceptionIdle] and [buildPerception] each turn.
 mixin PerceptionExtension on LeonardExtension {
   /// Build the perception tree serialized into this extension's fragment.
-  Seed buildPerception();
+  Component buildPerception();
 
   /// Whether the extension has nothing to contribute this turn. When `true`,
   /// the binding emits no `extensions.<namespace>` fragment — the exact

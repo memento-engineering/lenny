@@ -73,7 +73,7 @@ bool _tmuxPresent() {
 
 void _printFragment(TmuxExtension ext) {
   final owner = PerceptionOwner();
-  final root = owner.mountRoot(ext.buildPerception());
+  final Element root = owner.mountRoot(ext.buildPerception());
   final data = serializePerceptionFragment(root);
   owner.unmountRoot();
   stdout.writeln(const JsonEncoder.withIndent('  ').convert(data));

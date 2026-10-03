@@ -10,7 +10,8 @@ import 'package:genesis_perception/genesis_perception.dart';
 /// the response top level, not nested under `extensions.<ns>`. Therefore core
 /// deliberately does NOT flow through the binding's generic extension
 /// observation loop (which emits `extensions.<ns>`). Instead the binding builds
-/// the core `Seed` from [buildCorePerceptionSeed] and serializes it through
+/// the core [Component] from [buildCorePerceptionComponent] and serializes it
+/// through
 /// this dedicated perception path at the top level.
 ///
 /// Each [Field] value is assigned verbatim by `serializePerceptionFragment`
@@ -45,9 +46,9 @@ class CorePerception extends StatelessPerception {
   final String? screenshot;
 
   @override
-  Seed build(PerceptionContext context) => Node(
+  Component build(PerceptionContext context) => Node(
     'core',
-    children: <Seed>[
+    children: <Component>[
       Field('semantics', semantics),
       Field('routes', routes),
       Field('errors', errors),
@@ -57,7 +58,7 @@ class CorePerception extends StatelessPerception {
   );
 }
 
-/// Builds the core perception [Seed] from already-computed core primitives.
+/// Builds the core perception [Component] from already-computed primitives.
 ///
 /// The returned `Node('core', …)`'s child order is exactly the key order
 /// [CoreFragmentValues.toMap] emits (semantics, routes, errors, stability,
@@ -65,7 +66,7 @@ class CorePerception extends StatelessPerception {
 /// to that map. The `screenshot_png_b64` field is OMITTED (not present as a
 /// null) when [screenshot] is null, mirroring [CoreFragmentValues.toMap] which
 /// only adds the key when a capture succeeds.
-Seed buildCorePerceptionSeed({
+Component buildCorePerceptionComponent({
   required List<Map<String, Object>> semantics,
   required List<String> routes,
   required List<Map<String, Object?>> errors,

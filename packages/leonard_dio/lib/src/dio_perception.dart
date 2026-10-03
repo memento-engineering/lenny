@@ -12,13 +12,13 @@ class DioPerception extends StatelessPerception {
   final DateTime Function() _clock;
 
   @override
-  Seed build(PerceptionContext ctx) {
+  Component build(PerceptionContext ctx) {
     final DateTime now = _clock();
     final List<TrackedRequest> inFlight = _interceptor.inFlight.values.toList();
     final List<CompletedRequest> recent = _interceptor.recentCompleted;
     return Node(
       'dio',
-      children: <Seed>[
+      children: <Component>[
         Field('in_flight', <Map<String, Object?>>[
           for (final TrackedRequest t in inFlight)
             <String, Object?>{

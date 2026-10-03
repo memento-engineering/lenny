@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Build router observations with Genesis-qualified canonical `Component` and
+  `Element` types, leaving Flutter tree types unqualified and unchanged.
+- Require `genesis_perception ^0.4.0-dev.1` and `leonard_flutter ^0.4.1`.
+
 ## 0.4.0
 
 Promotes `0.4.0-rc.1` to stable.

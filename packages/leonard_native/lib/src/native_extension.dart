@@ -67,7 +67,7 @@ class NativeExtension extends LeonardExtension with PerceptionExtension {
   bool isPerceptionIdle() => _live == null;
 
   @override
-  Seed buildPerception() => NativePerception(_live!);
+  Component buildPerception() => NativePerception(_live!);
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;

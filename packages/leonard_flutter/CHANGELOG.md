@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1
+
+- Adopt canonical Genesis `Component` and `Element` vocabulary throughout the
+  binding and core perception path. Flutter `Widget`, `Element`, and
+  `BuildContext` remain explicitly distinct from Genesis tree types.
+- Rename `buildCorePerceptionSeed` to `buildCorePerceptionComponent` and use
+  `TreeNode.componentType` in source while preserving diagnostics contract 1
+  and its literal `seedType` JSON key.
+- Require `genesis_perception ^0.4.0-dev.1` and `leonard_contract ^0.2.6`.
+
 ## 0.4.0
 
 Promotes `0.4.0-rc.2` to stable. The candidates' full change lists are under

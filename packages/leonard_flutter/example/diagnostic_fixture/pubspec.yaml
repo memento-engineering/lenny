@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  genesis_perception: ^0.4.0-dev.1
   leonard_flutter: any
 
 dev_dependencies:

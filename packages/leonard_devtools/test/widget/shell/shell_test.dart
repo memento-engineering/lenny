@@ -261,7 +261,7 @@ void main() {
       contractVersion: 1,
       projectedAt: DateTime.utc(2026, 8, 1),
       root: TreeNode(
-        seedType: 'Root',
+        componentType: 'Root',
         id: id,
         properties: const <DiagnosticsProperty>[],
         children: const <TreeNode>[],

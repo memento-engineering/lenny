@@ -7,7 +7,7 @@ import 'package:leonard_flutter/src/observation/budgeted_json.dart'
     show kCoreBudgetBytes;
 import 'package:flutter/foundation.dart' hide DiagnosticsProperty;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
 const String _ext = 'ext.leonard.core.get_stable_observation';
 const String _diagExt = 'ext.leonard.core.get_diagnostics_tree';
@@ -21,8 +21,10 @@ class _ExtensionA extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() =>
-      Node('a', children: <Seed>[Field('extensionA', true)]);
+  genesis.Component buildPerception() => genesis.Node(
+    'a',
+    children: <genesis.Component>[genesis.Field('extensionA', true)],
+  );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -40,7 +42,10 @@ class _ExtensionB extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() => Node('b', children: <Seed>[Field('extensionB', 1)]);
+  genesis.Component buildPerception() => genesis.Node(
+    'b',
+    children: <genesis.Component>[genesis.Field('extensionB', 1)],
+  );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -62,8 +67,10 @@ class _IdleExtension extends LeonardExtension with PerceptionExtension {
   @override
   bool isPerceptionIdle() => true;
   @override
-  Seed buildPerception() =>
-      Node('idle_ext', children: <Seed>[Field('neverEmitted', true)]);
+  genesis.Component buildPerception() => genesis.Node(
+    'idle_ext',
+    children: <genesis.Component>[genesis.Field('neverEmitted', true)],
+  );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -83,7 +90,8 @@ class _ThrowingExtension extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() => throw StateError('boom in diagnostics build');
+  genesis.Component buildPerception() =>
+      throw StateError('boom in diagnostics build');
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -104,8 +112,10 @@ class _OversizedExtension extends LeonardExtension with PerceptionExtension {
   @override
   Future<void> initialize(ExtensionContext ctx) async {}
   @override
-  Seed buildPerception() =>
-      Node('oversized', children: <Seed>[Field('payload', 'x' * 400)]);
+  genesis.Component buildPerception() => genesis.Node(
+    'oversized',
+    children: <genesis.Component>[genesis.Field('payload', 'x' * 400)],
+  );
   @override
   Future<BusyState> busyState() async => BusyState.idle;
   @override
@@ -116,9 +126,9 @@ class _OversizedExtension extends LeonardExtension with PerceptionExtension {
 
 /// Every property name reachable in [node]'s subtree (top-level property
 /// names only — nested object properties keep their carrier's name).
-Set<String> _propertyNames(TreeNode node) => <String>{
-  for (final DiagnosticsProperty p in node.properties) p.name,
-  for (final TreeNode c in node.children) ..._propertyNames(c),
+Set<String> _propertyNames(genesis.TreeNode node) => <String>{
+  for (final genesis.DiagnosticsProperty p in node.properties) p.name,
+  for (final genesis.TreeNode c in node.children) ..._propertyNames(c),
 };
 
 void main() {
@@ -282,17 +292,17 @@ void main() {
       );
       final Map<String, Object?> out = jsonDecode(body) as Map<String, Object?>;
       expect(out['truncated'], isFalse);
-      final TreeSnapshot snap = TreeSnapshot.fromJson(
+      final genesis.TreeSnapshot snap = genesis.TreeSnapshot.fromJson(
         (out['diagnostics_tree']! as Map).cast<String, Object?>(),
       );
       expect(snap.contractVersion, 1);
       expect(snap.projectedAt.isUtc, isTrue);
-      expect(snap.root.seedType, 'LeonardObservation');
+      expect(snap.root.componentType, 'LeonardObservation');
       expect(snap.root.id, 'leonard:observation');
       // Core first, then registry order (a, b, oversized). The idle
       // extension is omitted; the throwing extension is isolated (no
       // subtree, but the call still succeeded).
-      final List<TreeNode> children = snap.root.children;
+      final List<genesis.TreeNode> children = snap.root.children;
       expect(children, hasLength(4));
       expect(
         _propertyNames(children[0]),
@@ -301,7 +311,7 @@ void main() {
       expect(_propertyNames(children[1]), contains('extensionA'));
       expect(_propertyNames(children[2]), contains('extensionB'));
       expect(_propertyNames(children[3]), contains('payload'));
-      for (final TreeNode child in children) {
+      for (final genesis.TreeNode child in children) {
         expect(_propertyNames(child), isNot(contains('neverEmitted')));
       }
     });
@@ -316,7 +326,7 @@ void main() {
       final Map<String, Object?> fullOut =
           jsonDecode(fullBody) as Map<String, Object?>;
       expect(fullOut['truncated'], isFalse);
-      final TreeSnapshot full = TreeSnapshot.fromJson(
+      final genesis.TreeSnapshot full = genesis.TreeSnapshot.fromJson(
         (fullOut['diagnostics_tree']! as Map).cast<String, Object?>(),
       );
       final int fullBytes = utf8.encode(jsonEncode(full.toJson())).length;
@@ -332,11 +342,11 @@ void main() {
         // The truncated payload must still decode under contract 1 —
         // whole extension subtrees were dropped from the tail, never
         // replaced with a marker blob.
-        final TreeSnapshot snap = TreeSnapshot.fromJson(
+        final genesis.TreeSnapshot snap = genesis.TreeSnapshot.fromJson(
           (out['diagnostics_tree']! as Map).cast<String, Object?>(),
         );
         expect(snap.contractVersion, 1);
-        expect(snap.root.seedType, 'LeonardObservation');
+        expect(snap.root.componentType, 'LeonardObservation');
         expect(snap.root.id, 'leonard:observation');
         expect(snap.root.children.length, lessThan(full.root.children.length));
         if (snap.root.children.isNotEmpty) {

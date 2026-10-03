@@ -1,3 +1,10 @@
+## 0.4.2
+
+- Build cached native accessibility observations with canonical Genesis
+  `Component` types. Appium polling and action refreshes remain outside build.
+- Require `genesis_perception ^0.4.0-dev.1`, `leonard_contract ^0.2.6`, and
+  `leonard_host ^0.2.4`.
+
 ## 0.4.1
 
 - Android UiAutomator2 `checked`, `focused`, `disabled` and `obscured`

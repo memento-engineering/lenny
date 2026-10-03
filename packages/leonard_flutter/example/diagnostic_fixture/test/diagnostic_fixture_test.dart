@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _diagnosticsExt = 'ext.leonard.core.diagnostics_warnings';
+const String _observationExt = 'ext.leonard.core.get_stable_observation';
 
 /// Integration test for the connect-time diagnostic. Drives the
 /// fixture's [HitScreen] / [CleanScreen] through the production
@@ -24,7 +25,13 @@ void main() {
   late LeonardBinding binding;
 
   setUpAll(() {
-    binding = LeonardBinding.ensureInitialized(extensions: const [])!;
+    binding = LeonardBinding.ensureInitialized(
+      extensions: const <LeonardExtension>[CanonicalFixtureExtension()],
+    )!;
+    binding.debugSetPolicyLoopSeamsForTesting(
+      waitForFrame: () async {},
+      nowMs: () => 100,
+    );
   });
 
   setUp(() {
@@ -94,5 +101,21 @@ void main() {
           'CleanScreen wraps its GestureDetector in a label-bearing '
           'Semantics ancestor; the auditor must skip it.',
     );
+  });
+
+  test('canonical extension emits through the Flutter host', () async {
+    final String response = await binding.invokeServiceExtension(
+      _observationExt,
+      const <String, String>{'actionRelativeBudgetMs': '1'},
+    );
+    final Map<String, Object?> value =
+        (jsonDecode(response) as Map<String, Object?>)['value']!
+            as Map<String, Object?>;
+    final Map<String, Object?> extensions =
+        value['extensions']! as Map<String, Object?>;
+
+    expect(extensions['canonical_fixture'], <String, Object?>{
+      'host': 'flutter',
+    });
   });
 }

@@ -7,7 +7,7 @@ void main() {
     contractVersion: 1,
     projectedAt: DateTime.utc(2026, 8, 1),
     root: const TreeNode(
-      seedType: 'Root',
+      componentType: 'Root',
       id: 'root',
       properties: <DiagnosticsProperty>[
         DiagnosticsProperty.flag(
@@ -18,7 +18,7 @@ void main() {
       ],
       children: <TreeNode>[
         TreeNode(
-          seedType: 'Leaf',
+          componentType: 'Leaf',
           id: 'leaf',
           properties: <DiagnosticsProperty>[],
           children: <TreeNode>[],
@@ -32,7 +32,11 @@ void main() {
   };
 
   test('decodes a bare get_diagnostics_tree response', () {
-    expect(decodeDiagnosticsSnapshot(bare()), snapshot);
+    final TreeSnapshot decoded = decodeDiagnosticsSnapshot(bare());
+    expect(decoded, snapshot);
+    expect(decoded.root.componentType, 'Root');
+    expect(decoded.toJson()['root'], containsPair('seedType', 'Root'));
+    expect(decoded.toJson()['root'], isNot(contains('componentType')));
   });
 
   test('decodes a value-wrapped get_diagnostics_tree response', () {

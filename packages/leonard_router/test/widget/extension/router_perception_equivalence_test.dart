@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:leonard_flutter/contract.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:leonard_router/leonard_router.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,11 +63,11 @@ File _goldenFile() {
   );
 }
 
-Map<String, Object?> _harvest(Seed seed) {
-  final PerceptionOwner owner = PerceptionOwner();
+Map<String, Object?> _harvest(genesis.Component component) {
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(seed);
-    return serializePerceptionFragment(root);
+    final genesis.Element root = owner.mountRoot(component);
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }

@@ -70,7 +70,7 @@ class LeonardDioExtension extends LeonardExtension with PerceptionExtension {
   }
 
   @override
-  Seed buildPerception() => DioPerception(_interceptor, _clock);
+  Component buildPerception() => DioPerception(_interceptor, _clock);
 }
 
 class _CancelInFlightTool extends LeonardTool {

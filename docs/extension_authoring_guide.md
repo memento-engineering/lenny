@@ -1,355 +1,301 @@
-# Extension Authoring Guide
+# Leonard extension authoring guide
 
-> Companion to [`leonard_prd_v0.5.md`](./leonard_prd_v0.5.md). The PRD is canonical; this guide is the on-ramp.
-> Stable URL: `docs/extension_authoring_guide.md`.
+Leonard extensions contribute tools, busy-state signals, and optionally one
+structured observation fragment. The same `leonard_contract` API runs in the
+pure-Dart `ExplorationHost` and Flutter's `LeonardBinding`.
 
-## 1. The extension contract
+## The extension contract
 
-Every type below is exported from `package:leonard_flutter/contract.dart`. Authors should never need to reach into the package's private internals. Each subsection cites the matching PRD clause for canonical wording.
-
-### 1.1 `LeonardExtension` (PRD §7.1)
-
-The top-level interface. An extension owns a `namespace` (used to scope tool names and VM service extensions) and a list of `tools`. The host calls `initialize` once per session, then `observe`, `busyState`, and `onActionExecuted` over the session's lifetime, and finally `dispose`.
+Every extension implements `LeonardExtension`. An observing extension also
+mixes in `PerceptionExtension`:
 
 ```dart
-class HelloExtension implements LeonardExtension {
-  @override final String namespace = 'hello';
-  @override final List<LeonardTool> tools = const [];
-  @override Future<void> initialize(ExtensionContext ctx) async {}
-  @override Future<Map<String, Object?>?> observe(ObservationContext ctx) async => null;
-  @override Future<BusyState> busyState() async => BusyState.idle;
-  @override Future<void> onActionExecuted(ExecutedAction action) async {}
-  @override Future<void> dispose() async {}
-}
-```
+import 'package:genesis_perception/genesis_perception.dart';
+import 'package:leonard_contract/leonard_contract.dart';
 
-### 1.2 `LeonardTool` (PRD §7.1)
-
-A single tool. The bare `name` is prefixed with the extension's namespace by the registry (`<namespace>.<name>`); never include a `.` yourself.
-
-```dart
-class NavigateToTool implements LeonardTool {
-  @override final String name = 'navigate_to'; // host prefixes to `router.navigate_to`
-  @override final String description = 'Pushes a named route onto the navigator.';
-  @override final JsonSchema inputSchema = const JsonSchema({
-    'type': 'object',
-    'properties': {'route': {'type': 'string'}},
-    'required': ['route'],
-  });
-  @override
-  Future<ToolResult> call(Map<String, Object?> args) async {
-    final route = args['route'];
-    if (route is! String) return const ToolResult(ok: false, error: 'route required');
-    return const ToolResult(ok: true);
-  }
-}
-```
-
-### 1.3 `JsonSchema` (PRD §7.1)
-
-An opaque holder for a JSON Schema fragment describing a tool's input. The host treats `raw` as a pass-through; expand it as the agent's model provider grows new capabilities without breaking older hosts.
-
-```dart
-const schema = JsonSchema({
-  'type': 'object',
-  'properties': {'name': {'type': 'string'}},
-  'required': ['name'],
-});
-```
-
-### 1.4 `ToolResult` (PRD §7.1)
-
-The outcome of a tool invocation. `ok=true` may carry a `value`; `ok=false` should carry an `error` string. Extensions must not throw out of `call`; catch and return `ToolResult(ok: false, error: ...)` instead (see §5.4).
-
-```dart
-return const ToolResult(ok: true, value: {'pushed': 'home'});
-// or
-return const ToolResult(ok: false, error: 'route not registered');
-```
-
-### 1.5 `BusyState` (PRD §7.4)
-
-Whether the extension reports the app as busy. Use `BusyState.idle` for "no contribution"; only return `isBusy: true` for extension-known async work the host cannot see (in-flight HTTP, extension-owned timers, etc.). Frame work and animations are already host-covered via `SchedulerBinding`.
-
-```dart
-@override
-Future<BusyState> busyState() async {
-  if (_inFlightRequests > 0) {
-    return const BusyState(
-      isBusy: true,
-      reason: 'http requests in flight',
-      estimatedDuration: Duration(seconds: 2),
-    );
-  }
-  return BusyState.idle;
-}
-```
-
-### 1.6 `ObservationContext` (PRD §7.3)
-
-Read-only context passed to `observe`. Includes `turn` (monotonic per session) and `sinceLastAction` (wall-clock since the previous action). Use it to throttle expensive observations — for example, only walking the element tree on the first turn after a navigation.
-
-```dart
-@override
-Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-  if (ctx.sinceLastAction < const Duration(milliseconds: 50)) return null;
-  return {'turn': ctx.turn, 'route': _currentRoute};
-}
-```
-
-### 1.7 `ExecutedAction` (PRD §7.3)
-
-Record of a tool the harness just executed. Receive it via `onActionExecuted` to update internal counters, invalidate caches, or stage follow-up work for the next `observe` call. The `toolName` is fully-qualified (`<namespace>.<tool>`).
-
-```dart
-@override
-Future<void> onActionExecuted(ExecutedAction action) async {
-  if (action.toolName == 'router.navigate_to' && action.result.ok) {
-    _staleRouteCache = true;
-  }
-}
-```
-
-### 1.8 `ExtensionContext` (PRD §7.5)
-
-Per-extension context handed to `initialize`. Auto-namespaces VM service extensions under `ext.leonard.<namespace>.<suffix>` and gates frame callbacks through the host scheduler. Three registration methods:
-
-- `registerErrorHandler(ErrorHandler)` — append to this extension's chained error handlers; return `true` to claim, `false` to defer.
-- `registerExtension(String suffix, ExtensionHandler)` — register a VM service extension under this extension's namespace.
-- `registerFrameCallback(FrameCallback)` — forwarded to `SchedulerBinding.addPostFrameCallback`.
-
-```dart
-@override
-Future<void> initialize(ExtensionContext ctx) async {
-  ctx.registerErrorHandler((d) {
-    debugPrint('[${ctx.namespace}] ${d.exceptionAsString()}');
-    return false; // let the next handler try
-  });
-  ctx.registerExtension('snapshot', (method, params) async {
-    return developer.ServiceExtensionResponse.result('{"ok": true}');
-  });
-}
-```
-
-
-## 2. A complete hello-world extension
-
-The block below is a complete extension. Copy it into a fresh package's `lib/`, depend on `package:leonard_flutter`, and `dart analyze` is clean. It exercises every method on the contract once: a namespace, one tool, an observation fragment that surfaces an extension-owned identifier, a busy-state hook, an action callback, an error handler, and a `dispose`.
-
-```dart
-import 'package:leonard_flutter/contract.dart';
-import 'package:flutter/foundation.dart';
-
-class HelloExtension implements LeonardExtension {
-  @override final String namespace = 'hello';
-  @override final List<LeonardTool> tools = [_GreetTool()];
-  int _calls = 0;
-  final String _sessionId = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+class CounterExtension extends LeonardExtension with PerceptionExtension {
+  int _count = 0;
 
   @override
-  Future<void> initialize(ExtensionContext c) async {
-    c.registerErrorHandler((d) { debugPrint('[hello] $d'); return false; });
-  }
+  String get namespace => 'counter';
+
   @override
-  Future<Map<String, Object?>?> observe(ObservationContext c) async => {
-    'session_id': _sessionId, // surfaced because tools accept it (§21 convention)
-    'calls_so_far': _calls,
-  };
+  List<LeonardTool> get tools => const <LeonardTool>[];
+
+  @override
+  Future<void> initialize(ExtensionContext context) async {}
+
+  @override
+  Component buildPerception() => CounterPerception(_count);
+
   @override
   Future<BusyState> busyState() async => BusyState.idle;
+
   @override
-  Future<void> onActionExecuted(ExecutedAction a) async {
-    if (a.toolName == 'hello.greet' && a.result.ok) _calls++;
-  }
+  Future<void> onActionExecuted(ExecutedAction action) async {}
+
   @override
   Future<void> dispose() async {}
 }
 
-class _GreetTool implements LeonardTool {
-  @override final String name = 'greet';
-  @override final String description = 'Returns a greeting for the given name.';
-  @override final JsonSchema inputSchema = const JsonSchema({
+class CounterPerception extends StatelessPerception {
+  const CounterPerception(this.count, {super.key});
+
+  final int count;
+
+  @override
+  Component build(PerceptionContext context) => Node(
+    'counter',
+    children: <Component>[Field('count', count)],
+  );
+}
+```
+
+`buildPerception()` is synchronous by contract. The host mounts the returned
+`Component`, builds it, and serializes the root beneath
+`extensions.<namespace>`.
+
+## Pull-free perception
+
+Build is a pure read. It must not write state, perform I/O, execute effects, or
+start asynchronous work. Track asynchronous sources out of band and cache their
+latest snapshot:
+
+```dart
+class ProcessExtension extends LeonardExtension with PerceptionExtension {
+  StreamSubscription<ProcessSnapshot>? _subscription;
+  ProcessSnapshot? _latest;
+
+  @override
+  Future<void> initialize(ExtensionContext context) async {
+    _subscription = snapshots.listen((snapshot) => _latest = snapshot);
+  }
+
+  @override
+  bool isPerceptionIdle() => _latest == null;
+
+  @override
+  Component buildPerception() => ProcessPerception(_latest!);
+
+  @override
+  Future<void> dispose() async => _subscription?.cancel();
+
+  // namespace, tools, busyState, and onActionExecuted omitted.
+}
+```
+
+Use the observation hooks for distinct responsibilities:
+
+- `initialize()` starts watchers, subscriptions, and polling loops.
+- `prepareForObservation()` synchronously publishes already-buffered changes
+  immediately before the idle check and build. It is the only pre-build
+  side-effect seam.
+- `isPerceptionIdle()` suppresses the namespace when there is no useful
+  fragment.
+- `buildPerception()` synchronously reads the current in-memory snapshot.
+
+The Riverpod extension uses `prepareForObservation()` to drain pending observer
+changes. The tmux and native extensions update their cached snapshots from
+watchers started by `initialize()`. None of them gathers during build.
+
+## Tools and busy state
+
+A tool name is a bare token. The host prefixes it with the extension namespace:
+
+```dart
+class RefreshTool extends LeonardTool {
+  const RefreshTool(this.refresh);
+
+  final Future<void> Function() refresh;
+
+  @override
+  String get name => 'refresh';
+
+  @override
+  String get description => 'Refresh the cached external state.';
+
+  @override
+  JsonSchema get inputSchema => const JsonSchema(<String, Object?>{
     'type': 'object',
-    'properties': {'name': {'type': 'string'}, 'session_id': {'type': 'string'}},
-    'required': ['name'],
+    'additionalProperties': false,
   });
+
   @override
   Future<ToolResult> call(Map<String, Object?> args) async {
-    final n = args['name'];
-    if (n is! String || n.isEmpty) return const ToolResult(ok: false, error: 'name required');
-    return ToolResult(ok: true, value: 'hello, $n');
+    try {
+      await refresh();
+      return const ToolResult(ok: true);
+    } on Object catch (error) {
+      return ToolResult(ok: false, error: '$error');
+    }
   }
 }
 ```
 
-Register it from your app entrypoint (PRD §7.6):
+Return `BusyState(isBusy: true, ...)` only for extension-owned asynchronous work
+the host cannot see. Flutter frames, layout, animations, and scheduler work are
+already tracked by the host.
+
+If a tool accepts an extension-owned identifier, include that identifier in the
+perception fragment so the agent can discover it. Keep fragments bounded;
+Leonard applies per-extension byte budgets after serialization.
+
+## Flutter imports
+
+Flutter and Genesis both define `Element` and `BuildContext`. Prefix Genesis in
+mixed files so framework types remain unambiguous:
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
+
+class FlutterAwarePerception extends genesis.StatelessPerception {
+  const FlutterAwarePerception(this.flutterElement);
+
+  final Element flutterElement;
+
+  @override
+  genesis.Component build(genesis.PerceptionContext context) => genesis.Node(
+    'flutter_aware',
+    children: <genesis.Component>[
+      genesis.Field('widget', flutterElement.widget.runtimeType.toString()),
+    ],
+  );
+}
+```
+
+Do not hide a collision by accidentally retargeting to Flutter's tree classes.
+Genesis `Element` is a mounted component; Flutter `Element` is a mounted widget.
+
+## Host registration
+
+Pure Dart:
+
+```dart
+final host = ExplorationHost(extensions: <LeonardExtension>[
+  CounterExtension(),
+]);
+await host.install();
+```
+
+Flutter:
 
 ```dart
 void main() {
-  LeonardBinding.ensureInitialized(extensions: [HelloExtension()]);
-  runApp(const MyApp());
+  LeonardBinding.ensureInitialized(
+    extensions: <LeonardExtension>[CounterExtension()],
+  );
+  runApp(const App());
 }
 ```
 
-The host installs the binding only in debug/profile; in release `ensureInitialized` is a no-op and returns `null`, so this call is safe to ship.
+Runnable examples exercise both hosts:
 
-## 3. Reference extensions
+- [`packages/leonard_host/example/canonical_perception_extension.dart`](../packages/leonard_host/example/canonical_perception_extension.dart)
+- [`packages/leonard_flutter/example/diagnostic_fixture/lib/main.dart`](../packages/leonard_flutter/example/diagnostic_fixture/lib/main.dart)
 
-The host repo ships three reference extensions as readable source. Each one is a worked example of one feature of the contract — action contribution, structured observation, and the busy-state hook. Until each extension's bead lands, the subsection below is a stub that names the package path so external authors can grep for it.
+## Compatibility
 
-### 3.1 `leonard_router` (action contribution)
+Genesis 0.4 keeps deprecated identity-preserving aliases for the retired tree
+vocabulary. An existing extension whose override still returns `Seed` remains
+compatible with `PerceptionExtension.buildPerception() -> Component`. New code
+should use `Component`, `Element`, `BuildContext`, and `BuildOwner`; alias
+removal will be a separate migration after consumers have moved.
 
-_Will demonstrate raw `Router`/`Navigator` integration and the `navigate_to` action shape._
+The migration table and dependency floors are in
+[`migrations/genesis-component-api.md`](migrations/genesis-component-api.md).
 
-### 3.2 `leonard_riverpod` (structured state observation)
+## Authoring conventions
 
-_Will demonstrate provider-graph fragments and the `invalidate_provider` action._
+Choose a short package-aligned namespace matching `^[a-z][a-z0-9_]*$`. The
+registry rejects duplicates. The same token scopes tools
+(`<namespace>.<tool>`), VM-service extensions
+(`ext.leonard.<namespace>.<suffix>`), and the observation fragment.
 
-### 3.3 `leonard_dio` (busy-state hook)
+The host treats `JsonSchema.raw` as an opaque JSON Schema document. Validate
+arguments inside `LeonardTool.call`, return structured errors for expected bad
+input, and keep tool names free of dots because the registry adds the namespace.
 
-_Will demonstrate `busyState()` returning `isBusy=true` while requests are in flight._
+Each extension receives a bounded serialized fragment. Aggregate large state,
+omit irrelevant payloads, and expose tools for detail instead of returning an
+unbounded tree. Use `isPerceptionIdle()` when the namespace has nothing useful
+to contribute.
 
-## 4. Conventions
+`onActionExecuted()` receives the fully qualified tool name after any tool
+runs. Use it to invalidate caches or stage watcher work, not to perform hidden
+work during the next build.
 
-These are not enforced by the type system, but the host registry and most reviewers will reject deviations.
+## Reference extensions
 
-### 4.1 Namespace selection
+The repository's extensions are worked examples of the contract:
 
-A namespace must match `^[a-z][a-z0-9_]*$` and be unique within a session. The registry rejects duplicate registrations at `LeonardBinding.ensureInitialized` time (PRD §7.1, §7.8). Pick a short, package-aligned token (`router`, `riverpod`, `dio`); avoid generic words like `app` or `host`. The same token scopes both your tool names (`<namespace>.<tool>`) and your VM service extensions (`ext.leonard.<namespace>.<suffix>`).
+- `leonard_router` projects a synchronous route snapshot and contributes the
+  `router.navigate` tool.
+- `leonard_riverpod` observes provider changes out of band and drains pending
+  records in `prepareForObservation()`.
+- `leonard_dio` tracks requests through an interceptor and reports busy while
+  requests are in flight.
+- `leonard_tmux` and `leonard_native` watch external processes and cache their
+  latest snapshots before build.
 
-### 4.2 Observation budget
+## Anti-patterns
 
-Each extension contributes an observation fragment with a default budget of 1 KB serialized. The host truncates over-budget fragments and emits a warning; oversized contributions starve other extensions of attention from the agent's context window. Return `null` from `observe` when you have nothing relevant this turn — that is cheaper than returning an empty map and signals "no contribution" cleanly (PRD §7.3, §11.4).
+Do not subclass or replace `LeonardBinding` from an extension. The binding owns
+Flutter's binding slot and composes extensions through registration.
 
-### 4.3 When to report busy
+Do not perform file, network, process, platform, or widget-tree traversal from
+`build()` or `buildPerception()`. Move it to a watcher, listener, frame hook, or
+tool action and publish an immutable snapshot for build to read.
 
-Report `BusyState.isBusy=true` only for extension-known async work the host cannot see: an HTTP request you initiated, an extension-owned timer, an external IPC awaiting reply. Frame work, layout, animations, and post-frame settling are already covered by the host via `SchedulerBinding`; reporting busy for them is double-counting and slows the agent down (PRD §7.4, §9).
+Do not swallow unexpected observation or busy-state failures. Hosts isolate a
+failing extension and log the failure. Silently converting every exception to
+an empty fragment hides broken state and makes the extension disappear without
+evidence.
 
-### 4.4 Surfacing extension-owned identifiers
+Do not return full response bodies, provider graphs, accessibility documents,
+or element trees by default. Prefer stable identifiers and compact summaries.
 
-If your tools accept an identifier (a session ID, a route name, a provider key) the agent has no way to discover, your observation fragment must include it. The §21 default is: every extension-owned identifier that appears in `inputSchema` should appear in the fragment. The `HelloExtension` `_sessionId` field in §2 is the worked example — `_GreetTool.inputSchema` accepts a `session_id`, so `observe` returns one.
+## Packaged extension metadata
 
-## 5. Anti-patterns
-
-Each of the four mistakes below is silent on the happy path and corrosive on the failure path. The registry's per-method 3-strikes auto-disable catches repeated exceptions in `observe`/`busyState`/`onActionExecuted` and quietly drops the extension from subsequent dispatch — so the cost of a swallowed bug is your extension disappearing mid-session with no signal in the user's logs.
-
-### 5.1 Don't subclass the binding
-
-`LeonardBinding` extends `WidgetsFlutterBinding` and is incompatible with any other custom binding (`IntegrationTestWidgetsFlutterBinding`, Marionette, etc.). Subclassing or replacing it from an extension breaks the host's invariants and trips the `StateError` in `ensureInitialized`. If you need to coexist with another binding, use a reimplementation extension (§6.4) or accept that the two tools cannot share a process (PRD §7.5).
-
-### 5.2 Don't hog frame callbacks
-
-Frame callbacks registered through `ExtensionContext.registerFrameCallback` run on the host scheduler's post-frame phase. Long-running work (decoding, file IO, large element-tree walks) starves animation and observation. Schedule expensive work on a microtask or isolate and have the frame callback only enqueue it (PRD §7.5).
-
-### 5.3 Don't return unbounded fragments
-
-`observe` is called once per turn. Returning the entire provider graph, the full element tree, or every HTTP response body blows past the 1 KB default budget and either gets truncated mid-string (corrupting JSON) or starves siblings. Aggregate, count, summarise, and emit identifiers — let the agent pull detail through tools (PRD §7.3).
-
-### 5.4 Don't swallow exceptions
-
-Wrapping the body of `observe`/`busyState`/`onActionExecuted` in `try { ... } catch (_) {}` defeats the registry's auto-disable and hides real bugs. The contract is: throw out of these methods if something is genuinely wrong; the registry isolates the failure, increments the strike counter, and disables the offending method after three strikes. Inside `LeonardTool.call` the contract inverts — never throw; return `ToolResult(ok: false, error: ...)` (PRD §7.8).
-
-## 6. Wrapping existing tools (the §20.2 taxonomy)
-
-PRD §20.2 names four ways an existing tool can become an extension. Pick the lowest-effort category that fits your dependency graph; the higher categories accumulate maintenance cost.
-
-### 6.1 Configuration extensions
-
-A configuration extension instantiates an existing tool and tweaks a flag. The extension owns no logic of its own beyond the flip. Example: a logging extension that constructs a wrapped tool with `verbose: true` and re-exposes its surface. The extension's `tools` list forwards to the wrapped instance, and `dispose` tears it down.
-
-```dart
-class VerboseLoggerExtension implements LeonardExtension {
-  @override final String namespace = 'verbose_logger';
-  final WrappedLogger _logger = WrappedLogger(verbose: true);
-  @override List<LeonardTool> get tools => _logger.tools;
-  // ... initialize / observe / busyState / onActionExecuted / dispose forward.
-}
-```
-
-### 6.2 Composition extensions
-
-A composition extension instantiates the tool, wires interceptors, and emits observations from the seam. The reference `leonard_dio` extension is the canonical case: it constructs `Dio`, attaches a counting interceptor, and reports busy while requests are in flight. The extension owns the interceptor; the wrapped tool stays unmodified.
-
-```dart
-class DioExtension implements LeonardExtension {
-  final Dio _dio = Dio()..interceptors.add(_BusyInterceptor());
-  // observation fragment emits `inflight_request_count`.
-}
-```
-
-### 6.3 Subclass extensions
-
-When the tool you wrap exposes its own `WidgetsBinding` or other framework hook that cannot be composed (PRD §20.1), subclass it and have the host binding extend the subclass. The Marionette case study is the example: `LeonardBinding extends MarionetteBinding extends WidgetsFlutterBinding`. This is contingent — the parent binding must be designed to accept subclassing (it must not be `final`, must expose hooks as protected methods, etc.). If the parent does not cooperate, fall back to §6.4.
-
-```dart
-// Sketch only; actual integration depends on Marionette accepting subclassing.
-class LeonardBinding extends MarionetteBinding /* ... */ {}
-```
-
-### 6.4 Reimplementation extensions
-
-When neither composition nor subclassing is possible, write an extension that reimplements the tool's primitives without sharing code. Example: `leonard_marionette_compat` would expose a Marionette-shaped surface to the agent without depending on Marionette source (PRD §20.1). This is the highest-cost option — the reimplementation drifts from upstream over time — and is appropriate only when integration is the alternative to having no support at all.
-
-## 7. The `extension/exploration/config.yaml` manifest
-
-An extension package SHOULD ship a manifest at `extension/exploration/config.yaml` describing how to instantiate its extension class:
+An extension package may ship `extension/exploration/config.yaml` so future
+hosts can discover its constructor without package-specific code:
 
 ```yaml
-# extension/exploration/config.yaml
-namespace: hello
-class: HelloExtension
-library: package:hello_leonard_extension/hello_leonard_extension.dart
+namespace: counter
+class: CounterExtension
+library: package:counter_leonard/counter_leonard.dart
 constructor:
   positional: []
   named: {}
 ```
 
-v1 host does not read this file. Adopting the convention now means well-behaved extension packages are auto-discoverable when v2 lands. A package shipping both `extension/mcp/config.yaml` and `extension/exploration/config.yaml` integrates with both coding-time agents (Dart MCP server) and runtime exploration (this project) from one place — the Packaged AI Assets posture (PRD §7.6).
+The version-1 host does not read this file yet. It is a packaging convention,
+not a second registration API.
 
-## 8. Versioning posture
+## Versioning posture
 
-Per PRD §7.7, the contract guarantees:
+Adding a tool or an observation field is non-breaking because clients discover
+tools through the handshake and treat unknown fragment fields opaquely.
+Refining busy-state heuristics is also non-breaking while the `BusyState` shape
+is stable. Changing a tool schema, removing a field, or changing a persisted or
+wire key requires an explicit compatibility decision.
 
-- Adding a tool to `tools` is non-breaking. Existing agents ignore unknown tool names; new agents discover the addition through tool listing.
-- Expanding an `observe` fragment with new fields is non-breaking. The host treats unknown fields as opaque pass-through (verified by the contract test `'observe fragment passes unknown fields through'`).
-- Refining `busyState` heuristics is non-breaking. The shape stays `BusyState`; only the conditions under which `isBusy=true` is returned shift.
+## Custom-widget extensions
 
-Extension authors should release as often as they want.
+Apps with sparse Flutter semantics can add a design-system-specific extension.
+Observe bespoke Flutter widgets from an out-of-band tree watcher or frame hook,
+cache compact `{type, key, label}` records, and expose those cached records from
+a synchronous Genesis component. If a tool accepts a key minted by the
+extension, surface that key in the fragment so the agent can discover it.
 
-## 9. Custom-widget extensions
+Keep Flutter's `Element` for the widget-tree walk and Genesis's
+`genesis.Element` for the mounted perception tree. The build method reads only
+the cached records; it does not traverse `WidgetsBinding.instance.rootElement`.
 
-**Failure mode.** Apps built on a custom design system often expose sparse `Semantics` — interactive elements ship without labels, roles, or hints because the design system never wired them up. The agent's targetability degrades sharply: it can see the pixels but cannot name the widgets, so tools that take a target identifier have nothing to anchor on.
+## Failure behavior
 
-**Fix.** Write a custom-widget extension specific to the app's design system. Walk the element tree from `WidgetsBinding.instance.rootElement`, identify bespoke widgets by their runtime type (`is MyAppButton`, `is MyAppCard`), and contribute a structured fragment of `{type, key, label}` triples plus targeting tools that accept those keys. The extension owns the keys (it minted them) and surfaces them per §4.4, so the agent can target widgets the framework never knew were interactive.
-
-**Diagnostic hook.** The host diagnostic warns when interactive widgets ship without semantics; its warning text points users at this section. If you see that warning in a host's logs, the resolution is "ship a custom-widget extension" — not "patch the host."
-
-```dart
-import 'package:flutter/widgets.dart';
-import 'package:leonard_flutter/contract.dart';
-
-class MyAppCustomWidgetsExtension implements LeonardExtension {
-  @override final String namespace = 'myapp_widgets';
-  @override final List<LeonardTool> tools = const [];
-  @override Future<void> initialize(ExtensionContext ctx) async {}
-  @override Future<BusyState> busyState() async => BusyState.idle;
-  @override Future<void> onActionExecuted(ExecutedAction a) async {}
-  @override Future<void> dispose() async {}
-
-  @override
-  Future<Map<String, Object?>?> observe(ObservationContext ctx) async {
-    final root = WidgetsBinding.instance.rootElement;
-    if (root == null) return null;
-    final found = <Map<String, Object?>>[];
-    void visit(Element e) {
-      final w = e.widget;
-      if (w.runtimeType.toString().startsWith('MyApp')) {
-        found.add({'type': w.runtimeType.toString(), 'key': w.key?.toString()});
-      }
-      e.visitChildren(visit);
-    }
-    visit(root);
-    return {'custom_widgets': found};
-  }
-}
-```
+Hosts isolate observation failures per extension. Throwing from one extension's
+build omits that fragment without aborting its siblings. Tool calls should catch
+expected operational errors and return `ToolResult(ok: false, error: ...)`.
+Always release subscriptions, clients, and other lifecycle-owned resources from
+`dispose()`.

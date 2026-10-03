@@ -97,7 +97,7 @@ Leonard's perception layer is built on [**genesis**](https://github.com/memento-
 an open (BSD-3) toolkit for reconcilable trees and runtime perception:
 
 - [**`genesis_tree`**](https://pub.dev/packages/genesis_tree) — the reconcilable tree spine
-  (`Seed` / `Branch` / `TreeOwner`) that Leonard's observation tree is built on.
+  (`Component` / `Element` / `BuildOwner`) that Leonard's observation tree is built on.
 - [**`genesis_perception`**](https://pub.dev/packages/genesis_perception) — the measurement domain
   over that tree; every `build() → Perception` observation is a genesis perception tree.
 

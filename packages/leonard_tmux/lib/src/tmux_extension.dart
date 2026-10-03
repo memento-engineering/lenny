@@ -75,7 +75,7 @@ class TmuxExtension extends LeonardExtension with PerceptionExtension {
   bool isPerceptionIdle() => _live == null;
 
   @override
-  Seed buildPerception() => TmuxPerception(_live!);
+  Component buildPerception() => TmuxPerception(_live!);
 
   @override
   Future<BusyState> busyState() async => BusyState.idle;

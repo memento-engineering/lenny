@@ -2,7 +2,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_router/leonard_router.dart';
 
@@ -17,12 +17,12 @@ class _FakeRouterExtension extends RouterExtension {
 }
 
 Map<String, Object?> _harvest(RouteSnapshot? snapshot) {
-  final PerceptionOwner owner = PerceptionOwner();
+  final genesis.PerceptionOwner owner = genesis.PerceptionOwner();
   try {
-    final Branch root = owner.mountRoot(
+    final genesis.Element root = owner.mountRoot(
       RouterPerception(RouteSnapshotAnchor(_FakeRouterExtension(snapshot))),
     );
-    return serializePerceptionFragment(root);
+    return genesis.serializePerceptionFragment(root);
   } finally {
     owner.dispose();
   }

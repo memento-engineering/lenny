@@ -1,7 +1,7 @@
 library;
 
 import 'package:leonard_flutter/contract.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
 import 'router_extension.dart';
 
@@ -11,24 +11,24 @@ import 'router_extension.dart';
 /// `Node('router', …)`. Unlike dio (which reads a plain interceptor model), the
 /// router's state lives in Flutter's Navigator/RouterDelegate, so this reads a
 /// synchronous [RouteSnapshot] through a [PerceptionAnchor] at observation time.
-class RouterPerception extends StatelessPerception {
+class RouterPerception extends genesis.StatelessPerception {
   /// Creates a router perception backed by [_anchor].
   const RouterPerception(this._anchor);
 
   final PerceptionAnchor<RouteSnapshot?> _anchor;
 
   @override
-  Seed build(PerceptionContext ctx) {
+  genesis.Component build(genesis.PerceptionContext ctx) {
     final RouteSnapshot? snap = _anchor.read();
     // The extension's isPerceptionIdle() (readSnapshot()==null) suppresses this
     // fragment when there is no route, so build() is only reached with a
     // non-null snapshot; fall back to an empty triple defensively.
-    return Node(
+    return genesis.Node(
       'router',
-      children: <Seed>[
-        Field('current_route_name', snap?.currentRouteName),
-        Field('stack', snap?.stack ?? const <String>[]),
-        Field('arguments', snap?.arguments),
+      children: <genesis.Component>[
+        genesis.Field('current_route_name', snap?.currentRouteName),
+        genesis.Field('stack', snap?.stack ?? const <String>[]),
+        genesis.Field('arguments', snap?.arguments),
       ],
     );
   }

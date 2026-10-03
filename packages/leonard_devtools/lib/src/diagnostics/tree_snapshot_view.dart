@@ -74,7 +74,7 @@ class _TreeSnapshotViewState extends State<TreeSnapshotView> {
                                   : _expandedIds.add(node.id);
                             }),
                           ),
-                    title: Text(node.seedType),
+                    title: Text(node.componentType),
                     subtitle: Text(node.id),
                     onTap: () => setState(() => _selectedId = node.id),
                   ),
@@ -97,7 +97,10 @@ class _Details extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: <Widget>[
-      Text(node.seedType, key: const Key('diagnostics.details.seedType')),
+      Text(
+        node.componentType,
+        key: const Key('diagnostics.details.componentType'),
+      ),
       SelectableText(node.id, key: const Key('diagnostics.details.id')),
       if (node.key case final String key) SelectableText('key: $key'),
       for (final DiagnosticsProperty property in node.properties)

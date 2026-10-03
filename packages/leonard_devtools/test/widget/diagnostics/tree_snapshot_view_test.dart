@@ -74,17 +74,17 @@ final TreeSnapshot _fixture = TreeSnapshot(
   contractVersion: 1,
   projectedAt: _epoch,
   root: TreeNode(
-    seedType: 'Root',
+    componentType: 'Root',
     id: 'root',
     properties: _everyVariant,
     children: const <TreeNode>[
       TreeNode(
-        seedType: 'Parent',
+        componentType: 'Parent',
         id: 'parent',
         properties: <DiagnosticsProperty>[],
         children: <TreeNode>[
           TreeNode(
-            seedType: 'Leaf',
+            componentType: 'Leaf',
             id: 'leaf',
             properties: <DiagnosticsProperty>[],
             children: <TreeNode>[],
@@ -166,12 +166,12 @@ void main() {
         contractVersion: 1,
         projectedAt: _epoch,
         root: const TreeNode(
-          seedType: 'Root',
+          componentType: 'Root',
           id: 'root',
           properties: <DiagnosticsProperty>[],
           children: <TreeNode>[
             TreeNode(
-              seedType: 'Parent',
+              componentType: 'Parent',
               id: 'parent',
               properties: <DiagnosticsProperty>[],
               children: <TreeNode>[],
@@ -189,7 +189,7 @@ void main() {
         contractVersion: 1,
         projectedAt: _epoch,
         root: const TreeNode(
-          seedType: 'Root',
+          componentType: 'Root',
           id: 'root',
           properties: <DiagnosticsProperty>[],
           children: <TreeNode>[],

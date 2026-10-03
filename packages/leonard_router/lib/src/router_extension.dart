@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:leonard_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
-import 'package:genesis_perception/genesis_perception.dart';
+import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
 import 'router_perception.dart';
 
@@ -104,7 +104,8 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   }
 
   @override
-  Seed buildPerception() => RouterPerception(RouteSnapshotAnchor(this));
+  genesis.Component buildPerception() =>
+      RouterPerception(RouteSnapshotAnchor(this));
 }
 
 const Duration _frameObservationBudget = Duration(milliseconds: 250);

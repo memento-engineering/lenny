@@ -4,18 +4,17 @@ A **pure-Dart, process-backed Leonard extension** for tmux — the first `leonar
 extension that observes an *external process* instead of the host Flutter app, so
 it pulls in no Flutter.
 
-It does the two things a Leonard extension does, in Leonard's pure-Dart
-vocabulary (`leonard_agent`):
+It does the two things a Leonard extension does through `leonard_contract`:
 
-- **Observe** — gathers a `genesis_tmux` client's sessions, panes, and recent
-  output, projects them into a `genesis_perception` `Node`/`Field` tree
-  (`TmuxPerception`), and serializes that into an `ExtensionFragment` under the
-  `tmux` namespace.
-- **Act** — contributes `tmux.send_keys` / `tmux.new_session` `ToolDescriptor`s,
-  dispatched by `executeAction` to the underlying tmux verbs.
+- **Perceive** — `initialize()` starts a poll watcher that keeps a cached
+  `TmuxObservation` current. Synchronous `buildPerception()` projects that
+  cache into a Genesis `Component` tree under the `tmux` namespace.
+- **Act** — contributes `tmux.send_keys` and `tmux.new_session` tools. Each
+  tool drives the underlying tmux verb and refreshes the cache afterward.
 
 ```dart
 import 'package:genesis_tmux/genesis_tmux.dart';
+import 'package:leonard_contract/leonard_contract.dart';
 import 'package:leonard_tmux/leonard_tmux.dart';
 
 final client = TmuxClient(
@@ -24,24 +23,21 @@ final client = TmuxClient(
 );
 final tmux = TmuxExtension(client);
 
-await tmux.executeAction('tmux.new_session', {'name': 'agent'});
-final fragment = await tmux.observe();   // ExtensionFragment(namespace: 'tmux', …)
-print(fragment.toJson());                // sessions / panes / recent_output
+await tmux.initialize(ExtensionContext(namespace: 'tmux'));
+final create = tmux.tools.firstWhere((tool) => tool.name == 'new_session');
+await create.call({'name': 'agent'});
+
+final owner = PerceptionOwner();
+final Element root = owner.mountRoot(tmux.buildPerception());
+final fragment = serializePerceptionFragment(root);
+owner.dispose();
+print(fragment); // sessions / panes / recent_output
 ```
 
 ## Dependency wiring
 
-`genesis_tmux` is not yet published, so the lenny workspace resolves it through a
-sibling-checkout **path override** in the root `pubspec.yaml`:
-
-```yaml
-dependency_overrides:
-  genesis_tmux:
-    path: ../../engineering.memento/genesis/packages/tmux
-```
-
-`genesis_perception` is consumed hosted (`^0.1.1`), like the other extensions.
-Flip `genesis_tmux` to a hosted constraint once it publishes.
+Both Genesis dependencies are hosted releases. Extension packages should use
+`genesis_perception: ^0.4.0-dev.1` and avoid committed path overrides.
 
 ## Live example
 

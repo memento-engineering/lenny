@@ -1,6 +1,6 @@
 name: leonard_flutter
 description: Host WidgetsBinding for Leonard.
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -11,8 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  genesis_perception: ">=0.2.0 <0.4.0"
-  leonard_contract: ^0.2.5
+  genesis_perception: ^0.4.0-dev.1
+  leonard_contract: ^0.2.6
   meta: ^1.16.0
 
 dev_dependencies:
