@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.4.1
+## 0.4.1-dev.1
 
 - Build Dio observations with canonical Genesis `Component` types without
   changing the extension namespace or serialized fields.
-- Require `genesis_perception ^0.4.0` and `leonard_flutter ^0.4.1`.
+- Require `genesis_perception ^0.4.0` and `leonard_flutter ^0.4.1-dev.1`.
 
 ## 0.4.0
 

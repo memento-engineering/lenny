@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.2.4
+## 0.2.4-dev.1
 
 - Consume canonical Genesis `Component` and `Element` types while preserving
   synchronous extension builds and existing observation JSON.
-- Require `genesis_perception ^0.4.0` and `leonard_contract ^0.2.6`.
+- Require `genesis_perception ^0.4.0` and `leonard_contract ^0.3.0-dev.1`.
 
 ## 0.2.3
 

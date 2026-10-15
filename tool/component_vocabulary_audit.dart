@@ -1,14 +1,14 @@
 import 'dart:io';
 
 const Map<String, String> _packageVersions = <String, String>{
-  'packages/leonard_contract/pubspec.yaml': '0.2.6',
-  'packages/leonard_host/pubspec.yaml': '0.2.4',
-  'packages/leonard_flutter/pubspec.yaml': '0.4.1',
-  'packages/leonard_dio/pubspec.yaml': '0.4.1',
-  'packages/leonard_riverpod/pubspec.yaml': '0.4.1',
-  'packages/leonard_router/pubspec.yaml': '0.4.1',
-  'packages/leonard_tmux/pubspec.yaml': '0.2.3',
-  'packages/leonard_native/pubspec.yaml': '0.5.0',
+  'packages/leonard_contract/pubspec.yaml': '0.3.0-dev.1',
+  'packages/leonard_host/pubspec.yaml': '0.2.4-dev.1',
+  'packages/leonard_flutter/pubspec.yaml': '0.4.1-dev.1',
+  'packages/leonard_dio/pubspec.yaml': '0.4.1-dev.1',
+  'packages/leonard_riverpod/pubspec.yaml': '0.4.1-dev.1',
+  'packages/leonard_router/pubspec.yaml': '0.5.0-dev.1',
+  'packages/leonard_tmux/pubspec.yaml': '0.3.0-dev.1',
+  'packages/leonard_native/pubspec.yaml': '0.5.0-dev.1',
   'packages/leonard_devtools/pubspec.yaml': '0.4.0-dev.2',
 };
 
@@ -26,27 +26,27 @@ const List<String> _perceptionManifests = <String>[
 const Map<String, Map<String, String>> _siblingFloors =
     <String, Map<String, String>>{
       'packages/leonard_host/pubspec.yaml': <String, String>{
-        'leonard_contract': '^0.2.6',
+        'leonard_contract': '^0.3.0-dev.1',
       },
       'packages/leonard_flutter/pubspec.yaml': <String, String>{
-        'leonard_contract': '^0.2.6',
+        'leonard_contract': '^0.3.0-dev.1',
       },
       'packages/leonard_dio/pubspec.yaml': <String, String>{
-        'leonard_flutter': '^0.4.1',
+        'leonard_flutter': '^0.4.1-dev.1',
       },
       'packages/leonard_riverpod/pubspec.yaml': <String, String>{
-        'leonard_flutter': '^0.4.1',
+        'leonard_flutter': '^0.4.1-dev.1',
       },
       'packages/leonard_router/pubspec.yaml': <String, String>{
-        'leonard_flutter': '^0.4.1',
+        'leonard_flutter': '^0.4.1-dev.1',
       },
       'packages/leonard_tmux/pubspec.yaml': <String, String>{
-        'leonard_contract': '^0.2.6',
-        'leonard_host': '^0.2.4',
+        'leonard_contract': '^0.3.0-dev.1',
+        'leonard_host': '^0.2.4-dev.1',
       },
       'packages/leonard_native/pubspec.yaml': <String, String>{
-        'leonard_contract': '^0.2.6',
-        'leonard_host': '^0.2.4',
+        'leonard_contract': '^0.3.0-dev.1',
+        'leonard_host': '^0.2.4-dev.1',
       },
     };
 

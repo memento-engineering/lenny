@@ -1,11 +1,14 @@
 # Changelog
 
-## 0.2.3
+## 0.3.0-dev.1
 
+- **Breaking:** `TmuxPerception` is now a Genesis `StatelessComponent`
+  (was `StatelessSeed`). Migration: code that typed it as a `Seed` uses
+  `Component`; Genesis's deprecated `Seed` typedef still names the same type.
 - Build cached tmux observations with canonical Genesis `Component` and
   `Element` types. Polling remains in the out-of-band watcher.
-- Require `genesis_perception ^0.4.0`, `leonard_contract ^0.2.6`, and
-  `leonard_host ^0.2.4`.
+- Require `genesis_perception ^0.4.0`, `leonard_contract ^0.3.0-dev.1`, and
+  `leonard_host ^0.2.4-dev.1`.
 
 ## 0.2.2
 

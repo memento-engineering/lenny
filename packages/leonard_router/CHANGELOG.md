@@ -1,10 +1,13 @@
 # Changelog
 
-## 0.4.1
+## 0.5.0-dev.1
 
+- **Breaking:** `RouterPerception` is now a Genesis `StatelessComponent`
+  (was `StatelessSeed`). Migration: code that typed it as a `Seed` uses
+  `Component`; Genesis's deprecated `Seed` typedef still names the same type.
 - Build router observations with Genesis-qualified canonical `Component` and
   `Element` types, leaving Flutter tree types unqualified and unchanged.
-- Require `genesis_perception ^0.4.0` and `leonard_flutter ^0.4.1`.
+- Require `genesis_perception ^0.4.0` and `leonard_flutter ^0.4.1-dev.1`.
 
 ## 0.4.0
 
