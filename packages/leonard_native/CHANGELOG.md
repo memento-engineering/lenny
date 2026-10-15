@@ -1,4 +1,4 @@
-## 0.5.0
+## 0.5.0-dev.1
 
 - **Breaking — the mobile backends' constructors now mean the same lifecycle
   on iOS and Android** (lenny#168). The unnamed constructor installs and
@@ -40,8 +40,8 @@
   instead of leaving the session on the home screen (lenny#161, #165).
 - Build cached native accessibility observations with canonical Genesis
   `Component` types. Appium polling and action refreshes remain outside build.
-- Require `genesis_perception ^0.4.0`, `leonard_contract ^0.2.6`, and
-  `leonard_host ^0.2.4`.
+- Require `genesis_perception ^0.4.0`, `leonard_contract ^0.3.0-dev.1`, and
+  `leonard_host ^0.2.4-dev.1`.
 
 ## 0.4.1
 

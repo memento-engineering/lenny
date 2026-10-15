@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2-dev.2
+
+- Require `leonard_contract ^0.3.0-dev.1`. No API change.
+
 ## 0.3.2-dev.1
 
 - Fix: `buildExtensionTools` never lists `core` as an extension. `core` always

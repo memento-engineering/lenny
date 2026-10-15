@@ -8,7 +8,7 @@
   install; on Android that relaunch would have dropped the Flutter VM-service
   channel. Migration: replace `--app <Runner.app>` with `--app-id <bundle id or
   package>`. A stale `--app` exits 64 with this migration message.
-- Requires `leonard_native ^0.5.0`.
+- Requires `leonard_native ^0.5.0-dev.1`.
 - Fix: `leonard_drive up` finds the native host through the package config, so
   `--native-host` auto-resolution works outside the lenny repo (lenny#160,
   #166).

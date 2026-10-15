@@ -1,9 +1,12 @@
 # Changelog
 
-## 0.2.6
+## 0.3.0-dev.1
 
-- `PerceptionExtension.buildPerception()` now uses the canonical Genesis
-  `Component` spelling. Genesis's deprecated `Seed` typedef remains an
+- **Breaking:** `PerceptionExtension.buildPerception()` now returns the
+  canonical Genesis `Component` (was `Seed`), and the package requires the
+  breaking `genesis_perception` 0.4 line. Migration: override
+  `Component buildPerception()`; an override still spelled `Seed` keeps
+  compiling through Genesis's deprecated typedef. Genesis's deprecated `Seed` typedef remains an
   identity-preserving compatibility bridge for existing extension overrides.
 - Require `genesis_perception ^0.4.0`.
 
