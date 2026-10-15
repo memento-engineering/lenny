@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+Stable promotion of `0.4.1-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.
+
 ## 0.4.1-dev.1
 
 - Build Riverpod observations with canonical Genesis `Component` types while
