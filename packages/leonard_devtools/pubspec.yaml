@@ -14,7 +14,7 @@ dependencies:
   dtd: ^4.0.0
   flutter:
     sdk: flutter
-  genesis_foundation: ^0.3.0-dev.1
+  genesis_foundation: ^0.3.0
   http: ^1.2.0
   json_rpc_2: ^3.0.2
   leonard_agent: ^0.3.2-dev.1

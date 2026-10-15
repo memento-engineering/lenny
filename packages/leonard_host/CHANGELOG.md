@@ -4,7 +4,7 @@
 
 - Consume canonical Genesis `Component` and `Element` types while preserving
   synchronous extension builds and existing observation JSON.
-- Require `genesis_perception ^0.4.0-dev.1` and `leonard_contract ^0.2.6`.
+- Require `genesis_perception ^0.4.0` and `leonard_contract ^0.2.6`.
 
 ## 0.2.3
 

@@ -8,7 +8,7 @@
 - Rename `buildCorePerceptionSeed` to `buildCorePerceptionComponent` and use
   `TreeNode.componentType` in source while preserving diagnostics contract 1
   and its literal `seedType` JSON key.
-- Require `genesis_perception ^0.4.0-dev.1` and `leonard_contract ^0.2.6`.
+- Require `genesis_perception ^0.4.0` and `leonard_contract ^0.2.6`.
 
 ## 0.4.0
 

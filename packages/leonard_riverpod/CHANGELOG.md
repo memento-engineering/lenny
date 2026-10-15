@@ -4,7 +4,7 @@
 
 - Build Riverpod observations with canonical Genesis `Component` types while
   retaining `prepareForObservation()` as the pending-change drain seam.
-- Require `genesis_perception ^0.4.0-dev.1` and `leonard_flutter ^0.4.1`.
+- Require `genesis_perception ^0.4.0` and `leonard_flutter ^0.4.1`.
 
 ## 0.4.0
 
