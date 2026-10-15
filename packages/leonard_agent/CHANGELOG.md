@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+Stable promotion of `0.3.2-dev.2`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.
+
 ## 0.3.2-dev.2
 
 - Require `leonard_contract ^0.3.0-dev.1`. No API change.

@@ -26,15 +26,15 @@ names and are unchanged.
 
 | Package | Release | Required floor |
 | --- | --- | --- |
-| `leonard_contract` | `0.3.0-dev.1` | `genesis_perception: ^0.4.0` |
-| `leonard_host` | `0.2.4-dev.1` | `leonard_contract: ^0.3.0-dev.1` |
-| `leonard_flutter` | `0.4.1-dev.1` | `leonard_contract: ^0.3.0-dev.1` |
-| `leonard_dio` | `0.4.1-dev.1` | `leonard_flutter: ^0.4.1-dev.1` |
-| `leonard_riverpod` | `0.4.1-dev.1` | `leonard_flutter: ^0.4.1-dev.1` |
-| `leonard_router` | `0.5.0-dev.1` | `leonard_flutter: ^0.4.1-dev.1` |
-| `leonard_tmux` | `0.3.0-dev.1` | `leonard_host: ^0.2.4-dev.1` |
-| `leonard_native` | `0.5.0-dev.1` | `leonard_host: ^0.2.4-dev.1` |
-| `leonard_devtools` | `0.4.0-dev.2` | `genesis_foundation: ^0.3.0` |
+| `leonard_contract` | `0.3.0` | `genesis_perception: ^0.4.0` |
+| `leonard_host` | `0.2.4` | `leonard_contract: ^0.3.0` |
+| `leonard_flutter` | `0.4.1` | `leonard_contract: ^0.3.0` |
+| `leonard_dio` | `0.4.1` | `leonard_flutter: ^0.4.1` |
+| `leonard_riverpod` | `0.4.1` | `leonard_flutter: ^0.4.1` |
+| `leonard_router` | `0.5.0` | `leonard_flutter: ^0.4.1` |
+| `leonard_tmux` | `0.3.0` | `leonard_host: ^0.2.4` |
+| `leonard_native` | `0.5.0` | `leonard_host: ^0.2.4` |
+| `leonard_devtools` | `0.4.0` | `genesis_foundation: ^0.3.0` |
 
 The eight perception-producing Leonard packages directly require
 `genesis_perception: ^0.4.0`. These are hosted constraints; do not commit
