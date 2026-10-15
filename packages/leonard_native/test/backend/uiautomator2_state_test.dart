@@ -38,9 +38,9 @@ File _fixture(String name) {
 
 /// Parse [xml] through the REAL backend, closing the http.Client it opens.
 List<NativeNode> _parse(String xml) {
-  final UiAutomator2Backend backend = UiAutomator2Backend(
+  final UiAutomator2Backend backend = UiAutomator2Backend.attach(
     udid: 'fixture',
-    app: 'com.example.app',
+    appId: 'com.example.app',
     platformVersion: '13',
   );
   final List<NativeNode> nodes = backend.parseSource(xml);

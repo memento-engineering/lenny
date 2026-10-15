@@ -103,10 +103,10 @@ void main() {
     }
     final List<String> logs = <String>[];
     final Process flutter = await _launchGauntlet(logs);
-    final UiAutomator2Backend backend = UiAutomator2Backend(
+    final UiAutomator2Backend backend = UiAutomator2Backend.attach(
       server: _appium,
       udid: _serial,
-      app: _package,
+      appId: _package,
     );
     try {
       await backend.connect(

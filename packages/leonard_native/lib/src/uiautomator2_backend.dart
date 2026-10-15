@@ -176,18 +176,57 @@ class AndroidSessionProvenance {
 /// Drives a native Android app over a local Appium server (W3C WebDriver +
 /// UiAutomator2).
 class UiAutomator2Backend implements NativeBackend {
-  /// Constructs a backend targeting [udid] + [app] on [server] (default
-  /// `http://127.0.0.1:4723`). The backend does NOT spawn Appium or boot the
-  /// emulator — both must already be running. [platform] is fixed `android`.
+  /// Constructs an install-and-launch backend targeting [udid] + [app] on
+  /// [server] (default `http://127.0.0.1:4723`). [app] is an `.apk` path or an
+  /// id a cloud grid resolves (for example `lt://APP123`); [appPackage] and
+  /// [appActivity] optionally pin the launched component. The backend does NOT
+  /// spawn Appium or boot the emulator — both must already be running.
+  /// [platform] is fixed `android`.
+  ///
+  /// Launching relaunches the app, so it drops any `flutter run` VM-service
+  /// channel; use [UiAutomator2Backend.attach] beside a running Flutter app.
+  /// Tears off to [NativeLaunch], the same shape as `XcuiTestBackend.new`.
   UiAutomator2Backend({
     Uri? server,
     required this.udid,
-    required this.app,
+    required String app,
+    this.appPackage,
+    this.appActivity,
     this.platformVersion,
     ObstructionResourceIdPolicy? obstructionIds,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
-  }) : server = server ?? Uri.parse('http://127.0.0.1:4723'),
+  }) : // A typed parameter keeps null out of this public launch constructor.
+       // ignore: prefer_initializing_formals
+       app = app,
+       appId = null,
+       server = server ?? Uri.parse('http://127.0.0.1:4723'),
+       obstructionIds =
+           obstructionIds ?? ObstructionResourceIdPolicy.defaults(),
+       _client = client ?? http.Client();
+
+  /// Constructs a backend that attaches to the already-running [appId] (the
+  /// Android package) on [udid] without installing or relaunching it — the
+  /// session drives whatever is on screen, so a running `flutter run` process
+  /// keeps its VM-service channel. [connect] fails loudly when [appId] is not
+  /// running once the session is open.
+  ///
+  /// Tears off to [NativeAttach], the same shape as `XcuiTestBackend.attach`.
+  UiAutomator2Backend.attach({
+    Uri? server,
+    required this.udid,
+    required String appId,
+    this.platformVersion,
+    ObstructionResourceIdPolicy? obstructionIds,
+    this.pollInterval = const Duration(seconds: 1),
+    http.Client? client,
+  }) : app = null,
+       // A typed parameter keeps null out of this public attach constructor.
+       // ignore: prefer_initializing_formals
+       appId = appId,
+       appPackage = null,
+       appActivity = null,
+       server = server ?? Uri.parse('http://127.0.0.1:4723'),
        obstructionIds =
            obstructionIds ?? ObstructionResourceIdPolicy.defaults(),
        _client = client ?? http.Client();
@@ -198,11 +237,19 @@ class UiAutomator2Backend implements NativeBackend {
   /// The booted emulator/device udid (e.g. `emulator-5554`).
   final String udid;
 
-  /// The Android application under test — an `.apk` path or an application
-  /// package id. Retained for parity with the iOS impl; the dual-attach session
-  /// uses `autoLaunch:false` and attaches to the foreground app, so a running
-  /// `flutter run` process is NOT relaunched.
-  final String app;
+  /// The application installed and launched by the unnamed constructor; null
+  /// in attach mode.
+  final String? app;
+
+  /// The package launched from [app], when pinned; null in attach mode.
+  final String? appPackage;
+
+  /// The activity launched from [app], when pinned; null in attach mode.
+  final String? appActivity;
+
+  /// The package of the running application selected by the attach
+  /// constructor; null in launch mode.
+  final String? appId;
 
   /// Optional Android version requested from Appium (for example, `13`).
   /// When absent or empty, the session request omits the version capability.
@@ -306,11 +353,6 @@ class UiAutomator2Backend implements NativeBackend {
         platformVersion == null || platformVersion!.isEmpty
         ? null
         : platformVersion;
-    // Attach to the foreground app (the running `flutter run` process) WITHOUT
-    // relaunching it: UiAutomator2 with `autoLaunch:false` and no app/appPackage
-    // cap starts a session against whatever is on screen. This is the Android
-    // analogue of iOS's "never terminate the Flutter process" invariant — a
-    // relaunch would drop the flutter_ws channel the dual round-trip needs.
     final Map<String, Object?> caps = mergeAppiumCapabilities(
       defaults: <String, Object?>{
         'platformName': 'Android',
@@ -319,7 +361,23 @@ class UiAutomator2Backend implements NativeBackend {
         if (requestedVersion != null)
           'appium:platformVersion': requestedVersion,
         'appium:noReset': true,
-        'appium:autoLaunch': false,
+        ...switch (app) {
+          // Launch: install [app] and start it.
+          final String app => <String, Object?>{
+            'appium:app': app,
+            if (appPackage case final String package)
+              'appium:appPackage': package,
+            if (appActivity case final String activity)
+              'appium:appActivity': activity,
+          },
+          // Attach to the foreground app (the running `flutter run` process)
+          // WITHOUT relaunching it: UiAutomator2 with `autoLaunch:false` and no
+          // app/appPackage cap starts a session against whatever is on screen.
+          // This is the Android analogue of iOS's "never terminate the Flutter
+          // process" invariant — a relaunch would drop the flutter_ws channel
+          // the dual round-trip needs.
+          null => const <String, Object?>{'appium:autoLaunch': false},
+        },
         'appium:newCommandTimeout': 0,
       },
       extraCapabilities: extraCapabilities,
@@ -361,6 +419,39 @@ class UiAutomator2Backend implements NativeBackend {
       ),
       model: _returnedCapability(returnedCapabilities, 'deviceModel'),
     );
+    if (appId case final String appId) {
+      await _requireAttachedAppRunning(appId);
+    }
+  }
+
+  /// Attach must find the app already running: an attach session never starts
+  /// it. Only a definite `queryAppState` below 3 (not installed / not running /
+  /// background-suspended) fails; an unanswered probe is unknown, not a
+  /// failure.
+  Future<void> _requireAttachedAppRunning(String appId) async {
+    final Object? state;
+    try {
+      final Map<String, Object?> j = await _post(
+        '/session/$_sid/execute/sync',
+        <String, Object?>{
+          'script': 'mobile: queryAppState',
+          'args': <Object?>[
+            <String, Object?>{'appId': appId},
+          ],
+        },
+      );
+      state = j['value'];
+    } on NativeException {
+      return;
+    }
+    if (state is int && state < 3) {
+      throw NativeException(
+        'attach to $appId: the app is not running after session create '
+        '(queryAppState $state). Start it first (for example with flutter '
+        'run), or construct UiAutomator2Backend with app: to install and '
+        'launch it.',
+      );
+    }
   }
 
   String? _returnedCapability(Map<Object?, Object?> caps, String name) =>

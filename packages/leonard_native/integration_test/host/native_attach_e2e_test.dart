@@ -27,7 +27,7 @@ void main() {
         Platform.environment[_serverEnv] ?? 'http://127.0.0.1:4723',
       ),
       udid: udid,
-      bundleId: bundleId,
+      appId: bundleId,
     );
     await backend.connect(
       extraCapabilities: const <String, Object?>{
@@ -39,7 +39,7 @@ void main() {
       expect(snapshot.platform, 'ios');
       expect(snapshot.nodes, isNotEmpty);
       expect(backend.app, isNull);
-      expect(backend.bundleId, bundleId);
+      expect(backend.appId, bundleId);
       stdout.writeln(
         'HARDWARE_ASSERT lenny-sx8c attach_bundle_id udid=$udid '
         'bundle=$bundleId appium_app=absent',

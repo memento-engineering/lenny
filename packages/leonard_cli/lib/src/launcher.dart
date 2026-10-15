@@ -437,8 +437,9 @@ typedef TargetSpawner =
     });
 
 /// Boot a dual-channel launch: a Flutter target on [udid] plus the leonard
-/// native host against the SAME [udid] + [app], discover both VM-service ws
-/// URIs, and assemble a [DualLaunchHandle] holding both.
+/// native host attached to the SAME [udid] + [appId] (the bundle id or package
+/// `flutter run` launched — the host never installs or relaunches it), discover
+/// both VM-service ws URIs, and assemble a [DualLaunchHandle] holding both.
 ///
 /// The shared device identity is the invariant: the ONE [udid] String is
 /// threaded into both `flutter run -d <udid>` and the native host's `--udid` —
@@ -458,7 +459,7 @@ typedef TargetSpawner =
 Future<DualLaunchHandle> launchDualTarget({
   required String flutterEntrypoint,
   required String udid,
-  required String app,
+  required String appId,
   required String nativeHostPath,
   Uri? appiumServer,
   String platform = 'ios',
@@ -499,8 +500,8 @@ Future<DualLaunchHandle> launchDualTarget({
         server.toString(),
         '--udid',
         udid,
-        '--app',
-        app,
+        '--app-id',
+        appId,
         '--platform',
         platform,
         if (platformVersion != null && platformVersion.isNotEmpty) ...<String>[

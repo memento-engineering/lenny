@@ -345,9 +345,9 @@ void main() {
           (jsonDecode(await captureProof.receipt.readAsString()) as Map)
               .cast<String, Object?>();
       expect(capturedReceipt['actions'], hasLength(3));
-      expect(capturedReceipt['appiumRequests'], hasLength(3));
+      expect(capturedReceipt['appiumRequests'], hasLength(4));
       expect(captureProcess.invocations, hasLength(27));
-      expect(captureAppium.requests, hasLength(22));
+      expect(captureAppium.requests, hasLength(26));
       expect(captureSettles, 2);
       expect(captureProcess.resetCycleCount, 4);
       expect(captureAppium.sessionCount, 4);

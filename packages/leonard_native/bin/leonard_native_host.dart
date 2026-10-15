@@ -7,13 +7,21 @@
 /// an ALREADY-BOOTED iOS simulator, Android emulator, or running macOS app
 /// (this host starts none of them), then point a driver at the printed ws URI:
 ///
+///   # install and launch the app
 ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
 ///     bin/leonard_native_host.dart --udid DEVICE_UDID --app /path/to/app \
 ///     [--platform ios|android] [--platform-version 13]
 ///
+///   # attach to the already-running app (beside `flutter run`)
+///   dart run --enable-vm-service=0 --disable-service-auth-codes \
+///     bin/leonard_native_host.dart --udid DEVICE_UDID \
+///     --app-id com.example.app [--platform ios|android]
+///
 ///   dart run --enable-vm-service=0 --disable-service-auth-codes \
 ///     bin/leonard_native_host.dart --platform darwin \
-///     --bundle-id com.example.Runner
+///     --app-id com.example.Runner
+///
+/// `--bundle-id` is accepted as an alias of `--app-id`.
 ///
 /// Prints `LEONARD_HOST_READY` once installed. SIGTERM/SIGINT dispose the
 /// extension (cancelling the watcher + tearing down the device session) and
@@ -43,17 +51,17 @@ Future<void> main(List<String> args) async {
       server: Uri.parse(o['server'] ?? 'http://127.0.0.1:4723'),
       udid: o['udid'],
       app: o['app'],
-      bundleId: o['bundle-id'],
+      appId: o['app-id'] ?? o['bundle-id'],
       platformVersion: o['platform-version'],
     );
   } on ArgumentError catch (e) {
     stderr.writeln('error: ${e.message}');
     stderr.writeln(
       'usage: leonard_native_host --platform <ios|android> --udid <id> '
-      '--app <path-or-package> [--platform-version <version>] '
-      '[--server <url>]\n'
+      '(--app <path-or-cloud-id> | --app-id <bundle-id-or-package>) '
+      '[--platform-version <version>] [--server <url>]\n'
       '   or: leonard_native_host --platform darwin '
-      '--bundle-id <bundle-id> [--server <url>]',
+      '--app-id <bundle-id> [--server <url>]',
     );
     exit(64);
   }

@@ -92,12 +92,6 @@ void main() {
         'bin',
         'leonard_native_host.dart',
       );
-      final String fixtureApp = p.join(
-        packageRoot,
-        'test',
-        'support',
-        'host_target.dart',
-      );
 
       test('native flags + --runner dart is a hard error (exit 64)', () async {
         final ProcessResult r = await run(<String>[
@@ -108,8 +102,8 @@ void main() {
           'bin/host.dart',
           '--udid',
           'SIM-UDID',
-          '--app',
-          fixtureApp,
+          '--app-id',
+          'com.example.app',
           '--native-host',
           realHost,
         ]);
@@ -117,7 +111,7 @@ void main() {
         expect(r.stderr, contains('--runner flutter'));
       });
 
-      test('--udid without --app exits 64 naming --app', () async {
+      test('--udid without --app-id exits 64 naming --app-id', () async {
         final ProcessResult r = await run(<String>[
           'up',
           '--runner',
@@ -130,11 +124,11 @@ void main() {
           realHost,
         ]);
         expect(r.exitCode, 64);
-        expect(r.stderr, contains('--app'));
+        expect(r.stderr, contains('--app-id'));
       });
 
       test(
-        '--udid + --app without a resolvable --native-host exits 64',
+        '--udid + --app-id without a resolvable --native-host exits 64',
         () async {
           final ProcessResult r = await run(<String>[
             'up',
@@ -144,8 +138,8 @@ void main() {
             'bin/main.dart',
             '--udid',
             'SIM-UDID',
-            '--app',
-            fixtureApp,
+            '--app-id',
+            'com.example.app',
             '--native-host',
             p.join(packageRoot, 'no', 'such', 'native_host.dart'),
           ]);
@@ -176,8 +170,8 @@ void main() {
                 'lib/main.dart',
                 '--udid',
                 'SIM-UDID',
-                '--app',
-                fixtureApp,
+                '--app-id',
+                'com.example.app',
                 '-d',
                 'OTHER-DEVICE',
               ], workingDirectory: elsewhere.path);
@@ -187,7 +181,7 @@ void main() {
         },
       );
 
-      test('a nonexistent --app path exits 64', () async {
+      test('a stale --app gets a migration message (exit 64)', () async {
         final ProcessResult r = await run(<String>[
           'up',
           '--runner',
@@ -197,12 +191,15 @@ void main() {
           '--udid',
           'SIM-UDID',
           '--app',
-          p.join(packageRoot, 'no', 'such', 'Runner.app'),
+          p.join(packageRoot, 'build', 'Runner.app'),
           '--native-host',
           realHost,
         ]);
         expect(r.exitCode, 64);
-        expect(r.stderr, contains('--app'));
+        expect(
+          r.stderr,
+          allOf(contains('--app was removed'), contains('--app-id')),
+        );
       });
 
       test('-d X + --udid Y (Y != X) is a hard error (exit 64)', () async {
@@ -216,8 +213,8 @@ void main() {
           'deviceX',
           '--udid',
           'udidY',
-          '--app',
-          fixtureApp,
+          '--app-id',
+          'com.example.app',
           '--native-host',
           realHost,
         ]);
@@ -239,8 +236,8 @@ void main() {
             'bin/main.dart',
             '--udid',
             'SIM-UDID',
-            '--app',
-            fixtureApp,
+            '--app-id',
+            'com.example.app',
             '--native-host',
             realHost,
             '--appium-server',
@@ -261,8 +258,8 @@ void main() {
           'bin/main.dart',
           '--udid',
           'SIM-UDID',
-          '--app',
-          fixtureApp,
+          '--app-id',
+          'com.example.app',
           '--native-host',
           realHost,
           '--platform',

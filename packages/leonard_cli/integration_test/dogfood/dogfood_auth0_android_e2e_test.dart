@@ -337,6 +337,9 @@ void main() {
     );
     final String nativeHost = _hostScript(packageRoot);
 
+    // Launch mode: the app is not running yet (`up` starts it below), so this
+    // probe installs and starts the APK itself; the `pm clear` that follows
+    // resets it before `up`.
     final UiAutomator2Backend capabilityBackend = UiAutomator2Backend(
       server: Uri.parse(server),
       udid: udid,
@@ -406,8 +409,8 @@ void main() {
         flutterTarget,
         '--udid',
         udid,
-        '--app',
-        apk,
+        '--app-id',
+        pkg,
         '--platform',
         'android',
         '--native-host',

@@ -8,7 +8,7 @@ const Map<String, String> _packageVersions = <String, String>{
   'packages/leonard_riverpod/pubspec.yaml': '0.4.1',
   'packages/leonard_router/pubspec.yaml': '0.4.1',
   'packages/leonard_tmux/pubspec.yaml': '0.2.3',
-  'packages/leonard_native/pubspec.yaml': '0.4.2',
+  'packages/leonard_native/pubspec.yaml': '0.5.0',
   'packages/leonard_devtools/pubspec.yaml': '0.4.0-dev.2',
 };
 

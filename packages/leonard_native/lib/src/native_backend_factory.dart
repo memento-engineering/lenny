@@ -13,8 +13,10 @@ import 'uiautomator2_backend.dart';
 /// Returns the [NativeBackend] for [platform] on [server] (default
 /// `http://127.0.0.1:4723`).
 ///
-/// Mobile platforms require non-empty [udid] and [app]. `darwin` requires a
-/// non-empty [bundleId] and attaches [Mac2Backend] to that running app.
+/// Mobile platforms require a non-empty [udid] and exactly one lifecycle:
+/// [app] installs and launches it ([NativeLaunch]); [appId] attaches to that
+/// already-running app ([NativeAttach]). `darwin` requires a non-empty [appId]
+/// (the bundle id) and attaches [Mac2Backend] to that running app.
 ///
 /// `ios` -> [XcuiTestBackend]; `android` -> [UiAutomator2Backend]; `darwin` ->
 /// [Mac2Backend].
@@ -25,46 +27,61 @@ NativeBackend backendForPlatform({
   required String platform,
   String? udid,
   String? app,
-  String? bundleId,
+  String? appId,
   String? platformVersion,
   Uri? server,
 }) {
-  switch (platform) {
-    case 'ios':
-      return XcuiTestBackend(
-        server: server,
-        udid: _requiredTarget(udid, 'udid', platform),
-        app: _requiredTarget(app, 'app', platform),
-      );
-    case 'android':
-      return UiAutomator2Backend(
-        server: server,
-        udid: _requiredTarget(udid, 'udid', platform),
-        app: _requiredTarget(app, 'app', platform),
-        platformVersion: platformVersion,
-      );
-    case 'darwin':
-      return Mac2Backend(
-        server: server,
-        bundleId: _requiredTarget(bundleId, 'bundleId', platform),
-      );
-    default:
-      throw ArgumentError.value(
-        platform,
-        'platform',
-        'unsupported native platform '
-            '(expected "ios", "android", or "darwin")',
-      );
+  if (platform == 'darwin') {
+    return Mac2Backend(
+      server: server,
+      bundleId: _requiredTarget(appId, 'appId', platform),
+    );
   }
+  final (NativeLaunch launch, NativeAttach attach) = switch (platform) {
+    'ios' => (XcuiTestBackend.new, XcuiTestBackend.attach),
+    'android' => (UiAutomator2Backend.new, UiAutomator2Backend.attach),
+    _ => throw ArgumentError.value(
+      platform,
+      'platform',
+      'unsupported native platform '
+          '(expected "ios", "android", or "darwin")',
+    ),
+  };
+  final String device = _requiredTarget(udid, 'udid', platform);
+  return switch ((_nonEmpty(app), _nonEmpty(appId))) {
+    (final String app, null) => launch(
+      server: server,
+      udid: device,
+      app: app,
+      platformVersion: platformVersion,
+    ),
+    (null, final String appId) => attach(
+      server: server,
+      udid: device,
+      appId: appId,
+      platformVersion: platformVersion,
+    ),
+    (null, null) => throw ArgumentError.value(
+      app,
+      'app',
+      '$platform requires app (install and launch) or appId (attach to the '
+          'running app)',
+    ),
+    (_, _) => throw ArgumentError.value(
+      appId,
+      'appId',
+      '$platform takes app (install and launch) or appId (attach), not both',
+    ),
+  };
 }
 
-String _requiredTarget(String? value, String name, String platform) {
-  if (value == null || value.trim().isEmpty) {
-    throw ArgumentError.value(
+String? _nonEmpty(String? value) =>
+    value == null || value.trim().isEmpty ? null : value;
+
+String _requiredTarget(String? value, String name, String platform) =>
+    _nonEmpty(value) ??
+    (throw ArgumentError.value(
       value,
       name,
       '$platform requires a non-empty $name',
-    );
-  }
-  return value;
-}
+    ));

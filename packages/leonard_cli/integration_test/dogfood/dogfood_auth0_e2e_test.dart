@@ -312,7 +312,6 @@ void main() {
       return;
     }
     final String udid = Platform.environment[_udidEnv]!;
-    final String app = Platform.environment[_appEnv]!;
     final String flutterProject = Platform.environment[_flutterProjectEnv]!;
     final String flutterTarget = Platform.environment[_flutterTargetEnv]!;
     // Creds: read here, passed only as --args JSON to the subprocess. NEVER
@@ -355,8 +354,8 @@ void main() {
         flutterTarget,
         '--udid',
         udid,
-        '--app',
-        app,
+        '--app-id',
+        _bundleId,
         '--native-host',
         nativeHost,
         '--appium-server',

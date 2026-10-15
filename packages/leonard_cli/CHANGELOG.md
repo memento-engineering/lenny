@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0-dev.1
+
+- **Breaking — `leonard_drive up`'s native dual path takes `--app-id` instead
+  of `--app`.** The native host now attaches to the app `flutter run`
+  launched, on iOS and Android alike, instead of being handed the build to
+  install; on Android that relaunch would have dropped the Flutter VM-service
+  channel. Migration: replace `--app <Runner.app>` with `--app-id <bundle id or
+  package>`. A stale `--app` exits 64 with this migration message.
+- Requires `leonard_native ^0.5.0`.
+- Fix: `leonard_drive up` finds the native host through the package config, so
+  `--native-host` auto-resolution works outside the lenny repo (lenny#160,
+  #166).
+
 ## 0.3.1-dev.1
 
 - Add ACP harness inference: drive the loop through a `leonard_acp` harness

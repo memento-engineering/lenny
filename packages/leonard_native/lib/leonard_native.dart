@@ -16,7 +16,9 @@ export 'src/mac2_backend.dart' show Mac2Backend;
 export 'src/fake_native_backend.dart' show FakeNativeBackend, FakeNativeCall;
 export 'src/native_backend.dart'
     show
+        NativeAttach,
         NativeBackend,
+        NativeLaunch,
         NativeSelector,
         NativeTarget,
         NativeSwipe,

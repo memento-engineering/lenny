@@ -1,5 +1,43 @@
-## 0.4.2
+## 0.5.0
 
+- **Breaking — the mobile backends' constructors now mean the same lifecycle
+  on iOS and Android** (lenny#168). The unnamed constructor installs and
+  launches `app`; `.attach` drives an already-running `appId`. Both tear off to
+  the new shared types `NativeLaunch` and `NativeAttach`.
+  - `UiAutomator2Backend(udid:, app:)` now **installs and launches** `app` (an
+    `.apk` path or a cloud-grid id such as `lt://APP123`), with optional
+    `appPackage` / `appActivity`. It previously attached to the foreground app
+    and ignored `app`. Migration: code that relied on attach — anything driving
+    beside `flutter run` — calls `UiAutomator2Backend.attach(udid:, appId:)`
+    with the app's package.
+  - `UiAutomator2Backend.attach` checks the app is running after session create
+    (`mobile: queryAppState`) and throws a `NativeException` when it is not.
+  - `XcuiTestBackend.attach(bundleId:)` is now `XcuiTestBackend.attach(appId:)`,
+    and the `bundleId` field is `appId`.
+  - `XcuiTestBackend`'s `osVersion` (default `'26'`, never sent to Appium) is now
+    `platformVersion`, matching Android: it is sent as `appium:platformVersion`
+    when set. The keyboard "Done" handling reads the version Appium reports for
+    the session, and treats an unreported version as iOS 26.
+  - `backendForPlatform` takes `app` (launch) or `appId` (attach) — exactly one
+    on a mobile platform — and `appId` replaces `bundleId` for `darwin`.
+  - `leonard_native_host` takes `--app` (launch) or `--app-id` (attach);
+    `--bundle-id` stays as an alias of `--app-id`.
+- **Breaking — attach-critical capabilities are refused inside vendor option
+  maps too.** `connect(extraCapabilities:)` already refused `app`, `appPackage`,
+  `autoLaunch`, `noReset` and the rest at the top level; it now also refuses
+  them nested inside any `*:options` map (`lt:options`, `bstack:options`, …),
+  reported as `<vendor>:options.<key>`. Nesting `app` there was never a
+  supported way to install an app: use the launch constructor.
+- Fixed: every Appium request keeps the server URL's base path. A hub such as
+  `https://…@mobile-hub.lambdatest.com/wd/hub` lost its `/wd/hub` prefix, so
+  every request, including session creation, returned 404 (lenny#148, #151).
+- Added: `Mac2Backend`, a macOS backend over Appium mac2 that attaches to a
+  running app by bundle id (`--platform darwin`) (#150).
+- Added: `NativeNode` carries the raw platform element type and its tree depth
+  (#152).
+- Fixed: an iOS attach fails loudly when the XCUITest driver rebooted the
+  simulator on session create (Xcode 27 DeviceHub with driver 11.x or older)
+  instead of leaving the session on the home screen (lenny#161, #165).
 - Build cached native accessibility observations with canonical Genesis
   `Component` types. Appium polling and action refreshes remain outside build.
 - Require `genesis_perception ^0.4.0-dev.1`, `leonard_contract ^0.2.6`, and
