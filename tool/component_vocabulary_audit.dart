@@ -78,7 +78,7 @@ void main() {
       File(path).readAsStringSync(),
       path,
       'genesis_perception',
-      '^0.4.0-dev.1',
+      '^0.4.0',
       failures,
     );
   }
@@ -102,7 +102,7 @@ void main() {
     File(devtoolsManifest).readAsStringSync(),
     devtoolsManifest,
     'genesis_foundation',
-    '^0.3.0-dev.1',
+    '^0.3.0',
     failures,
   );
 
@@ -113,7 +113,7 @@ void main() {
     fixture,
     fixtureManifest,
     'genesis_perception',
-    '^0.4.0-dev.1',
+    '^0.4.0',
     failures,
   );
   if (RegExp(r'^\s+path:\s*', multiLine: true).hasMatch(fixture)) {

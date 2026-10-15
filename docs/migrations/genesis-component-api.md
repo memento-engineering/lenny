@@ -1,7 +1,7 @@
 # Genesis component API migration
 
 Leonard now exposes the canonical Genesis component vocabulary introduced by
-`genesis_perception 0.4.0-dev.1`. This is a source-vocabulary migration. It does
+`genesis_perception 0.4.0`. This is a source-vocabulary migration. It does
 not change Leonard's extension namespaces, observation shapes, reconciliation
 identity, inherited dependency behavior, or build purity.
 
@@ -26,7 +26,7 @@ names and are unchanged.
 
 | Package | Release | Required floor |
 | --- | --- | --- |
-| `leonard_contract` | `0.2.6` | `genesis_perception: ^0.4.0-dev.1` |
+| `leonard_contract` | `0.2.6` | `genesis_perception: ^0.4.0` |
 | `leonard_host` | `0.2.4` | `leonard_contract: ^0.2.6` |
 | `leonard_flutter` | `0.4.1` | `leonard_contract: ^0.2.6` |
 | `leonard_dio` | `0.4.1` | `leonard_flutter: ^0.4.1` |
@@ -34,10 +34,10 @@ names and are unchanged.
 | `leonard_router` | `0.4.1` | `leonard_flutter: ^0.4.1` |
 | `leonard_tmux` | `0.2.3` | `leonard_host: ^0.2.4` |
 | `leonard_native` | `0.4.2` | `leonard_host: ^0.2.4` |
-| `leonard_devtools` | `0.4.0-dev.2` | `genesis_foundation: ^0.3.0-dev.1` |
+| `leonard_devtools` | `0.4.0-dev.2` | `genesis_foundation: ^0.3.0` |
 
 The eight perception-producing Leonard packages directly require
-`genesis_perception: ^0.4.0-dev.1`. These are hosted constraints; do not commit
+`genesis_perception: ^0.4.0`. These are hosted constraints; do not commit
 local path overrides.
 
 ## Extension compatibility

@@ -37,7 +37,7 @@ print(fragment); // sessions / panes / recent_output
 ## Dependency wiring
 
 Both Genesis dependencies are hosted releases. Extension packages should use
-`genesis_perception: ^0.4.0-dev.1` and avoid committed path overrides.
+`genesis_perception: ^0.4.0` and avoid committed path overrides.
 
 ## Live example
 
