@@ -16,10 +16,10 @@ const String serial = 'RF8RB21P6LN';
 const String page = 'https://the-internet.herokuapp.com/login';
 
 Future<void> main() async {
-  final UiAutomator2Backend backend = UiAutomator2Backend(
+  final UiAutomator2Backend backend = UiAutomator2Backend.attach(
     server: Uri.parse('http://127.0.0.1:4723'),
     udid: serial,
-    app: 'com.android.chrome',
+    appId: 'com.android.chrome',
   );
   await backend.connect();
   try {

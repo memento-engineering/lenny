@@ -24,6 +24,60 @@ void main() {
       );
     });
 
+    test('rejects attach-critical keys nested in vendor option maps', () {
+      expect(
+        () => mergeAppiumCapabilities(
+          defaults: const <String, Object?>{'platformName': 'Android'},
+          extraCapabilities: const <String, Object?>{
+            'lt:options': <String, Object?>{
+              'app': 'lt://APP123',
+              'build': 'nightly',
+            },
+            'bstack:options': <String, Object?>{'appium:noReset': false},
+          },
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError error) => error.message,
+            'message',
+            'attach-critical Appium capabilities cannot be overridden: '
+                'bstack:options.appium:noReset, lt:options.app',
+          ),
+        ),
+      );
+    });
+
+    test('passes through orthogonal vendor option maps untouched', () {
+      const Map<String, Object?> vendor = <String, Object?>{
+        'build': 'nightly',
+        'isRealMobile': true,
+      };
+      expect(
+        mergeAppiumCapabilities(
+          defaults: const <String, Object?>{'platformName': 'Android'},
+          extraCapabilities: const <String, Object?>{'lt:options': vendor},
+        ),
+        const <String, Object?>{
+          'platformName': 'Android',
+          'lt:options': vendor,
+        },
+      );
+    });
+
+    test('only inspects maps under :options keys', () {
+      expect(
+        mergeAppiumCapabilities(
+          defaults: const <String, Object?>{'platformName': 'Android'},
+          extraCapabilities: const <String, Object?>{
+            'appium:settings': <String, Object?>{'app': 'not a capability'},
+          },
+        ),
+        containsPair('appium:settings', <String, Object?>{
+          'app': 'not a capability',
+        }),
+      );
+    });
+
     test('passes through safe unprefixed and prefixed spellings', () {
       expect(
         mergeAppiumCapabilities(

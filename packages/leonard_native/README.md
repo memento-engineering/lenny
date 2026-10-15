@@ -24,13 +24,20 @@ per-node record schema as the Flutter semantics fragment
 ## Running the host
 
 The host runner serves the `native` extension over the VM service. It expects
-an **already-running** Appium server and an **already-booted** iOS simulator
-(it does NOT boot either):
+an **already-running** Appium server and an **already-booted** simulator,
+emulator, or device (it does NOT boot either). Pick the session lifecycle with
+one flag:
 
 ```bash
+# Install and launch the app (local build or a cloud-grid app id)
 dart run --enable-vm-service=0 --disable-service-auth-codes \
   bin/leonard_native_host.dart \
-  --udid <booted-sim-udid> --app /path/to/Runner.app
+  --platform ios --udid <booted-sim-udid> --app /path/to/Runner.app
+
+# Attach to the app that is already running (beside `flutter run`)
+dart run --enable-vm-service=0 --disable-service-auth-codes \
+  bin/leonard_native_host.dart \
+  --platform android --udid emulator-5554 --app-id com.example.app
 ```
 
 It prints `LEONARD_HOST_READY` once installed; point a `LeonardSession` (or
@@ -39,9 +46,60 @@ It prints `LEONARD_HOST_READY` once installed; point a `LeonardSession` (or
 Args:
 
 - `--server <url>` — Appium server (default `http://127.0.0.1:4723`)
-- `--udid <udid>` — booted simulator udid (required)
-- `--app <path>` — path to the `.app` bundle (required)
-- `--platform ios` — target platform (default `ios`)
+- `--platform ios|android|darwin` — target platform (default `ios`)
+- `--udid <udid>` — booted simulator / emulator / device id (mobile, required)
+- `--app <path-or-id>` — install and launch this app (mobile)
+- `--app-id <bundle-id-or-package>` — attach to this already-running app
+  (mobile, and required for `darwin`; `--bundle-id` is an alias)
+- `--platform-version <version>` — requested OS version (optional)
+
+Pass exactly one of `--app` or `--app-id` on a mobile platform.
+
+## Session lifecycle: launch or attach
+
+The backend's constructor decides whether a session installs, launches, or
+attaches, and the two mobile backends agree on what each constructor means, so
+their tear-offs share a type:
+
+| | Launch: installs and starts `app` | Attach: drives the running `appId` |
+|---|---|---|
+| iOS | `XcuiTestBackend.new` | `XcuiTestBackend.attach` |
+| Android | `UiAutomator2Backend.new` | `UiAutomator2Backend.attach` |
+| Shared type | `NativeLaunch` | `NativeAttach` |
+
+```dart
+final NativeLaunch launch = switch (platform) {
+  'ios' => XcuiTestBackend.new,
+  'android' => UiAutomator2Backend.new,
+  _ => throw ArgumentError.value(platform, 'platform'),
+};
+final NativeBackend backend = launch(udid: udid, app: app);
+```
+
+Attach never relaunches the app, so a `flutter run` VM-service channel beside
+it survives; it fails loudly when `appId` is not running once the session is
+open. Use launch when nothing has started the app yet — for example a cloud
+device grid:
+
+```dart
+final NativeBackend backend = UiAutomator2Backend(
+  server: Uri.parse('https://USER:KEY@mobile-hub.lambdatest.com/wd/hub'),
+  udid: 'Galaxy S23',
+  app: 'lt://APP123',
+  platformVersion: '14',
+);
+await backend.connect(
+  extraCapabilities: <String, Object?>{
+    'lt:options': <String, Object?>{'isRealMobile': true, 'build': 'nightly'},
+  },
+);
+```
+
+`connect(extraCapabilities:)` merges orthogonal capabilities (keyboard,
+timeouts, vendor options), but refuses the ones that change the lifecycle —
+`app`, `appPackage`, `bundleId`, `autoLaunch`, `noReset` and the rest — with an
+`ArgumentError`, including when they are nested inside a vendor `*:options`
+map. Choose the constructor instead.
 
 ### iOS simulators on Xcode 27: XCUITest driver 12 or newer
 

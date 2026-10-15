@@ -24,6 +24,23 @@ void main() {
       target.app,
       p.join(sampleProject, 'build', 'ios', 'iphonesimulator', 'Runner.app'),
     );
+    expect(target.appId, sampleAppBundleId);
+  });
+
+  test('a non-empty LEONARD_NATIVE_APP_ID overrides the attach target', () {
+    final DualE2eTarget target = resolveDualE2eTarget(
+      packageRoot: packageRoot,
+      environment: <String, String>{
+        'LEONARD_NATIVE_APP_ID': 'com.example.other',
+      },
+    );
+    expect(target.appId, 'com.example.other');
+
+    final DualE2eTarget empty = resolveDualE2eTarget(
+      packageRoot: packageRoot,
+      environment: <String, String>{'LEONARD_NATIVE_APP_ID': ''},
+    );
+    expect(empty.appId, sampleAppBundleId);
   });
 
   test('non-empty environment paths override defaults independently', () {

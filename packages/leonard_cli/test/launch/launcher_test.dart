@@ -135,7 +135,7 @@ void main() {
             'leonard_native_host.dart';
         const String u = 'http://127.0.0.1:4723';
         const String ud = 'SIM-UDID';
-        const String a = '/path/Runner.app';
+        const String a = 'engineering.memento.Runner';
         final inv = buildRunnerInvocation(
           runner: TargetRunner.dart,
           entrypoint: nativeHost,
@@ -145,7 +145,7 @@ void main() {
             u,
             '--udid',
             ud,
-            '--app',
+            '--app-id',
             a,
             '--platform',
             'ios',
@@ -161,7 +161,7 @@ void main() {
           u,
           '--udid',
           ud,
-          '--app',
+          '--app-id',
           a,
           '--platform',
           'ios',

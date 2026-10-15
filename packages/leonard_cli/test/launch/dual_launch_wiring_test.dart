@@ -122,7 +122,7 @@ void main() {
         final DualLaunchHandle h = await launchDualTarget(
           flutterEntrypoint: 'lib/main.dart',
           udid: udid,
-          app: '/path/Runner.app',
+          appId: 'engineering.memento.Runner',
           nativeHostPath: 'bin/leonard_native_host.dart',
           appiumServer: Uri.parse('http://127.0.0.1:${appium.port}'),
           onLog: (_) {},
@@ -177,7 +177,7 @@ void main() {
         await launchDualTarget(
           flutterEntrypoint: 'lib/main.dart',
           udid: 'ANDROID-UDID',
-          app: 'com.example.app',
+          appId: 'com.example.app',
           nativeHostPath: 'bin/leonard_native_host.dart',
           appiumServer: Uri.parse('http://127.0.0.1:${appium.port}'),
           platform: 'android',
@@ -229,7 +229,7 @@ void main() {
           launchDualTarget(
             flutterEntrypoint: 'lib/main.dart',
             udid: 'SIM',
-            app: '/path/Runner.app',
+            appId: 'engineering.memento.Runner',
             nativeHostPath: 'bin/leonard_native_host.dart',
             appiumServer: Uri.parse('http://127.0.0.1:${appium.port}'),
             onLog: (_) {},

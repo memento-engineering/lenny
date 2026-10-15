@@ -227,6 +227,34 @@ class NativeException implements Exception {
   String toString() => 'NativeException: $message';
 }
 
+/// The install-and-launch constructor shared by the mobile backends.
+///
+/// `XcuiTestBackend.new` and `UiAutomator2Backend.new` both tear off to this
+/// type, and both install [app] on [udid] and launch it when the session
+/// opens. [app] is a local build (`.app` / `.apk`) or an id a cloud grid
+/// resolves (for example `lt://APP123`).
+typedef NativeLaunch =
+    NativeBackend Function({
+      Uri? server,
+      required String udid,
+      required String app,
+      String? platformVersion,
+    });
+
+/// The attach constructor shared by the mobile backends.
+///
+/// `XcuiTestBackend.attach` and `UiAutomator2Backend.attach` both tear off to
+/// this type, and both open a session against the already-running [appId]
+/// (the iOS bundle id or Android package) without installing or relaunching
+/// it, failing loudly when that app is not running.
+typedef NativeAttach =
+    NativeBackend Function({
+      Uri? server,
+      required String udid,
+      required String appId,
+      String? platformVersion,
+    });
+
 /// The seam the watcher drives and the tools act through. Appium backends
 /// implement iOS, Android, and macOS; `FakeNativeBackend` is the test impl.
 /// Per-platform behavior (iOS ASWebAuthenticationSession consent, mobile
@@ -246,8 +274,10 @@ abstract class NativeBackend {
   /// processes. Idempotent.
   ///
   /// [extraCapabilities] are merged over orthogonal Appium defaults when a new
-  /// session is created. Attach-critical capabilities are rejected with
-  /// [ArgumentError].
+  /// session is created. Attach-critical capabilities — at the top level or
+  /// inside a vendor `*:options` map — are rejected with [ArgumentError]; the
+  /// backend's constructor chooses launch ([NativeLaunch]) or attach
+  /// ([NativeAttach]) instead.
   Future<void> connect({
     Map<String, Object?> extraCapabilities = const <String, Object?>{},
   });

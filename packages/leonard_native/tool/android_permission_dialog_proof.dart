@@ -260,9 +260,9 @@ final class AndroidPermissionDialogProof {
   Future<ActionEvidence> exercise(String key, String version) async {
     await resetAndTrigger();
     final RecordingClient client = RecordingClient(clientFactory());
-    final UiAutomator2Backend backend = UiAutomator2Backend(
+    final UiAutomator2Backend backend = UiAutomator2Backend.attach(
       udid: serial,
-      app: packageName,
+      appId: packageName,
       platformVersion: version,
       server: appium,
       client: client,
@@ -528,9 +528,9 @@ final class AndroidPermissionDialogProof {
     validateActions(actions);
     final List<CommandEvidence> resetEvidence = await resetAndTrigger();
     final RecordingClient client = RecordingClient(clientFactory());
-    final UiAutomator2Backend backend = UiAutomator2Backend(
+    final UiAutomator2Backend backend = UiAutomator2Backend.attach(
       udid: serial,
-      app: packageName,
+      appId: packageName,
       platformVersion: version,
       server: appium,
       client: client,
@@ -645,9 +645,9 @@ final class AndroidPermissionDialogProof {
       }
       return http.Response(jsonEncode(<String, Object?>{'value': null}), 200);
     });
-    final UiAutomator2Backend backend = UiAutomator2Backend(
+    final UiAutomator2Backend backend = UiAutomator2Backend.attach(
       udid: serial,
-      app: packageName,
+      appId: packageName,
       platformVersion: 'parse',
       client: fake,
     );

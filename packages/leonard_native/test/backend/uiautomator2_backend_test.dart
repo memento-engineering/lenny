@@ -147,9 +147,9 @@ void main() {
           headers: const <String, String>{'content-type': 'application/json'},
         );
       });
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'emulator-5554',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
         client: client,
       );
@@ -198,9 +198,9 @@ void main() {
         );
       });
       return (
-        UiAutomator2Backend(
+        UiAutomator2Backend.attach(
           udid: 'emulator-5554',
-          app: 'com.example.app',
+          appId: 'com.example.app',
           platformVersion: '13',
           client: client,
         ),
@@ -271,15 +271,18 @@ void main() {
       'omits an unknown version and records the explicit sentinel',
       () async {
         Map<String, Object?>? alwaysMatch;
-        final UiAutomator2Backend backend = UiAutomator2Backend(
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
           udid: 'pixel',
-          app: 'com.example.app',
+          appId: 'com.example.app',
           client: MockClient((http.Request request) async {
-            final Map<String, Object?> body =
-                jsonDecode(request.body) as Map<String, Object?>;
-            final Map<String, Object?> capabilities =
-                body['capabilities']! as Map<String, Object?>;
-            alwaysMatch = capabilities['alwaysMatch']! as Map<String, Object?>;
+            if (request.url.path == '/session') {
+              final Map<String, Object?> body =
+                  jsonDecode(request.body) as Map<String, Object?>;
+              final Map<String, Object?> capabilities =
+                  body['capabilities']! as Map<String, Object?>;
+              alwaysMatch =
+                  capabilities['alwaysMatch']! as Map<String, Object?>;
+            }
             return http.Response(
               jsonEncode(<String, Object?>{
                 'value': <String, Object?>{'sessionId': 'android-session'},
@@ -302,7 +305,7 @@ void main() {
     test('merges safe extras into the complete session request', () async {
       http.Request? sessionRequest;
       final MockClient client = MockClient((http.Request request) async {
-        sessionRequest = request;
+        if (request.url.path == '/session') sessionRequest = request;
         return http.Response(
           jsonEncode(<String, Object?>{
             'value': <String, Object?>{'sessionId': 'android-session'},
@@ -310,9 +313,9 @@ void main() {
           200,
         );
       });
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'pixel',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
         client: client,
       );
@@ -348,9 +351,9 @@ void main() {
     });
 
     test('retains returned device provenance until close', () async {
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'requested-serial',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '12',
         client: MockClient((http.Request request) async {
           return http.Response(
@@ -382,9 +385,9 @@ void main() {
     test(
       'retains immutable returned capabilities only while connected',
       () async {
-        final UiAutomator2Backend backend = UiAutomator2Backend(
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
           udid: 'RF8RB21P6LN',
-          app: 'com.example.sample_app',
+          appId: 'com.example.sample_app',
           client: MockClient((http.Request request) async {
             return http.Response(
               jsonEncode(<String, Object?>{
@@ -423,9 +426,9 @@ void main() {
     test(
       'requested version supplies provenance when Appium omits it',
       () async {
-        final UiAutomator2Backend backend = UiAutomator2Backend(
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
           udid: 'requested-serial',
-          app: 'com.example.app',
+          appId: 'com.example.app',
           platformVersion: '13',
           client: MockClient(
             (http.Request request) async => http.Response(
@@ -466,9 +469,9 @@ void main() {
     for (final String key in deniedKeys) {
       test('rejects $key before transport I/O', () async {
         int requests = 0;
-        final UiAutomator2Backend backend = UiAutomator2Backend(
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
           udid: 'pixel',
-          app: 'com.example.app',
+          appId: 'com.example.app',
           platformVersion: '13',
           client: MockClient((http.Request request) async {
             requests++;
@@ -490,11 +493,186 @@ void main() {
       });
     }
 
+    MockClient sessionClient(List<http.Request> requests, {Object? appState}) =>
+        MockClient((http.Request request) async {
+          requests.add(request);
+          final Object? value = switch (request.url.path) {
+            '/session' => <String, Object?>{'sessionId': 'android-session'},
+            final String path when path.endsWith('/execute/sync') => appState,
+            _ => null,
+          };
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': value}),
+            200,
+          );
+        });
+
+    Map<String, Object?> alwaysMatchOf(List<http.Request> requests) {
+      final http.Request session = requests.firstWhere(
+        (http.Request request) => request.url.path == '/session',
+      );
+      final Map<String, Object?> body =
+          jsonDecode(session.body) as Map<String, Object?>;
+      return (body['capabilities']! as Map<String, Object?>)['alwaysMatch']!
+          as Map<String, Object?>;
+    }
+
+    test('launch installs and starts the app, tearing off to NativeLaunch', () {
+      final NativeLaunch launch = UiAutomator2Backend.new;
+      final NativeBackend backend = launch(
+        udid: 'pixel',
+        app: 'lt://APP123',
+        platformVersion: '14',
+      );
+      expect((backend as UiAutomator2Backend).app, 'lt://APP123');
+      expect(backend.appId, isNull);
+      backend.close();
+    });
+
+    test('launch sends app, pinned component, and no autoLaunch', () async {
+      final List<http.Request> requests = <http.Request>[];
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'pixel',
+        app: 'lt://APP123',
+        appPackage: 'com.example.app',
+        appActivity: '.MainActivity',
+        platformVersion: '14',
+        client: sessionClient(requests),
+      );
+
+      await backend.connect(
+        extraCapabilities: const <String, Object?>{
+          'lt:options': <String, Object?>{'isRealMobile': true},
+        },
+      );
+
+      expect(alwaysMatchOf(requests), <String, Object?>{
+        'platformName': 'Android',
+        'appium:automationName': 'UiAutomator2',
+        'appium:udid': 'pixel',
+        'appium:platformVersion': '14',
+        'appium:noReset': true,
+        'appium:app': 'lt://APP123',
+        'appium:appPackage': 'com.example.app',
+        'appium:appActivity': '.MainActivity',
+        'appium:newCommandTimeout': 0,
+        'lt:options': <String, Object?>{'isRealMobile': true},
+      });
+      expect(
+        requests.where(
+          (http.Request r) => r.url.path.endsWith('/execute/sync'),
+        ),
+        isEmpty,
+        reason: 'launch mode starts the app, so it sends no attach preflight',
+      );
+      await backend.close();
+    });
+
+    test('launch still refuses an app smuggled through vendor options', () {
+      final List<http.Request> requests = <http.Request>[];
+      final UiAutomator2Backend backend = UiAutomator2Backend(
+        udid: 'pixel',
+        app: 'lt://APP123',
+        client: sessionClient(requests),
+      );
+
+      expect(
+        () => backend.connect(
+          extraCapabilities: const <String, Object?>{
+            'lt:options': <String, Object?>{'app': 'lt://OTHER'},
+          },
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(requests, isEmpty);
+      backend.close();
+    });
+
+    group('attach preflight', () {
+      test('attach tears off to NativeAttach', () {
+        final NativeAttach attach = UiAutomator2Backend.attach;
+        final NativeBackend backend = attach(
+          udid: 'pixel',
+          appId: 'com.example.app',
+        );
+        expect((backend as UiAutomator2Backend).appId, 'com.example.app');
+        expect(backend.app, isNull);
+        backend.close();
+      });
+
+      test('attach never relaunches and probes the package', () async {
+        final List<http.Request> requests = <http.Request>[];
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
+          udid: 'pixel',
+          appId: 'com.example.app',
+          client: sessionClient(requests, appState: 4),
+        );
+
+        await backend.connect();
+
+        final Map<String, Object?> alwaysMatch = alwaysMatchOf(requests);
+        expect(alwaysMatch, containsPair('appium:autoLaunch', false));
+        expect(alwaysMatch, isNot(contains('appium:app')));
+        expect(alwaysMatch, isNot(contains('appium:appPackage')));
+        final Map<String, Object?> probe =
+            jsonDecode(
+                  requests
+                      .singleWhere(
+                        (http.Request r) =>
+                            r.url.path.endsWith('/execute/sync'),
+                      )
+                      .body,
+                )
+                as Map<String, Object?>;
+        expect(probe['script'], 'mobile: queryAppState');
+        expect(probe['args'], <Object?>[
+          <String, Object?>{'appId': 'com.example.app'},
+        ]);
+        await backend.close();
+      });
+
+      test('fails loudly when the app is not running', () async {
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
+          udid: 'pixel',
+          appId: 'com.example.app',
+          client: sessionClient(<http.Request>[], appState: 1),
+        );
+
+        await expectLater(
+          backend.connect(),
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              allOf(
+                contains('com.example.app'),
+                contains('queryAppState 1'),
+                contains('app:'),
+              ),
+            ),
+          ),
+        );
+        await backend.close();
+      });
+
+      test('an unanswered probe is unknown, not a failure', () async {
+        final UiAutomator2Backend backend = UiAutomator2Backend.attach(
+          udid: 'pixel',
+          appId: 'com.example.app',
+          client: sessionClient(<http.Request>[]),
+        );
+
+        await backend.connect();
+        expect(backend.sessionProvenance, isNotNull);
+        await backend.close();
+      });
+    });
+
     test('validates denied extras before an idempotent return', () async {
       int requests = 0;
       final UiAutomator2Backend backend = UiAutomator2Backend(
         udid: 'pixel',
-        app: 'com.example.app',
+        app: '/x/app.apk',
         platformVersion: '13',
         client: MockClient((http.Request request) async {
           requests++;
@@ -524,9 +702,9 @@ void main() {
     late List<NativeNode> nodes;
 
     setUpAll(() {
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'fixture',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
       );
       nodes = backend.parseSource(_fixture().readAsStringSync());
@@ -535,9 +713,9 @@ void main() {
     });
 
     test('preserves the measured Flutter Semantics Android projection', () {
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'fixture',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
       );
       final List<NativeNode> flutterNodes = backend.parseSource(
@@ -718,9 +896,9 @@ void main() {
     });
 
     test('a nested kept node is deeper than its kept ancestor', () {
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'fixture',
-        app: 'com.example.app',
+        appId: 'com.example.app',
       );
       final List<NativeNode> parsed = backend.parseSource(
         '<android.widget.FrameLayout class="android.widget.FrameLayout" '
@@ -744,9 +922,9 @@ void main() {
   <android.widget.Button class="android.widget.Button" resource-id="ok" text="OK" bounds="[0,20][10,30]"/>
   <android.widget.Button class="android.widget.Button" resource-id="cancel" text="Cancel" bounds="[0,40][10,50]"/>
 </hierarchy>''';
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         udid: 'fixture',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
       );
       final List<NativeNode> parsed = backend.parseSource(xml);
@@ -775,9 +953,9 @@ void main() {
           headers: const <String, String>{'content-type': 'application/json'},
         );
       });
-      return UiAutomator2Backend(
+      return UiAutomator2Backend.attach(
         udid: 'emulator-5554',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
         client: client,
       );
@@ -854,9 +1032,9 @@ void main() {
           headers: const <String, String>{'content-type': 'application/json'},
         );
       });
-      return UiAutomator2Backend(
+      return UiAutomator2Backend.attach(
         udid: 'emulator-5554',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
         client: client,
       );
@@ -953,9 +1131,9 @@ void main() {
           headers: const <String, String>{'content-type': 'application/json'},
         );
       });
-      final UiAutomator2Backend b = UiAutomator2Backend(
+      final UiAutomator2Backend b = UiAutomator2Backend.attach(
         udid: 'emulator-5554',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         platformVersion: '13',
         client: client,
       );
@@ -1851,10 +2029,10 @@ void main() {
           200,
         );
       });
-      final UiAutomator2Backend backend = UiAutomator2Backend(
+      final UiAutomator2Backend backend = UiAutomator2Backend.attach(
         server: Uri.parse('http://h:4723/wd/hub'),
         udid: 'pixel',
-        app: 'com.example.app',
+        appId: 'com.example.app',
         client: client,
       );
 

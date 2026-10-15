@@ -103,7 +103,7 @@ ArgParser _parser() => ArgParser()
   )
   ..addOption('target', abbr: 't', help: 'up: entrypoint Dart file to run.')
   // Native dual-channel options (up). The native channel activates iff ANY
-  // of {--udid, --app, --native-host} is present; once activated all three
+  // of {--udid, --app-id, --native-host} is present; once activated all three
   // are required (see _up validation).
   ..addOption(
     'udid',
@@ -112,11 +112,15 @@ ArgParser _parser() => ArgParser()
         'and the native host --udid. Activates the native dual path.',
   )
   ..addOption(
-    'app',
+    'app-id',
     help:
-        'up (native): path to the built .app bundle for the native host. '
-        'Activates the native dual path.',
+        'up (native): the app\'s bundle id (iOS) or package (Android). The '
+        'native host ATTACHES to the app flutter run launched; it never '
+        'installs or relaunches it. Activates the native dual path.',
   )
+  // Removed in favor of --app-id; kept hidden so a stale invocation gets a
+  // migration message instead of a bare "Could not find an option".
+  ..addOption('app', hide: true)
   ..addOption(
     'native-host',
     help:
@@ -456,15 +460,24 @@ Future<int> _up(ArgResults res) async {
     return 64;
   }
 
-  // The native channel activates iff ANY of {--udid, --app, --native-host} is
-  // present. Once activated, all three are required — partial native config is
-  // a mistake, not a silent single-target fallback (§6).
+  if (res['app'] != null) {
+    stderr.writeln(
+      'error: --app was removed: the native host attaches to the app flutter '
+      'run launched instead of installing it again. Pass --app-id <bundle id '
+      'or package> instead.',
+    );
+    return 64;
+  }
+
+  // The native channel activates iff ANY of {--udid, --app-id, --native-host}
+  // is present. Once activated, all three are required — partial native config
+  // is a mistake, not a silent single-target fallback (§6).
   final String? udid = res['udid'] as String?;
-  final String? app = res['app'] as String?;
+  final String? appId = res['app-id'] as String?;
   final String? nativeHostFlag = res['native-host'] as String?;
   final bool dual =
       (udid != null && udid.isNotEmpty) ||
-      (app != null && app.isNotEmpty) ||
+      (appId != null && appId.isNotEmpty) ||
       (nativeHostFlag != null && nativeHostFlag.isNotEmpty);
   if (dual) return _upDual(res);
 
@@ -612,8 +625,10 @@ Future<NativeHostResolution> _resolveNativeHost(String? explicit) async {
 /// `vm_service_ready` line, and HOLD both channels until a signal (or either
 /// child exits) tears BOTH down via the composite [DualLaunchHandle.shutdown].
 ///
-/// The native channel is strictly opt-in (activated by --udid/--app/
-/// --native-host). All exit-64 validations run BEFORE any spawn ("no dual
+/// The native channel is strictly opt-in (activated by --udid/--app-id/
+/// --native-host). The native host attaches to the app `flutter run`
+/// launched — on both platforms — so nothing relaunches it and drops the
+/// Flutter VM-service channel. All exit-64 validations run BEFORE any spawn ("no dual
 /// mode": a partial/invalid native config is a hard error, never a silent
 /// single-target fallback).
 Future<int> _upDual(ArgResults res) async {
@@ -630,13 +645,13 @@ Future<int> _upDual(ArgResults res) async {
   }
 
   final String? udid = res['udid'] as String?;
-  final String? app = res['app'] as String?;
+  final String? appId = res['app-id'] as String?;
   final String? nativeHostFlag = res['native-host'] as String?;
 
   // Activation requires ALL THREE — name the missing flag(s).
   final List<String> missing = <String>[
     if (udid == null || udid.isEmpty) '--udid',
-    if (app == null || app.isEmpty) '--app',
+    if (appId == null || appId.isEmpty) '--app-id',
   ];
   final NativeHostResolution resolution = await _resolveNativeHost(
     nativeHostFlag,
@@ -654,7 +669,7 @@ Future<int> _upDual(ArgResults res) async {
   if (missing.isNotEmpty) {
     stderr.writeln(
       'error: native channel requires ${missing.join(', ')} '
-      '(any of --udid/--app/--native-host present requires all three)',
+      '(any of --udid/--app-id/--native-host present requires all three)',
     );
     if (nativeHost == null) {
       stderr.writeln(
@@ -674,11 +689,6 @@ Future<int> _upDual(ArgResults res) async {
       'error: on the native dual path --device is superseded by --udid; '
       'drop -d (or make it equal --udid)',
     );
-    return 64;
-  }
-
-  if (!File(app!).existsSync() && !Directory(app).existsSync()) {
-    stderr.writeln('error: --app path does not exist: $app');
     return 64;
   }
 
@@ -702,7 +712,7 @@ Future<int> _upDual(ArgResults res) async {
     handle = await launchDualTarget(
       flutterEntrypoint: target,
       udid: udid!,
-      app: app,
+      appId: appId!,
       nativeHostPath: nativeHost!,
       appiumServer: appiumServer,
       platform: platform,
@@ -862,8 +872,9 @@ void _usage(IOSink out) {
   );
   out.writeln('  up          --runner dart -t <entry> [--uri-file F]');
   out.writeln(
-    '  up (native) --runner flutter -t <entry> --udid <sim> --app <Runner.app>'
-    ' [--native-host <path>] [--appium-server <url>] [--boot-sim]',
+    '  up (native) --runner flutter -t <entry> --udid <device> '
+    '--app-id <bundle id or package> [--platform ios|android] '
+    '[--native-host <path>] [--appium-server <url>] [--boot-sim]',
   );
   out.writeln('  down        --pid-file P');
   out.writeln();

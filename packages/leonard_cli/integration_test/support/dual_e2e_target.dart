@@ -4,15 +4,20 @@ import 'package:path/path.dart' as p;
 
 /// The resolved paths used by a dual e2e suite.
 ///
-/// `app` is the native app bundle and `flutterProject` is the Flutter project
-/// root used as the launch working directory.
-typedef DualE2eTarget = ({String app, String flutterProject});
+/// `app` is the native app bundle, `appId` is the bundle id the native host
+/// attaches to once `flutter run` has launched it, and `flutterProject` is the
+/// Flutter project root used as the launch working directory.
+typedef DualE2eTarget = ({String app, String appId, String flutterProject});
+
+/// The iOS bundle id of the in-repo sample app.
+const String sampleAppBundleId = 'com.example.sampleApp';
 
 /// Resolves independently overridable target paths for the dual e2e suites.
 ///
 /// The in-repo Flutter sample app is the default project. When only the project
-/// is overridden, its iOS simulator build becomes the default app. Non-empty
-/// overrides are preserved exactly as supplied.
+/// is overridden, its iOS simulator build becomes the default app. The app id
+/// defaults to the sample app's bundle id. Non-empty overrides are preserved
+/// exactly as supplied.
 DualE2eTarget resolveDualE2eTarget({
   required String packageRoot,
   Map<String, String>? environment,
@@ -31,5 +36,10 @@ DualE2eTarget resolveDualE2eTarget({
       ? resolvedEnvironment['LEONARD_NATIVE_APP']!
       : p.join(flutterProject, 'build', 'ios', 'iphonesimulator', 'Runner.app');
 
-  return (app: app, flutterProject: flutterProject);
+  final String appId =
+      resolvedEnvironment['LEONARD_NATIVE_APP_ID']?.isNotEmpty == true
+      ? resolvedEnvironment['LEONARD_NATIVE_APP_ID']!
+      : sampleAppBundleId;
+
+  return (app: app, appId: appId, flutterProject: flutterProject);
 }

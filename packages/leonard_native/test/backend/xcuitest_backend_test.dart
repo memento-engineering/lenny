@@ -124,7 +124,7 @@ void main() {
         });
         final XcuiTestBackend backend = XcuiTestBackend.attach(
           udid: 'iphone',
-          bundleId: 'engineering.memento.Runner',
+          appId: 'engineering.memento.Runner',
           client: client,
         );
 
@@ -185,7 +185,7 @@ void main() {
         final List<http.Request> requests = <http.Request>[];
         final XcuiTestBackend backend = XcuiTestBackend.attach(
           udid: 'iphone',
-          bundleId: 'engineering.memento.Runner',
+          appId: 'engineering.memento.Runner',
           client: attachClient(1, requests),
         );
 
@@ -207,7 +207,7 @@ void main() {
           final List<http.Request> requests = <http.Request>[];
           final XcuiTestBackend backend = XcuiTestBackend.attach(
             udid: 'iphone',
-            bundleId: 'engineering.memento.Runner',
+            appId: 'engineering.memento.Runner',
             client: attachClient(4, requests),
           );
 
@@ -226,7 +226,7 @@ void main() {
         final List<http.Request> requests = <http.Request>[];
         final XcuiTestBackend backend = XcuiTestBackend.attach(
           udid: 'iphone',
-          bundleId: 'engineering.memento.Runner',
+          appId: 'engineering.memento.Runner',
           client: attachClient(null, requests),
         );
 
@@ -348,7 +348,7 @@ void main() {
     final XcuiTestBackend b = XcuiTestBackend(
       udid: 'U',
       app: '/x/Runner.app',
-      osVersion: '17',
+      platformVersion: '17',
       client: client,
     );
 
@@ -620,5 +620,109 @@ void main() {
         expect(request.url.path, startsWith('/wd/hub/session'));
       }
     });
+  });
+
+  group('XcuiTestBackend platformVersion', () {
+    test('launch requests the version and tears off to NativeLaunch', () async {
+      http.Request? sessionRequest;
+      final MockClient client = MockClient((http.Request request) async {
+        if (request.url.path == '/session') sessionRequest = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'value': request.url.path == '/session'
+                ? <String, Object?>{'sessionId': 's1'}
+                : null,
+          }),
+          200,
+        );
+      });
+      final NativeLaunch launch = XcuiTestBackend.new;
+      final NativeBackend backend = launch(
+        udid: 'iphone',
+        app: '/x/Runner.app',
+        platformVersion: '26.0',
+      );
+      expect(backend, isA<XcuiTestBackend>());
+      await backend.close();
+
+      final XcuiTestBackend withClient = XcuiTestBackend(
+        udid: 'iphone',
+        app: '/x/Runner.app',
+        platformVersion: '26.0',
+        client: client,
+      );
+      await withClient.connect();
+      final Map<String, Object?> body =
+          jsonDecode(sessionRequest!.body) as Map<String, Object?>;
+      expect(
+        (body['capabilities']! as Map<String, Object?>)['alwaysMatch'],
+        containsPair('appium:platformVersion', '26.0'),
+      );
+      await withClient.close();
+    });
+
+    test('attach tears off to NativeAttach', () async {
+      final NativeAttach attach = XcuiTestBackend.attach;
+      final NativeBackend backend = attach(
+        udid: 'iphone',
+        appId: 'engineering.memento.Runner',
+      );
+      expect((backend as XcuiTestBackend).appId, 'engineering.memento.Runner');
+      expect(backend.app, isNull);
+      await backend.close();
+    });
+
+    // enterText dismisses the keyboard by tapping "Done" before iOS 26 only.
+    // The version comes from the session Appium opened, not a constructor
+    // default, so an unpinned backend still behaves for the device it got.
+    for (final (String? reported, bool tapsDone) in <(String?, bool)>[
+      ('17.5', true),
+      ('26.0', false),
+      (null, false),
+    ]) {
+      test('session iOS ${reported ?? 'unreported'} '
+          '${tapsDone ? 'taps' : 'skips'} Done', () async {
+        final List<String> finds = <String>[];
+        final MockClient client = MockClient((http.Request request) async {
+          final String path = request.url.path;
+          Object? value;
+          if (path == '/session') {
+            value = <String, Object?>{
+              'sessionId': 's1',
+              'capabilities': <String, Object?>{'platformVersion': ?reported},
+            };
+          } else if (path == '/session/s1/element') {
+            final Map<String, Object?> find =
+                jsonDecode(request.body) as Map<String, Object?>;
+            finds.add(find['value']! as String);
+            value = <String, Object?>{
+              'element-6066-11e4-a52e-4f735466cecf': 'done-key',
+            };
+          } else if (path.endsWith('/attribute/type')) {
+            value = 'XCUIElementTypeTextField';
+          } else if (path.endsWith('/attribute/value')) {
+            value = 'typed';
+          }
+          return http.Response(
+            jsonEncode(<String, Object?>{'value': value}),
+            200,
+          );
+        });
+        final XcuiTestBackend backend = XcuiTestBackend(
+          udid: 'iphone',
+          app: '/x/Runner.app',
+          client: client,
+        );
+
+        await backend.connect();
+        await backend.enterText(
+          const NativeTarget(elementId: 'E', via: 'xpath'),
+          'typed',
+        );
+
+        expect(finds.contains('Done'), tapsDone);
+        await backend.close();
+      });
+    }
   });
 }

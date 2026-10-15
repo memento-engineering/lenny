@@ -9,7 +9,7 @@
 /// non-JSON bodies → [NativeException], never `FormatException`), FN3
 /// (`enterText` masked flag is element-type-derived, NOT `readback != text`),
 /// FN4 (`readValue` uses the fixed `attribute/value` route), B8 (launch mode
-/// requires `udid`/`app`; attach mode requires `udid`/`bundleId`), plus the
+/// requires `udid`/`app`; attach mode requires `udid`/`appId`), plus the
 /// skeleton-lift deletions: the
 /// xpath-based "Continue" consent find is GONE — consent is
 /// `POST /session/{id}/alert/accept` (`press('consent_accept')`), because the
@@ -35,36 +35,43 @@ const String _w3cElementKey = 'element-6066-11e4-a52e-4f735466cecf';
 /// XCUITest).
 class XcuiTestBackend implements NativeBackend {
   /// Constructs an install-and-launch backend targeting [udid] + [app] on
-  /// [server] (default
-  /// `http://127.0.0.1:4723`). The backend does NOT spawn Appium or boot the
-  /// simulator — both must already be running. [platform] is fixed to `ios`.
+  /// [server] (default `http://127.0.0.1:4723`). The backend does NOT spawn
+  /// Appium or boot the simulator — both must already be running. [platform]
+  /// is fixed to `ios`.
+  ///
+  /// Tears off to [NativeLaunch], the same shape as
+  /// `UiAutomator2Backend.new`.
   XcuiTestBackend({
     Uri? server,
     required this.udid,
     required String app,
-    this.osVersion = '26',
+    this.platformVersion,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
   }) : // A typed parameter keeps null out of this public launch constructor.
        // ignore: prefer_initializing_formals
        app = app,
-       bundleId = null,
+       appId = null,
        server = server ?? Uri.parse('http://127.0.0.1:4723'),
        _client = client ?? http.Client();
 
-  /// Constructs a backend that attaches to the already-running [bundleId]
-  /// without installing or relaunching it.
+  /// Constructs a backend that attaches to the already-running [appId] (the
+  /// bundle id) without installing or relaunching it. [connect] fails loudly
+  /// when the app is not running once the session is open.
+  ///
+  /// Tears off to [NativeAttach], the same shape as
+  /// `UiAutomator2Backend.attach`.
   XcuiTestBackend.attach({
     Uri? server,
     required this.udid,
-    required String bundleId,
-    this.osVersion = '26',
+    required String appId,
+    this.platformVersion,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
   }) : app = null,
        // A typed parameter keeps null out of this public attach constructor.
        // ignore: prefer_initializing_formals
-       bundleId = bundleId,
+       appId = appId,
        server = server ?? Uri.parse('http://127.0.0.1:4723'),
        _client = client ?? http.Client();
 
@@ -81,12 +88,18 @@ class XcuiTestBackend implements NativeBackend {
   /// mode.
   final String? app;
 
-  /// Running application selected by the attach constructor; null in launch
-  /// mode.
-  final String? bundleId;
+  /// Bundle id of the running application selected by the attach constructor;
+  /// null in launch mode.
+  final String? appId;
 
-  /// The simulator OS version.
-  final String osVersion;
+  /// Optional iOS version requested from Appium (for example, `26.0`). When
+  /// absent or empty, the session request omits the version capability and
+  /// the version Appium reports for the session is used instead.
+  final String? platformVersion;
+
+  /// The iOS version Appium reported for the active session, or null before
+  /// [connect] / after [close].
+  String? _sessionPlatformVersion;
 
   /// The watcher poll cadence.
   final Duration pollInterval;
@@ -174,8 +187,10 @@ class XcuiTestBackend implements NativeBackend {
         'platformName': 'iOS',
         'appium:automationName': 'XCUITest',
         'appium:udid': udid,
+        if (_requestedPlatformVersion case final String version)
+          'appium:platformVersion': version,
         if (app case final String app) 'appium:app': app,
-        if (bundleId case final String bundleId) 'appium:bundleId': bundleId,
+        if (appId case final String appId) 'appium:bundleId': appId,
         'appium:forceSimulatorSoftwareKeyboardPresence': true,
         'appium:noReset': true,
       },
@@ -196,22 +211,35 @@ class XcuiTestBackend implements NativeBackend {
       throw NativeException('session open returned no sessionId');
     }
     _sessionId = sid;
+    final Object? returnedCapabilities = value is Map
+        ? value['capabilities']
+        : null;
+    _sessionPlatformVersion = switch (returnedCapabilities) {
+      {'platformVersion': final Object version} => version.toString(),
+      {'appium:platformVersion': final Object version} => version.toString(),
+      _ => _requestedPlatformVersion,
+    };
     // XCUITest NATIVE_APP context sees the ASWebAuthenticationSession web
     // inputs.
     await _post('/session/$_sid/context', const <String, Object?>{
       'name': 'NATIVE_APP',
     });
-    if (bundleId case final String bundleId) {
-      await _requireAttachedAppRunning(bundleId);
+    if (appId case final String appId) {
+      await _requireAttachedAppRunning(appId);
     }
   }
+
+  String? get _requestedPlatformVersion =>
+      platformVersion == null || platformVersion!.isEmpty
+      ? null
+      : platformVersion;
 
   /// Attach must not disturb the app. On Xcode 27 the simulator UI is
   /// DeviceHub, which XCUITest driver <= 11 does not recognise: it reboots the
   /// booted simulator on session create and the app is SIGTERMed. Only a
   /// definite `queryAppState` below 3 (not installed / not running /
   /// suspended) fails; an unanswered probe is unknown, not a failure.
-  Future<void> _requireAttachedAppRunning(String bundleId) async {
+  Future<void> _requireAttachedAppRunning(String appId) async {
     final Object? state;
     try {
       final Map<String, Object?> j = await _post(
@@ -219,7 +247,7 @@ class XcuiTestBackend implements NativeBackend {
         <String, Object?>{
           'script': 'mobile: queryAppState',
           'args': <Object?>[
-            <String, Object?>{'bundleId': bundleId},
+            <String, Object?>{'bundleId': appId},
           ],
         },
       );
@@ -229,7 +257,7 @@ class XcuiTestBackend implements NativeBackend {
     }
     if (state is int && state < 3) {
       throw NativeException(
-        'attach to $bundleId: the app is not running after session create '
+        'attach to $appId: the app is not running after session create '
         '(queryAppState $state). On Xcode 27 the simulator UI is DeviceHub '
         '(com.apple.dt.Devices); Appium XCUITest driver 11.x or older does '
         'not recognise it, reboots the simulator and kills the app. Upgrade '
@@ -242,6 +270,7 @@ class XcuiTestBackend implements NativeBackend {
   Future<void> close() async {
     final String? sid = _sessionId;
     _sessionId = null;
+    _sessionPlatformVersion = null;
     if (sid != null) {
       try {
         await _client.delete(_u('/session/$sid'));
@@ -578,10 +607,12 @@ class XcuiTestBackend implements NativeBackend {
   }
 
   /// iOS-only keyboard dismiss. iOS 26 has no "Done" key (no-op); older iOS
-  /// taps "Done" when present. A dismiss failure must never fail the type.
+  /// taps "Done" when present. An unknown version is treated as iOS 26, the
+  /// verified target. A dismiss failure must never fail the type.
   Future<void> _dismissKeyboard() async {
     try {
-      if (osVersion.contains('26')) return; // iOS 26 has no Done key
+      final String version = _sessionPlatformVersion ?? '26';
+      if (version.contains('26')) return; // iOS 26 has no Done key
       final String? done = await _find(
         'accessibility id',
         'Done',

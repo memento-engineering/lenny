@@ -175,6 +175,16 @@ final class FakeAppiumClientFactory {
       }
       final String sessionPath = '/session/${session.id}';
 
+      // The attach preflight: the app under test is running in the foreground.
+      if (request.method == 'POST' &&
+          request.url.path == '$sessionPath/execute/sync') {
+        final Object? body = _decodeBody(request);
+        if (body is! Map || body['script'] != 'mobile: queryAppState') {
+          throw StateError('Unhandled Appium execute body: ${request.body}');
+        }
+        return _response(4);
+      }
+
       if (request.method == 'GET' &&
           request.url.path == '$sessionPath/source') {
         _requireEmptyBody(request);
