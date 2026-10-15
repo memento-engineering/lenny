@@ -5,7 +5,8 @@
 - Render and construct diagnostics nodes through `TreeNode.componentType`.
   Diagnostics contract 1 continues to decode and encode the literal
   `seedType` JSON key.
-- Require `genesis_foundation ^0.3.0` and `leonard_contract ^0.3.0-dev.1`.
+- Require `genesis_foundation ^0.3.0`, `leonard_contract ^0.3.0-dev.1`, and
+  `leonard_agent ^0.3.2-dev.2`.
 
 ## 0.4.0-dev.1
 

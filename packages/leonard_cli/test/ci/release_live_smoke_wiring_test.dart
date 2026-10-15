@@ -23,7 +23,18 @@ void main() {
       );
       expect(live, contains('runs-on: macos-14'));
       expect(live, contains('timeout-minutes: 15'));
-      expect(live, contains("flutter-version: '3.41.4'"));
+      // The live smoke must run the Flutter that CI tests on: a stale pin
+      // here resolves an older Dart SDK than the workspace requires and the
+      // smoke fails before it reaches the app.
+      final String ciFlutter = _flutterVersion(prWorkflow);
+      expect(live, contains("flutter-version: '$ciFlutter'"));
+      expect(
+        RegExp(r"flutter-version: '([^']+)'")
+            .allMatches(publishWorkflow)
+            .map((RegExpMatch match) => match.group(1)),
+        everyElement(ciFlutter),
+        reason: 'every publish.yml Flutter pin must match ci.yaml',
+      );
       expect(live, contains('channel: stable'));
       expect(live, contains('- run: flutter pub get'));
       expect(
@@ -277,4 +288,13 @@ String _jobRunScript(String job) {
     throw StateError('run block has no script body');
   }
   return script.join('\n');
+}
+
+/// The single Flutter version [workflow] pins; fails if it pins several.
+String _flutterVersion(String workflow) {
+  final Set<String> versions = RegExp(
+    r"flutter-version: '([^']+)'",
+  ).allMatches(workflow).map((RegExpMatch match) => match.group(1)!).toSet();
+  expect(versions, hasLength(1), reason: 'ci.yaml pins one Flutter version');
+  return versions.single;
 }

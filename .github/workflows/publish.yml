@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.4'
+          flutter-version: '3.44.8'
           channel: stable
       - run: flutter pub get
       - run: dart run melos run test:live:macos --no-select
@@ -116,7 +116,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.4'
+          flutter-version: '3.44.8'
           channel: stable
       - name: Build the DevTools bundle
         run: ./tool/build_devtools_extension.sh
