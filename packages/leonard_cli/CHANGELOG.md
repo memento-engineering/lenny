@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1-dev.1
+
+- Add `--summary-json <path>`: writes the run's exit code, outcome, turn
+  count, duration, trajectory path and usage totals as one JSON file, so CI
+  can collect token and cost figures across runs (lenny#178).
+- Add `--price-input-per-mtok` / `--price-output-per-mtok`, and the
+  `LEONARD_PRICE_INPUT_PER_MTOK` / `LEONARD_PRICE_OUTPUT_PER_MTOK`
+  environment pair, to override the built-in price table for the cost
+  estimate. The flags outrank the environment.
+- Trajectories record per-turn and per-run model usage; the header's
+  `harness_version` is now `0.6.0`.
+- Require `leonard_agent ^0.3.3-dev.1`.
+
 ## 0.4.0
 
 Stable promotion of `0.4.0-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.

@@ -106,7 +106,9 @@ class OpenAIBackend extends ModelBackendSpec {
   /// Sampling temperature.
   final double? temperature;
 
-  /// OpenAI sampling options.
+  /// OpenAI sampling options. When null, the backend asks the stream to
+  /// report usage (`stream_options.include_usage`); a caller passing its own
+  /// options sets that itself or the run reports no OpenAI token counts.
   final OpenAIChatOptions? options;
 }
 
@@ -174,7 +176,11 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         tools: tools,
         enableThinking: o.enableThinking,
         temperature: o.temperature ?? 0.2,
-        options: o.options,
+        options:
+            o.options ??
+            const OpenAIChatOptions(
+              streamOptions: StreamOptions(includeUsage: true),
+            ),
       );
   }
 }

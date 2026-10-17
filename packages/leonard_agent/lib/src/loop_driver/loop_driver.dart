@@ -27,6 +27,7 @@ import '../observation/observation_differ.dart';
 import '../prompt/conversation_builder.dart';
 import '../provider/action_schema.dart';
 import '../provider/model_provider.dart';
+import '../provider/model_usage.dart';
 import '../provider/types.dart';
 import '../session/turn_event.dart';
 import '../trajectory/records.dart';
@@ -36,6 +37,7 @@ import 'loop_host.dart';
 import 'extension_failure_tracker.dart';
 import 'provider_transport.dart';
 import 'types.dart';
+import 'run_usage.dart';
 import 'validation_retry.dart';
 
 /// Tool name used by the model to declare voluntary success
@@ -87,6 +89,7 @@ class LoopDriver {
     Duration providerRetryBackoff = _kDefaultProviderRetryBackoff,
     Clock? clock,
     void Function(TurnEvent)? onTurnEvent,
+    ModelPricing pricing = ModelPricing.defaults,
   }) : _host = host,
        _provider = provider,
        _conversation = conversation,
@@ -98,7 +101,15 @@ class LoopDriver {
        _tokenBudget = tokenBudget,
        _providerRetryBackoff = providerRetryBackoff,
        _clock = clock ?? DateTime.now,
-       _onTurnEvent = onTurnEvent;
+       _onTurnEvent = onTurnEvent,
+       _pricing = pricing {
+    _metered = MeteredModelProvider(
+      inner: provider,
+      ledger: usage,
+      currentTurn: () => _turnIndex,
+      clock: _clock,
+    );
+  }
 
   final LoopHost _host;
   final ModelProvider _provider;
@@ -111,6 +122,15 @@ class LoopDriver {
   final int _tokenBudget;
   final Duration _providerRetryBackoff;
   final Clock _clock;
+  final ModelPricing _pricing;
+
+  /// Every model call this driver made, retries and failures included. The
+  /// footer's `usage` totals and each turn's `model_metadata.usage` come
+  /// from here.
+  final RunUsageLedger usage = RunUsageLedger();
+
+  /// [_provider] behind the [usage] meter; every decide goes through it.
+  late final MeteredModelProvider _metered;
 
   /// Optional sink for [TurnEvent]s — wired by `LeonardSession.run`
   /// to forward thinking deltas, action+validation outcomes, and turn
@@ -277,7 +297,7 @@ class LoopDriver {
     try {
       // steps 6+7: decide + validate (with retry budgets).
       v = await decideAndValidate(
-        provider: _provider,
+        provider: _metered,
         baseSnapshot: snapshot,
         schema: schema,
         validator: _validator,
@@ -343,6 +363,7 @@ class LoopDriver {
         if (v.decision.rationale != null) 'rationale': v.decision.rationale,
         if (v.decision.waitStrategy != null)
           'wait_strategy': v.decision.waitStrategy,
+        if (usage.turnUsage(idx) case final Map<String, dynamic> u) 'usage': u,
       },
       providerRequestId: v.decision.providerRequestId,
     );
@@ -401,7 +422,9 @@ class LoopDriver {
       },
       executedAction: const <String, dynamic>{},
       diff: const <String, dynamic>{},
-      modelMetadata: const <String, dynamic>{},
+      modelMetadata: <String, dynamic>{
+        if (usage.turnUsage(idx) case final Map<String, dynamic> u) 'usage': u,
+      },
     );
     await _writer.writeTurn(rec);
   }
@@ -536,6 +559,7 @@ class LoopDriver {
               : _clock().difference(_sessionStart!).inMilliseconds,
           harnessError: t.harnessError?.wireName,
           terminationDetail: t.terminationDetail,
+          usage: usage.runUsage(_pricing),
         ),
       );
     }

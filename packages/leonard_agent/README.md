@@ -66,9 +66,32 @@ can be sliced out by readers without parsing the core payload.
   "executed_action": {"tool": "core.tap"},
   "diff": {"core": {}, "extensions": {}},
   "summary_update": "tapped login button",
-  "model_metadata": {"tokens_in": 10, "tokens_out": 5, "duration_ms": 200}
+  "model_metadata": {
+    "served_model_id": "claude-sonnet-4-6",
+    "provider_request_id": "msg_01",
+    "usage": {
+      "model_calls": 2,
+      "input_tokens": 6100,
+      "output_tokens": 180,
+      "model_latency_ms": 4200,
+      "mean_time_to_first_token_ms": 900,
+      "output_tokens_per_second": 55.4,
+      "calls": [
+        {"outcome": "schema_rejection", "latency_ms": 2000, "input_tokens": 3000, "output_tokens": 60},
+        {"outcome": "ok", "latency_ms": 2200, "input_tokens": 3100, "output_tokens": 120}
+      ]
+    }
+  }
 }
 ```
+
+`model_metadata.usage` counts every model call the turn made, including
+schema and validator retries, which are billed like any other call. Each
+call's `outcome` is `ok`, `schema_rejection`, `transport_error` or `error`.
+Token counts are the provider's own figures; a call the provider reported
+nothing for (a dead stream, a custom provider) is counted in
+`calls_without_usage` instead. Cache read and write tokens are not reported
+yet.
 
 ### `extension_disabled`
 
@@ -99,9 +122,27 @@ Always written exactly once on `close()`, including on
   "outcome": "budget_exhausted",
   "final_summary": "ran out of turns",
   "total_turns": 25,
-  "total_duration_ms": 30000
+  "total_duration_ms": 30000,
+  "usage": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "model_calls": 27,
+    "input_tokens": 512000,
+    "output_tokens": 9100,
+    "model_latency_ms": 61000,
+    "mean_time_to_first_token_ms": 850,
+    "output_tokens_per_second": 61.2,
+    "estimated_cost_usd": 1.6725,
+    "price": {"input_per_mtok": 3.0, "output_per_mtok": 15.0, "source": "built-in 2026-10-17"}
+  }
 }
 ```
+
+`usage` totals every call in the run. `estimated_cost_usd` is always
+present: a number when the model has a price, otherwise `null` (unset, never
+zero). A local `swift-infer` model has no built-in price. Prices come from
+`ModelPricing` (`LeonardConfig.pricing`): a dated built-in table of list
+prices, or an `override` that applies to every model.
 
 On crash:
 

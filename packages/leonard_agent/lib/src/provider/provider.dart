@@ -7,6 +7,7 @@ export 'backend/model_backend.dart';
 export 'capabilities_lookup.dart';
 export 'frontier/tool_helpers.dart';
 export 'model_provider.dart';
+export 'model_usage.dart';
 export 'openai/openai_models.dart';
 export 'swift_infer/swift_infer_chat_model.dart';
 export 'swift_infer/swift_infer_chat_options.dart';

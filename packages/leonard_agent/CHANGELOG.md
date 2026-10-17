@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.3-dev.1
+
+- Report model usage per turn and per run (lenny#178). Each turn's
+  `model_metadata.usage` holds the provider's input and output tokens, the
+  model-call latency and time to first token for every call the turn made,
+  retries included. The footer's new `usage` totals the run (calls, tokens,
+  latency, mean time to first token, output tokens per second) and estimates
+  its cost.
+- Add `ModelCallUsage`, carried on `ModelDecision.usage` and
+  `SchemaRejection.usage`. `DartanticModelProvider` fills it on all three
+  backends. The OpenAI backend now asks the stream to report usage
+  (`stream_options.include_usage`) when no options are passed.
+- Add `ModelPricing` and `kDefaultModelPrices` (list prices checked
+  2026-10-17), set through `LeonardConfig.pricing` or `LoopDriver(pricing:)`.
+  A local `swift-infer` model or an unlisted model reports
+  `estimated_cost_usd: null`, never zero; an `override` prices any model.
+- Add `RunUsageLedger` and `MeteredModelProvider`, exposed as
+  `LoopDriver.usage`, and `TrajectoryWriter.footer`.
+- Cache read and write tokens are not reported yet: dartantic 3.4 drops them.
+
 ## 0.3.2
 
 Stable promotion of `0.3.2-dev.2`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.

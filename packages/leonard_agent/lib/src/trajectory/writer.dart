@@ -14,6 +14,10 @@ class TrajectoryWriter {
   final TrajectorySink _sink;
   bool _closed = false;
   bool _headerWritten = false;
+  SessionFooter? _footer;
+
+  /// The footer this writer was closed with, or null while it is open.
+  SessionFooter? get footer => _footer;
 
   TrajectoryWriter(this._sink);
 
@@ -41,6 +45,7 @@ class TrajectoryWriter {
   Future<void> close(SessionFooter footer) async {
     if (_closed) return;
     _closed = true;
+    _footer = footer;
     await _writeAndFlush(footer.toJson());
     await _sink.close();
   }

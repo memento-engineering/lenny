@@ -26,7 +26,7 @@ const String kAgentsMdRelativePath = 'leonard_cli/templates/AGENTS.md';
 
 /// Harness version stamped into the trajectory header. Bump when the
 /// CLI emits a record-shape change consumers need to detect.
-const String _kHarnessVersion = '0.5.0';
+const String _kHarnessVersion = '0.6.0';
 
 /// Run the CLI end-to-end. Returns the process exit code:
 ///   * 0  — clean session (any non-error termination)
@@ -34,12 +34,40 @@ const String _kHarnessVersion = '0.5.0';
 ///   * 1  — harness error or image-golden mismatch
 ///
 /// [providerEnvironment] is the provider-construction environment seam. When
-/// omitted, providers read the process environment.
+/// omitted, providers read the process environment. It also supplies the
+/// `LEONARD_PRICE_INPUT_PER_MTOK` / `LEONARD_PRICE_OUTPUT_PER_MTOK` cost
+/// override when the price flags are absent.
+///
+/// With `--summary-json`, the run's summary is written once the exit code is
+/// known, on every path that got as far as opening the trajectory.
 Future<int> runCli(
   List<String> argv, {
   required Stdin stdin,
   required Stdout stdout,
   required IOSink stderr,
+  Map<String, String>? providerEnvironment,
+  Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
+}) async {
+  final _RunSummary summary = _RunSummary();
+  final int exitCode = await _runCli(
+    argv,
+    stdin: stdin,
+    stdout: stdout,
+    stderr: stderr,
+    providerEnvironment: providerEnvironment,
+    acpProviderBuilder: acpProviderBuilder,
+    summary: summary,
+  );
+  await summary.write(exitCode, stderr: stderr);
+  return exitCode;
+}
+
+Future<int> _runCli(
+  List<String> argv, {
+  required Stdin stdin,
+  required Stdout stdout,
+  required IOSink stderr,
+  required _RunSummary summary,
   Map<String, String>? providerEnvironment,
   Future<ModelProvider> Function(AcpAgentSpec spec)? acpProviderBuilder,
 }) async {
@@ -93,8 +121,13 @@ Future<int> runCli(
   }
 
   final Map<String, String> actionEnvironment;
+  final ModelPricing pricing;
   try {
     actionEnvironment = _loadActionEnvironment(args.actionEnvironmentNames);
+    pricing = _resolvePricing(
+      args,
+      providerEnvironment ?? Platform.environment,
+    );
   } on CliUsageError catch (e) {
     stderr.writeln('error: ${e.message}');
     return 64;
@@ -112,6 +145,11 @@ Future<int> runCli(
     warningSink: stderr,
   );
   final TrajectoryWriter writer = TrajectoryWriter(frameSink);
+  summary
+    ..path = args.summaryJsonPath
+    ..trajectoryPath = outPath
+    ..modelIdentifier = args.modelIdentifier
+    ..writer = writer;
 
   // ----- build provider (may throw on missing API key) --------------
   // Mint a per-run sessionId so the qwen-mlx tier can stamp every
@@ -229,10 +267,14 @@ Future<int> runCli(
     await session.start(
       goal,
       args.wallClockBudget == null
-          ? LeonardConfig(coreBudgetBytes: args.coreBudgetBytes)
+          ? LeonardConfig(
+              coreBudgetBytes: args.coreBudgetBytes,
+              pricing: pricing,
+            )
           : LeonardConfig(
               coreBudgetBytes: args.coreBudgetBytes,
               sessionBudget: args.wallClockBudget!,
+              pricing: pricing,
             ),
     );
 
@@ -369,6 +411,67 @@ Future<int> _reportProviderConfigurationError(
     ),
   );
   return 1;
+}
+
+/// The flag price pair outranks the `LEONARD_PRICE_*` env pair; with neither,
+/// the built-in table applies.
+ModelPricing _resolvePricing(CliArgs args, Map<String, String> env) {
+  final double? flagInput = args.priceInputPerMTok;
+  final double? flagOutput = args.priceOutputPerMTok;
+  final (double?, double?) price = flagInput != null && flagOutput != null
+      ? (flagInput, flagOutput)
+      : parsePriceOverride(
+          env['LEONARD_PRICE_INPUT_PER_MTOK'],
+          env['LEONARD_PRICE_OUTPUT_PER_MTOK'],
+          source:
+              'LEONARD_PRICE_INPUT_PER_MTOK / LEONARD_PRICE_OUTPUT_PER_MTOK',
+        );
+  final (double? input, double? output) = price;
+  if (input == null || output == null) return ModelPricing.defaults;
+  return ModelPricing(
+    override: ModelPrice(inputPerMTok: input, outputPerMTok: output),
+  );
+}
+
+/// What `--summary-json` writes, filled in as the run gets far enough to
+/// know each part.
+class _RunSummary {
+  String? path;
+  String? trajectoryPath;
+  String? modelIdentifier;
+  TrajectoryWriter? writer;
+
+  /// Writes the summary for a run that exited with [exitCode]. A no-op
+  /// without `--summary-json`, or when the run stopped before opening its
+  /// trajectory (argument and goal errors). A write failure is reported but
+  /// never changes the exit code.
+  Future<void> write(int exitCode, {required IOSink stderr}) async {
+    final String? target = path;
+    if (target == null) return;
+    final SessionFooter? footer = writer?.footer;
+    final Map<String, Object?> json = <String, Object?>{
+      'schema': 'leonard.run_summary/1',
+      'exit_code': exitCode,
+      'outcome': footer?.toJson()['outcome'],
+      if (footer?.harnessError != null) 'harness_error': footer!.harnessError,
+      if (footer?.terminationDetail != null)
+        'termination_detail': footer!.terminationDetail,
+      'total_turns': footer?.totalTurns,
+      'total_duration_ms': footer?.totalDurationMs,
+      'model_identifier': modelIdentifier,
+      'trajectory': trajectoryPath,
+      'usage': footer?.usage,
+    };
+    try {
+      final File file = File(target);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(
+        '${const JsonEncoder.withIndent('  ').convert(json)}\n',
+      );
+    } on FileSystemException catch (e) {
+      stderr.writeln('warning: --summary-json not written: ${e.message}');
+    }
+  }
 }
 
 Map<String, String> _loadActionEnvironment(List<String> names) {

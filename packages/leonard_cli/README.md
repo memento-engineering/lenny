@@ -97,6 +97,38 @@ dart run leonard_cli \
 curl "$SWIFT_INFER_ENDPOINT/v1/conversations/leonard-cli-…"
 ```
 
+## Run summary, tokens and cost
+
+Every trajectory records the provider's token counts and model latency: per
+turn under `model_metadata.usage`, and for the whole run under the footer's
+`usage` (see the `leonard_agent` README for the shapes). Retries count as
+calls. For CI, `--summary-json <path>` also writes one small JSON file per
+run, so totals can be collected without parsing trajectories:
+
+```json
+{
+  "schema": "leonard.run_summary/1",
+  "exit_code": 0,
+  "outcome": "done",
+  "total_turns": 9,
+  "total_duration_ms": 48000,
+  "model_identifier": "claude",
+  "trajectory": "trajectories/2026-10-17T10-00-00Z.jsonl",
+  "usage": {"model_calls": 10, "input_tokens": 141000, "output_tokens": 2600, "estimated_cost_usd": 0.462, "...": "..."}
+}
+```
+
+The cost estimate uses a dated built-in table of list prices for the hosted
+models. A local `qwen-mlx` run, or a model not in the table, reports
+`estimated_cost_usd: null`. To price a run yourself (an unlisted model, a
+negotiated rate, or amortized owned hardware), pass dollars per million
+tokens with `--price-input-per-mtok` and `--price-output-per-mtok`, or set
+`LEONARD_PRICE_INPUT_PER_MTOK` and `LEONARD_PRICE_OUTPUT_PER_MTOK`. The flags
+outrank the environment, and both values of a pair must be set.
+
+Runs also record time to first token and output tokens per second, which is
+the figure that matters when sizing local hardware.
+
 ## Captured frames and image goldens
 
 Every live-driving run writes PNG frames already carried by its trajectory

@@ -8,6 +8,7 @@ import '../../prompt/observation_renderer.dart';
 import '../action_schema.dart';
 import '../frontier/tool_helpers.dart';
 import '../model_provider.dart';
+import '../model_usage.dart';
 import '../types.dart';
 import 'model_backend.dart';
 
@@ -28,7 +29,9 @@ import 'model_backend.dart';
 ///    Anthropic-legal wire form and decodes them back;
 ///  * **structured validation** — validates the chosen tool call against the
 ///    per-turn [ActionSchema] (the `{action:{tool,args}}` envelope);
-///  * **providerRequestId** — captured from the stream's message id.
+///  * **providerRequestId** — captured from the stream's message id;
+///  * **usage** — the provider's token counts and the time to first streamed
+///    content, attached to the decision or to the [SchemaRejection].
 ///
 /// A fresh `ChatModel` is built per [decide] call because lenny's tool list
 /// changes every turn (extensions activate/deactivate) and dartantic binds
@@ -102,10 +105,25 @@ class DartanticModelProvider implements ModelProvider {
     var toolArgs = const <String, dynamic>{};
     String? providerRequestId;
     var aborted = false;
+    int? inputTokens;
+    int? outputTokens;
+    int? timeToFirstTokenMs;
+    final sent = Stopwatch()..start();
 
     try {
       await for (final result in chatModel.sendStream(_toMessages(snapshot))) {
         providerRequestId ??= result.id;
+        // Backends report usage as running totals split across chunks
+        // (Anthropic: input on message_start, output on message_delta), so
+        // keep the largest figure seen for each kind rather than summing.
+        final usage = result.usage;
+        if (usage != null) {
+          inputTokens = _maxOf(inputTokens, usage.promptTokens);
+          outputTokens = _maxOf(outputTokens, usage.responseTokens);
+        }
+        if (timeToFirstTokenMs == null && result.output.parts.isNotEmpty) {
+          timeToFirstTokenMs = sent.elapsedMilliseconds;
+        }
         for (final part in result.output.parts) {
           if (part is ThinkingPart) {
             thinkingBuf.write(part.text);
@@ -130,13 +148,50 @@ class DartanticModelProvider implements ModelProvider {
       _thinking.add(const ThinkingDelta(text: '', isFinal: true));
     }
 
+    final callUsage = ModelCallUsage(
+      provider: _providerName,
+      model: model,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      timeToFirstTokenMs: timeToFirstTokenMs,
+    );
+    try {
+      return _decode(
+        snapshot: snapshot,
+        schema: schema,
+        wireToolName: wireToolName,
+        toolArgs: toolArgs,
+        rawText: rawText.toString(),
+        thinking: thinkingBuf.toString(),
+        aborted: aborted,
+        providerRequestId: providerRequestId,
+        usage: callUsage,
+      );
+    } on SchemaRejection catch (rejection) {
+      throw rejection.withUsage(callUsage);
+    }
+  }
+
+  /// Turns one completed stream into a validated [ModelDecision], throwing
+  /// [SchemaRejection] when it holds no valid tool call.
+  ModelDecision _decode({
+    required ConversationSnapshot snapshot,
+    required ActionSchema schema,
+    required String? wireToolName,
+    required Map<String, dynamic> toolArgs,
+    required String rawText,
+    required String thinking,
+    required bool aborted,
+    required String? providerRequestId,
+    required ModelCallUsage usage,
+  }) {
     if (wireToolName == null) {
       throw SchemaRejection(
         validationError: aborted
-            ? 'runaway thinking: ${rawText.length + thinkingBuf.length} chars '
+            ? 'runaway thinking: ${rawText.length + thinking.length} chars '
                   'with no tool call (aborted before completion)'
             : 'no tool call in response',
-        rawOutput: rawText.toString(),
+        rawOutput: rawText,
       );
     }
 
@@ -162,13 +217,26 @@ class DartanticModelProvider implements ModelProvider {
         tool: action['tool'] as String,
         args: (action['args'] as Map).cast<String, dynamic>(),
       ),
-      thinking: thinkingBuf.isEmpty ? null : thinkingBuf.toString(),
+      thinking: thinking.isEmpty ? null : thinking,
       providerRequestId: providerRequestId,
       modelMetadata: <String, dynamic>{
         'served_model_id': model,
         'provider_request_id': providerRequestId,
       },
+      usage: usage,
     );
+  }
+
+  String get _providerName => switch (backend) {
+    SwiftInferBackend() => 'swift-infer',
+    AnthropicBackend() => 'anthropic',
+    OpenAIBackend() => 'openai',
+  };
+
+  static int? _maxOf(int? current, int? next) {
+    if (next == null) return current;
+    if (current == null || next > current) return next;
+    return current;
   }
 
   /// Closes the thinking stream. Does not close a caller-supplied [client].
