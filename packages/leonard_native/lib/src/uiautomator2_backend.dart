@@ -292,16 +292,18 @@ class UiAutomator2Backend implements NativeBackend {
       _sessionId ?? (throw NativeException('no session: call connect() first'));
 
   Future<Map<String, Object?>> _post(String path, Object body) async {
-    final http.Response r = await _client.post(
-      _u(path),
-      headers: const <String, String>{'content-type': 'application/json'},
-      body: jsonEncode(body),
+    final http.Response r = await appiumSend(
+      () => _client.post(
+        _u(path),
+        headers: const <String, String>{'content-type': 'application/json'},
+        body: jsonEncode(body),
+      ),
     );
     return _unwrap(r);
   }
 
   Future<Map<String, Object?>> _get(String path) async {
-    final http.Response r = await _client.get(_u(path));
+    final http.Response r = await appiumSend(() => _client.get(_u(path)));
     return _unwrap(r);
   }
 
@@ -328,7 +330,9 @@ class UiAutomator2Backend implements NativeBackend {
       // The message keeps the code as a prefix — it is model-facing, so its
       // text is unchanged by carrying `code` structurally alongside it.
       throw NativeException(
-        '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        redactCredentials(
+          '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        ),
         code: value['error'].toString(),
       );
     }
@@ -339,7 +343,7 @@ class UiAutomator2Backend implements NativeBackend {
   }
 
   static String _truncate(String s) =>
-      s.length <= 400 ? s : '${s.substring(0, 400)}…';
+      redactCredentials(s.length <= 400 ? s : '${s.substring(0, 400)}…');
 
   // ---------------------------------------------------------------------------
   // Session lifecycle.
@@ -397,30 +401,38 @@ class UiAutomator2Backend implements NativeBackend {
       throw NativeException('session open returned no sessionId');
     }
     _sessionId = sid;
-    final Map<Object?, Object?> returnedCapabilities = value is Map
-        ? (value['capabilities'] is Map
-              ? value['capabilities'] as Map<Object?, Object?>
-              : const <Object?, Object?>{})
-        : const <Object?, Object?>{};
-    _sessionCapabilities = Map<String, Object?>.unmodifiable(
-      returnedCapabilities.map(
-        (Object? key, Object? value) => MapEntry(key.toString(), value),
-      ),
-    );
-    _sessionProvenance = AndroidSessionProvenance(
-      deviceSerial: _returnedCapability(returnedCapabilities, 'udid') ?? udid,
-      androidVersion:
-          _returnedCapability(returnedCapabilities, 'platformVersion') ??
-          requestedVersion ??
-          AndroidSessionProvenance.unknownAndroidVersion,
-      manufacturer: _returnedCapability(
-        returnedCapabilities,
-        'deviceManufacturer',
-      ),
-      model: _returnedCapability(returnedCapabilities, 'deviceModel'),
-    );
-    if (appId case final String appId) {
-      await _requireAttachedAppRunning(appId);
+    // lenny#185: from here the session exists, so a failure must release it.
+    // Callers rarely keep a backend whose connect() threw, and an Android
+    // session (newCommandTimeout 0) would otherwise hold the device forever.
+    try {
+      final Map<Object?, Object?> returnedCapabilities = value is Map
+          ? (value['capabilities'] is Map
+                ? value['capabilities'] as Map<Object?, Object?>
+                : const <Object?, Object?>{})
+          : const <Object?, Object?>{};
+      _sessionCapabilities = Map<String, Object?>.unmodifiable(
+        returnedCapabilities.map(
+          (Object? key, Object? value) => MapEntry(key.toString(), value),
+        ),
+      );
+      _sessionProvenance = AndroidSessionProvenance(
+        deviceSerial: _returnedCapability(returnedCapabilities, 'udid') ?? udid,
+        androidVersion:
+            _returnedCapability(returnedCapabilities, 'platformVersion') ??
+            requestedVersion ??
+            AndroidSessionProvenance.unknownAndroidVersion,
+        manufacturer: _returnedCapability(
+          returnedCapabilities,
+          'deviceManufacturer',
+        ),
+        model: _returnedCapability(returnedCapabilities, 'deviceModel'),
+      );
+      if (appId case final String appId) {
+        await _requireAttachedAppRunning(appId);
+      }
+    } on Object {
+      await _releaseSession();
+      rethrow;
     }
   }
 
@@ -441,7 +453,9 @@ class UiAutomator2Backend implements NativeBackend {
         },
       );
       state = j['value'];
-    } on NativeException {
+    } on NativeException catch (e) {
+      // An unanswered probe is unknown; a dead transport is a failed connect.
+      if (e.code == NativeException.transportErrorCode) rethrow;
       return;
     }
     if (state is int && state < 3) {
@@ -459,6 +473,13 @@ class UiAutomator2Backend implements NativeBackend {
 
   @override
   Future<void> close() async {
+    await _releaseSession();
+    _client.close();
+  }
+
+  /// Clears the session state and best-effort deletes the session, leaving
+  /// the HTTP client open so [connect] can be retried.
+  Future<void> _releaseSession() async {
     final String? sid = _sessionId;
     _sessionId = null;
     _sessionProvenance = null;
@@ -470,7 +491,6 @@ class UiAutomator2Backend implements NativeBackend {
         // best-effort: releasing the UiAutomator2 session must never throw.
       }
     }
-    _client.close();
   }
 
   // ---------------------------------------------------------------------------
@@ -785,7 +805,9 @@ class UiAutomator2Backend implements NativeBackend {
           if (eid is String) return eid;
         }
         return null;
-      } on NativeException {
+      } on NativeException catch (e) {
+        // A miss retries; a dead transport fails now, as it always has.
+        if (e.code == NativeException.transportErrorCode) rethrow;
         if (!DateTime.now().isBefore(end)) return null;
         await Future<void>.delayed(const Duration(milliseconds: 400));
       }

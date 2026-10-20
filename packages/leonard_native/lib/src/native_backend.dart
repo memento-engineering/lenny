@@ -7,6 +7,7 @@
 /// (macOS) are the concrete impls; `FakeNativeBackend` is the test impl.
 library;
 
+import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'native_snapshot.dart';
@@ -205,6 +206,10 @@ class NativeException implements Exception {
   static const String elementGoneAfterDismissalCode =
       'element gone after dismissal';
 
+  /// Backend code for a request that got no HTTP response at all (refused,
+  /// reset, DNS, TLS). Any server credentials are redacted from [message].
+  static const String transportErrorCode = 'transport error';
+
   /// Wraps a human-readable [message], optionally tagged with a W3C or
   /// backend-defined recovery [code].
   NativeException(this.message, {this.code});
@@ -232,13 +237,15 @@ class NativeException implements Exception {
 /// `XcuiTestBackend.new` and `UiAutomator2Backend.new` both tear off to this
 /// type, and both install [app] on [udid] and launch it when the session
 /// opens. [app] is a local build (`.app` / `.apk`) or an id a cloud grid
-/// resolves (for example `lt://APP123`).
+/// resolves (for example `lt://APP123`). [client] carries the Appium traffic
+/// (a fake or recording client in tests).
 typedef NativeLaunch =
     NativeBackend Function({
       Uri? server,
       required String udid,
       required String app,
       String? platformVersion,
+      http.Client? client,
     });
 
 /// The attach constructor shared by the mobile backends.
@@ -253,6 +260,7 @@ typedef NativeAttach =
       required String udid,
       required String appId,
       String? platformVersion,
+      http.Client? client,
     });
 
 /// The seam the watcher drives and the tools act through. Appium backends

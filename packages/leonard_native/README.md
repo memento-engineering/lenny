@@ -97,6 +97,11 @@ await backend.connect(
 );
 ```
 
+A grid URL's `user:key@` credentials never appear in an error: a request
+that gets no response throws a `NativeException` coded
+`NativeException.transportErrorCode`, with the userinfo masked as
+`https://***@host`.
+
 `connect(extraCapabilities:)` merges orthogonal capabilities (keyboard,
 timeouts, vendor options), but refuses the ones that change the lifecycle —
 `app`, `appPackage`, `bundleId`, `autoLaunch`, `noReset` and the rest — with an
