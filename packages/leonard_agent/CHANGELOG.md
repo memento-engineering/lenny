@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.3-dev.2
+
+- Count a model call the turn budget abandons (lenny-c55p6). A live
+  `qwen-mlx` run timed out five turns and its footer reported `model_calls: 0`:
+  the metering recorded a call only when it completed or threw, and a turn
+  timeout abandons it instead. The call is now recorded with outcome
+  `abandoned` and no usage, and since nothing cancels its request, usage that
+  arrives later replaces that record's (it is not a second call), so the
+  footer's cost includes it.
+
 ## 0.3.3-dev.1
 
 - Report model usage per turn and per run (lenny#178). Each turn's

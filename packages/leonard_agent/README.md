@@ -87,7 +87,10 @@ can be sliced out by readers without parsing the core payload.
 
 `model_metadata.usage` counts every model call the turn made, including
 schema and validator retries, which are billed like any other call. Each
-call's `outcome` is `ok`, `schema_rejection`, `transport_error` or `error`.
+call's `outcome` is `ok`, `schema_rejection`, `transport_error`, `error` or
+`abandoned`: the turn budget expired mid-call. An abandoned call is still
+counted, because nothing cancels its request; if it completes before the run
+ends, its usage is attached to the same record.
 Token counts are the provider's own figures; a call the provider reported
 nothing for (a dead stream, a custom provider) is counted in
 `calls_without_usage` instead. Cache read and write tokens are not reported

@@ -1,5 +1,6 @@
 // lenny#178: every model call is counted — retries and failures included —
 // into each turn's model_metadata.usage and the footer's run totals.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -55,6 +56,7 @@ class _ScriptedProvider extends ModelProvider {
   ) async {
     final Object next = script[_i++];
     if (next is ModelDecision) return next;
+    if (next is Future<ModelDecision>) return next;
     throw next;
   }
 }
@@ -140,6 +142,7 @@ ModelDecision _done(ModelCallUsage usage) => ModelDecision(
 Future<(LoopDriver, _MemorySink)> _driver(
   List<Object> script, {
   ModelPricing pricing = ModelPricing.defaults,
+  Duration turnBudget = const Duration(seconds: 30),
 }) async {
   final _MemorySink sink = _MemorySink();
   final TrajectoryWriter writer = TrajectoryWriter(sink);
@@ -170,6 +173,7 @@ Future<(LoopDriver, _MemorySink)> _driver(
     providerRetryBackoff: Duration.zero,
     clock: clock.call,
     pricing: pricing,
+    turnBudget: turnBudget,
   );
   return (driver, sink);
 }
@@ -325,5 +329,62 @@ void main() {
     );
     expect(back.usage, d.usage);
     expect(back, d);
+  });
+
+  test('a call the turn budget abandons is still counted', () async {
+    // A live qwen-mlx run (2026-10-19) timed out five turns and reported
+    // model_calls 0: the abandoned calls were never recorded.
+    final (LoopDriver driver, _MemorySink sink) = await _driver(<Object>[
+      Completer<ModelDecision>().future,
+    ], turnBudget: const Duration(milliseconds: 20));
+
+    await expectLater(driver.runTurn(), throwsA(isA<TurnFailure>()));
+
+    final Map<String, dynamic> turn = sink.records.last;
+    expect(turn['validation']['reason'], 'turn_timeout');
+    final Map<String, dynamic> usage =
+        turn['model_metadata']['usage'] as Map<String, dynamic>;
+    expect(usage['model_calls'], 1);
+    expect(usage['calls_without_usage'], 1);
+    expect((usage['calls'] as List<dynamic>).single['outcome'], 'abandoned');
+  });
+
+  test('an abandoned call that completes late keeps one record', () async {
+    final RunUsageLedger ledger = RunUsageLedger();
+    final Completer<ModelDecision> late = Completer<ModelDecision>();
+    final _SteppingClock clock = _SteppingClock(
+      const Duration(milliseconds: 100),
+    );
+    final MeteredModelProvider metered = MeteredModelProvider(
+      inner: _ScriptedProvider(<Object>[late.future]),
+      ledger: ledger,
+      currentTurn: () => 3,
+      clock: clock.call,
+    );
+    final Future<ModelDecision> call = metered.decide(
+      ConversationSnapshot(
+        systemMessage: 'sys',
+        turns: const <ConversationTurn>[],
+        tools: _Host().mergedTools(),
+      ),
+      ActionSchema.fromToolList(_Host().mergedTools()),
+    );
+
+    metered.abandonInFlight();
+    expect(ledger.calls.single.outcome, ModelCallOutcome.abandoned);
+    expect(ledger.calls.single.usage, isNull);
+
+    late.complete(_wait(_usage(4000, 120)));
+    await call;
+
+    final ModelCallRecord record = ledger.calls.single;
+    expect(record.outcome, ModelCallOutcome.abandoned);
+    expect(record.turn, 3);
+    expect(record.usage?.inputTokens, 4000);
+    expect(
+      ledger.runUsage(ModelPricing.defaults)['input_tokens'],
+      4000,
+      reason: 'the provider did the work, so the footer bills it',
+    );
   });
 }
