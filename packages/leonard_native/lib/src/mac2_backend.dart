@@ -64,16 +64,20 @@ class Mac2Backend implements NativeBackend {
       _sessionId ?? (throw NativeException('no session: call connect() first'));
 
   Future<Map<String, Object?>> _post(String path, Object body) async {
-    final http.Response response = await _client.post(
-      _u(path),
-      headers: const <String, String>{'content-type': 'application/json'},
-      body: jsonEncode(body),
+    final http.Response response = await appiumSend(
+      () => _client.post(
+        _u(path),
+        headers: const <String, String>{'content-type': 'application/json'},
+        body: jsonEncode(body),
+      ),
     );
     return _unwrap(response);
   }
 
   Future<Map<String, Object?>> _get(String path) async {
-    final http.Response response = await _client.get(_u(path));
+    final http.Response response = await appiumSend(
+      () => _client.get(_u(path)),
+    );
     return _unwrap(response);
   }
 
@@ -96,7 +100,9 @@ class Mac2Backend implements NativeBackend {
     final Object? value = decoded['value'];
     if (value is Map && value['error'] != null) {
       throw NativeException(
-        '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        redactCredentials(
+          '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        ),
         code: value['error'].toString(),
       );
     }
@@ -108,8 +114,9 @@ class Mac2Backend implements NativeBackend {
     return decoded;
   }
 
-  static String _truncate(String value) =>
-      value.length <= 400 ? value : '${value.substring(0, 400)}…';
+  static String _truncate(String value) => redactCredentials(
+    value.length <= 400 ? value : '${value.substring(0, 400)}…',
+  );
 
   @override
   Future<void> connect({
@@ -369,7 +376,9 @@ class Mac2Backend implements NativeBackend {
           if (elementId is String) return elementId;
         }
         return null;
-      } on NativeException {
+      } on NativeException catch (e) {
+        // A miss retries; a dead transport fails now, as it always has.
+        if (e.code == NativeException.transportErrorCode) rethrow;
         if (!DateTime.now().isBefore(end)) return null;
         await Future<void>.delayed(const Duration(milliseconds: 400));
       }

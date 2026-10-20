@@ -5,6 +5,8 @@
 /// `--platform` wiring is testable without a VM service or a device.
 library;
 
+import 'package:http/http.dart' as http;
+
 import 'mac2_backend.dart';
 import 'xcuitest_backend.dart';
 import 'native_backend.dart';
@@ -19,7 +21,8 @@ import 'uiautomator2_backend.dart';
 /// (the bundle id) and attaches [Mac2Backend] to that running app.
 ///
 /// `ios` -> [XcuiTestBackend]; `android` -> [UiAutomator2Backend]; `darwin` ->
-/// [Mac2Backend].
+/// [Mac2Backend]. [client], when set, carries the chosen backend's Appium
+/// traffic, so a wrapper around this factory can observe or fake it.
 /// An unrecognized platform throws [ArgumentError] — LOUD, never a silent
 /// fallback to iOS, which would perceive an Android target through an XCUITest
 /// parser and yield an empty tree.
@@ -30,11 +33,13 @@ NativeBackend backendForPlatform({
   String? appId,
   String? platformVersion,
   Uri? server,
+  http.Client? client,
 }) {
   if (platform == 'darwin') {
     return Mac2Backend(
       server: server,
       bundleId: _requiredTarget(appId, 'appId', platform),
+      client: client,
     );
   }
   final (NativeLaunch launch, NativeAttach attach) = switch (platform) {
@@ -54,12 +59,14 @@ NativeBackend backendForPlatform({
       udid: device,
       app: app,
       platformVersion: platformVersion,
+      client: client,
     ),
     (null, final String appId) => attach(
       server: server,
       udid: device,
       appId: appId,
       platformVersion: platformVersion,
+      client: client,
     ),
     (null, null) => throw ArgumentError.value(
       app,

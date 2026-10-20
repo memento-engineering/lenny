@@ -127,16 +127,18 @@ class XcuiTestBackend implements NativeBackend {
   }
 
   Future<Map<String, Object?>> _post(String path, Object body) async {
-    final http.Response r = await _client.post(
-      _u(path),
-      headers: const <String, String>{'content-type': 'application/json'},
-      body: jsonEncode(body),
+    final http.Response r = await appiumSend(
+      () => _client.post(
+        _u(path),
+        headers: const <String, String>{'content-type': 'application/json'},
+        body: jsonEncode(body),
+      ),
     );
     return _unwrap(r);
   }
 
   Future<Map<String, Object?>> _get(String path) async {
-    final http.Response r = await _client.get(_u(path));
+    final http.Response r = await appiumSend(() => _client.get(_u(path)));
     return _unwrap(r);
   }
 
@@ -164,7 +166,9 @@ class XcuiTestBackend implements NativeBackend {
       // Kept symmetrical with UiAutomator2Backend._unwrap: both platforms
       // speak W3C, so both tag the code. The message text is unchanged.
       throw NativeException(
-        '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        redactCredentials(
+          '${value['error']}: ${value['message'] ?? ''}'.trim(),
+        ),
         code: value['error'].toString(),
       );
     }
@@ -175,7 +179,7 @@ class XcuiTestBackend implements NativeBackend {
   }
 
   static String _truncate(String s) =>
-      s.length <= 400 ? s : '${s.substring(0, 400)}…';
+      redactCredentials(s.length <= 400 ? s : '${s.substring(0, 400)}…');
 
   // ---------------------------------------------------------------------------
   // Session lifecycle.
@@ -218,21 +222,29 @@ class XcuiTestBackend implements NativeBackend {
       throw NativeException('session open returned no sessionId');
     }
     _sessionId = sid;
-    final Object? returnedCapabilities = value is Map
-        ? value['capabilities']
-        : null;
-    _sessionPlatformVersion = switch (returnedCapabilities) {
-      {'platformVersion': final Object version} => version.toString(),
-      {'appium:platformVersion': final Object version} => version.toString(),
-      _ => _requestedPlatformVersion,
-    };
-    // XCUITest NATIVE_APP context sees the ASWebAuthenticationSession web
-    // inputs.
-    await _post('/session/$_sid/context', const <String, Object?>{
-      'name': 'NATIVE_APP',
-    });
-    if (appId case final String appId) {
-      await _requireAttachedAppRunning(appId);
+    // lenny#185: from here the session exists, so a failure must release it.
+    // Callers rarely keep a backend whose connect() threw, and an Android
+    // session (newCommandTimeout 0) would otherwise hold the device forever.
+    try {
+      final Object? returnedCapabilities = value is Map
+          ? value['capabilities']
+          : null;
+      _sessionPlatformVersion = switch (returnedCapabilities) {
+        {'platformVersion': final Object version} => version.toString(),
+        {'appium:platformVersion': final Object version} => version.toString(),
+        _ => _requestedPlatformVersion,
+      };
+      // XCUITest NATIVE_APP context sees the ASWebAuthenticationSession web
+      // inputs.
+      await _post('/session/$_sid/context', const <String, Object?>{
+        'name': 'NATIVE_APP',
+      });
+      if (appId case final String appId) {
+        await _requireAttachedAppRunning(appId);
+      }
+    } on Object {
+      await _releaseSession();
+      rethrow;
     }
   }
 
@@ -264,7 +276,9 @@ class XcuiTestBackend implements NativeBackend {
         },
       );
       state = j['value'];
-    } on NativeException {
+    } on NativeException catch (e) {
+      // An unanswered probe is unknown; a dead transport is a failed connect.
+      if (e.code == NativeException.transportErrorCode) rethrow;
       return;
     }
     if (state is int && state < 2) {
@@ -282,6 +296,13 @@ class XcuiTestBackend implements NativeBackend {
 
   @override
   Future<void> close() async {
+    await _releaseSession();
+    _client.close();
+  }
+
+  /// Clears the session state and best-effort deletes the session, leaving
+  /// the HTTP client open so [connect] can be retried.
+  Future<void> _releaseSession() async {
     final String? sid = _sessionId;
     _sessionId = null;
     _sessionPlatformVersion = null;
@@ -292,7 +313,6 @@ class XcuiTestBackend implements NativeBackend {
         // best-effort: releasing the WDA session must never throw on teardown.
       }
     }
-    _client.close();
   }
 
   // ---------------------------------------------------------------------------
@@ -537,7 +557,9 @@ class XcuiTestBackend implements NativeBackend {
           if (eid is String) return eid;
         }
         return null;
-      } on NativeException {
+      } on NativeException catch (e) {
+        // A miss retries; a dead transport fails now, as it always has.
+        if (e.code == NativeException.transportErrorCode) rethrow;
         if (!DateTime.now().isBefore(end)) return null;
         await Future<void>.delayed(const Duration(milliseconds: 400));
       }

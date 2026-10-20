@@ -1,7 +1,7 @@
 ## 0.6.0-dev.1
 
-Fills four gaps that kept a backend-direct iOS consumer on its own XCUITest
-transport (lenny#180 to #183). Verified live on an iOS 27.0 simulator
+Fills the gaps that kept a backend-direct iOS consumer on its own XCUITest
+transport (lenny#180 to #193). Verified live on an iOS 27.0 simulator
 (XCUITest driver 12.18.1) and a Pixel 7a (UiAutomator2 driver 8.2.2).
 
 - **Breaking for implementers — `NativeBackend` gains two methods and a
@@ -32,6 +32,25 @@ transport (lenny#180 to #183). Verified live on an iOS 27.0 simulator
   stops activating it; only 0 (not installed) and 1 (not running) fail, and
   the error names both causes of a 1: the app was never started, or the
   Xcode 27 DeviceHub reboot killed it.
+- **Transport failures no longer leak grid credentials** (#186). A request
+  that gets no HTTP response used to escape as `package:http`'s
+  `ClientException`, whose message carries the full request URI, so a cloud
+  grid's `user:key@` access key reached any log that printed it. All three
+  backends now throw a `NativeException` coded
+  `NativeException.transportErrorCode` with URL userinfo masked
+  (`https://***@host`), and redact W3C error messages and quoted response
+  bodies the same way. A transport failure is still not retried as a miss:
+  `resolve` fails at once, as before.
+- **A failed `connect` releases the session it opened** (#185). When the
+  attach check (or the iOS context switch) throws after session create, the
+  backend now deletes the session and clears its state before rethrowing, so
+  an Android session (`newCommandTimeout: 0`) no longer holds the device until
+  Appium restarts, and a retried `connect` opens a fresh one. A transport
+  failure on the attach probe now fails `connect` instead of passing as an
+  unknown app state.
+- `backendForPlatform(client:)` forwards an `http.Client` to the backend it
+  picks (#187); `NativeLaunch` and `NativeAttach` gain the `client` parameter
+  both constructors already took.
 - `FakeNativeBackend` scripts `alertText` through `alertTextPayload`, records
   `alertText` and `activateApp` calls, and records each resolve's
   `findTimeout` in `resolveFindTimeouts`.
