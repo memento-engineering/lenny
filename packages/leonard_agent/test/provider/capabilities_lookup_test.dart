@@ -56,6 +56,7 @@ void main() {
     });
 
     test('kAnthropicVisionModels exported and contains known ids', () {
+      expect(kAnthropicVisionModels, contains('claude-sonnet-5-5'));
       expect(kAnthropicVisionModels, contains('claude-sonnet-4-6'));
       expect(kAnthropicVisionModels, contains('claude-opus-4-6'));
     });

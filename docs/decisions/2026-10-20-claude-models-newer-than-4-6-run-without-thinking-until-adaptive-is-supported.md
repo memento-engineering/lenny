@@ -14,7 +14,8 @@ register:
   obsoletes: []
   updates: []
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - cli-claude-tier-defaults-to-sonnet-5-5-which-thinks-adaptively-unasked
   bead: lenny-e9y7g
   legacy-id: null
 ---

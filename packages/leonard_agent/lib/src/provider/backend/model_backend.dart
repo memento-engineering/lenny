@@ -66,7 +66,8 @@ class AnthropicBackend extends ModelBackendSpec {
   final Map<String, String>? headers;
 
   /// Whether extended thinking is enabled, for models that accept it: see
-  /// [anthropicAcceptsBudgetThinking]. A newer model runs without thinking.
+  /// [anthropicAcceptsBudgetThinking]. A newer model is sent no thinking
+  /// field: a Claude 5 model then thinks adaptively, Opus 4.7 and 4.8 do not.
   final bool enableThinking;
 
   /// Anthropic sampling options.
@@ -80,7 +81,9 @@ class AnthropicBackend extends ModelBackendSpec {
 /// model reject it with HTTP 400 and want adaptive thinking instead (measured
 /// against each model id on 2026-10-20; reported upstream as
 /// csells/dartantic#119). An id this does not recognise is treated as newer:
-/// running without thinking works, while requesting it fails every call.
+/// omitting thinking works, while requesting it fails every call. Omitted, a
+/// Claude 5 model still thinks adaptively (a `claude-sonnet-5-5` probe on
+/// 2026-10-20 returned a thinking block); Opus 4.7 and 4.8 do not think.
 bool anthropicAcceptsBudgetThinking(String model) {
   final RegExpMatch? m =
       RegExp(

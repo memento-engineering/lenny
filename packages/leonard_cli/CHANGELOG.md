@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+Stable promotion of `0.4.1-dev.1` on Nico's promotion call (2026-10-20), on stable `leonard_agent` 0.3.3 and `leonard_native` 0.6.0. The prerelease entry below carries the full list. One change on top:
+
+- `--model claude` now defaults to `claude-sonnet-5-5` (was `claude-sonnet-4-6`), with vision on. On the sample-app goal it finished in 20 s for $0.26, against 35 s and $0.35 for Sonnet 4.6. Pass `--model-id claude-sonnet-4-6` for the old default.
+
 ## 0.4.1-dev.1
 
 - Raise the `leonard_agent` floor to `^0.3.3-dev.2`, so a run's usage counts

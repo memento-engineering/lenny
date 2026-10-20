@@ -1,3 +1,7 @@
+## 0.6.0
+
+Stable promotion of `0.6.0-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-20), after the iOS 27.0 simulator, Pixel 7a and iPad mini (iOS 26.6) live probes passed. The prerelease entry below carries the full list, including the breaking `NativeBackend` additions.
+
 ## 0.6.0-dev.1
 
 Fills the gaps that kept a backend-direct iOS consumer on its own XCUITest

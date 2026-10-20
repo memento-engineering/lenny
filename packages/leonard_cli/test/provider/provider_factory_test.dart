@@ -216,7 +216,8 @@ void main() {
                 environment: <String, String>{'ANTHROPIC_API_KEY': 'k'},
               )
               as DartanticModelProvider;
-      expect(p.model, 'claude-sonnet-4-6');
+      expect(p.model, 'claude-sonnet-5-5');
+      expect(p.capabilities.vision, isTrue);
     });
 
     test('a missing API key throws LOUDLY through the injected env', () {

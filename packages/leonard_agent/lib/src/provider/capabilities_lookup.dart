@@ -14,7 +14,11 @@ import 'types.dart';
 /// can advertise vision support without instantiating a provider. (Relocated
 /// here from the deleted hand-rolled Anthropic provider — dartantic cutover,
 /// ADR 0003 / lenny-4dhv.4.)
-const kAnthropicVisionModels = <String>{'claude-sonnet-4-6', 'claude-opus-4-6'};
+const kAnthropicVisionModels = <String>{
+  'claude-sonnet-5-5',
+  'claude-sonnet-4-6',
+  'claude-opus-4-6',
+};
 
 const ModelCapabilities _anthropicVisionCaps = ModelCapabilities(
   vision: true,
