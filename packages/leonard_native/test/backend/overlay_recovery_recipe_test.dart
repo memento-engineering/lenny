@@ -180,8 +180,9 @@ class _ObscuredOnceBackend extends FakeNativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async {
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async {
     trace.add('resolve');
     return const NativeTarget(elementId: 'FRESH', via: 'a11y-id');
   }
@@ -233,8 +234,9 @@ class _ElementGoneBackend extends FakeNativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async => null;
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async => null;
 }
 
 class _AlwaysFailsBackend extends FakeNativeBackend {

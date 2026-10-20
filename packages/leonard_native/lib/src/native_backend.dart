@@ -322,10 +322,20 @@ abstract class NativeBackend {
   /// If you are polling for a condition (an overlay clearing, a page settling),
   /// prefer detecting it directly over discovering it through a resolve
   /// failure, and keep the outer count small.
+  ///
+  /// [findTimeout] is that per-tier window ([defaultFindTimeout] unless set).
+  /// A presence probe that expects a miss, or a caller that already polls in
+  /// its own loop, passes [Duration.zero]: every populated tier then makes
+  /// exactly one find request and a miss returns at once. Pass a null
+  /// [cached] as well when a probe must not fall back to a cached rect.
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  );
+    NativeSnapshot? cached, {
+    Duration findTimeout = defaultFindTimeout,
+  });
+
+  /// How long each [resolve] tier retries its element find by default.
+  static const Duration defaultFindTimeout = Duration(seconds: 10);
 
   /// Tap a resolved [target] (element click, or a point tap for rect-center).
   Future<void> tap(NativeTarget target);
@@ -364,6 +374,27 @@ abstract class NativeBackend {
 
   /// Swipe gesture using the platform's W3C pointer actions.
   Future<void> swipe(NativeSwipe gesture);
+
+  /// The text of the open system alert, or null when no alert is open. The
+  /// text is what the driver reports: its title and message, joined by
+  /// newlines. Android reports system dialogs only; an app's own modal is an
+  /// ordinary part of [snapshot].
+  ///
+  /// Lets a caller decide WHICH [press] to send (`consent_accept` or
+  /// `alert_dismiss` on iOS) instead of accepting or dismissing blind. iOS
+  /// and Android read `GET /session/{id}/alert/text`, mapping the W3C
+  /// `no such alert` error to null. macOS throws [NativeException] with the
+  /// W3C `unsupported operation` code: a macOS alert is an ordinary window in
+  /// [snapshot], so null would wrongly claim none is open.
+  Future<String?> alertText();
+
+  /// Brings the installed app [appId] (the iOS or macOS bundle id, or the
+  /// Android package) to the foreground, launching it if it is not running.
+  ///
+  /// For returning to the app under test after an out-of-app hop (a web
+  /// sign-in sheet, a Custom Tab, a settings deep link). Issues the driver's
+  /// `activateApp` command.
+  Future<void> activateApp(String appId);
 
   /// Tear down the session and any HTTP client. Does NOT stop Appium, shut down
   /// a simulator, or terminate a macOS app attached with `skipAppKill`.

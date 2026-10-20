@@ -2,6 +2,34 @@ import 'package:leonard_native/leonard_native.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('scripts alertText and records activateApp', () async {
+    final FakeNativeBackend fake = FakeNativeBackend();
+
+    expect(await fake.alertText(), isNull);
+    fake.alertTextPayload = 'Save Password?';
+    expect(await fake.alertText(), 'Save Password?');
+    await fake.activateApp('engineering.memento.Runner');
+
+    expect(fake.calls.map((FakeNativeCall c) => (c.name, c.detail)), <Object?>[
+      ('alertText', null),
+      ('alertText', 'Save Password?'),
+      ('activateApp', 'engineering.memento.Runner'),
+    ]);
+  });
+
+  test('records each resolve findTimeout', () async {
+    final FakeNativeBackend fake = FakeNativeBackend();
+    const NativeSelector selector = NativeSelector(a11yId: 'x');
+
+    await fake.resolve(selector, null);
+    await fake.resolve(selector, null, findTimeout: Duration.zero);
+
+    expect(fake.resolveFindTimeouts, <Duration>[
+      NativeBackend.defaultFindTimeout,
+      Duration.zero,
+    ]);
+  });
+
   test(
     'records connect, snapshot, enterText, swipe, and close calls',
     () async {

@@ -2,6 +2,7 @@
 
 ## 0.4.1-dev.1
 
+- Raise the `leonard_native` floor to `^0.6.0-dev.1` (lenny#180 to #183).
 - Add `--summary-json <path>`: writes the run's exit code, outcome, turn
   count, duration, trajectory path and usage totals as one JSON file, so CI
   can collect token and cost figures across runs (lenny#178).

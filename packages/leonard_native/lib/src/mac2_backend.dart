@@ -279,12 +279,14 @@ class Mac2Backend implements NativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async {
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async {
     if (selector.a11yId != null) {
       final String? elementId = await _find(
         'accessibility id',
         selector.a11yId!,
+        timeout: findTimeout,
       );
       if (elementId != null) {
         return NativeTarget(elementId: elementId, via: 'a11y-id');
@@ -296,9 +298,13 @@ class Mac2Backend implements NativeBackend {
       if (node != null) {
         String? elementId;
         if (node.a11yId != null && node.a11yId!.isNotEmpty) {
-          elementId = await _find('accessibility id', node.a11yId!);
+          elementId = await _find(
+            'accessibility id',
+            node.a11yId!,
+            timeout: findTimeout,
+          );
         } else if (node.xpath != null && node.xpath!.isNotEmpty) {
-          elementId = await _find('xpath', node.xpath!);
+          elementId = await _find('xpath', node.xpath!, timeout: findTimeout);
         }
         if (elementId != null) {
           return NativeTarget(elementId: elementId, via: 'label');
@@ -307,7 +313,11 @@ class Mac2Backend implements NativeBackend {
     }
 
     if (selector.xpath != null) {
-      final String? elementId = await _find('xpath', selector.xpath!);
+      final String? elementId = await _find(
+        'xpath',
+        selector.xpath!,
+        timeout: findTimeout,
+      );
       if (elementId != null) {
         return NativeTarget(elementId: elementId, via: 'xpath');
       }
@@ -342,7 +352,7 @@ class Mac2Backend implements NativeBackend {
   Future<String?> _find(
     String strategy,
     String value, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = NativeBackend.defaultFindTimeout,
   }) async {
     final DateTime end = DateTime.now().add(timeout);
     while (true) {
@@ -488,4 +498,25 @@ class Mac2Backend implements NativeBackend {
           },
         ],
       };
+
+  /// Always throws: mac2 has no W3C alert endpoint, and a macOS alert or
+  /// sheet is an ordinary window that [snapshot] already reports.
+  @override
+  Future<String?> alertText() async {
+    throw NativeException(
+      'unsupported operation: alertText is not available on macOS; read the '
+      'alert from the snapshot instead',
+      code: 'unsupported operation',
+    );
+  }
+
+  @override
+  Future<void> activateApp(String appId) async {
+    await _post('/session/$_sid/execute/sync', <String, Object?>{
+      'script': 'macos: activateApp',
+      'args': <Object?>[
+        <String, Object?>{'bundleId': appId},
+      ],
+    });
+  }
 }
