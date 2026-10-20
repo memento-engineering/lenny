@@ -161,8 +161,9 @@ class _ObscuredOnceBackend extends FakeNativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     trace.add('enterText:${target.elementId}');
     if (!_thrown) {
       _thrown = true;
@@ -197,8 +198,9 @@ class _DismissFailsBackend extends FakeNativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     trace.add('enterText:${target.elementId}');
     throw NativeException(
       'field is obscured by Android permission dialog',
@@ -222,8 +224,9 @@ class _ElementGoneBackend extends FakeNativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async => throw NativeException(
+    String text, {
+    bool dismissKeyboard = true,
+  }) async => throw NativeException(
     'field is obscured by Chrome Touch-To-Fill sheet',
     code: NativeException.fieldObscuredCode,
   );
@@ -245,8 +248,9 @@ class _AlwaysFailsBackend extends FakeNativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     trace.add('enterText:${target.elementId}');
     throw NativeException(
       'stale element reference: gone',

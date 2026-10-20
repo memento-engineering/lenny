@@ -254,13 +254,14 @@ cost a real debugging round:
 Note also that `resolve` retries internally — ~10 s per **populated** tier, so
 ~10 s for an xpath-only selector and ~30 s worst case for one carrying an
 a11y-id, a label and an xpath that all miss. An outer retry loop multiplies
-against that; see its dartdoc before sizing your own budget, or pass
-`findTimeout: Duration.zero` (below).
+against that; see its dartdoc before sizing your own budget. A caller that
+polls in its own loop can pass `findTimeout: Duration.zero`; a presence probe
+uses `isPresent` (below).
 
-## Alerts, focus and presence probes (backend-direct consumers)
+## Alerts, focus, probes and inspection (backend-direct consumers)
 
 A consumer driving real sign-in flows through a `NativeBackend` usually needs
-three things beyond the tool surface:
+more than the tool surface offers:
 
 ```dart
 // Read the open system alert before choosing how to answer it. Null means no
@@ -268,29 +269,55 @@ three things beyond the tool surface:
 // joined by newlines.
 final String? alert = await backend.alertText();
 if (alert != null && alert.contains('Save Password')) {
-  await backend.press('alert_dismiss');
+  // Race-tolerant: false, not a throw, if the alert already went away.
+  await backend.dismissAlertIfPresent();
 }
 
 // Return focus to the app under test after an out-of-app hop (a web sign-in
 // sheet, a Custom Tab, a settings deep link). Launches it if it is not running.
 await backend.activateApp(appId);
 
-// A presence probe: one find request per populated tier, no ~10 s retry.
-// A null cache keeps it from falling back to a cached rect.
-final bool passkeyUp = await backend.resolve(
-      const NativeSelector(a11yId: 'passkey-prompt'),
-      null,
-      findTimeout: Duration.zero,
-    ) !=
-    null;
+// A presence probe: one live find per populated tier, no retry, and never a
+// rect fallback, so a gone element cannot read as present.
+final bool passkeyUp = await backend.isPresent(
+  const NativeSelector(a11yId: 'passkey-prompt'),
+);
+
+// Read an attribute of a resolved element, in the driver's own names.
+final NativeTarget? email = await backend.resolve(emailSelector, cached);
+final String? prefilled = await backend.readAttribute(email!, 'value');
+
+// Type several fields in a row without dismissing the keyboard between them.
+await backend.enterText(email, 'a@b.c', dismissKeyboard: false);
 ```
 
 `alertText` reads `GET /session/{id}/alert/text` on iOS and Android and maps
 the W3C `no such alert` error to null. Android's UiAutomator2 driver reports
 system dialogs only; an app's own modal (for example Chrome's in-app prompts)
-is an ordinary part of `snapshot()`, not an alert. On macOS `alertText` throws
-a `NativeException` with code `unsupported operation`, because a macOS alert is
-an ordinary window the snapshot already contains.
+is an ordinary part of `snapshot()`, not an alert. On macOS the alert methods
+throw a `NativeException` with code `unsupported operation`, because a macOS
+alert is an ordinary window the snapshot already contains.
+
+`press('consent_accept')` / `press('alert_dismiss')` and the if-present forms
+work on iOS and Android. On Android they refuse a runtime permission dialog:
+there, accept grants and dismiss denies, a persistent change only
+`permission_allow` / `permission_deny` may make. The throwing `press` form
+carries `NativeException.noSuchAlertCode` when no alert is open.
+
+`resolve` with `findTimeout: Duration.zero` is NOT a presence probe: it still
+falls back to rect-center from the selector's `rect` or a cached label match,
+and returns a target for an element that is gone.
+
+For inspectors and diagnostics:
+
+- `rawSource()` returns the platform source document as Appium sends it,
+  including what `snapshot()` filters out.
+- `NativeNode.parentId` is the id of the node's nearest kept ancestor, so the
+  filtered nodes rebuild into a tree; `depth` stays the raw source depth.
+- A disabled element carries the `disabled` state on iOS and macOS, as it
+  already did on Android.
+- `sessionId` on each concrete backend lets you send a W3C request the backend
+  does not wrap, against the same session.
 
 ## Mutation-testing pilot
 

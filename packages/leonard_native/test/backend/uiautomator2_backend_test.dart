@@ -977,30 +977,85 @@ void main() {
       await b.close();
     });
 
-    test(
-      'iOS-only alert keys throw NativeException (no Android alert)',
-      () async {
-        final UiAutomator2Backend b = backend();
-        await b.connect();
-        // Android's Auth0 handoff is a Chrome Custom Tab — there is no
-        // SpringBoard consent / Save-Password alert, so an adaptive caller sees
-        // ok:false rather than a bogus success.
-        await expectLater(
-          () => b.press('consent_accept'),
-          throwsA(isA<NativeException>()),
+    UiAutomator2Backend alertBackend(String? sourceXml) {
+      hits = <String>[];
+      final MockClient client = MockClient((http.Request req) async {
+        final String path = req.url.path;
+        hits.add('${req.method} $path');
+        final Object? value = switch ((req.method, path)) {
+          ('POST', '/session') => <String, Object?>{'sessionId': 's1'},
+          ('GET', '/session/s1/source') => sourceXml,
+          _ => null,
+        };
+        return http.Response(
+          jsonEncode(<String, Object?>{'value': value}),
+          200,
+          headers: const <String, String>{'content-type': 'application/json'},
         );
+      });
+      return UiAutomator2Backend.attach(
+        udid: 'emulator-5554',
+        appId: 'com.example.app',
+        client: client,
+      );
+    }
+
+    // lenny#192: Android answers system dialogs through the W3C alert
+    // endpoint, but never a runtime permission dialog.
+    test('alert keys answer a system dialog', () async {
+      final UiAutomator2Backend b = alertBackend(_fixture().readAsStringSync());
+      await b.connect();
+      await b.press('consent_accept');
+      await b.press('alert_dismiss');
+      expect(hits, contains('POST /session/s1/alert/accept'));
+      expect(hits, contains('POST /session/s1/alert/dismiss'));
+      await b.close();
+    });
+
+    test('alert keys refuse a permission dialog without answering', () async {
+      final UiAutomator2Backend b = alertBackend(
+        _permissionDialogFixture().readAsStringSync(),
+      );
+      await b.connect();
+      for (final Future<Object?> Function() answer
+          in <Future<Object?> Function()>[
+            () => b.press('consent_accept'),
+            () => b.press('alert_dismiss'),
+            b.acceptAlertIfPresent,
+            b.dismissAlertIfPresent,
+          ]) {
         await expectLater(
-          () => b.press('alert_dismiss'),
-          throwsA(isA<NativeException>()),
+          answer,
+          throwsA(
+            isA<NativeException>().having(
+              (NativeException e) => e.message,
+              'message',
+              contains('permission_allow or permission_deny'),
+            ),
+          ),
         );
-        await expectLater(
-          () => b.press('wat'),
-          throwsA(isA<NativeException>()),
-        );
-        expect(hits, isNot(contains('POST /session/s1/alert/accept')));
-        await b.close();
-      },
-    );
+      }
+      expect(hits.where((String h) => h.contains('/alert/')), isEmpty);
+      await b.close();
+    });
+
+    test('an unreadable source answers nothing', () async {
+      final UiAutomator2Backend b = alertBackend('not xml');
+      await b.connect();
+      await expectLater(
+        () => b.press('consent_accept'),
+        throwsA(isA<NativeException>()),
+      );
+      expect(hits.where((String h) => h.contains('/alert/')), isEmpty);
+      await b.close();
+    });
+
+    test('an unknown key throws NativeException', () async {
+      final UiAutomator2Backend b = backend();
+      await b.connect();
+      await expectLater(() => b.press('wat'), throwsA(isA<NativeException>()));
+      await b.close();
+    });
   });
 
   group('UiAutomator2Backend.enterText masked flag (password-attr-derived)', () {

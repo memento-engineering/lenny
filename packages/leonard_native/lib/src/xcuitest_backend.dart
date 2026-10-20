@@ -112,6 +112,12 @@ class XcuiTestBackend implements NativeBackend {
   /// The active W3C session id, or null before [connect] / after [close].
   String? _sessionId;
 
+  /// The open W3C session id, or null before [connect] / after [close].
+  ///
+  /// For issuing a W3C or Appium request this backend does not wrap yet,
+  /// against the same session, without a parallel transport.
+  String? get sessionId => _sessionId;
+
   // ---------------------------------------------------------------------------
   // Transport (lifted from the skeleton WITH the B5 hardening).
   // ---------------------------------------------------------------------------
@@ -404,8 +410,16 @@ class XcuiTestBackend implements NativeBackend {
 
     // Pass 2: materialize NativeNodes with dense document-order ids.
     final List<NativeNode> out = <NativeNode>[];
+    final Map<XmlElement, int> ids = <XmlElement, int>{};
     int id = 0;
     for (final XmlElement el in kept) {
+      // The nearest kept ancestor: ancestors precede descendants in document
+      // order, so theirs are already assigned.
+      int? parentId;
+      for (final XmlElement ancestor in el.ancestorElements) {
+        parentId = ids[ancestor];
+        if (parentId != null) break;
+      }
       final String type = el.getAttribute('type') ?? el.name.local;
       final String? name = _attr(el, 'name');
       final String? label = _attr(el, 'label');
@@ -424,12 +438,19 @@ class XcuiTestBackend implements NativeBackend {
           label: (label != null && label.isNotEmpty) ? label : name,
           value: value,
           rect: <int>[x, y, x + w, y + h],
+          // Flutter's vocabulary emits the negative, as Android's does; an
+          // absent attribute is unknown, not enabled-false.
+          state: el.getAttribute('enabled') == 'false'
+              ? const <String>['disabled']
+              : const <String>[],
           a11yId: name,
           xpath: _xpathFor(el, type, name, typeIndex, nameCountByType),
           platformType: type,
           depth: el.ancestorElements.length,
+          parentId: parentId,
         ),
       );
+      ids[el] = id;
     }
     return out;
   }
@@ -523,6 +544,32 @@ class XcuiTestBackend implements NativeBackend {
     return null;
   }
 
+  @override
+  Future<bool> isPresent(NativeSelector selector) async {
+    final List<(String, String)> finds = <(String, String)>[
+      if (selector.a11yId case final String id) ('accessibility id', id),
+      if (selector.label case final String label)
+        (
+          'xpath',
+          '//*[@label=${xpathLiteral(label)} or @name=${xpathLiteral(label)}]',
+        ),
+      if (selector.xpath case final String xpath) ('xpath', xpath),
+    ];
+    if (finds.isEmpty) {
+      throw ArgumentError.value(
+        selector,
+        'selector',
+        'isPresent needs a resource-id, a11y-id, label or xpath',
+      );
+    }
+    for (final (String strategy, String value) in finds) {
+      if (await _find(strategy, value, timeout: Duration.zero) != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   NativeNode? _matchLabel(NativeSnapshot? cached, String label) {
     if (cached == null) return null;
     for (final NativeNode n in cached.nodes) {
@@ -609,8 +656,9 @@ class XcuiTestBackend implements NativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     final String? eid = target.elementId;
     if (eid == null) {
       throw NativeException('enter_text requires a resolved element');
@@ -624,7 +672,7 @@ class XcuiTestBackend implements NativeBackend {
     final bool masked = await _isSecureField(eid);
     final String readback = await _readValue(eid);
     // iOS keyboard dismiss, INSIDE the backend (kept off the seam).
-    await _dismissKeyboard();
+    if (dismissKeyboard) await _dismissKeyboard();
     return (readback: readback, masked: masked);
   }
 
@@ -749,7 +797,7 @@ class XcuiTestBackend implements NativeBackend {
     } on NativeException catch (e) {
       // A SpringBoard alert is not in /source; W3C reports its absence as an
       // error, which here is the ordinary "no alert" answer.
-      if (e.code == 'no such alert') return null;
+      if (e.code == NativeException.noSuchAlertCode) return null;
       rethrow;
     }
   }
@@ -762,5 +810,39 @@ class XcuiTestBackend implements NativeBackend {
         <String, Object?>{'bundleId': appId},
       ],
     });
+  }
+
+  @override
+  Future<String?> readAttribute(NativeTarget target, String name) async {
+    final String? eid = target.elementId;
+    if (eid == null) {
+      throw NativeException('readAttribute requires a resolved element');
+    }
+    final Map<String, Object?> j = await _get(
+      '/session/$_sid/element/$eid/attribute/${Uri.encodeComponent(name)}',
+    );
+    return j['value']?.toString();
+  }
+
+  @override
+  Future<String> rawSource() async {
+    final Map<String, Object?> j = await _get('/session/$_sid/source');
+    return (j['value'] ?? '').toString();
+  }
+
+  @override
+  Future<bool> acceptAlertIfPresent() => _answerAlertIfPresent('accept');
+
+  @override
+  Future<bool> dismissAlertIfPresent() => _answerAlertIfPresent('dismiss');
+
+  Future<bool> _answerAlertIfPresent(String verb) async {
+    try {
+      await _post('/session/$_sid/alert/$verb', const <String, Object?>{});
+      return true;
+    } on NativeException catch (e) {
+      if (e.code == NativeException.noSuchAlertCode) return false;
+      rethrow;
+    }
   }
 }

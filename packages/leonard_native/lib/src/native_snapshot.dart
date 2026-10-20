@@ -37,6 +37,7 @@ class NativeNode {
     this.resourceId,
     this.platformType,
     this.depth,
+    this.parentId,
   });
 
   /// Dense per-session int (NOT the raw a11y-id).
@@ -108,14 +109,22 @@ class NativeNode {
   /// In-memory only, for Dart consumers, like [resourceId]: not in [toRecord].
   final int? depth;
 
+  /// The [id] of this node's nearest KEPT ancestor in the same snapshot, or
+  /// null when no ancestor was kept (a top-level node). Unlike [depth] it
+  /// survives container filtering, so the kept nodes form a tree: a node's
+  /// children are the nodes whose [parentId] is its [id].
+  ///
+  /// In-memory only, for Dart consumers, like [resourceId]: not in [toRecord].
+  final int? parentId;
+
   /// Emits the canonical cross-host record, matching the Flutter `_Rec.toJson`
   /// key order EXACTLY: `id`/`role`/`rect` always present;
   /// `label`/`identifier`/`value`/`state`/`actions`/`scroll` OMITTED when
   /// null/empty. `identifier` carries [a11yId] (the stable addressing key);
-  /// `xpath`, [resourceId], [platformType] and [depth] are NOT emitted to the
-  /// wire (selector-internal / Dart-consumer-only) and live on the in-memory
-  /// node alone — the record must stay byte-identical to the Flutter semantics
-  /// fragment.
+  /// `xpath`, [resourceId], [platformType], [depth] and [parentId] are NOT
+  /// emitted to the wire (selector-internal / Dart-consumer-only) and live on
+  /// the in-memory node alone — the record must stay byte-identical to the
+  /// Flutter semantics fragment.
   Map<String, Object?> toRecord() {
     final Map<String, Object?> m = <String, Object?>{
       'id': id,

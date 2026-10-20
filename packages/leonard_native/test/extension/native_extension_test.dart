@@ -173,11 +173,11 @@ void main() {
           'name': 'press',
           'description':
               'Issue a logical key press. Shared by iOS, Android, and macOS: '
-              'enter/return/done. iOS-only: consent_accept/alert_dismiss '
-              '(consent_accept accepts the iOS sign-in consent alert; '
-              'alert_dismiss dismisses an iOS system alert, e.g. the Save '
-              'Password prompt). Android-only: back. An unrecognized key is a '
-              'structured error.',
+              'enter/return/done. iOS and Android: consent_accept/alert_dismiss '
+              '(consent_accept accepts the open system alert, e.g. the iOS '
+              'sign-in consent; alert_dismiss dismisses it, e.g. the Save '
+              'Password prompt; Android refuses both on a permission dialog). '
+              'Android-only: back. An unrecognized key is a structured error.',
           'inputSchema': <String, Object?>{
             'type': 'object',
             'properties': <String, Object?>{

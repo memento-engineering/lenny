@@ -58,6 +58,12 @@ class Mac2Backend implements NativeBackend {
   final http.Client _client;
   String? _sessionId;
 
+  /// The open W3C session id, or null before [connect] / after [close].
+  ///
+  /// For issuing a W3C or Appium request this backend does not wrap yet,
+  /// against the same session, without a parallel transport.
+  String? get sessionId => _sessionId;
+
   Uri _u(String path) => appiumEndpoint(server, path);
 
   String get _sid =>
@@ -210,7 +216,15 @@ class Mac2Backend implements NativeBackend {
     }
 
     final List<NativeNode> nodes = <NativeNode>[];
+    final Map<XmlElement, int> ids = <XmlElement, int>{};
     for (final XmlElement element in kept) {
+      // The nearest kept ancestor: ancestors precede descendants in document
+      // order, so theirs are already assigned.
+      int? parentId;
+      for (final XmlElement ancestor in element.ancestorElements) {
+        parentId = ids[ancestor];
+        if (parentId != null) break;
+      }
       final String type = element.getAttribute('type') ?? element.name.local;
       final String? identifier = _attr(element, 'identifier');
       final String? label = _attr(element, 'label');
@@ -227,6 +241,9 @@ class Mac2Backend implements NativeBackend {
           label: label ?? title ?? identifier,
           value: _attr(element, 'value'),
           rect: <int>[x, y, x + width, y + height],
+          state: element.getAttribute('enabled') == 'false'
+              ? const <String>['disabled']
+              : const <String>[],
           a11yId: identifier,
           xpath: _xpathFor(
             element,
@@ -237,8 +254,10 @@ class Mac2Backend implements NativeBackend {
           ),
           platformType: type,
           depth: element.ancestorElements.length,
+          parentId: parentId,
         ),
       );
+      ids[element] = nodes.length;
     }
     return nodes;
   }
@@ -343,6 +362,32 @@ class Mac2Backend implements NativeBackend {
     return null;
   }
 
+  @override
+  Future<bool> isPresent(NativeSelector selector) async {
+    final List<(String, String)> finds = <(String, String)>[
+      if (selector.a11yId case final String id) ('accessibility id', id),
+      if (selector.label case final String label)
+        (
+          'xpath',
+          '//*[@label=${xpathLiteral(label)} or @title=${xpathLiteral(label)}]',
+        ),
+      if (selector.xpath case final String xpath) ('xpath', xpath),
+    ];
+    if (finds.isEmpty) {
+      throw ArgumentError.value(
+        selector,
+        'selector',
+        'isPresent needs a resource-id, a11y-id, label or xpath',
+      );
+    }
+    for (final (String strategy, String value) in finds) {
+      if (await _find(strategy, value, timeout: Duration.zero) != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   NativeNode? _matchLabel(NativeSnapshot? cached, String label) {
     if (cached == null) return null;
     for (final NativeNode node in cached.nodes) {
@@ -417,8 +462,9 @@ class Mac2Backend implements NativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     final String? elementId = target.elementId;
     if (elementId == null) {
       throw NativeException('enter_text requires a resolved element');
@@ -511,13 +557,24 @@ class Mac2Backend implements NativeBackend {
   /// Always throws: mac2 has no W3C alert endpoint, and a macOS alert or
   /// sheet is an ordinary window that [snapshot] already reports.
   @override
-  Future<String?> alertText() async {
-    throw NativeException(
-      'unsupported operation: alertText is not available on macOS; read the '
-      'alert from the snapshot instead',
-      code: 'unsupported operation',
-    );
-  }
+  Future<String?> alertText() async => throw _noAlerts('alertText');
+
+  /// Always throws, as [alertText] does: answer a macOS alert by tapping its
+  /// button.
+  @override
+  Future<bool> acceptAlertIfPresent() async =>
+      throw _noAlerts('acceptAlertIfPresent');
+
+  /// Always throws, as [alertText] does.
+  @override
+  Future<bool> dismissAlertIfPresent() async =>
+      throw _noAlerts('dismissAlertIfPresent');
+
+  static NativeException _noAlerts(String verb) => NativeException(
+    'unsupported operation: $verb is not available on macOS; a macOS alert '
+    'is an ordinary window in the snapshot',
+    code: 'unsupported operation',
+  );
 
   @override
   Future<void> activateApp(String appId) async {
@@ -527,5 +584,23 @@ class Mac2Backend implements NativeBackend {
         <String, Object?>{'bundleId': appId},
       ],
     });
+  }
+
+  @override
+  Future<String?> readAttribute(NativeTarget target, String name) async {
+    final String? eid = target.elementId;
+    if (eid == null) {
+      throw NativeException('readAttribute requires a resolved element');
+    }
+    final Map<String, Object?> j = await _get(
+      '/session/$_sid/element/$eid/attribute/${Uri.encodeComponent(name)}',
+    );
+    return j['value']?.toString();
+  }
+
+  @override
+  Future<String> rawSource() async {
+    final Map<String, Object?> j = await _get('/session/$_sid/source');
+    return (j['value'] ?? '').toString();
   }
 }
