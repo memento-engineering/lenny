@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.3-dev.2
+
+- Count a model call the turn budget abandons (lenny-c55p6). A live
+  `qwen-mlx` run timed out five turns and its footer reported `model_calls: 0`:
+  the metering recorded a call only when it completed or threw, and a turn
+  timeout abandons it instead. The call is now recorded with outcome
+  `abandoned` and no usage, and since nothing cancels its request, usage that
+  arrives later replaces that record's (it is not a second call), so the
+  footer's cost includes it.
+- Run Claude models newer than 4.6 without thinking. Opus 4.7, Opus 4.8 and
+  every Claude 5 model reject the budgeted `thinking.type: enabled` request,
+  the only one dartantic 3.4.2 can send (reported as csells/dartantic#119),
+  so a `--model-id claude-sonnet-5-5` run failed on its first call. The new
+  `anthropicAcceptsBudgetThinking` keeps thinking on through Claude 4.6 and
+  turns it off otherwise, an unrecognised id included. `tool_choice` stays
+  `auto`: these models reject a forced tool choice too.
+- Mark time to first token at the first stream event, not the first
+  non-empty part. A response that is only a tool call yields its part when the
+  block closes, so a Claude run without thinking reported time to first token
+  at the end of generation and ~2000 output tokens per second (measured live
+  on `claude-sonnet-5-5`). Both Anthropic and swift-infer send `message_start`
+  once the prompt is processed.
+
 ## 0.3.3-dev.1
 
 - Report model usage per turn and per run (lenny#178). Each turn's

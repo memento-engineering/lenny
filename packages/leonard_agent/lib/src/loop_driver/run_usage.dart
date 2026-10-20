@@ -4,8 +4,11 @@
 /// records every `decide` call — accepted, schema-rejected, or failed on the
 /// wire — into a [RunUsageLedger] under the turn it started in. Retries are
 /// separate calls, so a turn that spent a schema retry and two validator
-/// retries is four calls, all billed. The ledger then renders a turn's calls
-/// into its trajectory record and the whole run into the footer.
+/// retries is four calls, all billed. A call the turn budget gives up on is
+/// recorded too ([ModelCallOutcome.abandoned]): nothing cancels its request,
+/// so it still runs and, on a hosted provider, still bills. The ledger then
+/// renders a turn's calls into its trajectory record and the whole run into
+/// the footer.
 library;
 
 import 'package:meta/meta.dart';
@@ -28,7 +31,11 @@ enum ModelCallOutcome {
   transportError('transport_error'),
 
   /// Any other exception.
-  error('error');
+  error('error'),
+
+  /// The turn budget expired while the call was in flight. Its usage is
+  /// attached if the call later completes before the run ends.
+  abandoned('abandoned');
 
   const ModelCallOutcome(this.wireName);
 
@@ -88,8 +95,14 @@ class RunUsageLedger {
   /// Every call recorded so far, in completion order.
   List<ModelCallRecord> get calls => List.unmodifiable(_calls);
 
-  /// Records [call].
-  void record(ModelCallRecord call) => _calls.add(call);
+  /// Records [call], returning its index for [replace].
+  int record(ModelCallRecord call) {
+    _calls.add(call);
+    return _calls.length - 1;
+  }
+
+  /// Replaces the call recorded at [index] (an abandoned call's late usage).
+  void replace(int index, ModelCallRecord call) => _calls[index] = call;
 
   /// The `usage` entry for turn [turn]'s `model_metadata`, or null when the
   /// turn made no model call (e.g. it timed out while observing).
@@ -189,6 +202,10 @@ class RunUsageLedger {
 /// A [ModelProvider] that records every [decide] call into [ledger] under the
 /// turn [currentTurn] reports when the call starts, then passes the result or
 /// exception through untouched.
+///
+/// A call still in flight when its turn is given up on is recorded by
+/// [abandonInFlight]; if it completes later, its usage replaces that record's
+/// rather than adding a second call.
 class MeteredModelProvider implements ModelProvider {
   /// Wraps [inner].
   MeteredModelProvider({
@@ -203,6 +220,7 @@ class MeteredModelProvider implements ModelProvider {
   final ModelProvider _inner;
   final int Function() _currentTurn;
   final DateTime Function() _clock;
+  final Set<_InFlightCall> _inFlight = <_InFlightCall>{};
 
   /// Where calls are recorded.
   final RunUsageLedger ledger;
@@ -213,22 +231,56 @@ class MeteredModelProvider implements ModelProvider {
   @override
   Stream<ThinkingDelta> thinking() => _inner.thinking();
 
+  /// Records every call still in flight as [ModelCallOutcome.abandoned], with
+  /// the latency so far and no usage. Called when a turn's budget expires,
+  /// before its failed-turn record is written.
+  void abandonInFlight() {
+    for (final _InFlightCall call in _inFlight) {
+      call.abandonedAt = ledger.record(
+        ModelCallRecord(
+          turn: call.turn,
+          outcome: ModelCallOutcome.abandoned,
+          latencyMs: _clock().difference(call.start).inMilliseconds,
+        ),
+      );
+    }
+    _inFlight.clear();
+  }
+
   @override
   Future<ModelDecision> decide(
     ConversationSnapshot snapshot,
     ActionSchema schema,
   ) async {
-    final int turn = _currentTurn();
-    final DateTime start = _clock();
-    void record(ModelCallOutcome outcome, ModelCallUsage? usage) =>
-        ledger.record(
+    final _InFlightCall call = _InFlightCall(_currentTurn(), _clock());
+    _inFlight.add(call);
+    void record(ModelCallOutcome outcome, ModelCallUsage? usage) {
+      _inFlight.remove(call);
+      final int latencyMs = _clock().difference(call.start).inMilliseconds;
+      if (call.abandonedAt case final int index) {
+        // Late: the turn already gave up. Keep the abandoned outcome, but the
+        // provider did the work, so its usage and real latency count.
+        ledger.replace(
+          index,
           ModelCallRecord(
-            turn: turn,
-            outcome: outcome,
-            latencyMs: _clock().difference(start).inMilliseconds,
+            turn: call.turn,
+            outcome: ModelCallOutcome.abandoned,
+            latencyMs: latencyMs,
             usage: usage,
           ),
         );
+        return;
+      }
+      ledger.record(
+        ModelCallRecord(
+          turn: call.turn,
+          outcome: outcome,
+          latencyMs: latencyMs,
+          usage: usage,
+        ),
+      );
+    }
+
     try {
       final ModelDecision decision = await _inner.decide(snapshot, schema);
       record(ModelCallOutcome.ok, decision.usage);
@@ -246,6 +298,16 @@ class MeteredModelProvider implements ModelProvider {
       rethrow;
     }
   }
+}
+
+class _InFlightCall {
+  _InFlightCall(this.turn, this.start);
+
+  final int turn;
+  final DateTime start;
+
+  /// The ledger index of this call's abandoned record, once abandoned.
+  int? abandonedAt;
 }
 
 double _round(double value, {int places = 2}) {

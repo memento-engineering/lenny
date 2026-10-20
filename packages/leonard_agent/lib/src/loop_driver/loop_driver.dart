@@ -197,6 +197,8 @@ class LoopDriver {
       _turnIndex++;
       return r;
     } on TurnTimeoutError catch (_) {
+      // The model call the budget cut off still ran (and may bill): count it.
+      _metered.abandonInFlight();
       await _writeFailedTurn(idx, reason: 'turn_timeout');
       _emitTurnEvent(TurnValidation(idx, false, 'turn_timeout'));
       _emitTurnEvent(

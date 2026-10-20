@@ -121,9 +121,14 @@ class DartanticModelProvider implements ModelProvider {
           inputTokens = _maxOf(inputTokens, usage.promptTokens);
           outputTokens = _maxOf(outputTokens, usage.responseTokens);
         }
-        if (timeToFirstTokenMs == null && result.output.parts.isNotEmpty) {
-          timeToFirstTokenMs = sent.elapsedMilliseconds;
-        }
+        // The first stream event, not the first non-empty part: a response
+        // that is only a tool call yields its part when the block closes, so
+        // stamping there put "first token" at the end of generation and
+        // inflated output tokens per second ~100x (measured live on
+        // claude-sonnet-5-5). Both Anthropic and swift-infer send
+        // message_start once the prompt is processed, which is the moment
+        // time to first token is meant to mark.
+        timeToFirstTokenMs ??= sent.elapsedMilliseconds;
         for (final part in result.output.parts) {
           if (part is ThinkingPart) {
             thinkingBuf.write(part.text);

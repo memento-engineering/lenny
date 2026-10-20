@@ -2,6 +2,8 @@
 
 ## 0.4.1-dev.1
 
+- Raise the `leonard_agent` floor to `^0.3.3-dev.2`, so a run's usage counts
+  model calls its turn budget abandoned (lenny-c55p6).
 - Raise the `leonard_native` floor to `^0.6.0-dev.1` (lenny#180 to #183).
 - Add `--summary-json <path>`: writes the run's exit code, outcome, turn
   count, duration, trajectory path and usage totals as one JSON file, so CI
