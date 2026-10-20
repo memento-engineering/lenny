@@ -99,6 +99,85 @@ void main() {
   });
 
   test(
+    '--summary-json records the exit code and footer of a failed run',
+    () async {
+      final Directory temp = await Directory.systemTemp.createTemp(
+        'leonard-summary-',
+      );
+      addTearDown(() => temp.delete(recursive: true));
+      final File trajectory = File(p.join(temp.path, 'trajectory.jsonl'));
+      final File summary = File(p.join(temp.path, 'nested', 'summary.json'));
+      final File errorFile = File(p.join(temp.path, 'stderr.txt'));
+      final IOSink errorSink = errorFile.openWrite();
+
+      late final int exitCode;
+      try {
+        exitCode = await runCli(
+          <String>[
+            ..._arguments(trajectory.path),
+            '--summary-json',
+            summary.path,
+          ],
+          stdin: stdin,
+          stdout: stdout,
+          stderr: errorSink,
+          acpProviderBuilder: (AcpAgentSpec spec) =>
+              Future<ModelProvider>.error(
+                StateError('missing configuration'),
+                StackTrace.current,
+              ),
+        );
+      } finally {
+        await errorSink.close();
+      }
+
+      expect(exitCode, 1);
+      final Map<String, dynamic> json =
+          jsonDecode(await summary.readAsString()) as Map<String, dynamic>;
+      expect(json['schema'], 'leonard.run_summary/1');
+      expect(json['exit_code'], 1);
+      expect(json['outcome'], 'harness_error');
+      expect(json['harness_error'], 'config_error');
+      expect(json['total_turns'], 0);
+      expect(json['trajectory'], trajectory.path);
+      expect(json['model_identifier'], 'acp:codex-acp');
+      // No model was ever built, so there is no usage to report.
+      expect(json['usage'], isNull);
+    },
+  );
+
+  test('a malformed LEONARD_PRICE env pair is a usage error', () async {
+    final Directory temp = await Directory.systemTemp.createTemp(
+      'leonard-price-env-',
+    );
+    addTearDown(() => temp.delete(recursive: true));
+    final File trajectory = File(p.join(temp.path, 'trajectory.jsonl'));
+    final File errorFile = File(p.join(temp.path, 'stderr.txt'));
+    final IOSink errorSink = errorFile.openWrite();
+
+    late final int exitCode;
+    try {
+      exitCode = await runCli(
+        _qwenArguments(trajectory.path),
+        stdin: stdin,
+        stdout: stdout,
+        stderr: errorSink,
+        providerEnvironment: <String, String>{
+          'LEONARD_PRICE_INPUT_PER_MTOK': '0.1',
+        },
+      );
+    } finally {
+      await errorSink.close();
+    }
+
+    expect(exitCode, 64);
+    expect(
+      await errorFile.readAsString(),
+      contains('LEONARD_PRICE_INPUT_PER_MTOK / LEONARD_PRICE_OUTPUT_PER_MTOK'),
+    );
+  });
+
+  test(
     'malformed swift-infer endpoint is a configuration error and a valid endpoint builds',
     () async {
       for (final String endpoint in <String>[

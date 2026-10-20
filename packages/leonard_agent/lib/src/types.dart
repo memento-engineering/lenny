@@ -1,6 +1,7 @@
 /// Public DTOs and progress events for [LeonardSession].
 library;
 
+import 'provider/model_usage.dart';
 import 'provider/types.dart';
 
 /// Result of the `ext.leonard.core.handshake` exchange.
@@ -61,6 +62,7 @@ class LeonardConfig {
     this.sessionBudget = const Duration(minutes: 15),
     this.maxTurns = 50,
     this.coreBudgetBytes,
+    this.pricing = ModelPricing.defaults,
   });
 
   final Duration turnBudget;
@@ -70,6 +72,9 @@ class LeonardConfig {
   /// Optional positive core-observation byte budget sent on every pull.
   /// `null` delegates to the binding's default.
   final int? coreBudgetBytes;
+
+  /// How the session footer's `usage.estimated_cost_usd` is priced.
+  final ModelPricing pricing;
 }
 
 /// Sealed base type for events emitted on

@@ -508,10 +508,15 @@ void main() {
       ).runTurn();
 
       final turn = jsonDecode(sink.lines.last) as Map<String, dynamic>;
-      expect(turn['model_metadata'], <String, dynamic>{
-        'served_model_id': 'qwen',
-        'provider_request_id': 'msg_42',
-      });
+      // The driver adds its own `usage` entry; this asserts the provider's.
+      expect(
+        Map<String, dynamic>.of(turn['model_metadata'] as Map<String, dynamic>)
+          ..remove('usage'),
+        <String, dynamic>{
+          'served_model_id': 'qwen',
+          'provider_request_id': 'msg_42',
+        },
+      );
       expect(turn['provider_request_id'], 'msg_42');
     });
 
@@ -541,10 +546,15 @@ void main() {
       ).runTurn();
 
       final turn = jsonDecode(sink.lines.last) as Map<String, dynamic>;
-      expect(turn['model_metadata'], <String, dynamic>{
-        'served_model_id': 'qwen',
-        'provider_request_id': null,
-      });
+      // The driver adds its own `usage` entry; this asserts the provider's.
+      expect(
+        Map<String, dynamic>.of(turn['model_metadata'] as Map<String, dynamic>)
+          ..remove('usage'),
+        <String, dynamic>{
+          'served_model_id': 'qwen',
+          'provider_request_id': null,
+        },
+      );
       expect(turn.containsKey('provider_request_id'), isFalse);
     });
 

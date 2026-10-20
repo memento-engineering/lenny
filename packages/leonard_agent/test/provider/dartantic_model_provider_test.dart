@@ -340,6 +340,86 @@ void main() {
       },
     );
 
+    test('reports the provider usage and time to first token', () async {
+      final p = _provider([
+        {
+          'type': 'message_start',
+          'message': {
+            'id': 'msg_7',
+            'usage': {'input_tokens': 1200},
+          },
+        },
+        {
+          'type': 'content_block_start',
+          'index': 0,
+          'content_block': {
+            'type': 'tool_use',
+            'id': 'tu1',
+            'name': 'core_tap',
+            'input': <String, dynamic>{},
+          },
+        },
+        {
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': {'type': 'input_json_delta', 'partial_json': '{"nodeId":7}'},
+        },
+        {'type': 'content_block_stop', 'index': 0},
+        {
+          'type': 'message_delta',
+          'delta': {'stop_reason': 'tool_use'},
+          'usage': {'output_tokens': 85},
+        },
+      ]);
+
+      final decision = await p.decide(
+        _snapshot(),
+        ActionSchema.fromToolList([_tapTool]),
+      );
+
+      expect(decision.usage?.provider, 'swift-infer');
+      expect(decision.usage?.model, 'qwen');
+      expect(decision.usage?.inputTokens, 1200);
+      expect(decision.usage?.outputTokens, 85);
+      expect(decision.usage?.timeToFirstTokenMs, isNotNull);
+      p.dispose();
+    });
+
+    test(
+      'attaches usage to a SchemaRejection, which is still billed',
+      () async {
+        final p = _provider([
+          {
+            'type': 'message_start',
+            'message': {
+              'id': 'msg_8',
+              'usage': {'input_tokens': 900},
+            },
+          },
+          {
+            'type': 'content_block_delta',
+            'index': 0,
+            'delta': {'type': 'text_delta', 'text': 'I am not sure'},
+          },
+          {
+            'type': 'message_delta',
+            'delta': {'stop_reason': 'end_turn'},
+            'usage': {'output_tokens': 12},
+          },
+        ]);
+
+        await expectLater(
+          p.decide(_snapshot(), ActionSchema.fromToolList([_tapTool])),
+          throwsA(
+            isA<SchemaRejection>()
+                .having((r) => r.usage?.inputTokens, 'input', 900)
+                .having((r) => r.usage?.outputTokens, 'output', 12),
+          ),
+        );
+        p.dispose();
+      },
+    );
+
     test('throws SchemaRejection when no tool call is emitted', () async {
       final p = _provider([
         {

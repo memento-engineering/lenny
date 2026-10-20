@@ -57,6 +57,9 @@ class CliArgs {
     this.updateGoldens = false,
     this.goldenChannelTolerance = 8,
     this.goldenMaxDiffRatio = 0.0,
+    this.summaryJsonPath,
+    this.priceInputPerMTok,
+    this.priceOutputPerMTok,
   });
 
   /// Goal to drive the app toward, supplied via `--goal`. `null` means use
@@ -115,6 +118,19 @@ class CliArgs {
   /// `SWIFT_INFER_MAX_TOKENS` and the driver default (16384). `null` leaves
   /// the default in force.
   final int? maxTokens;
+
+  /// `--summary-json`: where to write the run's machine-readable summary
+  /// (outcome, exit code, trajectory path and the footer's usage totals).
+  /// `null` writes none.
+  final String? summaryJsonPath;
+
+  /// `--price-input-per-mtok`: dollars per million input tokens, overriding
+  /// the built-in price table for whatever model runs. Set together with
+  /// [priceOutputPerMTok]; `null` falls back to `LEONARD_PRICE_*` env.
+  final double? priceInputPerMTok;
+
+  /// `--price-output-per-mtok`: dollars per million output tokens.
+  final double? priceOutputPerMTok;
 
   /// Optional `--output` override. When `null` the CLI writes to
   /// `./trajectories/<UTC-timestamp>.jsonl`.
@@ -264,6 +280,25 @@ ArgParser buildParser() => ArgParser()
   ..addOption(
     'output',
     help: 'Trajectory path (default ./trajectories/<UTC-timestamp>.jsonl).',
+  )
+  ..addOption(
+    'summary-json',
+    help:
+        'Write a run summary (outcome, exit code, tokens, latency, cost) '
+        'as JSON to this path.',
+  )
+  ..addOption(
+    'price-input-per-mtok',
+    help:
+        'Dollars per million input tokens for the cost estimate; overrides '
+        'the built-in table (and LEONARD_PRICE_INPUT_PER_MTOK). Needs '
+        '--price-output-per-mtok.',
+  )
+  ..addOption(
+    'price-output-per-mtok',
+    help:
+        'Dollars per million output tokens (LEONARD_PRICE_OUTPUT_PER_MTOK). '
+        'Needs --price-input-per-mtok.',
   )
   ..addOption(
     'goldens-dir',
@@ -497,6 +532,16 @@ CliArgs parseCliArgs(List<String> argv) {
     );
   }
 
+  final (double?, double?) price = parsePriceOverride(
+    res['price-input-per-mtok'] as String?,
+    res['price-output-per-mtok'] as String?,
+    source: '--price-input-per-mtok / --price-output-per-mtok',
+  );
+  final String? summaryJsonPath = _nonEmptyDirectory(
+    res['summary-json'] as String?,
+    'summary-json',
+  );
+
   final String extensionsRaw = (res['extensions'] as String).trim();
   final List<String> extensions = extensionsRaw.isEmpty
       ? const <String>[]
@@ -580,7 +625,37 @@ CliArgs parseCliArgs(List<String> argv) {
     updateGoldens: updateGoldens,
     goldenChannelTolerance: goldenChannelTolerance,
     goldenMaxDiffRatio: goldenMaxDiffRatio,
+    summaryJsonPath: summaryJsonPath,
+    priceInputPerMTok: price.$1,
+    priceOutputPerMTok: price.$2,
   );
+}
+
+/// Parses a per-million-token price pair from [rawInput] and [rawOutput].
+///
+/// Both absent is no override (`(null, null)`); one without the other, or a
+/// value that is not a finite non-negative number, is a [CliUsageError]
+/// naming [source].
+(double?, double?) parsePriceOverride(
+  String? rawInput,
+  String? rawOutput, {
+  required String source,
+}) {
+  if (rawInput == null && rawOutput == null) return (null, null);
+  if (rawInput == null || rawOutput == null) {
+    throw CliUsageError('$source must be set together');
+  }
+  double parse(String raw) {
+    final double? value = double.tryParse(raw.trim());
+    if (value == null || !value.isFinite || value < 0) {
+      throw CliUsageError(
+        '$source must be finite non-negative numbers; got "$raw"',
+      );
+    }
+    return value;
+  }
+
+  return (parse(rawInput), parse(rawOutput));
 }
 
 String? _nonEmptyDirectory(String? raw, String flag) {

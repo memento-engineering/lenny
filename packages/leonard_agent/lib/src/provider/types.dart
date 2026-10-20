@@ -6,6 +6,7 @@ library;
 import '../json_value.dart';
 import '../observation/diff_models.dart';
 import '../observation/models.dart';
+import 'model_usage.dart';
 
 /// Description of a single tool available to the model on a given turn.
 ///
@@ -269,6 +270,7 @@ class ModelDecision {
     this.waitStrategy,
     this.providerRequestId,
     this.modelMetadata = const <String, dynamic>{},
+    this.usage,
   });
 
   /// Decodes a model decision from its provider-wire representation.
@@ -281,6 +283,11 @@ class ModelDecision {
     modelMetadata: Map<String, dynamic>.from(
       json['model_metadata'] as Map? ?? const <String, dynamic>{},
     ),
+    usage: json['usage'] is Map
+        ? ModelCallUsage.fromJson(
+            Map<String, dynamic>.from(json['usage'] as Map),
+          )
+        : null,
   );
 
   /// The action chosen this turn — `tool` is a tool name, `args` is the
@@ -312,6 +319,10 @@ class ModelDecision {
   /// `provider_request_id` entry; custom providers may leave this empty.
   final Map<String, dynamic> modelMetadata;
 
+  /// What the provider reported about the call that produced this decision,
+  /// or null when it reported nothing (custom providers, test fakes).
+  final ModelCallUsage? usage;
+
   /// Encodes this decision for transport across the provider boundary.
   Map<String, dynamic> toJson() => <String, dynamic>{
     'action': _actionToJson(action),
@@ -320,6 +331,7 @@ class ModelDecision {
     if (waitStrategy != null) 'wait_strategy': waitStrategy,
     if (providerRequestId != null) 'provider_request_id': providerRequestId,
     'model_metadata': modelMetadata,
+    if (usage != null) 'usage': usage!.toJson(),
   };
 
   @override
@@ -331,7 +343,8 @@ class ModelDecision {
       rationale == other.rationale &&
       waitStrategy == other.waitStrategy &&
       providerRequestId == other.providerRequestId &&
-      jsonValuesEqual(modelMetadata, other.modelMetadata);
+      jsonValuesEqual(modelMetadata, other.modelMetadata) &&
+      usage == other.usage;
 
   @override
   int get hashCode => Object.hash(
@@ -342,6 +355,7 @@ class ModelDecision {
     waitStrategy,
     providerRequestId,
     jsonValueHash(modelMetadata),
+    usage,
   );
 }
 
@@ -383,6 +397,7 @@ class SchemaRejection implements Exception {
   const SchemaRejection({
     required this.validationError,
     required this.rawOutput,
+    this.usage,
   });
 
   /// Human-readable description of the validation failure.
@@ -390,6 +405,17 @@ class SchemaRejection implements Exception {
 
   /// The raw model output that failed validation.
   final String rawOutput;
+
+  /// What the provider reported about the rejected call. A rejected call is
+  /// still billed, so the loop driver counts it.
+  final ModelCallUsage? usage;
+
+  /// This rejection with [usage] attached.
+  SchemaRejection withUsage(ModelCallUsage? usage) => SchemaRejection(
+    validationError: validationError,
+    rawOutput: rawOutput,
+    usage: usage,
+  );
 
   @override
   String toString() => 'SchemaRejection: $validationError';

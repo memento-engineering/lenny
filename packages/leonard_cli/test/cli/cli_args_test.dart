@@ -315,6 +315,51 @@ void main() {
       );
     });
 
+    test('--summary-json and the price override pair parse', () {
+      const base = <String>['--vm-uri', 'ws://127.0.0.1/ws', '--goal', 'x'];
+      final CliArgs none = parseCliArgs(base);
+      expect(none.summaryJsonPath, isNull);
+      expect(none.priceInputPerMTok, isNull);
+      expect(none.priceOutputPerMTok, isNull);
+
+      final CliArgs set = parseCliArgs(<String>[
+        ...base,
+        '--summary-json',
+        'out/summary.json',
+        '--price-input-per-mtok',
+        '3',
+        '--price-output-per-mtok',
+        '15.5',
+      ]);
+      expect(set.summaryJsonPath, 'out/summary.json');
+      expect(set.priceInputPerMTok, 3.0);
+      expect(set.priceOutputPerMTok, 15.5);
+
+      for (final List<String> bad in <List<String>>[
+        <String>['--price-input-per-mtok', '3'],
+        <String>['--price-output-per-mtok', '3'],
+        <String>[
+          '--price-input-per-mtok',
+          '-1',
+          '--price-output-per-mtok',
+          '1',
+        ],
+        <String>[
+          '--price-input-per-mtok',
+          'cheap',
+          '--price-output-per-mtok',
+          '1',
+        ],
+        <String>['--summary-json', ' '],
+      ]) {
+        expect(
+          () => parseCliArgs(<String>[...base, ...bad]),
+          throwsA(isA<CliUsageError>()),
+          reason: bad.join(' '),
+        );
+      }
+    });
+
     test('invalid --policy rejected', () {
       expect(
         () => parseCliArgs(<String>[

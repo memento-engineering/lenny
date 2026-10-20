@@ -378,6 +378,7 @@ class MultiHostSession implements SessionSurface {
       turnBudget: effectiveTurnBudget,
       sessionBudget: _config.sessionBudget,
       maxTurns: _config.maxTurns,
+      pricing: _config.pricing,
     );
     return driver.runSession();
   }
