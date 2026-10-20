@@ -1,3 +1,41 @@
+## 0.6.0-dev.1
+
+Fills four gaps that kept a backend-direct iOS consumer on its own XCUITest
+transport (lenny#180 to #183). Verified live on an iOS 27.0 simulator
+(XCUITest driver 12.18.1) and a Pixel 7a (UiAutomator2 driver 8.2.2).
+
+- **Breaking for implementers — `NativeBackend` gains two methods and a
+  parameter.** A class that `implements NativeBackend`, or overrides
+  `FakeNativeBackend.resolve`, must add them. Callers are unaffected.
+  - `alertText()` returns the open system alert's text, or null when none is
+    open, so a caller can choose between `consent_accept` and `alert_dismiss`
+    instead of answering blind (#180). iOS and Android read
+    `GET /session/{id}/alert/text` and map W3C `no such alert` to null; macOS
+    throws a `NativeException` coded `unsupported operation`, because a macOS
+    alert is an ordinary window in the snapshot.
+  - `activateApp(appId)` brings an installed app to the foreground, launching
+    it if needed, for returning to the app under test after an out-of-app hop
+    (#182). It issues `mobile: activateApp` (iOS, Android) or
+    `macos: activateApp`.
+  - `resolve(..., findTimeout:)` sets each tier's find retry window, default
+    `NativeBackend.defaultFindTimeout` (10 s). `Duration.zero` makes one find
+    request per populated tier, for presence probes and callers that poll in
+    their own loop (#183). Measured on a miss: 42 ms on iOS and 190 ms on
+    Android, against about 10.2 s at the default.
+- **`XcuiTestBackend.attach` sends `appium:autoLaunch: false`**, as
+  `UiAutomator2Backend.attach` already did, so attaching no longer activates or
+  launches the app (#181). A backgrounded app now stays in the background;
+  call `activateApp` to bring it forward. Migration: code that relied on attach
+  bringing the app to the front calls `activateApp(appId)` after `connect()`.
+- `XcuiTestBackend.attach`'s running check now accepts a suspended background
+  app (`queryAppState` 2), which is what a backgrounded app reports once attach
+  stops activating it; only 0 (not installed) and 1 (not running) fail, and
+  the error names both causes of a 1: the app was never started, or the
+  Xcode 27 DeviceHub reboot killed it.
+- `FakeNativeBackend` scripts `alertText` through `alertTextPayload`, records
+  `alertText` and `activateApp` calls, and records each resolve's
+  `findTimeout` in `resolveFindTimeouts`.
+
 ## 0.5.0
 
 Stable promotion of `0.5.0-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.

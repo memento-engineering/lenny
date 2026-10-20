@@ -671,12 +671,13 @@ class UiAutomator2Backend implements NativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async {
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async {
     // Tier 1: exact resource-id. JSON transport owns quoting.
     if (selector.resourceId != null) {
       final String resourceId = selector.resourceId!;
-      final String? eid = await _find('id', resourceId);
+      final String? eid = await _find('id', resourceId, timeout: findTimeout);
       if (eid != null) return NativeTarget(elementId: eid, via: 'resource-id');
       // A BARE id (no `:id/`) can be Chrome web content: its resource-id is
       // synthesized from the HTML `id` when the tree is serialized, so it is
@@ -690,6 +691,7 @@ class UiAutomator2Backend implements NativeBackend {
         final String? webEid = await _find(
           'xpath',
           '//*[@resource-id=${xpathLiteral(resourceId)}]',
+          timeout: findTimeout,
         );
         if (webEid != null) {
           return NativeTarget(elementId: webEid, via: 'resource-id-xpath');
@@ -699,7 +701,11 @@ class UiAutomator2Backend implements NativeBackend {
 
     // Tier 2: a11y-id (on UiAutomator2, the element's content-desc).
     if (selector.a11yId != null) {
-      final String? eid = await _find('accessibility id', selector.a11yId!);
+      final String? eid = await _find(
+        'accessibility id',
+        selector.a11yId!,
+        timeout: findTimeout,
+      );
       if (eid != null) return NativeTarget(elementId: eid, via: 'a11y-id');
     }
 
@@ -709,9 +715,13 @@ class UiAutomator2Backend implements NativeBackend {
       if (node != null) {
         String? eid;
         if (node.a11yId != null && node.a11yId!.isNotEmpty) {
-          eid = await _find('accessibility id', node.a11yId!);
+          eid = await _find(
+            'accessibility id',
+            node.a11yId!,
+            timeout: findTimeout,
+          );
         } else if (node.xpath != null && node.xpath!.isNotEmpty) {
-          eid = await _find('xpath', node.xpath!);
+          eid = await _find('xpath', node.xpath!, timeout: findTimeout);
         }
         if (eid != null) return NativeTarget(elementId: eid, via: 'label');
       }
@@ -719,7 +729,11 @@ class UiAutomator2Backend implements NativeBackend {
 
     // Tier 4: explicit xpath (load-bearing for anonymous web-form fields).
     if (selector.xpath != null) {
-      final String? eid = await _find('xpath', selector.xpath!);
+      final String? eid = await _find(
+        'xpath',
+        selector.xpath!,
+        timeout: findTimeout,
+      );
       if (eid != null) return NativeTarget(elementId: eid, via: 'xpath');
     }
 
@@ -752,11 +766,11 @@ class UiAutomator2Backend implements NativeBackend {
 
   /// Find one element via a W3C strategy, retrying with a short timeout so a
   /// transient miss does not fail the whole resolution. Returns null when the
-  /// element never appears within the window.
+  /// element never appears within the window; a zero [timeout] is one request.
   Future<String?> _find(
     String strategy,
     String value, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = NativeBackend.defaultFindTimeout,
   }) async {
     final DateTime end = DateTime.now().add(timeout);
     while (true) {
@@ -1163,6 +1177,27 @@ class UiAutomator2Backend implements NativeBackend {
             <String, Object?>{'type': 'pointerUp', 'button': 0},
           ],
         },
+      ],
+    });
+  }
+
+  @override
+  Future<String?> alertText() async {
+    try {
+      final Map<String, Object?> j = await _get('/session/$_sid/alert/text');
+      return j['value']?.toString();
+    } on NativeException catch (e) {
+      if (e.code == 'no such alert') return null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> activateApp(String appId) async {
+    await _post('/session/$_sid/execute/sync', <String, Object?>{
+      'script': 'mobile: activateApp',
+      'args': <Object?>[
+        <String, Object?>{'appId': appId},
       ],
     });
   }

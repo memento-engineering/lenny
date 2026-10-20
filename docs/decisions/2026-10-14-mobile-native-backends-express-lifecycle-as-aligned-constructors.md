@@ -20,7 +20,8 @@ register:
   obsoletes: []
   updates: []
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - native-backend-serves-backend-direct-consumers-alerts-focus-and-probes
   bead: lenny-uw7i
   legacy-id: null
 ---

@@ -104,7 +104,7 @@ void main() {
     });
 
     test(
-      'attach mode sends bundleId without app and merges safe extras',
+      'attach mode sends bundleId and autoLaunch false without app',
       () async {
         http.Request? sessionRequest;
         final MockClient client = MockClient((http.Request request) async {
@@ -144,6 +144,9 @@ void main() {
           'appium:automationName': 'XCUITest',
           'appium:udid': 'iphone',
           'appium:bundleId': 'engineering.memento.Runner',
+          // lenny#181: attach observes, as Android's attach does; it never
+          // activates or launches the app.
+          'appium:autoLaunch': false,
           'appium:forceSimulatorSoftwareKeyboardPresence': true,
           'appium:noReset': true,
           'appium:autoAcceptAlerts': true,
@@ -195,11 +198,32 @@ void main() {
             isA<NativeException>().having(
               (NativeException e) => e.message,
               'message',
-              allOf(contains('XCUITest driver 12'), contains('DeviceHub')),
+              allOf(
+                contains('launch it first'),
+                contains('XCUITest driver 12'),
+                contains('DeviceHub'),
+              ),
             ),
           ),
         );
       });
+
+      for (final int backgrounded in <int>[2, 3]) {
+        test(
+          'a backgrounded app (queryAppState $backgrounded) is running',
+          () async {
+            // lenny#181: autoLaunch false leaves a backgrounded app where it
+            // is; measured live, a backgrounded Settings reports 2.
+            final XcuiTestBackend backend = XcuiTestBackend.attach(
+              udid: 'iphone',
+              appId: 'engineering.memento.Runner',
+              client: attachClient(backgrounded, <http.Request>[]),
+            );
+
+            await backend.connect();
+          },
+        );
+      }
 
       test(
         'passes when the app is still running and probes its bundle',

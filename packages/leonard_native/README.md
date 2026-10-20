@@ -76,10 +76,12 @@ final NativeLaunch launch = switch (platform) {
 final NativeBackend backend = launch(udid: udid, app: app);
 ```
 
-Attach never relaunches the app, so a `flutter run` VM-service channel beside
-it survives; it fails loudly when `appId` is not running once the session is
-open. Use launch when nothing has started the app yet — for example a cloud
-device grid:
+Attach never launches, relaunches or activates the app: both mobile backends
+send `appium:autoLaunch: false`, so the session observes whatever is on screen
+and a `flutter run` VM-service channel beside it survives. A backgrounded app
+stays in the background until you call `activateApp(appId)`. Attach fails
+loudly when `appId` is not running once the session is open. Use launch when
+nothing has started the app yet — for example a cloud device grid:
 
 ```dart
 final NativeBackend backend = UiAutomator2Backend(
@@ -247,7 +249,43 @@ cost a real debugging round:
 Note also that `resolve` retries internally — ~10 s per **populated** tier, so
 ~10 s for an xpath-only selector and ~30 s worst case for one carrying an
 a11y-id, a label and an xpath that all miss. An outer retry loop multiplies
-against that; see its dartdoc before sizing your own budget.
+against that; see its dartdoc before sizing your own budget, or pass
+`findTimeout: Duration.zero` (below).
+
+## Alerts, focus and presence probes (backend-direct consumers)
+
+A consumer driving real sign-in flows through a `NativeBackend` usually needs
+three things beyond the tool surface:
+
+```dart
+// Read the open system alert before choosing how to answer it. Null means no
+// alert is open. The text is what the driver reports: title and message,
+// joined by newlines.
+final String? alert = await backend.alertText();
+if (alert != null && alert.contains('Save Password')) {
+  await backend.press('alert_dismiss');
+}
+
+// Return focus to the app under test after an out-of-app hop (a web sign-in
+// sheet, a Custom Tab, a settings deep link). Launches it if it is not running.
+await backend.activateApp(appId);
+
+// A presence probe: one find request per populated tier, no ~10 s retry.
+// A null cache keeps it from falling back to a cached rect.
+final bool passkeyUp = await backend.resolve(
+      const NativeSelector(a11yId: 'passkey-prompt'),
+      null,
+      findTimeout: Duration.zero,
+    ) !=
+    null;
+```
+
+`alertText` reads `GET /session/{id}/alert/text` on iOS and Android and maps
+the W3C `no such alert` error to null. Android's UiAutomator2 driver reports
+system dialogs only; an app's own modal (for example Chrome's in-app prompts)
+is an ordinary part of `snapshot()`, not an alert. On macOS `alertText` throws
+a `NativeException` with code `unsupported operation`, because a macOS alert is
+an ordinary window the snapshot already contains.
 
 ## Mutation-testing pilot
 

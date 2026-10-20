@@ -67,6 +67,12 @@ class FakeNativeBackend implements NativeBackend {
   /// Optional script for logical press outcomes.
   Future<void> Function(String key)? pressHandler;
 
+  /// The text [alertText] reports; null means no alert is open.
+  String? alertTextPayload;
+
+  /// The `findTimeout` of each [resolve] call, in call order.
+  final List<Duration> resolveFindTimeouts = <Duration>[];
+
   /// Optional scripted resolver. When set, it fully decides resolution; when
   /// null, the fake uses its built-in per-tier chain ([_defaultResolve]).
   Future<NativeTarget?> Function(
@@ -113,8 +119,10 @@ class FakeNativeBackend implements NativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async {
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async {
+    resolveFindTimeouts.add(findTimeout);
     final NativeTarget? t = resolver != null
         ? await resolver!(selector, cached)
         : _defaultResolve(selector, cached);
@@ -215,6 +223,17 @@ class FakeNativeBackend implements NativeBackend {
   @override
   Future<void> swipe(NativeSwipe gesture) async {
     calls.add(FakeNativeCall('swipe', gesture));
+  }
+
+  @override
+  Future<String?> alertText() async {
+    calls.add(FakeNativeCall('alertText', alertTextPayload));
+    return alertTextPayload;
+  }
+
+  @override
+  Future<void> activateApp(String appId) async {
+    calls.add(FakeNativeCall('activateApp', appId));
   }
 
   @override

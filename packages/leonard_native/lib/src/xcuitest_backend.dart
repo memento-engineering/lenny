@@ -56,8 +56,11 @@ class XcuiTestBackend implements NativeBackend {
        _client = client ?? http.Client();
 
   /// Constructs a backend that attaches to the already-running [appId] (the
-  /// bundle id) without installing or relaunching it. [connect] fails loudly
-  /// when the app is not running once the session is open.
+  /// bundle id) without installing, relaunching or activating it: the session
+  /// sends `appium:autoLaunch: false`, as `UiAutomator2Backend.attach` does,
+  /// so it observes whatever is on screen. [connect] fails loudly when the
+  /// app is not running once the session is open; [activateApp] brings it to
+  /// the foreground on request.
   ///
   /// Tears off to [NativeAttach], the same shape as
   /// `UiAutomator2Backend.attach`.
@@ -190,7 +193,11 @@ class XcuiTestBackend implements NativeBackend {
         if (_requestedPlatformVersion case final String version)
           'appium:platformVersion': version,
         if (app case final String app) 'appium:app': app,
-        if (appId case final String appId) 'appium:bundleId': appId,
+        if (appId case final String appId) ...<String, Object?>{
+          'appium:bundleId': appId,
+          // Attach observes; it never activates or launches the app.
+          'appium:autoLaunch': false,
+        },
         'appium:forceSimulatorSoftwareKeyboardPresence': true,
         'appium:noReset': true,
       },
@@ -234,11 +241,16 @@ class XcuiTestBackend implements NativeBackend {
       ? null
       : platformVersion;
 
-  /// Attach must not disturb the app. On Xcode 27 the simulator UI is
-  /// DeviceHub, which XCUITest driver <= 11 does not recognise: it reboots the
-  /// booted simulator on session create and the app is SIGTERMed. Only a
-  /// definite `queryAppState` below 3 (not installed / not running /
-  /// suspended) fails; an unanswered probe is unknown, not a failure.
+  /// Attach must find the app running, and must not disturb it. Attach sends
+  /// `autoLaunch: false`, so a backgrounded app stays backgrounded and reports
+  /// `queryAppState` 2 (suspended) or 3; both are running. Only a definite 0
+  /// (not installed) or 1 (not running) fails; an unanswered probe is
+  /// unknown, not a failure.
+  ///
+  /// A 1 has two causes: the app was never started, or, on Xcode 27, the
+  /// simulator UI is DeviceHub, which XCUITest driver <= 11 does not
+  /// recognise: it reboots the booted simulator on session create and the app
+  /// is SIGTERMed.
   Future<void> _requireAttachedAppRunning(String appId) async {
     final Object? state;
     try {
@@ -255,10 +267,12 @@ class XcuiTestBackend implements NativeBackend {
     } on NativeException {
       return;
     }
-    if (state is int && state < 3) {
+    if (state is int && state < 2) {
       throw NativeException(
         'attach to $appId: the app is not running after session create '
-        '(queryAppState $state). On Xcode 27 the simulator UI is DeviceHub '
+        '(queryAppState $state). Attach never starts it: launch it first, or '
+        'construct XcuiTestBackend with app: to install and launch it. If it '
+        'was running, on Xcode 27 the simulator UI is DeviceHub '
         '(com.apple.dt.Devices); Appium XCUITest driver 11.x or older does '
         'not recognise it, reboots the simulator and kills the app. Upgrade '
         'to XCUITest driver 12 or newer (appium driver update xcuitest).',
@@ -430,11 +444,16 @@ class XcuiTestBackend implements NativeBackend {
   @override
   Future<NativeTarget?> resolve(
     NativeSelector selector,
-    NativeSnapshot? cached,
-  ) async {
+    NativeSnapshot? cached, {
+    Duration findTimeout = NativeBackend.defaultFindTimeout,
+  }) async {
     // Tier 1: a11y-id.
     if (selector.a11yId != null) {
-      final String? eid = await _find('accessibility id', selector.a11yId!);
+      final String? eid = await _find(
+        'accessibility id',
+        selector.a11yId!,
+        timeout: findTimeout,
+      );
       if (eid != null) return NativeTarget(elementId: eid, via: 'a11y-id');
     }
 
@@ -448,9 +467,13 @@ class XcuiTestBackend implements NativeBackend {
       if (node != null) {
         String? eid;
         if (node.a11yId != null && node.a11yId!.isNotEmpty) {
-          eid = await _find('accessibility id', node.a11yId!);
+          eid = await _find(
+            'accessibility id',
+            node.a11yId!,
+            timeout: findTimeout,
+          );
         } else if (node.xpath != null && node.xpath!.isNotEmpty) {
-          eid = await _find('xpath', node.xpath!);
+          eid = await _find('xpath', node.xpath!, timeout: findTimeout);
         }
         if (eid != null) return NativeTarget(elementId: eid, via: 'label');
       }
@@ -458,7 +481,11 @@ class XcuiTestBackend implements NativeBackend {
 
     // Tier 3: explicit xpath (load-bearing for anonymous Auth0 fields).
     if (selector.xpath != null) {
-      final String? eid = await _find('xpath', selector.xpath!);
+      final String? eid = await _find(
+        'xpath',
+        selector.xpath!,
+        timeout: findTimeout,
+      );
       if (eid != null) return NativeTarget(elementId: eid, via: 'xpath');
     }
 
@@ -491,11 +518,11 @@ class XcuiTestBackend implements NativeBackend {
 
   /// Find one element via a W3C strategy, retrying with a short timeout so a
   /// transient miss does not fail the whole resolution. Returns null when the
-  /// element never appears within the window.
+  /// element never appears within the window; a zero [timeout] is one request.
   Future<String?> _find(
     String strategy,
     String value, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = NativeBackend.defaultFindTimeout,
   }) async {
     final DateTime end = DateTime.now().add(timeout);
     while (true) {
@@ -688,6 +715,29 @@ class XcuiTestBackend implements NativeBackend {
             <String, Object?>{'type': 'pointerUp', 'button': 0},
           ],
         },
+      ],
+    });
+  }
+
+  @override
+  Future<String?> alertText() async {
+    try {
+      final Map<String, Object?> j = await _get('/session/$_sid/alert/text');
+      return j['value']?.toString();
+    } on NativeException catch (e) {
+      // A SpringBoard alert is not in /source; W3C reports its absence as an
+      // error, which here is the ordinary "no alert" answer.
+      if (e.code == 'no such alert') return null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> activateApp(String appId) async {
+    await _post('/session/$_sid/execute/sync', <String, Object?>{
+      'script': 'mobile: activateApp',
+      'args': <Object?>[
+        <String, Object?>{'bundleId': appId},
       ],
     });
   }
