@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3
+
+Stable promotion of `0.3.3-dev.2` on Nico's promotion call (2026-10-20), after the claude (Sonnet 4.6 and 5.5) and qwen-mlx tiers drove the sample app live. The prerelease entries below carry the full list. One change on top:
+
+- Advertise vision for `claude-sonnet-5-5` in `kAnthropicVisionModels`, so a host built on `capabilitiesFor` sends it screenshots as it does Sonnet 4.6.
+- Correction to `0.3.3-dev.2`: a Claude 5 model given no thinking field still thinks adaptively (measured live on `claude-sonnet-5-5`), so only Opus 4.7 and 4.8 lose thinking under `anthropicAcceptsBudgetThinking`. The behaviour is unchanged; its doc comments now say so.
+
 ## 0.3.3-dev.2
 
 - Count a model call the turn budget abandons (lenny-c55p6). A live

@@ -37,8 +37,8 @@ const String _kSwiftInferBaseUrl = 'http://localhost:8080';
 /// itself overridden by `--model-id`.
 const String _kSwiftInferModel = 'qwen3.6-35b-a3b-8bit';
 
-/// Default Anthropic model id (Claude Sonnet 4.6).
-const String _kAnthropicSonnet = 'claude-sonnet-4-6';
+/// Default Anthropic model id (Claude Sonnet 5.5).
+const String _kAnthropicSonnet = 'claude-sonnet-5-5';
 
 /// Default OpenAI model id (GPT-5).
 const String _kOpenAiGpt5 = 'gpt-5';
