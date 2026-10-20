@@ -65,11 +65,35 @@ class AnthropicBackend extends ModelBackendSpec {
   /// Extra headers (override internal headers on conflict).
   final Map<String, String>? headers;
 
-  /// Whether extended thinking is enabled.
+  /// Whether extended thinking is enabled, for models that accept it: see
+  /// [anthropicAcceptsBudgetThinking]. A newer model runs without thinking.
   final bool enableThinking;
 
   /// Anthropic sampling options.
   final AnthropicChatOptions? options;
+}
+
+/// Whether Anthropic [model] accepts `thinking.type: enabled` with a token
+/// budget, the only thinking request dartantic 3.4 can send.
+///
+/// Claude 4.6 and older accept it. Opus 4.7, Opus 4.8 and every Claude 5
+/// model reject it with HTTP 400 and want adaptive thinking instead (measured
+/// against each model id on 2026-10-20; reported upstream as
+/// csells/dartantic#119). An id this does not recognise is treated as newer:
+/// running without thinking works, while requesting it fails every call.
+bool anthropicAcceptsBudgetThinking(String model) {
+  final RegExpMatch? m =
+      RegExp(
+        r'^claude-[a-z]+-(\d+)(?:-(\d{1,2}))?(?:-\d{8}|-latest)?$',
+      ).firstMatch(model) ??
+      // The pre-4 naming puts the version first: claude-3-7-sonnet-20250219.
+      RegExp(
+        r'^claude-(\d+)-(\d{1,2})-[a-z]+(?:-\d{8}|-latest)?$',
+      ).firstMatch(model);
+  if (m == null) return false;
+  final int major = int.parse(m[1]!);
+  final int minor = int.parse(m[2] ?? '0');
+  return major < 4 || (major == 4 && minor <= 6);
 }
 
 /// OpenAI (or any OpenAI-compatible endpoint) via stock dartantic
@@ -136,6 +160,8 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         defaultOptions: s.options,
       );
     case AnthropicBackend a:
+      final bool thinking =
+          a.enableThinking && anthropicAcceptsBudgetThinking(model);
       return AnthropicChatModel(
         name: model,
         apiKey: a.apiKey,
@@ -143,7 +169,7 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         headers: a.headers,
         tools: tools,
         client: client,
-        enableThinking: a.enableThinking,
+        enableThinking: thinking,
         // Extended thinking (kept on, per the panel default) imposes two
         // Anthropic constraints, so the default options must respect both:
         //   * tool_choice must NOT force a tool ("Thinking may not be enabled
@@ -153,6 +179,9 @@ ChatModel<ChatModelOptions> buildBackendChatModel(
         //   * temperature may only be 1 when thinking is enabled — so we omit
         //     a temperature override here (the tuned frontier 0.2 is
         //     incompatible with thinking) and let Anthropic use its default.
+        // tool_choice stays auto without thinking too: the models that run
+        // without it (newer than 4.6) also reject a forced tool_choice ("any"
+        // or "tool"), measured live on claude-sonnet-5-5.
         // An explicit [a.options] overrides these defaults; a caller that
         // re-introduces forced tool_choice or a non-1 temperature alongside
         // thinking owns that incompatible combination.
