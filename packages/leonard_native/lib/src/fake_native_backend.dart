@@ -67,8 +67,25 @@ class FakeNativeBackend implements NativeBackend {
   /// Optional script for logical press outcomes.
   Future<void> Function(String key)? pressHandler;
 
-  /// The text [alertText] reports; null means no alert is open.
+  /// The text [alertText] reports; null means no alert is open. Answering it
+  /// through [acceptAlertIfPresent] or [dismissAlertIfPresent] clears it.
   String? alertTextPayload;
+
+  /// What [readAttribute] reports: element id -> attribute name -> value. A
+  /// missing entry reads as null (the element lacks the attribute).
+  final Map<String, Map<String, String>> attributes =
+      <String, Map<String, String>>{};
+
+  /// The document [rawSource] returns.
+  String rawSourcePayload = '';
+
+  /// Optional script for [isPresent]. When null, a selector is present iff a
+  /// node in the current [snapshot] payload matches one of its find fields
+  /// (resource-id, a11y-id, label or xpath); a `rect` never counts.
+  bool Function(NativeSelector selector)? presence;
+
+  /// The `dismissKeyboard` of each [enterText] call, in call order.
+  final List<bool> enterTextDismissKeyboard = <bool>[];
 
   /// The `findTimeout` of each [resolve] call, in call order.
   final List<Duration> resolveFindTimeouts = <Duration>[];
@@ -130,6 +147,21 @@ class FakeNativeBackend implements NativeBackend {
     return t;
   }
 
+  @override
+  Future<bool> isPresent(NativeSelector selector) async {
+    calls.add(FakeNativeCall('isPresent', selector));
+    final script = presence;
+    if (script != null) return script(selector);
+    return _snapshot.nodes.any(
+      (NativeNode n) =>
+          (selector.resourceId != null &&
+              n.resourceId == selector.resourceId) ||
+          (selector.a11yId != null && n.a11yId == selector.a11yId) ||
+          (selector.label != null && n.label == selector.label) ||
+          (selector.xpath != null && n.xpath == selector.xpath),
+    );
+  }
+
   /// Built-in resolver. Android starts with resource-id; iOS and macOS skip
   /// that field and start with a11y-id. The label tier resolves an anonymous
   /// cached node through a synthesized positional xpath, recording
@@ -188,9 +220,11 @@ class FakeNativeBackend implements NativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     calls.add(FakeNativeCall('enterText', (target: target, text: text)));
+    enterTextDismissKeyboard.add(dismissKeyboard);
     final handler = enterTextHandler;
     if (handler != null) return handler(target, text);
     if (secureFieldValue != null) {
@@ -234,6 +268,40 @@ class FakeNativeBackend implements NativeBackend {
   @override
   Future<void> activateApp(String appId) async {
     calls.add(FakeNativeCall('activateApp', appId));
+  }
+
+  @override
+  Future<bool> acceptAlertIfPresent() async {
+    calls.add(FakeNativeCall('acceptAlertIfPresent', alertTextPayload));
+    return _answerAlert();
+  }
+
+  @override
+  Future<bool> dismissAlertIfPresent() async {
+    calls.add(FakeNativeCall('dismissAlertIfPresent', alertTextPayload));
+    return _answerAlert();
+  }
+
+  bool _answerAlert() {
+    final bool present = alertTextPayload != null;
+    alertTextPayload = null;
+    return present;
+  }
+
+  @override
+  Future<String?> readAttribute(NativeTarget target, String name) async {
+    calls.add(FakeNativeCall('readAttribute', (target: target, name: name)));
+    final String? eid = target.elementId;
+    if (eid == null) {
+      throw NativeException('readAttribute requires a resolved element');
+    }
+    return attributes[eid]?[name];
+  }
+
+  @override
+  Future<String> rawSource() async {
+    calls.add(FakeNativeCall('rawSource'));
+    return rawSourcePayload;
   }
 
   @override

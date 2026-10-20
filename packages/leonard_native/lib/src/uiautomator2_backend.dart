@@ -269,6 +269,12 @@ class UiAutomator2Backend implements NativeBackend {
   /// The active W3C session id, or null before [connect] / after [close].
   String? _sessionId;
 
+  /// The open W3C session id, or null before [connect] / after [close].
+  ///
+  /// For issuing a W3C or Appium request this backend does not wrap yet,
+  /// against the same session, without a parallel transport.
+  String? get sessionId => _sessionId;
+
   AndroidSessionProvenance? _sessionProvenance;
 
   Map<String, Object?>? _sessionCapabilities;
@@ -623,8 +629,16 @@ class UiAutomator2Backend implements NativeBackend {
 
     // Pass 2: materialize NativeNodes with dense document-order ids.
     final List<NativeNode> out = <NativeNode>[];
+    final Map<XmlElement, int> ids = <XmlElement, int>{};
     int id = 0;
     for (final XmlElement el in kept) {
+      // The nearest kept ancestor: ancestors precede descendants in document
+      // order, so theirs are already assigned.
+      int? parentId;
+      for (final XmlElement ancestor in el.ancestorElements) {
+        parentId = ids[ancestor];
+        if (parentId != null) break;
+      }
       final String cls = _className(el);
       final String? text = _attr(el, 'text');
       final String? desc = _attr(el, 'content-desc');
@@ -651,8 +665,10 @@ class UiAutomator2Backend implements NativeBackend {
           resourceId: rid,
           platformType: cls,
           depth: el.ancestorElements.length,
+          parentId: parentId,
         ),
       );
+      ids[el] = id;
     }
     return out;
   }
@@ -771,6 +787,39 @@ class UiAutomator2Backend implements NativeBackend {
     return null;
   }
 
+  @override
+  Future<bool> isPresent(NativeSelector selector) async {
+    final List<(String, String)> finds = <(String, String)>[
+      if (selector.resourceId case final String id) ...<(String, String)>[
+        ('id', id),
+        // The bare web-content form, as resolve's tier 1 falls through to.
+        if (_resourceIdParts(id) == null)
+          ('xpath', '//*[@resource-id=${xpathLiteral(id)}]'),
+      ],
+      if (selector.a11yId case final String id) ('accessibility id', id),
+      if (selector.label case final String label)
+        (
+          'xpath',
+          '//*[@text=${xpathLiteral(label)} or '
+              '@content-desc=${xpathLiteral(label)}]',
+        ),
+      if (selector.xpath case final String xpath) ('xpath', xpath),
+    ];
+    if (finds.isEmpty) {
+      throw ArgumentError.value(
+        selector,
+        'selector',
+        'isPresent needs a resource-id, a11y-id, label or xpath',
+      );
+    }
+    for (final (String strategy, String value) in finds) {
+      if (await _find(strategy, value, timeout: Duration.zero) != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   NativeNode? _matchLabel(NativeSnapshot? cached, String label) {
     if (cached == null) return null;
     for (final NativeNode n in cached.nodes) {
@@ -857,8 +906,9 @@ class UiAutomator2Backend implements NativeBackend {
   @override
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  ) async {
+    String text, {
+    bool dismissKeyboard = true,
+  }) async {
     final String? eid = target.elementId;
     if (eid == null) {
       throw NativeException('enter_text requires a resolved element');
@@ -949,7 +999,7 @@ class UiAutomator2Backend implements NativeBackend {
     final bool masked = await _isSecureField(eid);
     final String readback = await _readValue(eid);
     // Per-platform keyboard dismiss, INSIDE the backend (kept off the seam).
-    await _dismissKeyboard();
+    if (dismissKeyboard) await _dismissKeyboard();
     return (readback: readback, masked: masked);
   }
 
@@ -1137,12 +1187,11 @@ class UiAutomator2Backend implements NativeBackend {
         });
         return;
       case 'consent_accept':
+        await _answerAlert('accept');
+        return;
       case 'alert_dismiss':
-        // iOS-only (ASWebAuthenticationSession consent / SpringBoard alert).
-        // Android's Auth0 handoff is a Chrome Custom Tab — no system alert — so
-        // these surface as a NativeException (ok:false), which an adaptive
-        // caller tolerates as a no-op.
-        throw NativeException('unknown press key: $key (iOS-only)');
+        await _answerAlert('dismiss');
+        return;
       default:
         throw NativeException('unknown press key: $key');
     }
@@ -1209,7 +1258,7 @@ class UiAutomator2Backend implements NativeBackend {
       final Map<String, Object?> j = await _get('/session/$_sid/alert/text');
       return j['value']?.toString();
     } on NativeException catch (e) {
-      if (e.code == 'no such alert') return null;
+      if (e.code == NativeException.noSuchAlertCode) return null;
       rethrow;
     }
   }
@@ -1222,5 +1271,70 @@ class UiAutomator2Backend implements NativeBackend {
         <String, Object?>{'appId': appId},
       ],
     });
+  }
+
+  @override
+  Future<String?> readAttribute(NativeTarget target, String name) async {
+    final String? eid = target.elementId;
+    if (eid == null) {
+      throw NativeException('readAttribute requires a resolved element');
+    }
+    final Map<String, Object?> j = await _get(
+      '/session/$_sid/element/$eid/attribute/${Uri.encodeComponent(name)}',
+    );
+    return j['value']?.toString();
+  }
+
+  @override
+  Future<String> rawSource() async {
+    final Map<String, Object?> j = await _get('/session/$_sid/source');
+    return (j['value'] ?? '').toString();
+  }
+
+  @override
+  Future<bool> acceptAlertIfPresent() => _answerAlertIfPresent('accept');
+
+  @override
+  Future<bool> dismissAlertIfPresent() => _answerAlertIfPresent('dismiss');
+
+  Future<bool> _answerAlertIfPresent(String verb) async {
+    try {
+      await _answerAlert(verb);
+      return true;
+    } on NativeException catch (e) {
+      if (e.code == NativeException.noSuchAlertCode) return false;
+      rethrow;
+    }
+  }
+
+  /// Answers the open system dialog through the W3C alert endpoint, refusing
+  /// a runtime permission dialog first.
+  ///
+  /// UiAutomator2 answers a permission dialog through the same endpoint, and
+  /// there accept GRANTS and dismiss DENIES: a persistent change only
+  /// `permission_allow` / `permission_deny` may make, the same reason
+  /// `dismiss_overlay` refuses one. The check reads a fresh `/source` and
+  /// fails CLOSED: if the source cannot be read, nothing is answered.
+  Future<void> _answerAlert(String verb) async {
+    final NativeSnapshot source;
+    try {
+      source = await snapshot();
+    } on NativeException {
+      rethrow;
+    } on Object catch (e) {
+      // A malformed body throws XmlParserException; keep the seam's
+      // NativeException contract, and still answer nothing.
+      throw NativeException(
+        'cannot tell whether a permission dialog is up, so no alert was '
+        'answered: $e',
+      );
+    }
+    if (_obstruction(source) == _Obstruction.androidPermissionDialog) {
+      throw NativeException(
+        'Android permission dialog requires an explicit '
+        'permission_allow or permission_deny press key',
+      );
+    }
+    await _post('/session/$_sid/alert/$verb', const <String, Object?>{});
   }
 }

@@ -19,7 +19,8 @@ register:
   updates:
     - "mobile-native-backends-express-lifecycle-as-aligned-constructors"
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - backend-direct-consumers-probe-with-is-present-and-answer-android-alerts-gated
   bead: lenny-5lew
   legacy-id: null
 ---

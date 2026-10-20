@@ -206,6 +206,13 @@ class NativeException implements Exception {
   static const String elementGoneAfterDismissalCode =
       'element gone after dismissal';
 
+  /// The W3C error code for "no alert is open", carried by a [NativeException]
+  /// from `press('consent_accept')` / `press('alert_dismiss')` when no alert is
+  /// up. Match on this rather than on the message; or call
+  /// [NativeBackend.acceptAlertIfPresent] / [NativeBackend.dismissAlertIfPresent],
+  /// which answer false instead of throwing.
+  static const String noSuchAlertCode = 'no such alert';
+
   /// Backend code for a request that got no HTTP response at all (refused,
   /// reset, DNS, TLS). Any server credentials are redacted from [message].
   static const String transportErrorCode = 'transport error';
@@ -271,7 +278,7 @@ typedef NativeAttach =
 ///
 /// Recognized [press] keys are platform-specific and documented on the impl,
 /// NOT enforced by an allowlist on the tool. All three platforms recognize
-/// `enter`/`return`/`done`; the iOS-only set is
+/// `enter`/`return`/`done`; iOS and Android recognize
 /// `consent_accept`/`alert_dismiss`; the Android-only set is `back`, the
 /// internal `dismiss_overlay` recovery action, and
 /// `permission_allow`/`permission_deny`. An unrecognized key surfaces as a
@@ -334,8 +341,10 @@ abstract class NativeBackend {
   /// [findTimeout] is that per-tier window ([defaultFindTimeout] unless set).
   /// A presence probe that expects a miss, or a caller that already polls in
   /// its own loop, passes [Duration.zero]: every populated tier then makes
-  /// exactly one find request and a miss returns at once. Pass a null
-  /// [cached] as well when a probe must not fall back to a cached rect.
+  /// exactly one find request and a miss returns at once. For a presence
+  /// probe use [isPresent] instead: a zero-timeout [resolve] still falls back
+  /// to rect-center from the selector's rect or a cached label match, so it
+  /// can return a target for an element that is gone.
   Future<NativeTarget?> resolve(
     NativeSelector selector,
     NativeSnapshot? cached, {
@@ -344,6 +353,19 @@ abstract class NativeBackend {
 
   /// How long each [resolve] tier retries its element find by default.
   static const Duration defaultFindTimeout = Duration(seconds: 10);
+
+  /// Whether [selector] matches an element on screen right now.
+  ///
+  /// Makes one live find per populated tier (resource-id on Android, a11y-id,
+  /// label, xpath), stopping at the first hit, and never retries or falls back
+  /// to a rect: a miss is `false` at once, and nothing cached can make a gone
+  /// element read as present. The label tier is a live query on the
+  /// platform's label attributes (iOS `label` or `name`, Android `text` or
+  /// `content-desc`, macOS `label` or `title`), not a cached-snapshot lookup.
+  ///
+  /// Throws [ArgumentError] for a selector with no find tier (only a `rect`),
+  /// and [NativeException] for a transport failure, which is not a miss.
+  Future<bool> isPresent(NativeSelector selector);
 
   /// Tap a resolved [target] (element click, or a point tap for rect-center).
   Future<void> tap(NativeTarget target);
@@ -359,25 +381,33 @@ abstract class NativeBackend {
   /// that dismissal invalidates. Recovery is automatic only through the
   /// `enter_text` TOOL; a backend-direct caller must implement it. The full
   /// recipe is on [NativeException.fieldObscuredCode].
+  ///
+  /// [dismissKeyboard] false leaves a mobile keyboard up, for a flow that
+  /// types into the next field or presses return next: it skips the dismissal
+  /// round-trips (on iOS before 26, a search of up to ~2 s for a Done key) and
+  /// the layout shift a dismissal can cause. macOS has no keyboard to dismiss
+  /// and ignores it.
   Future<({String readback, bool masked})> enterText(
     NativeTarget target,
-    String text,
-  );
+    String text, {
+    bool dismissKeyboard = true,
+  });
 
   /// A logical platform action. Shared by iOS, Android, and macOS:
-  /// `enter`|`return`|`done`. iOS-only:
-  /// `consent_accept`|`alert_dismiss`; `consent_accept` issues
-  /// `POST /session/{id}/alert/accept` and `alert_dismiss` issues
-  /// `POST /session/{id}/alert/dismiss`. Android-only: `back`, the internal
-  /// positively-gated `dismiss_overlay` recovery action, and
-  /// `permission_allow`/`permission_deny`.
+  /// `enter`|`return`|`done`. iOS and Android: `consent_accept`|
+  /// `alert_dismiss`; `consent_accept` issues `POST /session/{id}/alert/accept`
+  /// and `alert_dismiss` issues `POST /session/{id}/alert/dismiss`. On Android
+  /// both refuse a runtime permission dialog, as `dismiss_overlay` does.
+  /// Android-only: `back`, the internal positively-gated `dismiss_overlay`
+  /// recovery action, and `permission_allow`/`permission_deny`.
   ///
   /// `dismiss_overlay` refuses an Android permission dialog because Android
   /// Back denies permission. Denial persistently changes application behavior;
   /// granting is still less reversible and was not requested. Consumers must
   /// express either intent through its explicit permission key. An unrecognized
   /// key throws [NativeException]; an alert-endpoint key issued when no alert
-  /// is open surfaces the W3C "no alert open" error as a [NativeException].
+  /// is open throws a [NativeException] coded [NativeException.noSuchAlertCode]
+  /// (or use [acceptAlertIfPresent] / [dismissAlertIfPresent]).
   Future<void> press(String key);
 
   /// Swipe gesture using the platform's W3C pointer actions.
@@ -403,6 +433,45 @@ abstract class NativeBackend {
   /// sign-in sheet, a Custom Tab, a settings deep link). Issues the driver's
   /// `activateApp` command.
   Future<void> activateApp(String appId);
+
+  /// Accepts the open system alert if one is up, answering whether one was.
+  ///
+  /// The race-tolerant form of `press('consent_accept')`: an alert that has
+  /// not appeared yet, or that something else already answered, is `false`
+  /// rather than a [NativeException] coded [NativeException.noSuchAlertCode].
+  ///
+  /// On Android this refuses a runtime permission dialog with a
+  /// [NativeException], as `press('dismiss_overlay')` does: answering one
+  /// grants or denies a permission, which only the explicit
+  /// `permission_allow` / `permission_deny` keys may do. macOS throws, coded
+  /// `unsupported operation`, as [alertText] does.
+  Future<bool> acceptAlertIfPresent();
+
+  /// Dismisses the open system alert if one is up, answering whether one was.
+  ///
+  /// The race-tolerant form of `press('alert_dismiss')`, with the same
+  /// Android permission-dialog refusal and macOS behavior as
+  /// [acceptAlertIfPresent].
+  Future<bool> dismissAlertIfPresent();
+
+  /// Reads attribute [name] of a resolved [target] (`value`, `enabled`,
+  /// `type`, `checked`, …), or null when the driver reports no value for it.
+  ///
+  /// Names are the platform driver's own (`GET /element/{id}/attribute/{name}`)
+  /// and differ between iOS (`type`, `enabled`, `label`, `value`, `visible`),
+  /// Android (`class`, `enabled`, `text`, `checked`, `displayed`) and macOS. A
+  /// name the driver does not support throws [NativeException], whose message
+  /// lists the names it does. A rect-center [target], which has no element,
+  /// throws too.
+  Future<String?> readAttribute(NativeTarget target, String name);
+
+  /// The platform source document exactly as Appium returns it: XCUITest or
+  /// mac2 XML, or the UiAutomator2 hierarchy.
+  ///
+  /// For diagnostic tooling that needs what [snapshot] filters out (empty
+  /// containers, off-screen and invisible elements, every raw attribute).
+  /// [snapshot] stays the observation; this is not parsed.
+  Future<String> rawSource();
 
   /// Tear down the session and any HTTP client. Does NOT stop Appium, shut down
   /// a simulator, or terminate a macOS app attached with `skipAppKill`.

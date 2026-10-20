@@ -4,9 +4,10 @@ Fills the gaps that kept a backend-direct iOS consumer on its own XCUITest
 transport (lenny#180 to #193). Verified live on an iOS 27.0 simulator
 (XCUITest driver 12.18.1) and a Pixel 7a (UiAutomator2 driver 8.2.2).
 
-- **Breaking for implementers — `NativeBackend` gains two methods and a
-  parameter.** A class that `implements NativeBackend`, or overrides
-  `FakeNativeBackend.resolve`, must add them. Callers are unaffected.
+- **Breaking for implementers — `NativeBackend` gains methods and
+  parameters.** A class that `implements NativeBackend`, or overrides
+  `FakeNativeBackend.resolve` or `enterText`, must add them. Callers are
+  unaffected, except that Android's alert keys no longer throw (below).
   - `alertText()` returns the open system alert's text, or null when none is
     open, so a caller can choose between `consent_accept` and `alert_dismiss`
     instead of answering blind (#180). iOS and Android read
@@ -51,6 +52,36 @@ transport (lenny#180 to #193). Verified live on an iOS 27.0 simulator
 - `backendForPlatform(client:)` forwards an `http.Client` to the backend it
   picks (#187); `NativeLaunch` and `NativeAttach` gain the `client` parameter
   both constructors already took.
+- **More `NativeBackend` members for backend-direct consumers** (#188 to
+  #193), breaking for implementers like the ones above:
+  - `isPresent(selector)`: one live find per populated tier, no retry and no
+    rect fallback, so a gone element cannot read as present. A
+    zero-`findTimeout` `resolve` can: it still returns rect-center from the
+    selector's rect or a cached label match (review of #183). The label tier
+    is a live query on the platform's label attributes. Measured live on a
+    miss: 116 ms on iOS, 145 ms on Android.
+  - `acceptAlertIfPresent()` / `dismissAlertIfPresent()` answer whether an
+    alert was handled instead of throwing on W3C `no such alert` (#192);
+    `NativeException.noSuchAlertCode` names that code for the throwing form.
+  - **Android now answers system alerts**: `press('consent_accept')` /
+    `press('alert_dismiss')` and the if-present forms post the W3C alert
+    endpoint, refusing a runtime permission dialog (where accept grants and
+    dismiss denies) as `dismiss_overlay` does, and answering nothing when the
+    source cannot be read. They used to throw as iOS-only. The `press` tool's
+    description says so.
+  - `readAttribute(target, name)` reads a resolved element's attribute in the
+    driver's own names (#191).
+  - `rawSource()` returns the platform source document unparsed (#190).
+  - `enterText(..., dismissKeyboard: false)` leaves the keyboard up (#193).
+- `NativeNode.parentId` links each node to its nearest kept ancestor, so the
+  filtered nodes rebuild into a tree (#189). In-memory only, like `depth`.
+- iOS and macOS nodes carry the `disabled` state for `enabled="false"`, as
+  Android nodes already did (#190). This reaches the model's observation.
+- `sessionId` on `XcuiTestBackend`, `UiAutomator2Backend` and `Mac2Backend`
+  (#188).
+- `FakeNativeBackend` scripts `isPresent` (`presence`, defaulting to a match
+  against the snapshot payload), the alert answers, `attributes` and
+  `rawSourcePayload`, and records each `enterText`'s `dismissKeyboard`.
 - `FakeNativeBackend` scripts `alertText` through `alertTextPayload`, records
   `alertText` and `activateApp` calls, and records each resolve's
   `findTimeout` in `resolveFindTimeouts`.

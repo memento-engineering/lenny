@@ -2,6 +2,49 @@ import 'package:leonard_native/leonard_native.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('isPresent matches the snapshot payload, never a rect', () async {
+    final FakeNativeBackend fake = FakeNativeBackend(
+      snapshotPayload: NativeSnapshot(
+        platform: 'ios',
+        nodes: const <NativeNode>[
+          NativeNode(
+            id: 1,
+            role: 'button',
+            label: 'Go',
+            rect: <int>[0, 0, 9, 9],
+          ),
+        ],
+      ),
+    );
+
+    expect(await fake.isPresent(const NativeSelector(label: 'Go')), isTrue);
+    expect(await fake.isPresent(const NativeSelector(label: 'Gone')), isFalse);
+    expect(
+      await fake.isPresent(const NativeSelector(rect: <int>[0, 0, 9, 9])),
+      isFalse,
+    );
+    fake.presence = (NativeSelector s) => s.label == 'Gone';
+    expect(await fake.isPresent(const NativeSelector(label: 'Gone')), isTrue);
+  });
+
+  test('scripts the if-present alert answers, attributes and source', () async {
+    final FakeNativeBackend fake = FakeNativeBackend()
+      ..alertTextPayload = 'Save Password?'
+      ..rawSourcePayload = '<root/>';
+    fake.attributes['E1'] = <String, String>{'value': 'a@b.c'};
+    const NativeTarget field = NativeTarget(elementId: 'E1', via: 'xpath');
+
+    expect(await fake.dismissAlertIfPresent(), isTrue);
+    expect(await fake.alertText(), isNull);
+    expect(await fake.acceptAlertIfPresent(), isFalse);
+    expect(await fake.readAttribute(field, 'value'), 'a@b.c');
+    expect(await fake.readAttribute(field, 'checked'), isNull);
+    expect(await fake.rawSource(), '<root/>');
+    await fake.enterText(field, 'x', dismissKeyboard: false);
+    await fake.enterText(field, 'y');
+    expect(fake.enterTextDismissKeyboard, <bool>[false, true]);
+  });
+
   test('scripts alertText and records activateApp', () async {
     final FakeNativeBackend fake = FakeNativeBackend();
 
