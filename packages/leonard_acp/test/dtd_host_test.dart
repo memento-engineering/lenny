@@ -92,19 +92,19 @@ class _Registration {
     Map<String, Object?>? capabilities,
   }) async {
     if (failure case final Object error) throw error;
-    expect(service, 'leonard.acp');
+    expect(service, 'leonard_acp');
     callbacks[method] = callback;
     this.capabilities[method] = capabilities!;
   }
 }
 
 Parameters _decideRequest() => Parameters(
-  'leonard.acp.decide',
+  'leonard_acp.decide',
   <String, Object?>{'snapshot': _snapshot.toJson(), 'schema': _schema.toJson()},
 );
 
 Parameters _sessionRequest(String label, String model) => Parameters(
-  'leonard.acp.session/new',
+  'leonard_acp.session/new',
   <String, Object?>{'harness_label': label, 'model_id': model},
 );
 
@@ -231,6 +231,7 @@ void main() {
             _sessionRequest(catalogSpec.label, 'gpt-5.6-sol[high]'),
           ),
           <String, Object?>{
+            'type': 'AcpSessionModels',
             'available_models': <String>['gpt-5.6-sol[high]', 'gpt-5.5[low]'],
             'current_model_id': 'gpt-5.6-sol[high]',
           },
@@ -325,7 +326,7 @@ void main() {
           },
           registerService: registration.register,
           postEvent: (stream, kind, data) async {
-            expect(stream, 'leonard.acp.thinking');
+            expect(stream, 'leonard_acp.thinking');
             expect(kind, 'ThinkingDelta');
             posts.add(data['text']! as String);
           },
@@ -425,7 +426,7 @@ void main() {
           postEvent: (_, __, ___) async {},
         );
         expect(await duplicateHost.start(reportError: errors.add), isFalse);
-        expect(errors.single, contains('leonard.acp is already registered'));
+        expect(errors.single, contains('leonard_acp is already registered'));
 
         final RpcException failure = RpcException(-32602, 'bad');
         final _Registration unrelated = _Registration()..failure = failure;

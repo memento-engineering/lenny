@@ -10,20 +10,20 @@ import 'package:dart_service_protocol_shared/dart_service_protocol_shared.dart'
 import 'package:json_rpc_2/json_rpc_2.dart' show RpcException;
 import 'package:leonard_agent/leonard_agent.dart';
 
-const String _service = 'leonard.acp';
+const String _service = 'leonard_acp';
 const String _method = 'decide';
 const String _newSessionMethod = 'session/new';
-const String _thinkingStream = 'leonard.acp.thinking';
+const String _thinkingStream = 'leonard_acp.thinking';
 const String _decisionType = 'ModelDecision';
 const String _rejectionType = 'SchemaRejection';
 const String _thinkingKind = 'ThinkingDelta';
-const String _invalidHandshake = 'Invalid leonard.acp capability handshake';
+const String _invalidHandshake = 'Invalid leonard_acp capability handshake';
 const String _invalidSessionHandshake =
-    'Invalid leonard.acp session/new capability handshake';
+    'Invalid leonard_acp session/new capability handshake';
 const String _invalidSessionModels =
-    'Invalid leonard.acp session/new model response';
+    'Invalid leonard_acp session/new model response';
 const String _unavailableMessage =
-    'Host-side ACP service leonard.acp/decide is unavailable; start '
+    'Host-side ACP service leonard_acp/decide is unavailable; start '
     'leonard_acp:dtd_host and try again.';
 
 /// Reads the shared stream of thinking-event data maps.
@@ -56,10 +56,10 @@ class DtdAcpHostInfo {
   }) : harnessLabels = List<String>.unmodifiable(harnessLabels),
        capabilities = Map<String, Object?>.unmodifiable(capabilities);
 
-  /// Harness labels accepted by `leonard.acp/session/new`.
+  /// Harness labels accepted by `leonard_acp/session/new`.
   final List<String> harnessLabels;
 
-  /// Capability handshake for `leonard.acp/decide`.
+  /// Capability handshake for `leonard_acp/decide`.
   final Map<String, Object?> capabilities;
 }
 
@@ -222,7 +222,7 @@ class DtdAcpUnavailable implements Exception {
   String toString() => message;
 }
 
-/// A web-safe [ModelProvider] proxy for `leonard.acp/decide` over DTD.
+/// A web-safe [ModelProvider] proxy for `leonard_acp/decide` over DTD.
 class DtdAcpModelProvider implements ModelProvider {
   /// Creates a proxy from raw callbacks and a capability handshake.
   ///
@@ -241,7 +241,7 @@ class DtdAcpModelProvider implements ModelProvider {
 
   /// Creates a proxy backed by one live [DartToolingDaemon] connection.
   ///
-  /// [capabilities] is the `leonard.acp/decide` method capability map returned
+  /// [capabilities] is the `leonard_acp/decide` method capability map returned
   /// by `getRegisteredServices()`. [sessionReadiness] is awaited alongside
   /// the one thinking-stream subscription before the first decision.
   factory DtdAcpModelProvider.fromDaemon(
@@ -301,7 +301,7 @@ class DtdAcpModelProvider implements ModelProvider {
           rawOutput: response['raw_output'] as String,
         ),
         final Object? type => throw FormatException(
-          'Unknown leonard.acp response type: $type',
+          'Unknown leonard_acp response type: $type',
         ),
       };
     } on RpcException catch (error) {

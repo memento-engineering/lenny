@@ -13,7 +13,8 @@ export 'src/acp_agent_spec.dart'
     show AcpAgentSpec, acpAgentSpecs, kCodexPinnedModel;
 export 'src/acp_model_provider.dart'
     show AcpModelProvider, kAcpDefaultCapabilities;
-export 'src/acp_session.dart' show AcpSession, AcpTurn, kAcpProtocolVersion;
+export 'src/acp_session.dart'
+    show AcpSession, AcpTurn, kAcpProtocolVersion, leonardClientCapabilities;
 export 'src/deny_all_client.dart' show AcpChunkSink, DenyAllAcpClient;
 export 'src/dtd_acp_host.dart'
     show
