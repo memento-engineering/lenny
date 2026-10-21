@@ -91,6 +91,14 @@ melos:
         when the host or app is unavailable.
       run: dart run packages/leonard_cli/tool/live_macos_smoke.dart
 
+    test:live:gc:
+      description: >-
+        Requires macOS and a model (local swift-infer by default). Runs
+        gc_pack/leonard in a throwaway Gas City 1.5.0 city against the sample
+        app: an infra, a pass and a fail scenario (~15 min). Fails rather than
+        skipping when a prerequisite is missing.
+      run: ./tool/gc_pack_e2e.sh
+
     test:e2e:auth0:
       description: >-
         Run the live Auth0 round-trip dogfood e2e (leonard_native m5). Requires a

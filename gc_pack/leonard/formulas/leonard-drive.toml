@@ -1,0 +1,56 @@
+description = """
+Live-drive the running app for the targeted bead with Leonard and record a
+verdict.
+
+The drive runs as this formula's check script, after the agent closes the
+drive step. It reads the scenario and run settings from the input bead's
+leonard.* metadata (see the pack README), writes leonard.verdict,
+leonard.reason and leonard.trajectory back to that bead, and exits 0 pass,
+1 fail or 75 infra (no judgement about the app).
+"""
+formula = "leonard-drive"
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[vars.leonard_cli]
+description = "Absolute path of the leonard_cli executable. Check scripts run with a minimal PATH, so a bare name rarely resolves."
+default = "leonard_cli"
+
+[vars.env_file]
+description = "Absolute path of an operator env file sourced before the drive: model credentials (ANTHROPIC_API_KEY, OPENAI_API_KEY, SWIFT_INFER_*), CODEX_HOME for --harness codex, and PATH/PUB_CACHE for dart and flutter. Keep it outside the city directory. Empty sources nothing."
+default = ""
+
+[vars.runs_dir]
+description = "Absolute directory for run artifacts (trajectory, frames, summary, log). Empty uses .leonard/runs under the city. Not the workflow's artifact directory, which Gas City deletes when the workflow finalizes."
+default = ""
+
+[vars.model]
+description = "Default model tier (claude, openai or qwen-mlx). A bead's leonard.model overrides it."
+default = "claude"
+
+[vars.model_id]
+description = "Default exact model id for the tier. A bead's leonard.model_id overrides it; empty keeps the tier default."
+default = ""
+
+[vars.harness]
+description = "Default ACP harness (codex or copilot) used instead of the tier. A bead's leonard.harness overrides it; empty uses the tier."
+default = ""
+
+[vars.wall_clock_minutes]
+description = "Default whole-drive budget in minutes. Keep it under the 30m check timeout."
+default = "15"
+
+[[steps]]
+id = "drive"
+title = "Leonard live drive"
+description_file = "../assets/workflows/leonard-drive/drive.md"
+metadata = { "leonard.leonard_cli" = "{{leonard_cli}}", "leonard.env_file" = "{{env_file}}", "leonard.runs_dir" = "{{runs_dir}}", "leonard.model" = "{{model}}", "leonard.model_id" = "{{model_id}}", "leonard.harness" = "{{harness}}", "leonard.wall_clock_minutes" = "{{wall_clock_minutes}}" }
+
+[steps.check]
+max_attempts = 1
+
+[steps.check.check]
+mode = "exec"
+path = "../assets/scripts/checks/leonard-drive.sh"
+timeout = "30m"

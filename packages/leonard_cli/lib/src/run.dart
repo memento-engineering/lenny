@@ -20,6 +20,7 @@ import 'frame_capture_sink.dart';
 import 'image_golden_comparator.dart';
 import 'launcher.dart';
 import 'provider_factory.dart';
+import 'run_verdict.dart';
 
 /// Path the CLI advertises in `--help` for the bundled AGENTS.md.
 const String kAgentsMdRelativePath = 'leonard_cli/templates/AGENTS.md';
@@ -39,7 +40,12 @@ const String _kHarnessVersion = '0.6.0';
 /// override when the price flags are absent.
 ///
 /// With `--summary-json`, the run's summary is written once the exit code is
-/// known, on every path that got as far as opening the trajectory.
+/// known, on every path that got as far as opening the trajectory. It carries
+/// the run's verdict (see `run_verdict.dart`) and a compact turn digest.
+///
+/// With `--gate-exit-codes`, the process exits with the verdict instead:
+/// 0 pass, 75 infra, 1 fail. The flag is read from raw [argv] so a usage
+/// error still exits 75 (the run never judged the app).
 Future<int> runCli(
   List<String> argv, {
   required Stdin stdin,
@@ -58,8 +64,29 @@ Future<int> runCli(
     acpProviderBuilder: acpProviderBuilder,
     summary: summary,
   );
-  await summary.write(exitCode, stderr: stderr);
-  return exitCode;
+  final bool gate =
+      argv.contains('--gate-exit-codes') &&
+      !argv.contains('-h') &&
+      !argv.contains('--help');
+  if (!gate && summary.path == null) return exitCode;
+  final ({RunJudgement judgement, List<String> digest}) verdict = await summary
+      .judge(exitCode);
+  final int processExitCode = gate
+      ? verdict.judgement.verdict.gateExitCode
+      : exitCode;
+  await summary.write(
+    processExitCode,
+    judgement: verdict.judgement,
+    digest: verdict.digest,
+    stderr: stderr,
+  );
+  if (gate) {
+    stderr.writeln(
+      'verdict: ${verdict.judgement.verdict.name} — '
+      '${verdict.judgement.reason}',
+    );
+  }
+  return processExitCode;
 }
 
 Future<int> _runCli(
@@ -362,17 +389,25 @@ Future<int> _runCli(
     );
 
     final String? goldensDirectory = args.goldensDir;
-    final int goldenExitCode = goldensDirectory == null
-        ? 0
-        : await finishImageGoldenRun(
-            framePaths: frameSink.capturedFramePaths,
-            goldensDirectory: goldensDirectory,
-            channelTolerance: args.goldenChannelTolerance,
-            maxDiffRatio: args.goldenMaxDiffRatio,
-            updateGoldens: args.updateGoldens,
-            output: stdout,
-            error: stderr,
-          );
+    int goldenExitCode = 0;
+    if (goldensDirectory != null) {
+      try {
+        goldenExitCode = await finishImageGoldenRun(
+          framePaths: frameSink.capturedFramePaths,
+          goldensDirectory: goldensDirectory,
+          channelTolerance: args.goldenChannelTolerance,
+          maxDiffRatio: args.goldenMaxDiffRatio,
+          updateGoldens: args.updateGoldens,
+          output: stdout,
+          error: stderr,
+        );
+      } on Object catch (e) {
+        // Exit 1 means a golden mismatch; goldens that could not be read or
+        // written leave the app unjudged (EX_SOFTWARE, judged infra).
+        stderr.writeln('error: comparing goldens: $e');
+        goldenExitCode = 70;
+      }
+    }
 
     // ----- translate to exit code -----------------------------------
     if (termination.outcome == SessionOutcome.harnessError) {
@@ -441,17 +476,51 @@ class _RunSummary {
   String? modelIdentifier;
   TrajectoryWriter? writer;
 
-  /// Writes the summary for a run that exited with [exitCode]. A no-op
-  /// without `--summary-json`, or when the run stopped before opening its
-  /// trajectory (argument and goal errors). A write failure is reported but
-  /// never changes the exit code.
-  Future<void> write(int exitCode, {required IOSink stderr}) async {
+  /// Judges the run that ended with the harness [exitCode], reading its turns
+  /// back from the trajectory. A trajectory that cannot be read judges as if
+  /// it had no turns; the footer alone still decides the verdict.
+  Future<({RunJudgement judgement, List<String> digest})> judge(
+    int exitCode,
+  ) async {
+    List<TurnRecord> turns = const <TurnRecord>[];
+    final String? trajectory = trajectoryPath;
+    if (trajectory != null && writer?.footer != null) {
+      try {
+        turns = TrajectoryReader.readAll(
+          await File(trajectory).readAsString(),
+        ).whereType<TurnRecord>().toList(growable: false);
+      } on Object {
+        turns = const <TurnRecord>[];
+      }
+    }
+    return (
+      judgement: judgeRun(
+        exitCode: exitCode,
+        footer: writer?.footer,
+        turns: turns,
+      ),
+      digest: digestTurns(turns),
+    );
+  }
+
+  /// Writes the summary for a run whose process exits with [exitCode]. A
+  /// no-op without `--summary-json`, or when the run stopped before opening
+  /// its trajectory (argument and goal errors). A write failure is reported
+  /// but never changes the exit code.
+  Future<void> write(
+    int exitCode, {
+    required RunJudgement judgement,
+    required List<String> digest,
+    required IOSink stderr,
+  }) async {
     final String? target = path;
     if (target == null) return;
     final SessionFooter? footer = writer?.footer;
     final Map<String, Object?> json = <String, Object?>{
       'schema': 'leonard.run_summary/1',
       'exit_code': exitCode,
+      'verdict': judgement.verdict.name,
+      'reason': judgement.reason,
       'outcome': footer?.toJson()['outcome'],
       if (footer?.harnessError != null) 'harness_error': footer!.harnessError,
       if (footer?.terminationDetail != null)
@@ -461,6 +530,7 @@ class _RunSummary {
       'model_identifier': modelIdentifier,
       'trajectory': trajectoryPath,
       'usage': footer?.usage,
+      'digest': digest,
     };
     try {
       final File file = File(target);

@@ -22,6 +22,7 @@ jobs:
       - run: ./tool/build_devtools_extension.sh
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
+      - run: ./gc_pack/leonard/tests/leonard_drive_test.sh
       - run: melos run test --no-select
   grid-assets:
     # `grid_assets/leonard_grid_assets` is a PUBLISHED package that is neither

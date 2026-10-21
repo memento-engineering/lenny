@@ -129,6 +129,36 @@ outrank the environment, and both values of a pair must be set.
 Runs also record time to first token and output tokens per second, which is
 the figure that matters when sizing local hardware.
 
+## Verdicts and gate exit codes
+
+The exit code alone does not say whether the app did the thing: a run that
+spends its whole budget without reaching the goal still exits 0. The summary
+says it instead, in three more fields:
+
+```json
+{
+  "verdict": "fail",
+  "reason": "budget exhausted after 50 turns without reaching the goal",
+  "digest": ["… 38 earlier turns omitted", "#38 core.tap node_id=\"12\" → ok", "..."]
+}
+```
+
+| Verdict | When |
+|---|---|
+| `pass` | The model called `core.done` (and every golden matched). |
+| `fail` | Leonard drove the app and the goal was not met: the budget ran out, the app's VM service went away mid-drive, or a frame missed its golden. |
+| `infra` | Leonard could not judge the app: no launch or attach, the provider was misconfigured, unreachable or too slow, the model could not produce a valid action, or the observation envelope was rejected, or the goldens could not be read or written. |
+
+`digest` is the run's last turns, one line each, newest last, under 3000
+UTF-8 bytes: enough to tell a coding agent where the drive got stuck.
+
+For a deterministic gate, `--gate-exit-codes` makes the process exit with the
+verdict: **0 pass, 75 infra, 1 fail**. 75 is `EX_TEMPFAIL`, the code Gas City
+reserves for a check that could not reach its infrastructure.
+A usage error exits 75 too, and the last stderr line is the verdict and its
+reason. `gc_pack/leonard` at the repository root wraps this as a Gas City
+pack.
+
 ## Captured frames and image goldens
 
 Every live-driving run writes PNG frames already carried by its trajectory

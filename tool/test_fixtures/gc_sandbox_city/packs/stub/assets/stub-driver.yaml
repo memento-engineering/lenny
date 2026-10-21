@@ -1,0 +1,17 @@
+description: Close the leonard-drive iteration so the controller runs the check.
+schema_version: v1
+turns:
+  - when: {hook: has_work}
+    do:
+      - bd_claim: "{bead.id}"
+      - bd_update:
+          id: "{bead.id}"
+          status: closed
+          metadata:
+            gc.outcome: pass
+      - log: "stub closed {bead.id}"
+      - exit: 0
+  - when: {hook: empty}
+    do:
+      - log: "hook empty"
+      - exit: 0
