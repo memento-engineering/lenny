@@ -7,15 +7,19 @@ import 'package:flutter/widgets.dart';
 /// Returns null when the tree is unavailable or no [EditableText] element
 /// intersects the target rect.
 ///
-/// Only an [EditableText] that is on stage is a candidate. The Overlay keeps
-/// the entries under an opaque route attached but off stage, and builds them
-/// with tickers disabled; their geometry is stale (laid out before they were
-/// covered) or absent (never laid out, where reading it throws). A field in a
-/// subtree with tickers disabled, or whose render box has no size, is skipped.
+/// Only an [EditableText] that is on stage is a candidate. The walk goes
+/// through [Element.debugVisitOnstageChildren] (an ordinary method, live in
+/// release builds despite its name, and the walk flutter_test's skipOffstage
+/// uses), so it never enters the Overlay's entries under an opaque route, an
+/// [IndexedStack]'s unselected children, [Offstage] content, or slivers that
+/// are not visible. Those subtrees keep geometry that is stale (laid out
+/// before they were hidden) or absent, and a field in them is not on screen
+/// to be typed into. A field whose render box has no size is skipped too:
+/// reading its geometry throws.
 ///
-/// Among candidates whose intersections tie, the last one visited wins: it is
-/// later in paint order, so it is the one on top, as with a field on a
-/// non-opaque route over a field on the route beneath it.
+/// Among candidates whose intersections tie, the last one visited wins. Of
+/// two overlapping on-stage siblings, as in a [Stack] or a non-opaque route
+/// over the route beneath it, the later one paints on top.
 EditableTextState? resolveEditableText(Rect targetGlobalRect) {
   final Element? root = WidgetsBinding.instance.rootElement;
   if (root == null) return null;
@@ -26,10 +30,7 @@ EditableTextState? resolveEditableText(Rect targetGlobalRect) {
   void visit(Element el) {
     if (el is StatefulElement && el.state is EditableTextState) {
       final RenderObject? ro = el.renderObject;
-      if (ro is RenderBox &&
-          ro.attached &&
-          ro.hasSize &&
-          TickerMode.getValuesNotifier(el).value.enabled) {
+      if (ro is RenderBox && ro.attached && ro.hasSize) {
         final Rect global = ro.localToGlobal(Offset.zero) & ro.size;
         final Rect intersection = global.intersect(targetGlobalRect);
         if (!intersection.isEmpty) {
@@ -41,9 +42,9 @@ EditableTextState? resolveEditableText(Rect targetGlobalRect) {
         }
       }
     }
-    el.visitChildren(visit);
+    el.debugVisitOnstageChildren(visit);
   }
 
-  root.visitChildren(visit);
+  root.debugVisitOnstageChildren(visit);
   return best;
 }

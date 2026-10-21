@@ -368,14 +368,63 @@ void main() {
     },
   );
 
+  // Enters [text] through core.enter_text on the textfield node labelled
+  // [label].
+  Future<ToolResult> enterTextAtLabel(String label, String text) async {
+    final SemanticsCapture cap = SemanticsCapture();
+    try {
+      final Map<String, Object> wrapper = cap.capture().firstWhere(
+        (Map<String, Object> r) =>
+            r['role'] == 'textfield' && r['label'] == label,
+      );
+      final CoreExtension core = CoreExtension(semantics: cap);
+      final LeonardTool t = core.tools.firstWhere(
+        (LeonardTool x) => x.name == 'enter_text',
+      );
+      return await t.call(<String, Object?>{
+        'node_id': wrapper['id']! as int,
+        'text': text,
+      });
+    } finally {
+      cap.dispose();
+    }
+  }
+
+  // Area of the overlap between the EditableText driven by [field] and the
+  // TextField driven by [target], whose rect is the target node's. Reads the
+  // render boxes directly, so an off-stage field's stale geometry counts.
+  double overlapArea(
+    WidgetTester tester,
+    TextEditingController field,
+    TextEditingController target,
+  ) {
+    Rect rectOf(Finder f) {
+      final RenderBox box = tester.renderObject<RenderBox>(f);
+      return box.localToGlobal(Offset.zero) & box.size;
+    }
+
+    final Rect editable = rectOf(
+      find.byWidgetPredicate(
+        (Widget w) => w is EditableText && w.controller == field,
+        skipOffstage: false,
+      ),
+    );
+    final Rect targetRect = rectOf(
+      find.byWidgetPredicate(
+        (Widget w) => w is TextField && w.controller == target,
+      ),
+    );
+    final Rect overlap = editable.intersect(targetRect);
+    return overlap.isEmpty ? 0 : overlap.width * overlap.height;
+  }
+
   // Pushes a field route over a laid-out field route at runtime, then enters
   // text through the node of the field on the pushed route. By default both
   // fields fill the same rect, so the geometric match ties; with
   // [hiddenOverlapsMore] the covered field overlaps the target more than the
   // visible one does, so only its being off stage rules it out. The semantics
-  // handle is
-  // disposed in a finally: flutter_test checks for live handles before
-  // addTearDown callbacks run.
+  // handle is disposed in a finally: flutter_test checks for live handles
+  // before addTearDown callbacks run.
   Future<void> enterTextOverLaidOutRoute(
     WidgetTester tester, {
     required bool opaque,
@@ -412,28 +461,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final SemanticsCapture cap = SemanticsCapture();
-      try {
-        final Map<String, Object> wrapper = cap.capture().firstWhere(
-          (Map<String, Object> r) =>
-              r['role'] == 'textfield' && r['label'] == 'first name',
-        );
-
-        final CoreExtension core = CoreExtension(semantics: cap);
-        final LeonardTool t = core.tools.firstWhere(
-          (LeonardTool x) => x.name == 'enter_text',
-        );
-        final ToolResult r = await t.call(<String, Object?>{
-          'node_id': wrapper['id']! as int,
-          'text': 'Lenny',
-        });
-
-        expect(r.ok, isTrue, reason: r.error);
-        expect(visible.text, 'Lenny');
-        expect(hidden.text, isEmpty);
-      } finally {
-        cap.dispose();
+      final double hiddenArea = overlapArea(tester, hidden, visible);
+      final double visibleArea = overlapArea(tester, visible, visible);
+      if (hiddenOverlapsMore) {
+        expect(hiddenArea, greaterThan(visibleArea));
+      } else {
+        expect(hiddenArea, visibleArea);
       }
+
+      final ToolResult r = await enterTextAtLabel('first name', 'Lenny');
+      expect(r.ok, isTrue, reason: r.error);
+      expect(visible.text, 'Lenny');
+      expect(hidden.text, isEmpty);
     } finally {
       h.dispose();
     }
@@ -471,6 +510,49 @@ void main() {
         hidden: hidden,
         visible: visible,
       );
+    },
+  );
+
+  testWidgets(
+    'core.enter_text skips an EditableText in an unselected IndexedStack '
+    'child (lenny-5bw3t: a hidden tab is laid out at full geometry and, '
+    'later in the tree, won the tie)',
+    (WidgetTester tester) async {
+      final TextEditingController hidden = TextEditingController();
+      final TextEditingController visible = TextEditingController();
+      addTearDown(hidden.dispose);
+      addTearDown(visible.dispose);
+      final SemanticsHandle h = tester.ensureSemantics();
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: IndexedStack(
+                children: <Widget>[
+                  Semantics(
+                    label: 'search',
+                    textField: true,
+                    child: TextField(controller: visible),
+                  ),
+                  TextField(controller: hidden),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          overlapArea(tester, hidden, visible),
+          overlapArea(tester, visible, visible),
+        );
+
+        final ToolResult r = await enterTextAtLabel('search', 'Lenny');
+        expect(r.ok, isTrue, reason: r.error);
+        expect(visible.text, 'Lenny');
+        expect(hidden.text, isEmpty);
+      } finally {
+        h.dispose();
+      }
     },
   );
 }
