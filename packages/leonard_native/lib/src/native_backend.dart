@@ -473,7 +473,9 @@ abstract class NativeBackend {
   /// [snapshot] stays the observation; this is not parsed.
   Future<String> rawSource();
 
-  /// Tear down the session and any HTTP client. Does NOT stop Appium, shut down
-  /// a simulator, or terminate a macOS app attached with `skipAppKill`.
+  /// Tear down the session and any HTTP client the backend created; a client
+  /// the caller supplied is left open for the caller to close. Does NOT stop
+  /// Appium, shut down a simulator, or terminate a macOS app attached with
+  /// `skipAppKill`.
   Future<void> close();
 }

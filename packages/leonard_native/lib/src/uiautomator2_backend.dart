@@ -186,6 +186,10 @@ class UiAutomator2Backend implements NativeBackend {
   /// Launching relaunches the app, so it drops any `flutter run` VM-service
   /// channel; use [UiAutomator2Backend.attach] beside a running Flutter app.
   /// Tears off to [NativeLaunch], the same shape as `XcuiTestBackend.new`.
+  ///
+  /// [client] carries the Appium traffic. When it is null the backend creates
+  /// its own client and [close] closes it; a client the caller supplies stays
+  /// the caller's, so [close] ends the session over it but never closes it.
   UiAutomator2Backend({
     Uri? server,
     required this.udid,
@@ -203,6 +207,7 @@ class UiAutomator2Backend implements NativeBackend {
        server = server ?? Uri.parse('http://127.0.0.1:4723'),
        obstructionIds =
            obstructionIds ?? ObstructionResourceIdPolicy.defaults(),
+       _ownsClient = client == null,
        _client = client ?? http.Client();
 
   /// Constructs a backend that attaches to the already-running [appId] (the
@@ -212,6 +217,10 @@ class UiAutomator2Backend implements NativeBackend {
   /// running once the session is open.
   ///
   /// Tears off to [NativeAttach], the same shape as `XcuiTestBackend.attach`.
+  ///
+  /// [client] carries the Appium traffic. When it is null the backend creates
+  /// its own client and [close] closes it; a client the caller supplies stays
+  /// the caller's, so [close] ends the session over it but never closes it.
   UiAutomator2Backend.attach({
     Uri? server,
     required this.udid,
@@ -229,6 +238,7 @@ class UiAutomator2Backend implements NativeBackend {
        server = server ?? Uri.parse('http://127.0.0.1:4723'),
        obstructionIds =
            obstructionIds ?? ObstructionResourceIdPolicy.defaults(),
+       _ownsClient = client == null,
        _client = client ?? http.Client();
 
   /// The local Appium server URL.
@@ -265,6 +275,9 @@ class UiAutomator2Backend implements NativeBackend {
   final String platform = 'android';
 
   final http.Client _client;
+
+  /// Whether [_client] was created here, so [close] closes it (lenny#198).
+  final bool _ownsClient;
 
   /// The active W3C session id, or null before [connect] / after [close].
   String? _sessionId;
@@ -480,7 +493,7 @@ class UiAutomator2Backend implements NativeBackend {
   @override
   Future<void> close() async {
     await _releaseSession();
-    _client.close();
+    if (_ownsClient) _client.close();
   }
 
   /// Clears the session state and best-effort deletes the session, leaving
@@ -850,7 +863,8 @@ class UiAutomator2Backend implements NativeBackend {
         );
         final Object? v = j['value'];
         if (v is Map) {
-          final Object? eid = v[_w3cElementKey] ?? v.values.first;
+          final Object? eid =
+              v[_w3cElementKey] ?? (v.isEmpty ? null : v.values.first);
           if (eid is String) return eid;
         }
         return null;

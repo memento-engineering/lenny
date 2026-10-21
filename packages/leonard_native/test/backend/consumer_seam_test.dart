@@ -3,7 +3,8 @@
 /// (lenny#183), `sessionId` (lenny#188), `parentId` (lenny#189), `rawSource`
 /// and the Apple `disabled` state (lenny#190), `readAttribute` (lenny#191),
 /// the if-present alert answers (lenny#192) and `enterText`'s
-/// `dismissKeyboard` (lenny#193) and `isPresent` (the #183 review) — on each
+/// `dismissKeyboard` (lenny#193), `isPresent` (the #183 review) and an empty
+/// find value read as a miss (lenny#200) — on each
 /// REAL Appium backend over a MOCKED `http.Client`.
 library;
 
@@ -528,6 +529,31 @@ void main() {
           isTrue,
         );
         expect(finds, 1);
+        await b.close();
+      });
+
+      test('$name: an empty find value is a miss (lenny#200)', () async {
+        // A find answering {"value": {}} used to throw StateError out of
+        // `values.first`, escaping resolve and isPresent as a non-
+        // NativeException.
+        final NativeBackend b = _backends[name]!(
+          _client(<http.Request>[], (http.Request r) async {
+            if (!r.url.path.endsWith('/element')) return _json(null);
+            return _json(<String, Object?>{});
+          }),
+        );
+        await b.connect();
+        const NativeSelector selector = NativeSelector(
+          a11yId: 'passkey-prompt',
+          label: 'Passkey',
+          xpath: '//Sheet',
+        );
+
+        expect(await b.isPresent(selector), isFalse);
+        expect(
+          await b.resolve(selector, null, findTimeout: Duration.zero),
+          isNull,
+        );
         await b.close();
       });
 

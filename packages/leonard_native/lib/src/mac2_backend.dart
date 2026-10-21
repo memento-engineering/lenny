@@ -27,12 +27,17 @@ class Mac2Backend implements NativeBackend {
   /// The Appium server and [bundleId] application must already be running.
   /// [connect] uses `skipAppKill`, so [close] deletes only the WebDriver
   /// session and leaves the application running.
+  ///
+  /// [client] carries the Appium traffic. When it is null the backend creates
+  /// its own client and [close] closes it; a client the caller supplies stays
+  /// the caller's, so [close] ends the session over it but never closes it.
   Mac2Backend({
     Uri? server,
     required this.bundleId,
     this.pollInterval = const Duration(seconds: 1),
     http.Client? client,
   }) : server = server ?? Uri.parse('http://127.0.0.1:4723'),
+       _ownsClient = client == null,
        _client = client ?? http.Client() {
     if (bundleId.trim().isEmpty) {
       throw ArgumentError.value(
@@ -56,6 +61,9 @@ class Mac2Backend implements NativeBackend {
   final Duration pollInterval;
 
   final http.Client _client;
+
+  /// Whether [_client] was created here, so [close] closes it (lenny#198).
+  final bool _ownsClient;
   String? _sessionId;
 
   /// The open W3C session id, or null before [connect] / after [close].
@@ -163,7 +171,7 @@ class Mac2Backend implements NativeBackend {
         // Best effort: session teardown must not replace the caller's result.
       }
     }
-    _client.close();
+    if (_ownsClient) _client.close();
   }
 
   @override

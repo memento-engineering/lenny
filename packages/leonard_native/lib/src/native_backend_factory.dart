@@ -22,7 +22,10 @@ import 'uiautomator2_backend.dart';
 ///
 /// `ios` -> [XcuiTestBackend]; `android` -> [UiAutomator2Backend]; `darwin` ->
 /// [Mac2Backend]. [client], when set, carries the chosen backend's Appium
-/// traffic, so a wrapper around this factory can observe or fake it.
+/// traffic, so a wrapper around this factory can observe or fake it. It stays
+/// the caller's: the backend's `close()` ends the session over it but never
+/// closes it, so one client can outlive a failed connect or serve several
+/// backends. Without [client] the backend creates its own and closes it.
 /// An unrecognized platform throws [ArgumentError] — LOUD, never a silent
 /// fallback to iOS, which would perceive an Android target through an XCUITest
 /// parser and yield an empty tree.
