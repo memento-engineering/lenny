@@ -80,7 +80,9 @@ actionable nodes:
   - `core.scroll_until_visible` `{scrollable_id, target_id, axis}`
   - `core.gesture` `{node_id, kind:"pan"|"swipe"|"pinch_in"|"pinch_out", direction?, distance_px?, scale?}`
   - `core.inspect_widget` `{node_id, depth?}` · `core.wait` `{seconds}` (0–5)
-  - `core.system_back` `{}` · `core.done` `{reason}`
+  - `core.system_back` `{}` — a back press: pops the top route, never exits
+    the app; result `{handled, popped}` (`popped:false` at the root) ·
+    `core.done` `{reason}`
   - Extension tools (when their namespace is present): e.g.
     `router.navigate {route_name}`. Confirm names via `tools`.
 - **Never repeat an action that just failed.** If `result.ok` is false,

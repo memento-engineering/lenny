@@ -109,7 +109,9 @@ For manual driving (via `leonard_drive`) or scripting a device:
   `core.scroll {node_id, axis:"vertical"|"horizontal", delta_pixels}`
   (read the node's `scroll` — move ~`max - pos` further; `pos == max` = at the
   bottom), `core.gesture {node_id, kind}`, `core.inspect_widget {node_id}`,
-  `core.wait {seconds}`, `core.system_back {}`, `core.done {reason}`.
+  `core.wait {seconds}`, `core.system_back {}` (a back press: pops the top
+  route, never exits the app — `popped:false` means nothing left the stack),
+  `core.done {reason}`.
 - **Never repeat an action that just failed** — read `result.error` (it names
   the bad field) and change something. One `invoke` per turn; `observe`
   between actions.

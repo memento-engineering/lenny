@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.2-dev.1
+
+- Fix: `core.system_back` is a back press, never an app exit (lenny-ssviv). It
+  called `SystemNavigator.pop` — the platform's "exit the app" call — so a
+  back at the root quit the app and ended the run (seen live on the macOS
+  sample app at its Home route). It now dispatches the press the way the
+  engine does, through `WidgetsBinding.handlePopRoute` and the app's
+  registered observers (the root `Navigator`, a `Router`'s back button
+  dispatcher, `PopScope`, an open drawer). When nothing handles it, the tool
+  absorbs the press instead of falling back to `SystemNavigator.pop`, so the
+  app stays up. The result is still `ok` and now reports
+  `{handled, popped}` — `popped: false` means no route left the stack — and
+  is carried into the next model turn.
+
 ## 0.4.1
 
 Stable promotion of `0.4.1-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.
