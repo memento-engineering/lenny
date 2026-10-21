@@ -132,7 +132,7 @@ const Map<String, Object?> _acpCapabilities = <String, Object?>{
 };
 
 ClientServiceInfo _acpService() =>
-    ClientServiceInfo('leonard.acp', <String, ClientServiceMethodInfo>{
+    ClientServiceInfo('leonard_acp', <String, ClientServiceMethodInfo>{
       'decide': ClientServiceMethodInfo('decide', _acpCapabilities),
       'session/new': ClientServiceMethodInfo('session/new', <String, Object?>{
         'harness_labels': <String>['codex-acp', 'copilot'],

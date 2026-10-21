@@ -12,8 +12,10 @@
 #       The host package whose pubspec dep triggers DevTools'
 #       auto-discovery in consumer apps (sample_app et al.).
 #
-# Both destinations are gitignored — re-run this script after any
-# change to packages/leonard_devtools/{lib,web,pubspec.yaml}.
+# The leonard_devtools copy is gitignored; the leonard_flutter copy is
+# COMMITTED, because it is what ships in the published leonard_flutter. Re-run
+# this script and commit the leonard_flutter copy after any change to
+# packages/leonard_devtools/{lib,web,pubspec.yaml}.
 # CI runs this script before analyze/test so PRs that break the build
 # fail at merge.
 set -euo pipefail

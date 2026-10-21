@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- Fix: the `acp` provider never found a host on current SDKs. The panel
+  looked for the DTD service `leonard.acp`, and the Dart Tooling Daemon in
+  Dart 3.12 rejects a dotted service name (error 113), so `leonard_acp`'s
+  bridge could not register it. The service is now `leonard_acp` and its
+  thinking stream `leonard_acp.thinking`. This panel needs `leonard_acp`
+  0.2.2 or later as its bridge.
+
 ## 0.4.0
 
 Stable promotion of `0.4.0-dev.2`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.

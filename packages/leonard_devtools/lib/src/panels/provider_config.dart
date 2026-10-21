@@ -441,7 +441,7 @@ class ProviderConfigForm extends StatefulWidget {
   /// [ModelCatalog.fetch] with `reload: true`.
   final ModelCatalog catalog;
 
-  /// Harness values advertised by the live `leonard.acp` registration.
+  /// Harness values advertised by the live `leonard_acp` registration.
   final List<String> acpHarnessLabels;
 
   /// Fires after a successful "Test connection" fetch so the owner can

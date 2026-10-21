@@ -95,7 +95,7 @@ void main() {
       };
       final DtdAcpPanelClient client = DtdAcpPanelClient(
         listServices: () async => <ClientServiceInfo>[
-          ClientServiceInfo('leonard.acp', <String, ClientServiceMethodInfo>{
+          ClientServiceInfo('leonard_acp', <String, ClientServiceMethodInfo>{
             'decide': ClientServiceMethodInfo('decide', capabilities),
             'session/new': ClientServiceMethodInfo(
               'session/new',

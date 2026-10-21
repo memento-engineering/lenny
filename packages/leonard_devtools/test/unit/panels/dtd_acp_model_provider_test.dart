@@ -96,7 +96,7 @@ ClientServiceInfo _acpService({
   Object? harnessLabels = const <String>['codex-acp', 'copilot'],
   bool includeDecide = true,
   bool includeSession = true,
-}) => ClientServiceInfo('leonard.acp', <String, ClientServiceMethodInfo>{
+}) => ClientServiceInfo('leonard_acp', <String, ClientServiceMethodInfo>{
   if (includeDecide)
     'decide': ClientServiceMethodInfo('decide', decideCapabilities),
   if (includeSession)
@@ -311,7 +311,7 @@ void main() {
           isA<FormatException>().having(
             (FormatException error) => error.message,
             'message',
-            'Invalid leonard.acp capability handshake',
+            'Invalid leonard_acp capability handshake',
           ),
         ),
       );
@@ -400,7 +400,7 @@ void main() {
           isA<DtdAcpUnavailable>().having(
             (DtdAcpUnavailable error) => error.message,
             'message',
-            'Host-side ACP service leonard.acp/decide is unavailable; start '
+            'Host-side ACP service leonard_acp/decide is unavailable; start '
                 'leonard_acp:dtd_host and try again.',
           ),
         ),

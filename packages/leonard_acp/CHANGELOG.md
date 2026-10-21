@@ -9,6 +9,12 @@
   an explicit all-false object; it still grants the agent no file system and
   no terminal. Live probe: handshake in 0.4 s and a deny-all turn returning a
   bare Leonard action in 1.9 s on `claude-sonnet-5`.
+- Fix: `dtd_host` could not start on current SDKs. The Dart Tooling Daemon
+  in Dart 3.12 rejects the dotted service name `leonard.acp` with error 113,
+  "The service name is not valid". The service is now `leonard_acp` and its
+  thinking stream `leonard_acp.thinking`. Pair this bridge with the DevTools
+  panel in `leonard_flutter` 0.4.2 or `leonard_devtools` 0.4.1, which use the
+  new name; older panels look for the old one.
 - New public `leonardClientCapabilities()`, the capabilities sent in
   `initialize`.
 - README: how to drive the DevTools panel with Copilot or Codex through

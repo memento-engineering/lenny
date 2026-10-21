@@ -48,9 +48,15 @@ the Dart Tooling Daemon (DTD).
    a goal.
 
 If the panel shows `acp — no ACP host is registered`, the bridge is not
-running against this app's DTD. The bridge serves one session at a time;
+running against this app's DTD, or it started after the panel opened: the
+panel looks for the bridge when it loads, so reload the panel. The panel and
+the bridge must agree on the service name: use `leonard_acp` 0.2.2 or later
+with `leonard_flutter` 0.4.2 or later. The bridge serves one session at a time;
 starting a new run replaces the previous one.
 
-What the agent can do in this mode: it chooses Leonard's next action each
-turn from a text description of the screen. It does not get screenshots, and
-every request it makes to use its own tools (shell, files) is refused.
+What the agent does in this mode: it chooses Leonard's next action each
+turn from a text description of the screen. It does not get screenshots.
+Leonard grants it no file system and no terminal and refuses every
+permission request it makes. An agent's own built-in tools that need no
+permission (for example read-only file tools) are governed by the agent, in
+the directory the bridge was started from (`--cwd`).

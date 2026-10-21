@@ -13,16 +13,18 @@ import 'package:leonard_agent/leonard_agent.dart';
 import 'acp_agent_spec.dart';
 import 'acp_model_provider.dart' show kAcpDefaultCapabilities;
 
-const String _service = 'leonard.acp';
+// No dots: the Dart Tooling Daemon (Dart 3.12) rejects a dotted service name
+// with error 113, "The service name is not valid".
+const String _service = 'leonard_acp';
 const String _decideMethod = 'decide';
 const String _newSessionMethod = 'session/new';
-const String _thinkingStream = 'leonard.acp.thinking';
+const String _thinkingStream = 'leonard_acp.thinking';
 const String _decisionType = 'ModelDecision';
 const String _rejectionType = 'SchemaRejection';
 const String _thinkingKind = 'ThinkingDelta';
 
 const String _alreadyRegisteredMessage =
-    'leonard.acp is already registered; stop the existing ACP host before '
+    'leonard_acp is already registered; stop the existing ACP host before '
     'starting another.';
 
 /// Registers one DTD service method with optional handshake capabilities.
@@ -121,9 +123,9 @@ class DtdAcpHost {
   StreamSubscription<void>? _thinkingSubscription;
   void Function(String message)? _reportError;
 
-  /// Registers decision and session-opening methods on `leonard.acp`.
+  /// Registers decision and session-opening methods on `leonard_acp`.
   ///
-  /// Returns `false` when another DTD client already owns `leonard.acp` and
+  /// Returns `false` when another DTD client already owns `leonard_acp` and
   /// reports an operator-facing message through [reportError]. Every other
   /// registration error is rethrown.
   Future<bool> start({void Function(String message)? reportError}) async {
