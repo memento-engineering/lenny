@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+Stable promotion of `0.4.2-dev.1` on Nico's promotion call (2026-10-21). One change on top: the runtime `leonard_native` constraint rises from `^0.6.0` to `^0.6.1`, so depending on `leonard_cli` brings in the lenny#198 and lenny#200 backend fixes without a separate pin. The prerelease entry below carries the details.
+
 ## 0.4.2-dev.1
 
 Fixes lenny#199: the lenny#160 fix found the native host through the package config, but `leonard_native` was only a dev dependency, so a consumer that depended on `leonard_cli` alone had no `leonard_native` to find and `leonard_drive up` fell back to paths that exist only inside a lenny checkout.

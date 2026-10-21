@@ -1,3 +1,7 @@
+## 0.6.1
+
+Stable promotion of `0.6.1-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-21), after the Pixel 7a and iPad mini live probes of both fixes passed. The prerelease entry below carries the details.
+
 ## 0.6.1-dev.1
 
 Two fixes for backend-direct consumers of the Appium backends.

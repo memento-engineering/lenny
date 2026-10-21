@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+Stable promotion of `0.4.2-dev.1` on Nico's promotion call (2026-10-21), after the live check on the macOS sample app and the publish workflow's live macOS gate passed. The prerelease entry below carries the details. One change on top:
+
+- The bundled DevTools panel is rebuilt from current `leonard_devtools`. The copy shipped since 0.4.0 was built on 2026-09-02, before the panel learned the `acp` provider, so apps on published `leonard_flutter` had no way to pick a Copilot or Codex harness (lenny-g7ie4). The panel now offers it; see the `leonard_acp` README for the bridge it needs.
+
 ## 0.4.2-dev.1
 
 - Fix: `core.system_back` is a back press, never an app exit (lenny-ssviv). It
