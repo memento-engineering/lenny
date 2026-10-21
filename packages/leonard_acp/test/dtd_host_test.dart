@@ -231,6 +231,7 @@ void main() {
             _sessionRequest(catalogSpec.label, 'gpt-5.6-sol[high]'),
           ),
           <String, Object?>{
+            'type': 'AcpSessionModels',
             'available_models': <String>['gpt-5.6-sol[high]', 'gpt-5.5[low]'],
             'current_model_id': 'gpt-5.6-sol[high]',
           },

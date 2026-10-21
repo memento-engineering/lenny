@@ -21,6 +21,7 @@ const String _newSessionMethod = 'session/new';
 const String _thinkingStream = 'leonard_acp.thinking';
 const String _decisionType = 'ModelDecision';
 const String _rejectionType = 'SchemaRejection';
+const String _sessionModelsType = 'AcpSessionModels';
 const String _thinkingKind = 'ThinkingDelta';
 
 const String _alreadyRegisteredMessage =
@@ -179,7 +180,10 @@ class DtdAcpHost {
     await previousThinking?.cancel();
     await previous?.dispose();
 
+    // Every DTD service response needs a `type`: `DartToolingDaemon.call`
+    // throws on one without it, which is how the panel calls this method.
     return <String, Object?>{
+      'type': _sessionModelsType,
       'available_models': replacement.availableModels,
       'current_model_id': replacement.currentModelId,
     };

@@ -15,6 +15,10 @@
   thinking stream `leonard_acp.thinking`. Pair this bridge with the DevTools
   panel in `leonard_flutter` 0.4.2 or `leonard_devtools` 0.4.1, which use the
   new name; older panels look for the old one.
+- Fix: the panel's `session/new` call failed even with the bridge running.
+  The bridge answered without a `type` field, and `DartToolingDaemon.call`
+  throws on a response without one. The response now carries
+  `type: AcpSessionModels`.
 - New public `leonardClientCapabilities()`, the capabilities sent in
   `initialize`.
 - README: how to drive the DevTools panel with Copilot or Codex through
