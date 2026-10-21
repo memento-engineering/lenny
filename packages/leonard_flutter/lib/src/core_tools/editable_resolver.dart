@@ -7,10 +7,22 @@ import 'package:flutter/widgets.dart';
 /// Returns null when the tree is unavailable or no [EditableText] element
 /// intersects the target rect.
 ///
-/// An [EditableText] whose render box has never been laid out is skipped. The
-/// Overlay keeps covered routes attached without laying them out, so a page
-/// stack built with a text-field route already covered holds sizeless boxes;
-/// reading their geometry throws, and they are not on screen to be typed into.
+/// Only an [EditableText] that is on stage is a candidate. The walk goes
+/// through [Element.debugVisitOnstageChildren] (an ordinary method, live in
+/// release builds despite its name, and the walk flutter_test's skipOffstage
+/// uses), so it never enters the Overlay's entries under an opaque route, an
+/// [IndexedStack]'s unselected children, [Offstage] content, or slivers that
+/// are not visible. Those subtrees keep geometry that is stale (laid out
+/// before they were hidden) or absent, and a field in them is not on screen
+/// to be typed into. A field whose render box has no size is skipped too:
+/// reading its geometry throws.
+///
+/// Among candidates whose intersections tie, the last one visited wins. Of
+/// two overlapping on-stage siblings, as in a [Stack] or a non-opaque route
+/// over the route beneath it, the later one paints on top. An [OverlayPortal]
+/// is the exception: its overlay child is visited right after its owner's
+/// subtree but paints above the whole Overlay entry, so on an exact tie a later
+/// sibling of the owner beats a field inside the portal.
 EditableTextState? resolveEditableText(Rect targetGlobalRect) {
   final Element? root = WidgetsBinding.instance.rootElement;
   if (root == null) return null;
@@ -26,16 +38,16 @@ EditableTextState? resolveEditableText(Rect targetGlobalRect) {
         final Rect intersection = global.intersect(targetGlobalRect);
         if (!intersection.isEmpty) {
           final double area = intersection.width * intersection.height;
-          if (area > bestArea) {
+          if (area >= bestArea) {
             bestArea = area;
             best = el.state as EditableTextState;
           }
         }
       }
     }
-    el.visitChildren(visit);
+    el.debugVisitOnstageChildren(visit);
   }
 
-  root.visitChildren(visit);
+  root.debugVisitOnstageChildren(visit);
   return best;
 }
