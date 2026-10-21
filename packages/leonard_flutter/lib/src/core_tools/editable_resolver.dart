@@ -19,7 +19,10 @@ import 'package:flutter/widgets.dart';
 ///
 /// Among candidates whose intersections tie, the last one visited wins. Of
 /// two overlapping on-stage siblings, as in a [Stack] or a non-opaque route
-/// over the route beneath it, the later one paints on top.
+/// over the route beneath it, the later one paints on top. An [OverlayPortal]
+/// is the exception: its overlay child is visited right after its owner's
+/// subtree but paints above the whole Overlay entry, so on an exact tie a later
+/// sibling of the owner beats a field inside the portal.
 EditableTextState? resolveEditableText(Rect targetGlobalRect) {
   final Element? root = WidgetsBinding.instance.rootElement;
   if (root == null) return null;
