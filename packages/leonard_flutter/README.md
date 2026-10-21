@@ -71,8 +71,9 @@ Extensions register through `ExtensionContext`, which auto-prefixes.
 This package ships `extension/devtools/config.yaml` so any app that
 transitively depends on `leonard_flutter` automatically surfaces
 the **Leonard** tab in DevTools. The compiled web bundle lives at
-`extension/devtools/build/` and is **not committed** — rebuild it from
-the repo root with:
+`extension/devtools/build/` and is committed, so it ships in the published
+package. After any change to `packages/leonard_devtools`, rebuild it from the
+repo root with:
 
 ```sh
 ./tool/build_devtools_extension.sh
@@ -80,3 +81,7 @@ the repo root with:
 
 See `packages/leonard_devtools/README.md` for the full build
 workflow.
+
+To use the GitHub Copilot CLI or Codex as the panel's brain, run the
+`leonard_acp` bridge beside your app; the steps are in the
+[leonard_acp README](https://pub.dev/packages/leonard_acp).
