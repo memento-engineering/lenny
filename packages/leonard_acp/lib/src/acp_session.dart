@@ -19,6 +19,15 @@ import 'model_pin.dart';
 /// ACP major protocol version this client speaks.
 const int kAcpProtocolVersion = 1;
 
+/// The capabilities Leonard advertises in `initialize`: no file system and no
+/// terminal, so with the deny-all permission handler the agent has nothing to
+/// act with.
+///
+/// `fs` is an explicit all-false object rather than absent: the GitHub
+/// Copilot CLI (1.0.82) rejects `initialize` with -32602 when `fs` is null.
+ClientCapabilities leonardClientCapabilities() =>
+    ClientCapabilities(fs: FileSystemCapability());
+
 /// One agent turn's result.
 class AcpTurn {
   const AcpTurn({
@@ -124,9 +133,7 @@ class AcpSession {
     session._initialize = await connection.initialize(
       InitializeRequest(
         protocolVersion: kAcpProtocolVersion,
-        // We advertise NO fs and NO terminal capability: combined with the
-        // deny-all permission handler, the agent has nothing to act with.
-        clientCapabilities: ClientCapabilities(),
+        clientCapabilities: leonardClientCapabilities(),
       ),
     );
 
