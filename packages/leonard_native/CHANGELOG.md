@@ -1,3 +1,22 @@
+## 0.6.1-dev.1
+
+Two fixes for backend-direct consumers of the Appium backends.
+
+- **`close()` closes only a client the backend created** (lenny#198). Since
+  `backendForPlatform(client:)` forwards a caller's `http.Client` (#187),
+  `XcuiTestBackend`, `UiAutomator2Backend` and `Mac2Backend` closed it on
+  `close()`, so a caller that owns one client per session lost it after a
+  best-effort close (for example after a failed `connect`), and its next
+  request failed with `Client is already closed`. A caller-supplied client now
+  stays open and stays the caller's to close; `close()` still deletes the
+  session over it. A backend built without `client` creates its own and closes
+  it, as before.
+- **An empty find value is a miss, not a `StateError`** (lenny#200). A find
+  answering `{"value": {}}` made `XcuiTestBackend` and `UiAutomator2Backend`
+  throw `StateError` out of `resolve` and `isPresent`, past callers that catch
+  `NativeException`. It now reads as no element, as `Mac2Backend` already did:
+  `resolve` falls through to its next tier and `isPresent` answers false.
+
 ## 0.6.0
 
 Stable promotion of `0.6.0-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-20), after the iOS 27.0 simulator, Pixel 7a and iPad mini (iOS 26.6) live probes passed. The prerelease entry below carries the full list, including the breaking `NativeBackend` additions.

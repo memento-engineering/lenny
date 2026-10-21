@@ -1,7 +1,8 @@
 /// UNIT (NOT e2e): transport hygiene on each REAL Appium backend over a
 /// MOCKED `http.Client` — credentials never leave in an error (lenny#186), a
-/// failed connect releases the session it opened (lenny#185), and the factory
-/// forwards a caller's client (lenny#187).
+/// failed connect releases the session it opened (lenny#185), the factory
+/// forwards a caller's client (lenny#187), and close closes only a client the
+/// backend created (lenny#198).
 library;
 
 import 'dart:convert';
@@ -30,6 +31,31 @@ final Map<String, _Make> _backends = <String, _Make>{
   'Mac2Backend': (http.Client c) =>
       Mac2Backend(server: _grid, bundleId: 'engineering.memento', client: c),
 };
+
+/// A caller-owned client that, like `IOClient`, refuses every request once
+/// closed, so a backend that closes it is caught by the next request.
+final class _CallerClient extends http.BaseClient {
+  _CallerClient(MockClientHandler handler) : _inner = MockClient(handler);
+
+  final MockClient _inner;
+
+  /// Whether [close] has been called.
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (closed) {
+      throw http.ClientException('Client is already closed.', request.url);
+    }
+    return _inner.send(request);
+  }
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
 
 Matcher _redactedTransportError() => isA<NativeException>()
     .having((NativeException e) => e.code, 'code', 'transport error')
@@ -197,6 +223,102 @@ void main() {
       await expectLater(b.connect(), throwsA(isA<NativeException>()));
       expect(log.last, 'DELETE /session/s1');
     });
+  });
+
+  group('close closes only the client the backend created (lenny#198)', () {
+    for (final MapEntry<String, _Make> backend in _backends.entries) {
+      test('${backend.key}: a caller-supplied client stays open', () async {
+        final List<String> log = <String>[];
+        final _CallerClient client = _CallerClient((
+          http.Request request,
+        ) async {
+          log.add('${request.method} ${request.url.path}');
+          return request.url.path.endsWith('/wd/hub/session')
+              ? _json(<String, Object?>{'sessionId': 's1'})
+              : _json(null);
+        });
+        final NativeBackend first = backend.value(client);
+        await first.connect();
+
+        await first.close();
+
+        expect(client.closed, isFalse);
+        expect(log.last, 'DELETE /wd/hub/session/s1');
+        // The caller's client still serves the next backend.
+        final NativeBackend second = backend.value(client);
+        await second.connect();
+        await second.close();
+        expect(client.closed, isFalse);
+      });
+
+      test('${backend.key}: close after a failed connect leaves the client '
+          'usable', () async {
+        int sessions = 0;
+        final _CallerClient client = _CallerClient((
+          http.Request request,
+        ) async {
+          if (request.url.path.endsWith('/wd/hub/session')) {
+            sessions++;
+            return sessions == 1
+                ? _json(<String, Object?>{
+                    'error': 'session not created',
+                    'message': 'no device free',
+                  }, status: 500)
+                : _json(<String, Object?>{'sessionId': 's$sessions'});
+          }
+          return _json(null);
+        });
+        final NativeBackend b = backend.value(client);
+        await expectLater(b.connect(), throwsA(isA<NativeException>()));
+
+        await b.close();
+
+        expect(client.closed, isFalse);
+        await b.connect();
+        expect(sessions, 2);
+        await b.close();
+        expect(client.closed, isFalse);
+      });
+    }
+
+    // A backend built without a client owns the one it creates. No request is
+    // sent before the close, and a closed `IOClient` refuses the next one
+    // before touching the network, so this needs no server.
+    final Uri nowhere = Uri.parse('http://127.0.0.1:9');
+    final Map<String, NativeBackend Function()> selfOwned =
+        <String, NativeBackend Function()>{
+          'XcuiTestBackend': () =>
+              XcuiTestBackend(server: nowhere, udid: 'U', app: '/x/R.app'),
+          'UiAutomator2Backend': () =>
+              UiAutomator2Backend(server: nowhere, udid: 'U', app: '/x/a.apk'),
+          'Mac2Backend': () =>
+              Mac2Backend(server: nowhere, bundleId: 'engineering.memento'),
+        };
+    for (final MapEntry<String, NativeBackend Function()> backend
+        in selfOwned.entries) {
+      test('${backend.key}: a client it created is closed', () async {
+        final NativeBackend b = backend.value();
+
+        await b.close();
+
+        await expectLater(
+          b.connect(),
+          throwsA(
+            isA<NativeException>()
+                .having(
+                  (NativeException e) => e.code,
+                  'code',
+                  NativeException.transportErrorCode,
+                )
+                .having(
+                  (NativeException e) => e.message,
+                  'message',
+                  contains('Client is already closed'),
+                ),
+          ),
+        );
+      });
+    }
   });
 
   group('backendForPlatform forwards client', () {
