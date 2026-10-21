@@ -40,9 +40,14 @@ up):
 PATH=/opt/homebrew/bin:/Users/you/flutter/bin:$PATH
 PUB_CACHE=/Users/you/.pub-cache
 ANTHROPIC_API_KEY=sk-ant-...
+# For device/target runs on Android: the drive's HOME is the city, so Flutter
+# cannot read the SDK location from your own Flutter settings.
+# ANDROID_HOME=/Users/you/Library/Android/sdk
 # or, to run on a ChatGPT subscription through --harness codex:
 # CODEX_HOME=/Users/you/.codex
 ```
+
+Then run `gc doctor` (see [Doctor checks](#doctor-checks)).
 
 ## Run a drive against a bead
 
@@ -172,15 +177,42 @@ Outside Gas City, runs land in `.leonard/runs/` under the working directory
 unless `LEONARD_RUNS_DIR` says otherwise. Or skip the pack and call
 `leonard_cli --gate-exit-codes --summary-json <path>` yourself.
 
+## Doctor checks
+
+`gc doctor` runs four checks from this pack. Each one rebuilds the
+environment the drive actually gets, a Gas City check's minimal `PATH` and
+`HOME` set to the city with the rig's `env_file` sourced on top, so a check
+passes only if the drive would see the same thing. Each rig that imports the
+pack, or sets `leonard_cli` or `env_file` in its `formula_vars`, is checked
+with its own settings, read from `gc config show --json`.
+
+| Check | Error (exit 2) | Warning (exit 1) |
+|---|---|---|
+| `leonard:env-file` | the `env_file` is missing or fails to load | no `env_file` is set (no credentials, minimal `PATH`), it is not an absolute path, or it is inside the city |
+| `leonard:leonard-cli` | `gc` or `python3` is not on the drive's `PATH`; `leonard_cli` does not resolve there, fails to run, or predates `--gate-exit-codes` (0.4.2) | — |
+| `leonard:platform-tools` | — | no `flutter`, or neither `xcodebuild` nor `adb`, or no Xcode selected |
+| `leonard:devices` | — | `flutter devices` sees nothing to launch on |
+
+`platform-tools` and `devices` only warn: a `vm_uri` run attaches to an app
+that is already running and needs neither. If the rigs' settings cannot be
+read (no `gc`, or output that is not the expected JSON), every check warns
+and checks the formula defaults instead. `gc doctor --verbose` lists what
+each check found, rig by rig, including every device Flutter can launch on.
+
 ## Not yet
 
-Building and launching at a given commit beyond `flutter run`, and a doctor
-check for Xcode, the Android SDK, a booted simulator and Appium.
+- Building and launching the app at a given commit. Today a device/target run
+  builds whatever is checked out in the step's work directory. Which commit to
+  build, and who owns that checkout, is an open design question
+  (`lenny-guy4.4`).
+- A doctor check for Appium. The pack's drive has no native channel yet; the
+  check belongs with it.
 
 ## Tests
 
 ```sh
 gc_pack/leonard/tests/leonard_drive_test.sh   # the check script, against fakes (CI)
+gc_pack/leonard/tests/doctor_test.sh          # the doctor checks, against fakes (CI)
 tool/gc_pack_e2e.sh                           # a throwaway Gas City 1.5.0 city, on demand
 ```
 
