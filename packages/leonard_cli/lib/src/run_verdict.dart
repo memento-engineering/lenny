@@ -15,6 +15,8 @@
 /// broken.
 library;
 
+import 'dart:convert' show utf8;
+
 import 'package:leonard_agent/leonard_agent.dart'
     show SessionFooter, SessionOutcome, TurnRecord;
 
@@ -49,7 +51,8 @@ typedef RunJudgement = ({RunVerdict verdict, String reason});
 /// when the run ended before writing one) and its [turns].
 ///
 /// The exit code still matters on a `done` footer: an image-golden mismatch
-/// leaves the footer at `done` and only the exit code says so.
+/// leaves the footer at `done` and exits 1, and goldens that could not be
+/// compared at all (any other nonzero exit) leave the app unjudged.
 RunJudgement judgeRun({
   required int exitCode,
   required SessionFooter? footer,
@@ -68,10 +71,18 @@ RunJudgement judgeRun({
   final String detailSuffix = detail == null ? '' : ' ($detail)';
   switch (footer.outcome) {
     case SessionOutcome.done:
-      if (exitCode != 0) {
+      if (exitCode == 1) {
         return (
           verdict: RunVerdict.fail,
           reason: 'goal reached, but a captured frame did not match its golden',
+        );
+      }
+      if (exitCode != 0) {
+        return (
+          verdict: RunVerdict.infra,
+          reason:
+              'goal reached, but the goldens could not be compared '
+              '(exit $exitCode)',
         );
       }
       final String? doneReason = _doneReason(turns);
@@ -130,36 +141,41 @@ String? _doneReason(List<TurnRecord> turns) {
 /// Longest digest line, in characters.
 const int kDigestLineLimit = 200;
 
-/// Default digest budget, in characters. Gas City keeps 4096 bytes of a check
-/// script's stderr as repair context; this leaves room for the verdict line.
-const int kDigestCharacterBudget = 3000;
+/// Default digest budget, in UTF-8 bytes. Gas City keeps the first 4096 bytes
+/// of a check script's stderr as repair context; this leaves room for the
+/// verdict line.
+const int kDigestByteBudget = 3000;
 
 /// A compact, newest-last digest of [turns]: one line per turn naming the
 /// action and its result, with the model's rationale on the final turn.
 ///
-/// When every line does not fit in [characterBudget], the oldest turns are
-/// dropped and the first line says how many — the turns nearest the end of
-/// the run are the ones that explain it.
+/// When the lines, newline-joined, do not fit in [byteBudget] UTF-8 bytes,
+/// the oldest turns are dropped and the first line says how many, within the
+/// same budget — the turns nearest the end of the run are the ones that
+/// explain it, and a byte cap downstream would cut the end first.
 List<String> digestTurns(
   List<TurnRecord> turns, {
-  int characterBudget = kDigestCharacterBudget,
+  int byteBudget = kDigestByteBudget,
 }) {
   final List<String> lines = <String>[
     for (var i = 0; i < turns.length; i++)
       _clip(_digestLine(turns[i], isLast: i == turns.length - 1)),
   ];
+  int cost(String line) => utf8.encode(line).length + 1;
+  String omitted(int count) => '… $count earlier turns omitted';
   var used = 0;
   var keepFrom = lines.length;
-  while (keepFrom > 0 &&
-      used + lines[keepFrom - 1].length + 1 <= characterBudget) {
+  while (keepFrom > 0 && used + cost(lines[keepFrom - 1]) <= byteBudget) {
     keepFrom--;
-    used += lines[keepFrom].length + 1;
+    used += cost(lines[keepFrom]);
   }
   if (keepFrom == 0) return lines;
-  return <String>[
-    '… $keepFrom earlier turns omitted',
-    ...lines.sublist(keepFrom),
-  ];
+  while (keepFrom < lines.length &&
+      used + cost(omitted(keepFrom)) > byteBudget) {
+    used -= cost(lines[keepFrom]);
+    keepFrom++;
+  }
+  return <String>[omitted(keepFrom), ...lines.sublist(keepFrom)];
 }
 
 String _digestLine(TurnRecord turn, {required bool isLast}) {

@@ -147,10 +147,10 @@ says it instead, in three more fields:
 |---|---|
 | `pass` | The model called `core.done` (and every golden matched). |
 | `fail` | Leonard drove the app and the goal was not met: the budget ran out, the app's VM service went away mid-drive, or a frame missed its golden. |
-| `infra` | Leonard could not judge the app: no launch or attach, the provider was misconfigured, unreachable or too slow, the model could not produce a valid action, or the observation envelope was rejected. |
+| `infra` | Leonard could not judge the app: no launch or attach, the provider was misconfigured, unreachable or too slow, the model could not produce a valid action, or the observation envelope was rejected, or the goldens could not be read or written. |
 
 `digest` is the run's last turns, one line each, newest last, under 3000
-characters: enough to tell a coding agent where the drive got stuck.
+UTF-8 bytes: enough to tell a coding agent where the drive got stuck.
 
 For a deterministic gate, `--gate-exit-codes` makes the process exit with the
 verdict: **0 pass, 75 infra, 1 fail**. 75 is `EX_TEMPFAIL`, the code Gas City

@@ -1,3 +1,5 @@
+import 'dart:convert' show utf8;
+
 import 'package:leonard_agent/leonard_agent.dart'
     show SessionFooter, SessionOutcome, TurnRecord;
 import 'package:leonard_cli/src/run_verdict.dart';
@@ -29,6 +31,12 @@ void main() {
       final RunJudgement j = judge(_footer(SessionOutcome.done), exitCode: 1);
       expect(j.verdict, RunVerdict.fail);
       expect(j.reason, contains('golden'));
+    });
+
+    test('done with goldens that could not be compared is infra', () {
+      final RunJudgement j = judge(_footer(SessionOutcome.done), exitCode: 70);
+      expect(j.verdict, RunVerdict.infra);
+      expect(j.reason, contains('could not be compared'));
     });
 
     test('budget exhausted fails, unless the model was too slow', () {
@@ -128,12 +136,23 @@ void main() {
         for (var i = 0; i < 40; i++)
           _turn(i, 'core.scroll', <String, dynamic>{'direction': 'down'}),
       ];
-      final List<String> digest = digestTurns(turns, characterBudget: 200);
+      final List<String> digest = digestTurns(turns, byteBudget: 200);
       expect(digest.first, startsWith('… '));
       expect(digest.last, startsWith('#39 '));
       final int kept = digest.length - 1;
       expect(digest.first, '… ${40 - kept} earlier turns omitted');
-      expect(digest.skip(1).join('\n').length, lessThanOrEqualTo(200));
+      // The omitted line counts against the budget, in UTF-8 bytes.
+      expect(utf8.encode(digest.join('\n')).length, lessThan(200));
+    });
+
+    test('budgets multi-byte text in bytes, not characters', () {
+      final List<TurnRecord> turns = <TurnRecord>[
+        for (var i = 0; i < 40; i++)
+          _turn(i, 'core.enter_text', <String, dynamic>{'text': '日本語のテキスト'}),
+      ];
+      final List<String> digest = digestTurns(turns, byteBudget: 300);
+      expect(digest.last, startsWith('#39 '));
+      expect(utf8.encode(digest.join('\n')).length, lessThan(300));
     });
 
     test('clips a long line', () {

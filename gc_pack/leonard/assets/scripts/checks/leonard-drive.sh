@@ -21,9 +21,14 @@ set -euo pipefail
 #
 # Settings: the input bead's leonard.<key> metadata wins, then the step's
 # leonard.<key> metadata (the formula vars), then the default. The machine
-# settings leonard_cli, env_file and runs_dir are read from the step and the
-# environment only, never from the input bead: a bead must not choose which
-# program runs, which file is sourced, or where files are written.
+# settings leonard_cli, env_file and runs_dir are read from the Gas City step
+# ($GC_BEAD_ID, where the formula vars land) and the environment only, never
+# from the input bead: a bead must not choose which program runs, which file
+# is sourced, or where files are written. Outside Gas City there is no step,
+# so they come from the environment alone.
+#
+# The env file is sourced in a subshell, only around the leonard_cli lookup
+# and the drive, so it cannot change this script's own variables.
 #
 # stderr is repair context (Gas City keeps its first 4 KB), so leonard_cli's
 # own output goes to leonard.log in the run directory, and stderr carries
@@ -37,8 +42,17 @@ say() {
   printf 'leonard-drive: %s\n' "$*" >&2
 }
 
+INPUT_ID=""
+RECORDING=""
+
 infra() {
+  # Record the verdict once the input bead is known, so a bead never keeps
+  # an earlier attempt's verdict past an infra exit. RECORDING stops a
+  # failed record from recursing.
   say "infra: $*"
+  if [ -n "$INPUT_ID" ] && [ -z "$RECORDING" ]; then
+    record infra "$*"
+  fi
   exit "$EX_INFRA"
 }
 
@@ -93,6 +107,19 @@ print(value, end="")
 ' "$2"
 }
 
+record() {
+  # record <verdict> <reason> [<run-dir>] -> leonard.* metadata on the input bead
+  local reason
+  reason="$(printf '%s' "$2" | tr '`' "'")"
+  RECORDING=1
+  local args=(bd update "$INPUT_ID" --set-metadata "leonard.verdict=$1" --set-metadata "leonard.reason=$reason")
+  if [ -n "${3:-}" ]; then
+    args+=(--set-metadata "leonard.trajectory=$3/trajectory.jsonl" --set-metadata "leonard.run_dir=$3")
+  fi
+  gc "${args[@]}" >/dev/null 2>"$GC_ERR" ||
+    infra "recording the verdict on $INPUT_ID failed: $(tail -c 400 "$GC_ERR" | tr '\n' ' ')"
+}
+
 # ----- resolve the step and input beads ---------------------------------
 STEP_ID="${GC_BEAD_ID:-${LEONARD_INPUT_BEAD:-}}"
 [ -n "$STEP_ID" ] || {
@@ -100,9 +127,12 @@ STEP_ID="${GC_BEAD_ID:-${LEONARD_INPUT_BEAD:-}}"
   exit "$EX_CONFIG"
 }
 STEP_JSON="$(gc_read bd show "$STEP_ID" --json)"
+# Machine settings are read only from a Gas City step, never from a bead
+# named by LEONARD_INPUT_BEAD.
+MACHINE_JSON=""
+[ -z "${GC_BEAD_ID:-}" ] || MACHINE_JSON="$STEP_JSON"
 
-INPUT_ID="${LEONARD_INPUT_BEAD:-}"
-if [ -z "$INPUT_ID" ]; then
+if [ -z "${LEONARD_INPUT_BEAD:-}" ]; then
   ROOT_ID="$(json_value "$STEP_JSON" metadata.gc.root_bead_id)"
   ROOT_JSON="$STEP_JSON"
   if [ -n "$ROOT_ID" ] && [ "$ROOT_ID" != "$STEP_ID" ]; then
@@ -114,22 +144,17 @@ if [ -z "$INPUT_ID" ]; then
     INPUT_ID="$(json_value "$CONVOY_JSON" children.single)"
   fi
   [ -n "$INPUT_ID" ] || INPUT_ID="${ROOT_ID:-$STEP_ID}"
-fi
-INPUT_JSON="$STEP_JSON"
-if [ "$INPUT_ID" != "$STEP_ID" ]; then
-  INPUT_JSON="$(gc_read bd show "$INPUT_ID" --json)"
-fi
-
-record() {
-  # record <verdict> <reason> [<run-dir>] -> leonard.* metadata on the input bead
-  local reason="${2//\`/\'}"
-  local args=(bd update "$INPUT_ID" --set-metadata "leonard.verdict=$1" --set-metadata "leonard.reason=$reason")
-  if [ -n "${3:-}" ]; then
-    args+=(--set-metadata "leonard.trajectory=$3/trajectory.jsonl" --set-metadata "leonard.run_dir=$3")
+  INPUT_JSON="$STEP_JSON"
+  if [ "$INPUT_ID" != "$STEP_ID" ]; then
+    INPUT_JSON="$(gc_read bd show "$INPUT_ID" --json)"
   fi
-  gc "${args[@]}" >/dev/null 2>"$GC_ERR" ||
-    infra "recording the verdict on $INPUT_ID failed: $(tail -c 400 "$GC_ERR" | tr '\n' ' ')"
-}
+else
+  INPUT_ID="$LEONARD_INPUT_BEAD"
+  INPUT_JSON="$STEP_JSON"
+  if [ "$INPUT_ID" != "$STEP_ID" ]; then
+    INPUT_JSON="$(gc_read bd show "$INPUT_ID" --json)"
+  fi
+fi
 
 config_error() {
   say "config: $* (input bead $INPUT_ID)"
@@ -146,9 +171,10 @@ setting() {
 }
 
 machine_setting() {
-  # machine_setting <key> <env-value> [<default>] -> step, then env, then default
+  # machine_setting <key> <env-value> [<default>] -> Gas City step, then env,
+  # then default
   local value
-  value="$(json_value "$STEP_JSON" "metadata.leonard.$1")"
+  value="$(json_value "$MACHINE_JSON" "metadata.leonard.$1")"
   printf '%s' "${value:-${2:-${3:-}}}"
 }
 
@@ -164,17 +190,29 @@ if [ -z "$VM_URI" ] && { [ -z "$DEVICE" ] || [ -z "$TARGET" ]; }; then
   config_error "nothing to drive: set leonard.vm_uri, or leonard.device and leonard.target"
 fi
 
-LEONARD_CLI_BIN="$(machine_setting leonard_cli "${LEONARD_CLI:-}" leonard_cli)"
+LEONARD_CLI_SETTING="$(machine_setting leonard_cli "${LEONARD_CLI:-}" leonard_cli)"
 ENV_FILE="$(machine_setting env_file "${LEONARD_ENV_FILE:-}")"
-if [ -n "$ENV_FILE" ]; then
-  [ -f "$ENV_FILE" ] || infra "env_file not found: $ENV_FILE"
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
-fi
-command -v "$LEONARD_CLI_BIN" >/dev/null 2>&1 ||
-  infra "leonard_cli not found: $LEONARD_CLI_BIN (set the leonard_cli var to an absolute path)"
+[ -z "$ENV_FILE" ] || [ -f "$ENV_FILE" ] || infra "env_file not found: $ENV_FILE"
+
+in_env() {
+  # in_env <command...> -> run the command in a subshell with the env file's
+  # variables exported. Unset variables in the file expand empty, as in an
+  # interactive shell; a file that fails to load fails the command.
+  (
+    if [ -n "$ENV_FILE" ]; then
+      set +u -a
+      # shellcheck disable=SC1090
+      . "$ENV_FILE" || exit 1
+      set -u +a
+    fi
+    "$@"
+  )
+}
+
+in_env true 2>"$GC_ERR" ||
+  infra "env_file failed to load: $ENV_FILE: $(tail -c 300 "$GC_ERR" | tr '\n' ' ')"
+LEONARD_CLI_BIN="$(in_env command -v "$LEONARD_CLI_SETTING" 2>/dev/null)" ||
+  infra "leonard_cli not found: $LEONARD_CLI_SETTING (set the leonard_cli var to an absolute path)"
 
 WORK_DIR="${GC_WORK_DIR:-$PWD}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -183,7 +221,8 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DEFAULT_RUNS_DIR="${GC_CITY_PATH:+$GC_CITY_PATH/.leonard/runs}"
 RUNS_DIR="$(machine_setting runs_dir "${LEONARD_RUNS_DIR:-}" "${DEFAULT_RUNS_DIR:-$WORK_DIR/.leonard/runs}")"
 RUN_DIR="$RUNS_DIR/$INPUT_ID-${GC_ITERATION:-0}-$STAMP"
-mkdir -p "$RUN_DIR"
+mkdir -p "$RUN_DIR" 2>"$GC_ERR" ||
+  infra "cannot create the run directory $RUN_DIR: $(tail -c 200 "$GC_ERR" | tr '\n' ' ')"
 printf '%s\n' "$SCENARIO" >"$RUN_DIR/goal.txt"
 
 ARGS=(
@@ -215,7 +254,11 @@ add_flag --done-reason-pattern done_reason
 
 # ----- drive -------------------------------------------------------------
 set +e
-(cd "$WORK_DIR" && "$LEONARD_CLI_BIN" "${ARGS[@]}") >"$RUN_DIR/leonard.log" 2>&1 </dev/null
+drive() {
+  # drive <work-dir> <leonard_cli> <args...>
+  cd "$1" && shift && exec "$@"
+}
+in_env drive "$WORK_DIR" "$LEONARD_CLI_BIN" "${ARGS[@]}" >"$RUN_DIR/leonard.log" 2>&1 </dev/null
 DRIVE_EXIT=$?
 set -e
 

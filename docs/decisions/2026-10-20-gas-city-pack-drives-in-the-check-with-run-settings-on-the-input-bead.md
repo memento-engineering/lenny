@@ -40,7 +40,8 @@ the step. That script gets a whitelisted environment: a minimal `PATH`,
   Nico, 2026-10-20.
 * **Machine settings never come from a bead (agent).** `leonard_cli` (the
   executable) and `env_file` (sourced for credentials and tool paths) are read
-  from step metadata or the environment only, because a bead's writer must
+  from the Gas City step's metadata or the environment only (the environment
+  alone outside Gas City), because a bead's writer must
   not choose which program runs, which file is sourced, or where files are
   written (`runs_dir`). Credentials stay in an operator file outside the
   city.
@@ -51,8 +52,8 @@ the step. That script gets a whitelisted environment: a minimal `PATH`,
   showed. A digest goes to stderr (Gas City keeps the first 4 KB) and to a
   bead comment.
 * **A missing setting exits 64 and records `leonard.verdict=infra` (agent).**
-  Nothing was driven, so no attempt should be spent re-running it, and the app
-  was not judged.
+  Nothing was driven and the app was not judged. Gas City 1.5.0 still spends
+  an attempt on it, as on any nonzero exit.
 
 ### Consequences
 
@@ -64,3 +65,6 @@ the step. That script gets a whitelisted environment: a minimal `PATH`,
   resolves on the check `PATH`.
 * Bad, because `leonard-drive` spends an agent session on a step whose agent
   only confirms the bead names its settings.
+* Bad, because a check composed onto a city's own implement step trusts beads
+  the agent under check can write, so that agent can weaken its own gate
+  (`lenny-guy4.6`).

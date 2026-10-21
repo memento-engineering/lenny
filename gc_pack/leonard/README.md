@@ -30,8 +30,9 @@ leonard_cli = "/Users/you/.pub-cache/bin/leonard_cli"
 env_file = "/Users/you/.config/leonard/gc.env"
 ```
 
-`env_file` is sourced before each drive, so it is where credentials and tool
-paths go. Keep it outside the city directory (the city is listable and backed
+`env_file` is sourced, in a subshell, around each drive, so it is where
+credentials and tool paths go. A file that fails to load is an infra
+verdict. Keep it outside the city directory (the city is listable and backed
 up):
 
 ```sh
@@ -80,6 +81,8 @@ supply defaults, and the bead wins:
 from the formula vars (or the `LEONARD_CLI`, `LEONARD_ENV_FILE` and
 `LEONARD_RUNS_DIR` environment), never from the bead, because a bead must not
 choose which program runs, which file is sourced, or where files land.
+Outside Gas City (`LEONARD_INPUT_BEAD`) they come from the environment
+alone.
 
 ## What the check writes
 
@@ -103,7 +106,10 @@ prunes `runs_dir`; the operator owns retention.
 | 0 | pass: the model reached the goal |
 | 1 | fail: Leonard drove the app and the goal was not met (budget exhausted, the app went away mid-drive, a golden mismatch) |
 | 75 | infra: no judgement about the app (no attach, model unreachable or misconfigured, the model could not produce a valid action, gc unreadable) |
-| 64 | config: the bead or formula is missing a setting, so nothing was driven. Recorded as `leonard.verdict=infra` |
+| 64 | config: the bead or formula is missing a setting, so nothing was driven. Recorded as `leonard.verdict=infra`; in Gas City 1.5.0 it fails the attempt like any nonzero exit |
+
+Every exit records `leonard.verdict` once the input bead is known, so a bead
+never keeps an earlier attempt's verdict.
 
 **Exit 75 in Gas City 1.5.0.** The formula spec says a check's exit 75 is
 re-run without spending an attempt. That holds only for standalone check
@@ -143,6 +149,12 @@ mode = "exec"
 path = "../assets/scripts/checks/leonard-drive.sh"
 timeout = "30m"
 ```
+
+**The agent under check can weaken this gate.** It can write the input bead's
+`leonard.*` run settings, which outrank the formula, and its own step bead's
+metadata, where `leonard_cli` and `env_file` are read. Compose the check only
+where the coding agent is cooperative; a gate it cannot tamper with is
+`lenny-guy4.6`.
 
 ## Outside Gas City
 

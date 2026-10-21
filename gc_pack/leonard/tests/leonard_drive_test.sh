@@ -63,7 +63,7 @@ case "$FAKE_VERDICT" in
   crash) echo "boom" >&2; exit 3 ;;
 esac
 cat >"$summary" <<JSON
-{"verdict": "$FAKE_VERDICT", "reason": "fake $FAKE_VERDICT reason", "exit_code": $code,
+{"verdict": "$FAKE_VERDICT", "reason": "${FAKE_REASON:-fake $FAKE_VERDICT reason}", "exit_code": $code,
  "digest": ["#0 core.tap node_id=\"4\" → ok", "#1 core.done reason=\"x\" → ok"]}
 JSON
 exit "$code"
@@ -215,6 +215,50 @@ write_bead s1 "step" "{$STEP_META}"
 run_check pass
 expect_exit 75
 expect_contains "$CASE_DIR/stderr" "leonard_cli not found"
+# An infra exit replaces an earlier attempt's verdict.
+expect_contains "$FAKE_DIR/updates.log" "leonard.verdict=infra"
+expect_contains "$FAKE_DIR/updates.log" "leonard.reason=leonard_cli not found"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
+new_case no-env-file
+rm "$CASE_DIR/operator.env"
+run_check pass
+expect_exit 75
+expect_contains "$FAKE_DIR/updates.log" "leonard.verdict=infra"
+expect_contains "$FAKE_DIR/updates.log" "leonard.reason=env_file not found"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+# ----- a broken env file is infra, and a working one cannot reach the script -
+before=$FAILURES
+new_case broken-env-file
+printf 'PATH=/a b/bin:$PATH\n' >"$CASE_DIR/operator.env"
+run_check pass
+expect_exit 75
+expect_contains "$CASE_DIR/stderr" "env_file failed to load"
+expect_contains "$FAKE_DIR/updates.log" "leonard.verdict=infra"
+[ ! -f "$FAKE_DIR/leonard_args" ] || fail_case "leonard_cli ran"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
+new_case scoped-env-file
+printf 'LEONARD_TEST_SECRET=from-env-file\nVM_URI=ws://env-file/ws\nINPUT_ID=hijacked\nUNSET_TOO=$NOT_SET\n' >"$CASE_DIR/operator.env"
+run_check pass
+expect_exit 0
+expect_contains "$FAKE_DIR/leonard_args" "ws://127.0.0.1:5555/abc=/ws"
+expect_lacks "$FAKE_DIR/leonard_args" "ws://env-file/ws"
+expect_contains "$FAKE_DIR/leonard_secret" "from-env-file"
+expect_contains "$FAKE_DIR/updates.log" "in1"
+expect_lacks "$FAKE_DIR/updates.log" "hijacked"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+# ----- a backtick in the reason is replaced, on bash 3.2 too -----------------
+before=$FAILURES
+new_case backtick
+run_check fail FAKE_REASON='never tapped `Save`'
+expect_exit 1
+expect_contains "$FAKE_DIR/updates.log" "leonard.reason=never tapped 'Save'"
+expect_lacks "$FAKE_DIR/updates.log" "\\'"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 before=$FAILURES
@@ -239,6 +283,26 @@ expect_exit 0
 expect_contains "$FAKE_DIR/leonard_args" "ws://direct/ws"
 expect_contains "$FAKE_DIR/leonard_secret" "from-env-file"
 expect_contains "$FAKE_DIR/updates.log" "leonard.trajectory=$CASE_DIR/work/.leonard/runs/in1-0-"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+# ----- outside Gas City the bead cannot choose the program or the env file ---
+before=$FAILURES
+new_case direct-hostile
+printf '#!/bin/bash\ntouch "$FAKE_DIR/evil_ran"\n' >"$CASE_DIR/evil"
+chmod +x "$CASE_DIR/evil"
+printf 'touch "$FAKE_DIR/evil_sourced"\n' >"$CASE_DIR/evil.env"
+write_bead in1 "$INPUT_DESCRIPTION" "{\"leonard.vm_uri\": \"ws://direct/ws\", \"leonard.leonard_cli\": \"$CASE_DIR/evil\", \"leonard.env_file\": \"$CASE_DIR/evil.env\", \"leonard.runs_dir\": \"$CASE_DIR/evil-runs\"}"
+set +e
+env -i PATH="$FAKE_BIN:/usr/bin:/bin" HOME="$CASE_DIR" FAKE_DIR="$FAKE_DIR" FAKE_VERDICT=pass \
+  LEONARD_INPUT_BEAD=in1 LEONARD_CLI="$FAKE_BIN/leonard_cli" LEONARD_ENV_FILE="$CASE_DIR/operator.env" \
+  /bin/bash -c "cd '$CASE_DIR/work' && /bin/bash '$SCRIPT'" >"$CASE_DIR/stdout" 2>"$CASE_DIR/stderr"
+EXIT=$?
+set -e
+expect_exit 0
+[ ! -e "$FAKE_DIR/evil_ran" ] || fail_case "the bead's leonard_cli ran"
+[ ! -e "$FAKE_DIR/evil_sourced" ] || fail_case "the bead's env_file was sourced"
+[ ! -e "$CASE_DIR/evil-runs" ] || fail_case "the bead's runs_dir was used"
+expect_contains "$FAKE_DIR/leonard_secret" "from-env-file"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 if [ "$FAILURES" -gt 0 ]; then

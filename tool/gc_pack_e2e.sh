@@ -168,7 +168,7 @@ printf '#!/bin/bash\nexec "%s" run "%s/packages/leonard_cli/bin/leonard_cli.dart
 chmod +x "$ROOT/bin/leonard_cli"
 (
   umask 077
-  printf 'PATH=%s:%s:$PATH\n' "$(dirname "$DART")" "$(dirname "$(command -v flutter)")"
+  printf 'PATH=%q:%q:"$PATH"\n' "$(dirname "$DART")" "$(dirname "$(command -v flutter)")"
   for name in SWIFT_INFER_AGENT_TOKEN SWIFT_INFER_ENDPOINT SWIFT_INFER_MODEL ANTHROPIC_API_KEY OPENAI_API_KEY; do
     if [ -n "${!name:-}" ]; then printf '%s=%q\n' "$name" "${!name}"; fi
   done
@@ -277,7 +277,7 @@ run_scenario() {
   local root input_json control
   root="$(rig_bd show "$workflow" --json 2>/dev/null)"
   input_json="$(rig_bd show "$input" --json 2>/dev/null)"
-  control="$(rig_bd list --all --json --limit=0 2>/dev/null | json "next((b.get('metadata') or {}).get('gc.attempt_log', '[]') for b in d if (b.get('metadata') or {}).get('gc.root_bead_id') == '$workflow' and (b.get('metadata') or {}).get('gc.kind') == 'ralph')")"
+  control="$(rig_bd list --all --json --limit=0 2>/dev/null | json "next((b.get('metadata') or {}).get('gc.attempt_log', '[]') for b in d if (b.get('metadata') or {}).get('gc.root_bead_id') == '$workflow' and (b.get('metadata') or {}).get('gc.kind') == 'ralph'), '[]')")"
   check "$name: workflow gc.outcome" "$(json '((d[0] if isinstance(d, list) else d).get("metadata") or {}).get("gc.outcome", "")' <<<"$root")" "$outcome"
   check "$name: leonard.verdict" "$(json '((d[0] if isinstance(d, list) else d).get("metadata") or {}).get("leonard.verdict", "")' <<<"$input_json")" "$verdict"
   check "$name: check attempts" "$(json 'len(d)' <<<"$control")" 1

@@ -15,10 +15,12 @@ Fixes lenny#199: the lenny#160 fix found the native host through the package con
   serves development inside a lenny checkout.
 - `--summary-json` now carries the run's verdict: `verdict` (`pass`, `fail`
   or `infra`), a one-line `reason`, and `digest`, the last turns as one line
-  each (action, result, and the final rationale) under 3000 characters. A run
-  fails only when Leonard drove the app and the goal was not met (budget
+  each (action, result, and the final rationale) under 3000 UTF-8 bytes. A
+  run fails only when Leonard drove the app and the goal was not met (budget
   exhausted, the app's VM service gone mid-drive, a golden mismatch); every
-  outcome that kept it from judging the app is `infra` (lenny#177).
+  outcome that kept it from judging the app is `infra`, including goldens
+  that could not be read or written, which now exit 70 rather than 1
+  (lenny#177).
 - Add `--gate-exit-codes`: exit 0 pass, 75 infra, 1 fail. 75 is
   `EX_TEMPFAIL`, Gas City's infrastructure code for checks. A usage error
   exits 75 too (lenny#177).

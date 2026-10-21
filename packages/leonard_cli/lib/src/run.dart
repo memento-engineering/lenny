@@ -389,17 +389,25 @@ Future<int> _runCli(
     );
 
     final String? goldensDirectory = args.goldensDir;
-    final int goldenExitCode = goldensDirectory == null
-        ? 0
-        : await finishImageGoldenRun(
-            framePaths: frameSink.capturedFramePaths,
-            goldensDirectory: goldensDirectory,
-            channelTolerance: args.goldenChannelTolerance,
-            maxDiffRatio: args.goldenMaxDiffRatio,
-            updateGoldens: args.updateGoldens,
-            output: stdout,
-            error: stderr,
-          );
+    int goldenExitCode = 0;
+    if (goldensDirectory != null) {
+      try {
+        goldenExitCode = await finishImageGoldenRun(
+          framePaths: frameSink.capturedFramePaths,
+          goldensDirectory: goldensDirectory,
+          channelTolerance: args.goldenChannelTolerance,
+          maxDiffRatio: args.goldenMaxDiffRatio,
+          updateGoldens: args.updateGoldens,
+          output: stdout,
+          error: stderr,
+        );
+      } on Object catch (e) {
+        // Exit 1 means a golden mismatch; goldens that could not be read or
+        // written leave the app unjudged (EX_SOFTWARE, judged infra).
+        stderr.writeln('error: comparing goldens: $e');
+        goldenExitCode = 70;
+      }
+    }
 
     // ----- translate to exit code -----------------------------------
     if (termination.outcome == SessionOutcome.harnessError) {
