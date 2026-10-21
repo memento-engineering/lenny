@@ -302,4 +302,67 @@ void main() {
     expect(r.error, contains('target_not_found'));
     cap.dispose();
   });
+
+  testWidgets(
+    'core.enter_text skips an EditableText on a route that was never laid '
+    'out (regression: a page stack built with the field route already '
+    'covered threw "RenderBox was not laid out")',
+    (WidgetTester tester) async {
+      final SemanticsHandle h = tester.ensureSemantics();
+      final TextEditingController hidden = TextEditingController();
+      final TextEditingController visible = TextEditingController();
+      addTearDown(hidden.dispose);
+      addTearDown(visible.dispose);
+
+      // Both pages are present from the first frame, so the Overlay never
+      // lays out the covered one: its EditableText is attached but sizeless.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Navigator(
+            pages: <Page<void>>[
+              MaterialPage<void>(
+                key: const ValueKey<String>('covered'),
+                child: Scaffold(body: TextField(controller: hidden)),
+              ),
+              MaterialPage<void>(
+                key: const ValueKey<String>('top'),
+                child: Scaffold(
+                  body: Semantics(
+                    label: 'first name',
+                    textField: true,
+                    child: TextField(controller: visible),
+                  ),
+                ),
+              ),
+            ],
+            onDidRemovePage: (Page<Object?> _) {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final SemanticsCapture cap = SemanticsCapture();
+      final List<Map<String, Object>> recs = cap.capture();
+      final Map<String, Object> wrapper = recs.firstWhere(
+        (Map<String, Object> r) =>
+            r['role'] == 'textfield' && r['label'] == 'first name',
+      );
+      final int id = wrapper['id']! as int;
+
+      final CoreExtension plugin = CoreExtension(semantics: cap);
+      final LeonardTool t = plugin.tools.firstWhere(
+        (LeonardTool x) => x.name == 'enter_text',
+      );
+      final ToolResult r = await t.call(<String, Object?>{
+        'node_id': id,
+        'text': 'Lenny',
+      });
+
+      expect(r.ok, isTrue, reason: r.error);
+      expect(visible.text, 'Lenny');
+      expect(hidden.text, isEmpty);
+      cap.dispose();
+      h.dispose();
+    },
+  );
 }

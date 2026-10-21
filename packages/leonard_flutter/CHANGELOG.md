@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.3-dev.1
+
+- Fix: `core.enter_text` no longer fails when a covered route holds a text
+  field that was never laid out. `resolveEditableText` read the geometry of
+  every attached `EditableText`, and the Overlay keeps covered routes
+  attached without laying them out, so a page stack built with a text-field
+  route already covered (a sign-in screen under a complete-your-profile
+  barrier, for one) made the tool return `ok: false` with
+  `'hasSize': RenderBox was not laid out` before it typed. Text fields
+  without a size are now skipped: they are not on screen to be typed into.
+
 ## 0.4.2
 
 Stable promotion of `0.4.2-dev.1` on Nico's promotion call (2026-10-21), after the live check on the macOS sample app and the publish workflow's live macOS gate passed. The prerelease entry below carries the details. One change on top:
