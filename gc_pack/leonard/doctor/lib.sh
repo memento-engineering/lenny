@@ -40,10 +40,14 @@ check_path() {
 
 CHECK_PATH="$(check_path)"
 
+# The drive's `#!/usr/bin/env bash` resolves bash on the check's PATH.
+CHECK_BASH="$(PATH="$CHECK_PATH" command -v bash 2>/dev/null)" || CHECK_BASH=/bin/bash
+
 in_check_env() {
   # in_check_env <env-file> <command...> -> run the command the way the
   # drive's in_env does: the check's environment, then the env file sourced
   # with its variables exported. A file that fails to load fails the command.
+  # Nothing of the caller's environment reaches the command.
   local env_file="$1"
   shift
   env -i \
@@ -51,7 +55,7 @@ in_check_env() {
     HOME="${GC_CITY_PATH:-$HOME}" \
     TMPDIR="${TMPDIR:-/tmp}" \
     LEONARD_DOCTOR_ENV_FILE="$env_file" \
-    /bin/bash -c '
+    "$CHECK_BASH" -c '
       if [ -n "$LEONARD_DOCTOR_ENV_FILE" ]; then
         set +u -a
         . "$LEONARD_DOCTOR_ENV_FILE" || exit 1
@@ -69,79 +73,6 @@ TIMEOUT_PL='alarm shift; exec @ARGV or exit 127'
 with_timeout() {
   # with_timeout <seconds> <command...>
   perl -e "$TIMEOUT_PL" "$@"
-}
-
-CONFIG_NOTE=""
-
-machine_settings() {
-  # One line per rig that uses this pack: "<rig><TAB><leonard_cli><TAB><env_file>",
-  # read from `gc config show --json` in the city. A rig uses the pack when
-  # one of its imports is the leonard pack or its formula_vars set
-  # leonard_cli or env_file. With no such rig, or no readable config, one
-  # line of the formula defaults; CONFIG_NOTE then says why.
-  local config=""
-  if [ -n "${GC_CITY_PATH:-}" ] && command -v gc >/dev/null 2>&1; then
-    config="$(cd "$GC_CITY_PATH" && with_timeout 60 gc config show --json 2>/dev/null </dev/null)" || config=""
-  fi
-  if [ -z "$config" ]; then
-    CONFIG_NOTE="could not read the resolved city config (gc config show --json); checked the formula defaults"
-    printf '(formula defaults)\t%s\t\n' "$LEONARD_CLI_DEFAULT"
-    return
-  fi
-  printf '%s' "$config" | python3 -c '
-import json
-import sys
-
-default_cli = sys.argv[1]
-
-
-def get(obj, *keys):
-    for key in keys:
-        if isinstance(obj, dict) and key in obj:
-            return obj[key]
-    return None
-
-
-try:
-    payload = json.load(sys.stdin)
-except Exception:
-    payload = {}
-config = get(payload, "config") or {}
-rows = []
-for rig in get(config, "Rigs", "rigs") or []:
-    variables = get(rig, "FormulaVars", "formula_vars") or {}
-    imports = get(rig, "Imports", "imports") or {}
-    uses = "leonard_cli" in variables or "env_file" in variables
-    for binding, entry in imports.items():
-        source = str(get(entry, "Source", "source") or "").rstrip("/")
-        if binding == "leonard" or source.endswith("gc_pack/leonard"):
-            uses = True
-    if uses:
-        rows.append((
-            str(get(rig, "Name", "name") or "?"),
-            str(variables.get("leonard_cli") or default_cli),
-            str(variables.get("env_file") or ""),
-        ))
-if not rows:
-    rows.append(("(formula defaults)", default_cli, ""))
-for row in rows:
-    print("\t".join(value.replace("\t", " ") for value in row))
-' "$LEONARD_CLI_DEFAULT"
-}
-
-env_file_loads() {
-  # env_file_loads <env-file> -> 0 when the file is empty-named or loads;
-  # otherwise 1 with the reason on stdout
-  [ -n "$1" ] || return 0
-  [ -f "$1" ] || {
-    printf 'not found'
-    return 1
-  }
-  local err
-  err="$(in_check_env "$1" true 2>&1 >/dev/null)" || {
-    printf 'fails to load: %s' "$(printf '%s' "$err" | tail -c 300 | tr '\n' ' ')"
-    return 1
-  }
 }
 
 STATUS=0
@@ -181,21 +112,115 @@ finish() {
     HEAD="$HEAD (and $((problems - 1)) more)"
   fi
   printf '%s\n' "${HEAD:-$1}"
-  [ -z "$CONFIG_NOTE" ] || printf 'note: %s\n' "$CONFIG_NOTE"
   printf '%s' "$DETAILS"
   exit "$STATUS"
 }
 
+CONFIG_PROBLEM=""
+
+machine_settings() {
+  # One line per rig that uses this pack: "<rig><TAB><leonard_cli><TAB><env_file>",
+  # read from `gc config show --json` in the city. A rig uses the pack when
+  # one of its imports is the leonard pack or its formula_vars set
+  # leonard_cli or env_file. With no such rig, one line of the formula
+  # defaults. When the settings cannot be read (no gc, gc fails, output that
+  # is not the expected JSON, python3 missing or failing), CONFIG_PROBLEM
+  # says why and the formula defaults are printed, so a check never passes
+  # silently for want of a rig to look at.
+  local config="" rows err
+  if [ -z "${GC_CITY_PATH:-}" ]; then
+    CONFIG_PROBLEM="GC_CITY_PATH is not set"
+  elif ! command -v gc >/dev/null 2>&1; then
+    CONFIG_PROBLEM="gc is not on PATH"
+  elif ! config="$(cd "$GC_CITY_PATH" && with_timeout 60 gc config show --json 2>/dev/null </dev/null)"; then
+    CONFIG_PROBLEM="gc config show --json failed"
+  elif ! command -v python3 >/dev/null 2>&1; then
+    CONFIG_PROBLEM="python3 is not on PATH"
+  else
+    err="$(mktemp "${TMPDIR:-/tmp}/leonard-doctor.XXXXXX")"
+    rows="$(printf '%s' "$config" | python3 -c '
+import json
+import sys
+
+default_cli = sys.argv[1]
+
+
+def get(obj, *keys):
+    for key in keys:
+        if isinstance(obj, dict) and key in obj:
+            return obj[key]
+    return None
+
+
+try:
+    payload = json.loads(sys.stdin.read())
+except ValueError:
+    sys.exit("gc config show --json printed something that is not JSON")
+config = get(payload, "config")
+if not isinstance(config, dict) or not ("Rigs" in config or "rigs" in config):
+    sys.exit("gc config show --json has no config.Rigs")
+rows = []
+for rig in get(config, "Rigs", "rigs") or []:
+    if not isinstance(rig, dict):
+        continue
+    variables = get(rig, "FormulaVars", "formula_vars") or {}
+    imports = get(rig, "Imports", "imports") or {}
+    uses = "leonard_cli" in variables or "env_file" in variables
+    for binding, entry in imports.items():
+        source = str(get(entry, "Source", "source") or "").rstrip("/")
+        if binding == "leonard" or source.endswith("gc_pack/leonard"):
+            uses = True
+    if uses:
+        rows.append((
+            str(get(rig, "Name", "name") or "?"),
+            str(variables.get("leonard_cli") or default_cli),
+            str(variables.get("env_file") or ""),
+        ))
+if not rows:
+    rows.append(("(formula defaults)", default_cli, ""))
+for row in rows:
+    print("\t".join(value.replace("\t", " ") for value in row))
+' "$LEONARD_CLI_DEFAULT" 2>"$err")" || rows=""
+    if [ -z "$rows" ]; then
+      CONFIG_PROBLEM="could not parse gc config show --json: $(tail -c 200 "$err" | tr '\n' ' ')"
+    fi
+    rm -f "$err"
+  fi
+  if [ -n "$CONFIG_PROBLEM" ]; then
+    printf '(formula defaults)\t%s\t\n' "$LEONARD_CLI_DEFAULT"
+  else
+    printf '%s\n' "$rows"
+  fi
+}
+
 for_each_rig() {
   # for_each_rig <function>: call <function> <rig> <leonard_cli> <env_file>
-  # once per machine-settings line
-  # A file, not $(...), so machine_settings can set CONFIG_NOTE here.
+  # once per machine-settings line. Settings that could not be read are a
+  # warning in every check, so the result is never a silent OK.
+  # A file, not $(...), so machine_settings can set CONFIG_PROBLEM here.
   local rows rig cli env_file
   rows="$(mktemp "${TMPDIR:-/tmp}/leonard-doctor.XXXXXX")"
   machine_settings >"$rows"
+  [ -z "$CONFIG_PROBLEM" ] ||
+    warn "could not read the rigs' leonard settings ($CONFIG_PROBLEM); checked the formula defaults"
   while IFS=$'\t' read -r rig cli env_file; do
     [ -n "$rig" ] || continue
     "$1" "$rig" "$cli" "$env_file"
   done <"$rows"
   rm -f "$rows"
+}
+
+env_file_loads() {
+  # env_file_loads <env-file> -> 0 when the file is empty-named or loads;
+  # otherwise 1 with the reason on stdout
+  [ -n "$1" ] || return 0
+  [ -f "$1" ] || {
+    printf 'not found'
+    return 1
+  }
+  local err
+  err="$(in_check_env "$1" true 2>&1 >/dev/null)" || {
+    printf 'fails to load: %s' "$(printf '%s' "$err" | tail -c 300 | tr '\n' ' ')"
+    return 1
+  }
 }

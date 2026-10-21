@@ -47,8 +47,13 @@ there.
 * **Machine settings come from the resolved city config**,
   `gc config show --json` run in the city: every rig that imports the pack,
   or sets `leonard_cli` or `env_file` in its `formula_vars`, is checked with
-  its own values. With no such rig, the formula's defaults are checked; when
-  the config cannot be read, that fallback is said in a `note:` line.
+  its own values. With no such rig, the formula's defaults are checked. When
+  the settings cannot be read at all (no `gc`, `gc` failing, output that is
+  not the expected JSON, `python3` missing or failing), every check warns and
+  checks the formula defaults: an unreadable config is never a silent OK.
+* **The drive's own prerequisites are checked too**: `gc` and `python3` on
+  the check `PATH` (the drive needs both before it sources the env file), in
+  `leonard-cli`.
 * **Four checks**: `env-file` and `leonard-cli` are errors when they fail,
   because every drive needs them. `platform-tools` and `devices` only warn,
   because a `vm_uri` run attaches to an app that is already running and needs
@@ -66,8 +71,10 @@ there.
   invisible unless the env file sets `ANDROID_HOME`. The README now says so.
 * Bad: the checks call `gc config show`, so they depend on its JSON shape
   (Go field names, `Rigs[].FormulaVars`, `Rigs[].Imports`). They read both
-  that and the TOML spelling, and fall back to the formula defaults with a
-  note if neither is there.
+  that and the TOML spelling. If `config.Rigs` is missing under either
+  spelling, every check warns that the settings could not be read and checks
+  only the formula defaults, so a changed shape shows up as a warning
+  instead of a false pass.
 * Bad: the check `PATH` is reconstructed from the doctor's own `PATH`, as Gas
   City derives it from the controller's; a controller started with a
   different `PATH` could still differ.

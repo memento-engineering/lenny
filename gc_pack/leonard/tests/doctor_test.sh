@@ -27,7 +27,9 @@ trap 'rm -rf -- "$TEST_ROOT"' EXIT
 GC_BIN_DIR="$TEST_ROOT/gc-bin"   # on the check's PATH, as gc is in Gas City
 TOOLS="$TEST_ROOT/tools"         # reachable only through an env file's PATH
 OLD_CLI_DIR="$TEST_ROOT/old-cli"
-mkdir -p "$GC_BIN_DIR" "$TOOLS" "$OLD_CLI_DIR"
+BROKEN_CLI_DIR="$TEST_ROOT/broken-cli"
+BROKEN_PY_DIR="$TEST_ROOT/broken-python"  # a python3 that always fails
+mkdir -p "$GC_BIN_DIR" "$TOOLS" "$OLD_CLI_DIR" "$BROKEN_CLI_DIR" "$BROKEN_PY_DIR"
 
 cat >"$GC_BIN_DIR/gc" <<'FAKE_GC'
 #!/bin/bash
@@ -40,6 +42,9 @@ FAKE_GC
 
 cat >"$TOOLS/leonard_cli" <<'FAKE_CLI'
 #!/bin/bash
+# Records the HOME it ran under: the drive's HOME is the city, never the
+# caller's.
+printf '%s\n' "$HOME" >"$(dirname "$0")/home.log"
 echo "Usage: leonard_cli [options]"
 echo "    --gate-exit-codes    Exit 0/1/75 by verdict."
 FAKE_CLI
@@ -47,9 +52,21 @@ cat >"$OLD_CLI_DIR/leonard_cli" <<'FAKE_OLD'
 #!/bin/bash
 echo "Usage: leonard_cli [options]"
 FAKE_OLD
+cat >"$BROKEN_CLI_DIR/leonard_cli" <<'FAKE_BROKEN'
+#!/bin/bash
+# A pub-cache wrapper that cannot find dart in the drive's environment.
+echo "dart: command not found" >&2
+exit 127
+FAKE_BROKEN
+cat >"$BROKEN_PY_DIR/python3" <<'FAKE_PY'
+#!/bin/bash
+echo "python3: broken" >&2
+exit 1
+FAKE_PY
 cat >"$TOOLS/flutter" <<'FAKE_FLUTTER'
 #!/bin/bash
 [ "$*" = "devices --machine" ] || exit 2
+[ "${FAKE_FLUTTER_RC:-0}" = 0 ] || exit "$FAKE_FLUTTER_RC"
 cat "$FAKE_DEVICES"
 FAKE_FLUTTER
 cat >"$TOOLS/xcodebuild" <<'FAKE_XCODE'
@@ -60,7 +77,7 @@ cat >"$TOOLS/adb" <<'FAKE_ADB'
 #!/bin/bash
 exit 0
 FAKE_ADB
-chmod +x "$GC_BIN_DIR/gc" "$TOOLS"/* "$OLD_CLI_DIR/leonard_cli"
+chmod +x "$GC_BIN_DIR/gc" "$TOOLS"/* "$OLD_CLI_DIR/leonard_cli" "$BROKEN_CLI_DIR/leonard_cli" "$BROKEN_PY_DIR/python3"
 
 FAILURES=0
 CASE=""
@@ -89,6 +106,10 @@ new_case() {
   printf 'PATH=%s:"$PATH"\nANTHROPIC_API_KEY=test-key\nUNUSED="${NOT_SET_ANYWHERE}"\nFAKE_DEVICES=%s\n' \
     "$TOOLS" "$FAKE_DEVICES" >"$CASE_DIR/good.env"
   printf 'this_command_does_not_exist_xyz\n' >"$CASE_DIR/broken.env"
+  # The PATH of whoever runs gc doctor. Cases that put $TOOLS on it prove the
+  # checks discard the caller's PATH.
+  CALLER_PATH="$GC_BIN_DIR:/usr/bin:/bin"
+  rm -f "$TOOLS/home.log"
 }
 
 write_config() {
@@ -125,7 +146,7 @@ run_doctor() {
   (
     cd "$PACK" &&
       env -i \
-        PATH="$GC_BIN_DIR:/usr/bin:/bin" \
+        PATH="$CALLER_PATH" \
         HOME="$CASE_DIR" \
         TMPDIR="$CASE_DIR" \
         GC_CITY_PATH="$CASE_DIR/city" \
@@ -146,7 +167,7 @@ for check in $CHECKS; do
   write_config "[$(rig app "$(vars leonard_cli leonard_cli env_file "$CASE_DIR/good.env")" "$LEONARD_IMPORT")]"
   run_doctor "$check"
   expect_exit 0
-  expect_lacks "note:"
+  expect_lacks "could not read"
   grep -qxF "$CASE_DIR/city" "$FAKE_CONFIG.cwd" || fail_case "gc config show did not run in the city"
   [ "$FAILURES" -gt "$before" ] || pass_case
 done
@@ -157,6 +178,10 @@ write_config "[$(rig app "$(vars leonard_cli leonard_cli env_file "$CASE_DIR/goo
 run_doctor leonard-cli
 expect_first_line "leonard_cli resolves for every rig"
 expect_contains "rig app: leonard_cli $TOOLS/leonard_cli"
+expect_contains "drive PATH: gc $GC_BIN_DIR/gc"
+# The drive's HOME is the city, never the caller's ($CASE_DIR).
+grep -qxF "$CASE_DIR/city" "$TOOLS/home.log" ||
+  fail_case "leonard_cli ran with HOME=$(cat "$TOOLS/home.log" 2>/dev/null), want $CASE_DIR/city"
 run_doctor devices
 expect_contains "rig app: macos (macOS, darwin device)"
 expect_contains "rig app: emulator-5554 (Pixel, android-arm64 emulator)"
@@ -195,6 +220,14 @@ expect_first_line "rig app: no env_file"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 before=$FAILURES
+new_case env-file-relative
+write_config "[$(rig app "$(vars env_file gc.env)")]"
+run_doctor env-file
+expect_exit 1
+expect_first_line "rig app: env_file gc.env is not an absolute path"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
 new_case env-file-in-city
 cp "$CASE_DIR/good.env" "$CASE_DIR/city/gc.env"
 write_config "[$(rig app "$(vars env_file "$CASE_DIR/city/gc.env")")]"
@@ -206,11 +239,22 @@ expect_first_line "is inside the city"
 # ----- leonard-cli --------------------------------------------------------------
 before=$FAILURES
 new_case cli-not-on-check-path
-# No env file: the check's PATH alone, where leonard_cli is not.
+# No env file: the check's PATH alone, where leonard_cli is not, although the
+# caller's PATH has it.
+CALLER_PATH="$TOOLS:$CALLER_PATH"
 write_config "[$(rig app '{"leonard_cli": "leonard_cli"}')]"
 run_doctor leonard-cli
 expect_exit 2
 expect_first_line "rig app: leonard_cli not found on the drive's PATH: leonard_cli"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
+new_case cli-fails-to-run
+write_config "[$(rig app "$(vars leonard_cli "$BROKEN_CLI_DIR/leonard_cli")")]"
+run_doctor leonard-cli
+expect_exit 2
+expect_first_line "--help fails to run (exit 127) in the drive's environment: dart: command not found"
+expect_lacks "0.4.2 or later"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 before=$FAILURES
@@ -247,16 +291,38 @@ write_config "[$(rig web '{}')]"
 run_doctor leonard-cli
 expect_exit 2
 expect_first_line "rig (formula defaults): leonard_cli not found"
-expect_lacks "note:"
+expect_lacks "could not read"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
+# ----- settings that cannot be read are never a silent OK ----------------------
+# A rig whose env_file is missing would fail env-file; when its settings
+# cannot be read, the check must not pass either.
+for scenario in gc-fails gc-not-json gc-no-rigs gc-absent python-fails; do
+  before=$FAILURES
+  new_case "config-$scenario"
+  write_config "[$(rig app "$(vars env_file "$CASE_DIR/nope.env")")]"
+  case "$scenario" in
+    gc-fails) rm -f "$FAKE_CONFIG"; want="gc config show --json failed" ;;
+    gc-not-json) printf 'Welcome to gc!\n' >"$FAKE_CONFIG"; want="is not JSON" ;;
+    gc-no-rigs) printf '{"schema_version": "1", "config": {}}' >"$FAKE_CONFIG"; want="has no config.Rigs" ;;
+    gc-absent) CALLER_PATH="/usr/bin:/bin"; want="gc is not on PATH" ;;
+    python-fails) CALLER_PATH="$BROKEN_PY_DIR:$CALLER_PATH"; want="could not parse gc config show --json: python3: broken" ;;
+  esac
+  run_doctor env-file
+  [ "$EXIT" != 0 ] || fail_case "exit 0 although the settings could not be read: $(cat "$CASE_DIR/out")"
+  expect_contains "warning: could not read the rigs' leonard settings"
+  expect_contains "$want"
+  expect_contains "rig (formula defaults)"
+  [ "$FAILURES" -gt "$before" ] || pass_case
+done
+
 before=$FAILURES
-new_case config-unreadable
-# No config file: gc config show fails, and the checks say they fell back.
-run_doctor env-file
-expect_exit 1
-expect_contains "note: could not read the resolved city config"
-expect_contains "rig (formula defaults)"
+new_case gc-absent-from-drive-path
+CALLER_PATH="/usr/bin:/bin"
+write_config "[$(rig app "$(vars leonard_cli "$TOOLS/leonard_cli")")]"
+run_doctor leonard-cli
+expect_exit 2
+expect_contains "gc is not on the drive's PATH"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 before=$FAILURES
@@ -280,6 +346,8 @@ expect_first_line "xcodebuild is present but no Xcode is selected"
 
 before=$FAILURES
 new_case no-platform-tools
+# The caller's PATH has every tool; the drive's does not.
+CALLER_PATH="$TOOLS:$CALLER_PATH"
 printf 'ANTHROPIC_API_KEY=test-key\n' >"$CASE_DIR/bare.env"
 write_config "[$(rig app "$(vars env_file "$CASE_DIR/bare.env")")]"
 run_doctor platform-tools
@@ -314,6 +382,25 @@ write_config "[$(rig app "$(vars env_file "$CASE_DIR/good.env")")]"
 run_doctor devices
 expect_exit 1
 expect_first_line "flutter sees no device"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
+new_case devices-not-a-list
+printf '{"error": "not a list"}' >"$FAKE_DEVICES"
+write_config "[$(rig app "$(vars env_file "$CASE_DIR/good.env")")]"
+run_doctor devices
+expect_exit 1
+expect_first_line "flutter sees no device"
+expect_lacks "Traceback"
+[ "$FAILURES" -gt "$before" ] || pass_case
+
+before=$FAILURES
+new_case devices-fails
+printf 'FAKE_FLUTTER_RC=1\n' >>"$CASE_DIR/good.env"
+write_config "[$(rig app "$(vars env_file "$CASE_DIR/good.env")")]"
+run_doctor devices
+expect_exit 1
+expect_first_line "rig app: flutter devices failed or timed out"
 [ "$FAILURES" -gt "$before" ] || pass_case
 
 if [ "$FAILURES" -gt 0 ]; then

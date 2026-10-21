@@ -188,13 +188,15 @@ with its own settings, read from `gc config show --json`.
 
 | Check | Error (exit 2) | Warning (exit 1) |
 |---|---|---|
-| `leonard:env-file` | the `env_file` is missing or fails to load | no `env_file` is set (no credentials, minimal `PATH`), or it is inside the city |
-| `leonard:leonard-cli` | `leonard_cli` does not resolve on the drive's `PATH`, or predates `--gate-exit-codes` (0.4.2) | — |
+| `leonard:env-file` | the `env_file` is missing or fails to load | no `env_file` is set (no credentials, minimal `PATH`), it is not an absolute path, or it is inside the city |
+| `leonard:leonard-cli` | `gc` or `python3` is not on the drive's `PATH`; `leonard_cli` does not resolve there, fails to run, or predates `--gate-exit-codes` (0.4.2) | — |
 | `leonard:platform-tools` | — | no `flutter`, or neither `xcodebuild` nor `adb`, or no Xcode selected |
 | `leonard:devices` | — | `flutter devices` sees nothing to launch on |
 
 `platform-tools` and `devices` only warn: a `vm_uri` run attaches to an app
-that is already running and needs neither. `gc doctor --verbose` lists what
+that is already running and needs neither. If the rigs' settings cannot be
+read (no `gc`, or output that is not the expected JSON), every check warns
+and checks the formula defaults instead. `gc doctor --verbose` lists what
 each check found, rig by rig, including every device Flutter can launch on.
 
 ## Not yet

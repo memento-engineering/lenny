@@ -40,9 +40,11 @@ for i, line in enumerate(lines):
         except ValueError:
             continue
 for device in devices if isinstance(devices, list) else []:
+    if not isinstance(device, dict):
+        continue
     kind = "emulator" if device.get("emulator") else "device"
     print("%s (%s, %s %s)" % (device.get("id", "?"), device.get("name", "?"), device.get("targetPlatform", "?"), kind))
-')"
+' 2>/dev/null)"
   if [ -z "$devices" ]; then
     warn "rig $1: flutter sees no device; boot a simulator or emulator, or attach a device (the drive's HOME is the city, so set ANDROID_HOME in the env_file for Android)"
     return

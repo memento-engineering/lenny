@@ -1,1 +1,1 @@
-description = "leonard_cli resolves on the drive's PATH and supports --gate-exit-codes"
+description = "gc, python3 and leonard_cli resolve where the drive runs, and leonard_cli supports --gate-exit-codes"
