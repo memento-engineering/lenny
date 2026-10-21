@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.2-dev.1
+
+Fixes lenny#199: the lenny#160 fix found the native host through the package config, but `leonard_native` was only a dev dependency, so a consumer that depended on `leonard_cli` alone had no `leonard_native` to find and `leonard_drive up` fell back to paths that exist only inside a lenny checkout.
+
+- `leonard_native` (`^0.6.0`) is now a runtime dependency of `leonard_cli`, so
+  depending on `leonard_cli` puts it in your package config. You no longer
+  need to add `leonard_native` yourself to use `up`'s native path.
+- When `up` cannot find the native host and no `--native-host` was passed, it
+  exits 64 with an error that says `leonard_native` is missing from the
+  program's package config and how to fix it (add `leonard_native` to your
+  dependencies, or pass `--native-host`), instead of the generic
+  "requires --native-host" message. The working-directory fallback still
+  serves development inside a lenny checkout.
+
 ## 0.4.1
 
 Stable promotion of `0.4.1-dev.1` on Nico's promotion call (2026-10-20), on stable `leonard_agent` 0.3.3 and `leonard_native` 0.6.0. The prerelease entry below carries the full list. One change on top:

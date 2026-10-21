@@ -598,7 +598,8 @@ Future<int> _up(ArgResults res) async {
 
 /// Resolves the native host: an explicit `--native-host` must exist; otherwise
 /// the running isolate's package config locates `leonard_native` (a hosted
-/// install works from any directory), then the in-repo cwd candidates.
+/// install works from any directory), then the in-repo cwd candidates. A miss
+/// is explained by [describeNativeHostMiss].
 Future<NativeHostResolution> _resolveNativeHost(String? explicit) async {
   if (explicit != null && explicit.isNotEmpty) {
     return NativeHostResolution(
@@ -657,29 +658,25 @@ Future<int> _upDual(ArgResults res) async {
     nativeHostFlag,
   );
   final String? nativeHost = resolution.path;
-  if (nativeHost == null) {
-    if (nativeHostFlag != null && nativeHostFlag.isNotEmpty) {
-      stderr.writeln(
-        'error: --native-host path does not exist: $nativeHostFlag',
-      );
-      return 64;
-    }
-    missing.add('--native-host');
+  if (nativeHost == null &&
+      nativeHostFlag != null &&
+      nativeHostFlag.isNotEmpty) {
+    stderr.writeln('error: --native-host path does not exist: $nativeHostFlag');
+    return 64;
   }
   if (missing.isNotEmpty) {
     stderr.writeln(
       'error: native channel requires ${missing.join(', ')} '
       '(any of --udid/--app-id/--native-host present requires all three)',
     );
-    if (nativeHost == null) {
-      stderr.writeln(
-        'note: --native-host was not found automatically; tried: '
-        '${resolution.tried.join(', ')}. Depend on leonard_native or pass '
-        '--native-host <path to leonard_native/bin/leonard_native_host.dart>.',
-      );
-    }
-    return 64;
   }
+  if (nativeHost == null) {
+    // Fail loudly with the cause (lenny#199): outside a lenny checkout the
+    // working-directory fallback cannot exist, so a package-config miss is
+    // the whole story.
+    stderr.writeln(describeNativeHostMiss(resolution));
+  }
+  if (missing.isNotEmpty || nativeHost == null) return 64;
 
   // On the dual path -d is superseded by --udid; a conflicting -d is a hard
   // error (prevents the divergent-screen failure mode).
@@ -713,7 +710,7 @@ Future<int> _upDual(ArgResults res) async {
       flutterEntrypoint: target,
       udid: udid!,
       appId: appId!,
-      nativeHostPath: nativeHost!,
+      nativeHostPath: nativeHost,
       appiumServer: appiumServer,
       platform: platform,
       platformVersion: platformVersion,

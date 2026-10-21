@@ -1,6 +1,6 @@
 name: leonard_cli
 description: CLI frontend for Leonard.
-version: 0.4.1
+version: 0.4.2-dev.1
 repository: https://github.com/memento-engineering/lenny
 resolution: workspace
 
@@ -12,12 +12,14 @@ dependencies:
   image: ^4.9.2
   leonard_acp: ^0.2.1
   leonard_agent: ^0.3.3
+  # A runtime dependency, not a dev one: `leonard_drive up` finds the native
+  # host script through the package config (lenny#160, #199).
+  leonard_native: ^0.6.0
   meta: ^1.16.0
   path: ^1.9.0
 
 dev_dependencies:
   leonard_contract: ^0.3.0
   leonard_host: ^0.2.2
-  leonard_native: ^0.6.0
   lints: ^5.1.0
   test: ^1.25.0

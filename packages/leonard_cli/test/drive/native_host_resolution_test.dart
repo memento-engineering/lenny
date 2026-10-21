@@ -66,6 +66,66 @@ void main() {
       );
       expect(r.path, isNull);
       expect(r.tried, kNativeHostCwdCandidates);
+      expect(r.inPackageConfig, isFalse);
+    });
+
+    test('records whether the package config resolved leonard_native', () {
+      expect(
+        resolveNativeHost(
+          nativeLibraryUri: hostedLibrary,
+          exists: (String path) => path == hostedHost,
+        ).inPackageConfig,
+        isTrue,
+      );
+      expect(
+        resolveNativeHost(
+          nativeLibraryUri: null,
+          exists: (String path) => true,
+        ).inPackageConfig,
+        isFalse,
+      );
+    });
+  });
+
+  group('describeNativeHostMiss (lenny#199)', () {
+    test('a null package-config URI with no checkout candidate names the '
+        'missing dependency and the fix', () {
+      final NativeHostResolution r = resolveNativeHost(
+        nativeLibraryUri: null,
+        exists: (String path) => false,
+      );
+      expect(r.path, isNull);
+      final String message = describeNativeHostMiss(r);
+      expect(message, startsWith('error: '));
+      expect(
+        message,
+        contains(
+          "leonard_native is missing from this program's package "
+          'config',
+        ),
+      );
+      expect(
+        message,
+        contains("add leonard_native to your pubspec's dependencies"),
+      );
+      expect(message, contains('dart pub add leonard_native'));
+      expect(message, contains('--native-host'));
+      for (final String candidate in kNativeHostCwdCandidates) {
+        expect(message, contains(candidate));
+      }
+    });
+
+    test('a package-config hit without the host script does not blame the '
+        'dependency', () {
+      final NativeHostResolution r = resolveNativeHost(
+        nativeLibraryUri: hostedLibrary,
+        exists: (String path) => false,
+      );
+      final String message = describeNativeHostMiss(r);
+      expect(message, isNot(contains('missing from')));
+      expect(message, contains('resolves through the package config'));
+      expect(message, contains(hostedHost));
+      expect(message, contains('--native-host'));
     });
   });
 }
