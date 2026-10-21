@@ -1,0 +1,12 @@
+[workspace]
+name = "lgce"
+
+[session]
+provider = "subprocess"
+
+[daemon]
+patrol_interval = "1s"
+shutdown_timeout = "5s"
+
+[beads]
+provider = "bd"

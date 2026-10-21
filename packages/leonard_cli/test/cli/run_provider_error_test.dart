@@ -143,6 +143,63 @@ void main() {
       expect(json['model_identifier'], 'acp:codex-acp');
       // No model was ever built, so there is no usage to report.
       expect(json['usage'], isNull);
+      expect(json['verdict'], 'infra');
+      expect(json['reason'], contains('[config_error]'));
+      expect(json['digest'], isEmpty);
+    },
+  );
+
+  test(
+    '--gate-exit-codes exits 75 when the run never judged the app',
+    () async {
+      final Directory temp = await Directory.systemTemp.createTemp(
+        'leonard-gate-',
+      );
+      addTearDown(() => temp.delete(recursive: true));
+      final File trajectory = File(p.join(temp.path, 'trajectory.jsonl'));
+      final File summary = File(p.join(temp.path, 'summary.json'));
+      final File errorFile = File(p.join(temp.path, 'stderr.txt'));
+      final IOSink errorSink = errorFile.openWrite();
+
+      late final int configExit;
+      late final int usageExit;
+      try {
+        configExit = await runCli(
+          <String>[
+            ..._arguments(trajectory.path),
+            '--summary-json',
+            summary.path,
+            '--gate-exit-codes',
+          ],
+          stdin: stdin,
+          stdout: stdout,
+          stderr: errorSink,
+          acpProviderBuilder: (AcpAgentSpec spec) =>
+              Future<ModelProvider>.error(
+                StateError('missing configuration'),
+                StackTrace.current,
+              ),
+        );
+        usageExit = await runCli(
+          <String>['--gate-exit-codes', '--policy', 'nonsense'],
+          stdin: stdin,
+          stdout: stdout,
+          stderr: errorSink,
+        );
+      } finally {
+        await errorSink.close();
+      }
+
+      expect(configExit, 75);
+      final Map<String, dynamic> json =
+          jsonDecode(await summary.readAsString()) as Map<String, dynamic>;
+      expect(json['exit_code'], 75);
+      expect(json['verdict'], 'infra');
+      expect(usageExit, 75);
+      expect(
+        await errorFile.readAsString(),
+        contains('verdict: infra — usage error'),
+      );
     },
   );
 

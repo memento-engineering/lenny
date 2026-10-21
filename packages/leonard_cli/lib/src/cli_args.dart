@@ -287,6 +287,13 @@ ArgParser buildParser() => ArgParser()
         'Write a run summary (outcome, exit code, tokens, latency, cost) '
         'as JSON to this path.',
   )
+  ..addFlag(
+    'gate-exit-codes',
+    negatable: false,
+    help:
+        'Exit with the run verdict instead: 0 pass, 75 infra (no judgement '
+        'about the app), 1 fail. The Gas City check protocol.',
+  )
   ..addOption(
     'price-input-per-mtok',
     help:

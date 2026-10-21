@@ -13,6 +13,15 @@ Fixes lenny#199: the lenny#160 fix found the native host through the package con
   dependencies, or pass `--native-host`), instead of the generic
   "requires --native-host" message. The working-directory fallback still
   serves development inside a lenny checkout.
+- `--summary-json` now carries the run's verdict: `verdict` (`pass`, `fail`
+  or `infra`), a one-line `reason`, and `digest`, the last turns as one line
+  each (action, result, and the final rationale) under 3000 characters. A run
+  fails only when Leonard drove the app and the goal was not met (budget
+  exhausted, the app's VM service gone mid-drive, a golden mismatch); every
+  outcome that kept it from judging the app is `infra` (lenny#177).
+- Add `--gate-exit-codes`: exit 0 pass, 75 infra, 1 fail. 75 is
+  `EX_TEMPFAIL`, Gas City's infrastructure code for checks. A usage error
+  exits 75 too (lenny#177).
 
 ## 0.4.1
 

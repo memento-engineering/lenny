@@ -1,0 +1,7 @@
+scope = "rig"
+start_command = "gc agent-script --script {{.ConfigDir}}/assets/stub-driver.yaml"
+lifecycle = "one_shot"
+prompt_mode = "none"
+min_active_sessions = 0
+max_active_sessions = 1
+idle_timeout = "5m"
