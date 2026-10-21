@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:leonard_flutter/contract.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 import 'package:flutter/material.dart';
@@ -363,6 +365,112 @@ void main() {
       expect(hidden.text, isEmpty);
       cap.dispose();
       h.dispose();
+    },
+  );
+
+  // Pushes a field route over a laid-out field route at runtime, then enters
+  // text through the node of the field on the pushed route. By default both
+  // fields fill the same rect, so the geometric match ties; with
+  // [hiddenOverlapsMore] the covered field overlaps the target more than the
+  // visible one does, so only its being off stage rules it out. The semantics
+  // handle is
+  // disposed in a finally: flutter_test checks for live handles before
+  // addTearDown callbacks run.
+  Future<void> enterTextOverLaidOutRoute(
+    WidgetTester tester, {
+    required bool opaque,
+    bool hiddenOverlapsMore = false,
+    required TextEditingController hidden,
+    required TextEditingController visible,
+  }) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    final GlobalKey<NavigatorState> nav = GlobalKey<NavigatorState>();
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: nav,
+          home: Scaffold(
+            body: hiddenOverlapsMore
+                ? TextField(controller: hidden, minLines: 2, maxLines: 2)
+                : TextField(controller: hidden),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final Widget top = Scaffold(
+        body: Semantics(
+          label: 'first name',
+          textField: true,
+          child: TextField(controller: visible),
+        ),
+      );
+      unawaited(
+        nav.currentState!.push(
+          PageRouteBuilder<void>(opaque: opaque, pageBuilder: (_, _, _) => top),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final SemanticsCapture cap = SemanticsCapture();
+      try {
+        final Map<String, Object> wrapper = cap.capture().firstWhere(
+          (Map<String, Object> r) =>
+              r['role'] == 'textfield' && r['label'] == 'first name',
+        );
+
+        final CoreExtension core = CoreExtension(semantics: cap);
+        final LeonardTool t = core.tools.firstWhere(
+          (LeonardTool x) => x.name == 'enter_text',
+        );
+        final ToolResult r = await t.call(<String, Object?>{
+          'node_id': wrapper['id']! as int,
+          'text': 'Lenny',
+        });
+
+        expect(r.ok, isTrue, reason: r.error);
+        expect(visible.text, 'Lenny');
+        expect(hidden.text, isEmpty);
+      } finally {
+        cap.dispose();
+      }
+    } finally {
+      h.dispose();
+    }
+  }
+
+  testWidgets(
+    'core.enter_text skips an EditableText on a route covered after it was '
+    'laid out (lenny-5bw3t: the covered field keeps its size and won the tie)',
+    (WidgetTester tester) async {
+      final TextEditingController hidden = TextEditingController();
+      final TextEditingController visible = TextEditingController();
+      addTearDown(hidden.dispose);
+      addTearDown(visible.dispose);
+      await enterTextOverLaidOutRoute(
+        tester,
+        opaque: true,
+        hiddenOverlapsMore: true,
+        hidden: hidden,
+        visible: visible,
+      );
+    },
+  );
+
+  testWidgets(
+    'core.enter_text prefers the topmost EditableText when a non-opaque '
+    'route leaves the field beneath it on stage (lenny-5bw3t)',
+    (WidgetTester tester) async {
+      final TextEditingController hidden = TextEditingController();
+      final TextEditingController visible = TextEditingController();
+      addTearDown(hidden.dispose);
+      addTearDown(visible.dispose);
+      await enterTextOverLaidOutRoute(
+        tester,
+        opaque: false,
+        hidden: hidden,
+        visible: visible,
+      );
     },
   );
 }

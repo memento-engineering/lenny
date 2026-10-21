@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.3-dev.2
+
+- Fix: `core.enter_text` no longer types into a field on a covered route. It
+  picks the `EditableText` whose rect overlaps the target node most, and the
+  0.4.3-dev.1 fix skipped only fields that were never laid out. A route that
+  was laid out and then covered keeps its geometry, so a sign-in field under a
+  pushed profile screen stayed a candidate and won a tie on overlap: the tool
+  wrote into the hidden field and returned `ok: true`. Fields the Overlay holds
+  off stage (built with tickers disabled) are now skipped, and a tie goes to
+  the field later in paint order, which is the one on top, as with a field on
+  a non-opaque route over another. (lenny-5bw3t)
+
 ## 0.4.3-dev.1
 
 - Fix: `core.enter_text` no longer fails when a covered route holds a text
