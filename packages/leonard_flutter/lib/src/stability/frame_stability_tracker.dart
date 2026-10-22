@@ -6,7 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'framework_busy_snapshot.dart';
 
 /// Mixin layered onto `SchedulerBinding` (via `LeonardBinding`) that
-/// observes framework-level "busy" signals: in-flight transient callbacks,
+/// observes framework-level "busy" signals: scheduled transient callbacks,
 /// registered persistent callbacks, pending microtasks (best effort), and
 /// frame-commit / skipped-frame timestamps.
 ///
@@ -23,7 +23,6 @@ mixin FrameStabilityTracker on SchedulerBinding {
   /// inter-frame interval per PRD §6.1.
   static const Duration _skipThreshold = Duration(milliseconds: 33);
 
-  int _transientInFlight = 0;
   int _persistentRegistered = 0;
   bool _microtaskPending = false;
   Duration? _lastCommit;
@@ -34,7 +33,12 @@ mixin FrameStabilityTracker on SchedulerBinding {
   bool get _enabled => kDebugMode || kProfileMode;
 
   /// Returns a synchronous, immutable snapshot of the current
-  /// framework-level busy signals. In release mode returns
+  /// framework-level busy signals.
+  ///
+  /// The transient count is the scheduler's own [transientCallbackCount], so a
+  /// cancelled callback (a [Ticker] stopping cancels its pending tick) drops
+  /// out of it. Read it between frames: the scheduler empties it at the start
+  /// of each frame, before running callbacks that reschedule themselves. In release mode returns
   /// `FrameworkBusySnapshot.zero`.
   ///
   /// The returned object's `recentFrameCommits` is a fresh unmodifiable
@@ -43,7 +47,7 @@ mixin FrameStabilityTracker on SchedulerBinding {
   FrameworkBusySnapshot frameworkBusySnapshot() {
     if (!_enabled) return FrameworkBusySnapshot.zero;
     return FrameworkBusySnapshot(
-      transientCallbacks: _transientInFlight,
+      transientCallbacks: transientCallbackCount,
       persistentCallbacks: _persistentRegistered,
       pendingMicrotasks: _microtaskPending,
       lastFrameCommitTimestamp: _lastCommit,
@@ -57,34 +61,7 @@ mixin FrameStabilityTracker on SchedulerBinding {
   /// excludes the persistent-callback baseline (registered once, fires every
   /// frame as steady-state — never a settling signal; see lenny-ndnp).
   bool get isAnyFrameworkSignalBusy =>
-      _enabled && (_transientInFlight > 0 || _microtaskPending);
-
-  @override
-  int scheduleFrameCallback(
-    FrameCallback callback, {
-    bool rescheduling = false,
-    bool scheduleNewFrame = true,
-  }) {
-    if (!_enabled) {
-      return super.scheduleFrameCallback(
-        callback,
-        rescheduling: rescheduling,
-        scheduleNewFrame: scheduleNewFrame,
-      );
-    }
-    _transientInFlight++;
-    return super.scheduleFrameCallback(
-      (Duration ts) {
-        try {
-          callback(ts);
-        } finally {
-          if (_transientInFlight > 0) _transientInFlight--;
-        }
-      },
-      rescheduling: rescheduling,
-      scheduleNewFrame: scheduleNewFrame,
-    );
-  }
+      _enabled && (transientCallbackCount > 0 || _microtaskPending);
 
   @override
   void addPersistentFrameCallback(FrameCallback callback) {

@@ -35,6 +35,40 @@ void main() {
     expect(binding.frameworkBusySnapshot().transientCallbacks, before);
   });
 
+  test('a cancelled transient callback no longer counts (a stopped ticker '
+      'cancels its pending tick)', () {
+    final int before = binding.frameworkBusySnapshot().transientCallbacks;
+    final int id = binding.scheduleFrameCallback((_) {});
+    expect(binding.frameworkBusySnapshot().transientCallbacks - before, 1);
+    binding.cancelFrameCallbackWithId(id);
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before);
+  });
+
+  test('a ticker that starts and stops leaves the count where it was', () {
+    final int before = binding.frameworkBusySnapshot().transientCallbacks;
+    final Ticker ticker = Ticker((_) {});
+    addTearDown(ticker.dispose);
+    for (int i = 0; i < 3; i++) {
+      ticker.start();
+      expect(binding.frameworkBusySnapshot().transientCallbacks, before + 1);
+      ticker.stop();
+    }
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before);
+    expect(binding.isAnyFrameworkSignalBusy, before > 0);
+  });
+
+  test('a ticker still running after a frame is still counted', () {
+    final int before = binding.frameworkBusySnapshot().transientCallbacks;
+    final Ticker ticker = Ticker((_) {});
+    addTearDown(ticker.dispose);
+    ticker.start();
+    _runFrame(binding, const Duration(milliseconds: 150));
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before + 1);
+    expect(binding.isAnyFrameworkSignalBusy, isTrue);
+    ticker.stop();
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before);
+  });
+
   test('persistent callback count increments on add', () {
     final int start = binding.frameworkBusySnapshot().persistentCallbacks;
     binding.addPersistentFrameCallback((_) {});
