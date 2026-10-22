@@ -17,7 +17,8 @@
 # this script and commit the leonard_flutter copy after any change to
 # packages/leonard_devtools/{lib,web,pubspec.yaml}.
 # CI runs this script before analyze/test so PRs that break the build
-# fail at merge.
+# fail at merge, then tool/check_devtools_bundle.sh, which fails when the
+# committed leonard_flutter copy differs from the fresh build.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PANEL="$ROOT/packages/leonard_devtools"
