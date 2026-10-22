@@ -101,7 +101,6 @@ class Observation {
     }
 
     final CoreFragment core = CoreFragment(
-      // ignore: deprecated_member_use_from_same_package
       routeStack: List<String>.unmodifiable(routeStack),
       routeLayers: List<RouteLayer>.unmodifiable(routeLayers),
       nodes: Map<int, SemanticsNode>.unmodifiable(nodes),
@@ -175,15 +174,13 @@ class Observation {
 @immutable
 class CoreFragment {
   const CoreFragment({
-    @Deprecated(_routeStackDeprecation) required this.routeStack,
+    @Deprecated(_routeStackDeprecation) this.routeStack = const <String>[],
     this.routeLayers = const <RouteLayer>[],
     required this.nodes,
     required this.errors,
   });
 
   static const CoreFragment empty = CoreFragment(
-    // ignore: deprecated_member_use_from_same_package
-    routeStack: <String>[],
     nodes: <int, SemanticsNode>{},
     errors: <RuntimeError>[],
   );
@@ -201,9 +198,10 @@ class CoreFragment {
   /// The route layers on screen, top-most last, as accessibility services
   /// see them (the binding's `route_layers`). Each names the semantics node
   /// that scopes the route and, when the app or framework gives one, the
-  /// route's announced name. This is what is on screen, not the app's
-  /// navigation: location, path and history come from a navigation
-  /// extension such as `router`.
+  /// route's announced name. This is what the user can reach, not the app's
+  /// navigation: a modal barrier hides the routes beneath it, so under a
+  /// dialog only the dialog is a layer. Location, path and history come from
+  /// a navigation extension such as `router`.
   final List<RouteLayer> routeLayers;
 
   /// Captured semantics nodes keyed by stable id.
@@ -215,7 +213,6 @@ class CoreFragment {
   Map<String, dynamic> toJson() {
     final List<int> sortedIds = nodes.keys.toList()..sort();
     return <String, dynamic>{
-      // ignore: deprecated_member_use_from_same_package
       'routeStack': List<String>.from(routeStack),
       'routeLayers': routeLayers.map((RouteLayer l) => l.toJson()).toList(),
       'nodes': <String, dynamic>{
@@ -228,7 +225,6 @@ class CoreFragment {
   @override
   bool operator ==(Object other) =>
       other is CoreFragment &&
-      // ignore: deprecated_member_use_from_same_package
       _listEq(routeStack, other.routeStack) &&
       _listEq(routeLayers, other.routeLayers) &&
       _mapEq(nodes, other.nodes) &&
@@ -236,7 +232,6 @@ class CoreFragment {
 
   @override
   int get hashCode => Object.hash(
-    // ignore: deprecated_member_use_from_same_package
     Object.hashAll(routeStack),
     Object.hashAll(routeLayers),
     Object.hashAllUnordered(
@@ -256,8 +251,12 @@ class CoreFragment {
 /// can reuse it for the next route in the same place, so across turns compare
 /// [name] and the number of layers rather than [node] alone. [name] is null
 /// when nothing in the scope names the route, as with a page with no app bar
-/// title, a page whose title is blocked by a modal barrier, or an iOS page
-/// whose Material app bar title does not name the route.
+/// title, or an iOS or macOS page whose Material app bar title does not name
+/// the route.
+///
+/// Layers are the routes the user can reach, not the route stack: a modal
+/// barrier hides the routes beneath it from semantics, so under a dialog or
+/// modal sheet that dialog or sheet is the only layer.
 @immutable
 class RouteLayer {
   const RouteLayer({required this.node, this.name});

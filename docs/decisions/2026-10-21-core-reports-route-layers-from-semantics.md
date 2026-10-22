@@ -44,7 +44,8 @@ readers use to announce a screen change. Page routes (`MaterialPageRoute`,
 sheets, drawers, dropdowns and search set `scopesRoute`; dialogs, menus,
 sheets, drawers, dropdowns and search set `namesRoute` with a label. The
 Material `AppBar` title names its route on platforms other than iOS and
-macOS. The semantics tree omits off-stage routes and hidden tabs.
+macOS. The semantics tree omits off-stage routes and hidden tabs, and a modal
+barrier hides every route beneath it.
 
 ## Decision
 
@@ -53,9 +54,20 @@ the semantics capture core already performs each observation. Each layer is
 `{node, name}`: `node` is the emitted id of the node flagged `scopesRoute`,
 and `name` is the label of the first node flagged `namesRoute` with a
 non-empty label inside that scope (not inside a nested scope), in depth-first
-paint order, which is the text a screen reader announces, or null. The
-capture records the layers during its existing walk, so observation stays
-pull-free. The agent parses them into `CoreFragment.routeLayers`, renders
+paint order, which is the text a screen reader announces, or null.
+
+One layer per route: a scope with no name and no labelled or actionable node
+of its own whose only content is one nested scope folds with it, keeping the
+outer node and the inner name. `showDialog` scopes its route and the
+`AlertDialog` inside scopes itself again; that is one layer, "Alert".
+
+Layers are what the user can reach, not the route stack. A modal barrier
+hides the routes beneath it from semantics, so while a dialog or modal sheet
+is open it is the only layer.
+
+The capture returns the layers with the node records from its existing walk
+(`SemanticsCapture.captureSnapshotAsync`), so they always describe one
+capture and observation stays pull-free. The agent parses them into `CoreFragment.routeLayers`, renders
 them to the model, and diffs them (`CoreDiff.routeLayerChanges`).
 
 Core makes no claim about navigation. Location, path, arguments and history
@@ -80,12 +92,15 @@ releases of the owning packages: it is removed no earlier than leonard_agent
 
 ## Consequences
 
-The model sees a dialog, sheet or menu open as a new top layer, and nested or
-tabbed navigators show only the route on screen. Names depend on the app and
-platform: a page with no app bar title, a page whose contents a modal barrier
-blocks from semantics, and a Material page on iOS or macOS are unnamed
-layers. A modal bottom sheet's barrier blocks the page under it, so only the
-sheet is a layer. The framework can reuse a scoping node's id for the next
-route in the same place, so consumers compare names and layer counts across
-turns rather than node ids alone. Apps that relied on route names in
+The model sees a modal dialog or sheet open as the layers changing to that
+dialog or sheet alone (`["Home"]` to `["Alert"]`), not as a layer added over
+the page; the page returns when it closes. Nested or tabbed navigators show
+only the route on screen. Names depend on the app and platform: a page with
+no app bar title and a Material page on iOS or macOS are unnamed layers, and
+a page whose non-pinned `SliverAppBar` title scrolls out of view loses its
+name, which shows as a layer change. The framework can reuse a scoping
+node's id for the next route in the same place, so consumers compare names
+and layer counts across turns rather than node ids alone. When the core
+budget trims semantics, each layer's node record is kept but the contents of
+the top layer, at the tail, go first. Apps that relied on route names in
 `routeStack` get them from a navigation extension.

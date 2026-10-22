@@ -68,6 +68,33 @@ void main() {
       expect(decoded['droppedNodes'], 2);
     });
 
+    test('trimming keeps route_layers and each layer node record', () {
+      final Map<String, Object?> fragment = <String, Object?>{
+        'semantics': <Object?>[
+          <String, Object?>{'id': 1, 'label': 'page ' * 20},
+          <String, Object?>{'id': 2},
+          <String, Object?>{'id': 3, 'label': 'dialog body ' * 20},
+        ],
+        'routes': <String>[],
+        'route_layers': <Object?>[
+          <String, Object?>{'node': 2, 'name': 'Alert'},
+        ],
+        'errors': <Object?>[],
+        'stability': <String, Object?>{'policy': 'action-relative'},
+      };
+
+      final BudgetedJson out = encodeCoreWithBudget(fragment, 1);
+      final Map<String, Object?> decoded =
+          jsonDecode(out.json) as Map<String, Object?>;
+
+      expect(out.truncated, isTrue);
+      expect(decoded['semantics'], <Object?>[
+        <String, Object?>{'id': 2},
+      ]);
+      expect(decoded['route_layers'], fragment['route_layers']);
+      expect(decoded['droppedNodes'], 2);
+    });
+
     test('tiny budget retains mandatory metadata after dropping all nodes', () {
       final Map<String, Object?> fragment = <String, Object?>{
         'semantics': <Object?>[

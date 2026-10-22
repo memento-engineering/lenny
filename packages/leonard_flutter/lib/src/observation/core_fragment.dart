@@ -18,7 +18,7 @@ import 'stability_metadata.dart';
 ///
 /// Deprecated as the `routes` field: it reports only the root navigator's
 /// top route name, so it is empty under a dialog and blind to nested
-/// navigators. `route_layers` ([SemanticsCapture.lastRouteLayers]) replaces
+/// navigators. `route_layers` ([SemanticsSnapshot.routeLayers]) replaces
 /// it; `routes` stays on the wire until leonard_flutter 0.9.0 (decision
 /// core-reports-route-layers-from-semantics).
 List<String> bestEffortRouteStack() {
@@ -92,7 +92,7 @@ class CoreFragmentValues {
   final List<String> routes;
 
   /// The route layers on screen, top-most last: `routeLayersProvider`
-  /// output, verbatim (see [SemanticsCapture.lastRouteLayers]).
+  /// output, verbatim (see [SemanticsSnapshot.routeLayers]).
   final List<Map<String, Object?>> routeLayers;
 
   /// `errors.map((e) => e.toJson()).toList()` output, verbatim.

@@ -43,7 +43,6 @@ class ScriptedCounterHost implements LoopHost {
   @override
   Future<Observation> observe() async => Observation(
     core: CoreFragment(
-      routeStack: const <String>['/'],
       nodes: <int, SemanticsNode>{
         kCounterNodeId: SemanticsNode(
           id: kCounterNodeId,

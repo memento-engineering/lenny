@@ -442,14 +442,14 @@ void main() {
       final Observation o = Observation.fromJson(<String, dynamic>{
         'route_layers': <Object?>[
           <String, Object?>{'node': 4, 'name': null},
-          <String, Object?>{'node': 9, 'name': 'Alert'},
+          <String, Object?>{'node': 7, 'name': 'inbox'},
           <String, Object?>{'name': 'no node'},
           'not a map',
         ],
       });
       expect(o.core.routeLayers, const <RouteLayer>[
         RouteLayer(node: 4),
-        RouteLayer(node: 9, name: 'Alert'),
+        RouteLayer(node: 7, name: 'inbox'),
       ]);
     });
 

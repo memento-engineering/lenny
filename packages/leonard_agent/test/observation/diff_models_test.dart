@@ -184,10 +184,7 @@ void main() {
           routeLayerChanges: <RouteLayerChange>[
             RouteLayerChange(
               previous: <RouteLayer>[RouteLayer(node: 4, name: 'Home')],
-              current: <RouteLayer>[
-                RouteLayer(node: 4),
-                RouteLayer(node: 9, name: 'Alert'),
-              ],
+              current: <RouteLayer>[RouteLayer(node: 9, name: 'Alert')],
             ),
           ],
           nodesAdded: <SemanticsNode>[],
@@ -202,7 +199,6 @@ void main() {
         jsonDecode(encoded) as Map<String, dynamic>,
       );
       expect(restored.core.routeLayerChanges.single.current, <RouteLayer>[
-        const RouteLayer(node: 4),
         const RouteLayer(node: 9, name: 'Alert'),
       ]);
       expect(jsonEncode(restored.toJson()), encoded);

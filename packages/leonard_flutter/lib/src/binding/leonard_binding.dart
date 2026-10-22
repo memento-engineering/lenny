@@ -679,9 +679,13 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     // serializePerceptionFragment strips the top Node('core') name and
     // emits {semantics, routes, route_layers, errors, stability
     // [, screenshot_png_b64]} in that key order.
+    // Nodes and route layers come from one walk; the snapshot is local so
+    // concurrent observations never read each other's layers.
+    SemanticsSnapshot snapshot = SemanticsSnapshot.empty;
     final CoreFragmentValues coreValues = await computeCoreFragmentValues(
-      captureSemantics: _semanticsCapture.captureAsync,
-      routeLayersProvider: () => _semanticsCapture.lastRouteLayers,
+      captureSemantics: () async =>
+          (snapshot = await _semanticsCapture.captureSnapshotAsync()).nodes,
+      routeLayersProvider: () => snapshot.routeLayers,
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
       stability: stability,
       includeScreenshot: req.includeScreenshot,
@@ -789,9 +793,13 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       frameworkBusy: frameworkBusySnapshot().toJson(),
       extensionsBusy: const <ExtensionBusy>[],
     );
+    // Nodes and route layers come from one walk; the snapshot is local so
+    // concurrent observations never read each other's layers.
+    SemanticsSnapshot snapshot = SemanticsSnapshot.empty;
     final CoreFragmentValues coreValues = await computeCoreFragmentValues(
-      captureSemantics: _semanticsCapture.captureAsync,
-      routeLayersProvider: () => _semanticsCapture.lastRouteLayers,
+      captureSemantics: () async =>
+          (snapshot = await _semanticsCapture.captureSnapshotAsync()).nodes,
+      routeLayersProvider: () => snapshot.routeLayers,
       errorsSince: (int? cursor) => _errors.entriesSince(cursor ?? 0),
       stability: stability,
       includeScreenshot: false,

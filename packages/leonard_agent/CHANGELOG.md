@@ -8,7 +8,8 @@
   describes it, and the diff reports a change as
   `CoreDiff.routeLayerChanges` (`RouteLayerChange`), serialized only when
   non-empty so unchanged turns keep their exact shape.
-- Deprecate `CoreFragment.routeStack`; removed no earlier than 0.8.0.
+- Deprecate `CoreFragment.routeStack`; removed no earlier than 0.8.0. It is
+  now optional (defaults to empty), so new code need not pass it.
   Decision: core-reports-route-layers-from-semantics.
 
 ## 0.3.4-dev.1

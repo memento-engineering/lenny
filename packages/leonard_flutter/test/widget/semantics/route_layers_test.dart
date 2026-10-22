@@ -11,14 +11,14 @@ void main() {
   Future<List<Map<String, Object?>>> captureLayers() async {
     final SemanticsCapture cap = SemanticsCapture();
     try {
-      final List<Map<String, Object>> recs = await cap.captureAsync();
-      final Set<Object> ids = recs
+      final SemanticsSnapshot snap = await cap.captureSnapshotAsync();
+      final Set<Object> ids = snap.nodes
           .map((Map<String, Object> r) => r['id']!)
           .toSet();
-      for (final Map<String, Object?> l in cap.lastRouteLayers) {
+      for (final Map<String, Object?> l in snap.routeLayers) {
         expect(ids, contains(l['node']), reason: 'layer $l names no record');
       }
-      return cap.lastRouteLayers;
+      return snap.routeLayers;
     } finally {
       cap.dispose();
     }
@@ -70,11 +70,11 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        // The page stays a layer, but the modal barrier blocks its contents
-        // from semantics, app bar title included, so it is unnamed. AlertDialog
-        // names its route with its semantic label, which defaults to the
-        // localized "Alert", not the title.
-        expect(names(await captureLayers()), <Object?>[null, 'Alert']);
+        // The modal barrier hides the page from semantics, so the dialog is
+        // the only layer. showDialog scopes its route and AlertDialog scopes
+        // itself again; the two fold into one layer, named with AlertDialog's
+        // semantic label, the localized "Alert", not its title.
+        expect(names(await captureLayers()), <Object?>['Alert']);
       } finally {
         h.dispose();
       }
@@ -95,7 +95,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(names(await captureLayers()).last, 'Dialog');
+      // The sheet's barrier hides the page, so the sheet is the only layer.
+      expect(names(await captureLayers()), <Object?>['Dialog']);
     } finally {
       h.dispose();
     }
@@ -125,8 +126,61 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(names(await captureLayers()), <Object?>[null, 'tab b']);
+      // The outer page has no title or content of its own, so it folds with
+      // the selected tab's route into one layer; tab a is absent.
+      expect(names(await captureLayers()), <Object?>['tab b']);
     } finally {
+      h.dispose();
+    }
+  });
+
+  testWidgets('a titled page around a nested navigator stays its own layer, '
+      'under the nested route', (WidgetTester tester) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: AppBar(title: const Text('Home')),
+            body: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                builder: (_) => Semantics(
+                  namesRoute: true,
+                  label: 'inbox',
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(names(await captureLayers()), <Object?>['Home', 'inbox']);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  testWidgets('route layers come from the same walk as the nodes and are '
+      'empty with them when no semantics tree is found', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    final SemanticsCapture cap = SemanticsCapture();
+    try {
+      await tester.pumpWidget(home());
+      expect((await cap.captureSnapshotAsync()).routeLayers, isNotEmpty);
+      // No root and no frame coming: the capture times out with nothing,
+      // and must not hand back the previous screen's layers.
+      // runAsync gives the 250 ms timeout a real clock to fire on.
+      cap.debugRaceNextRootLookup = true;
+      final SemanticsSnapshot empty = (await tester.runAsync(
+        cap.captureSnapshotAsync,
+      ))!;
+      expect(empty.nodes, isEmpty);
+      expect(empty.routeLayers, isEmpty);
+    } finally {
+      cap.dispose();
       h.dispose();
     }
   });

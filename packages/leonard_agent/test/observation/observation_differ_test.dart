@@ -129,19 +129,16 @@ void main() {
   });
 
   test('a dialog opening emits one RouteLayerChange (lenny-kyfdc)', () {
+    // The dialog's barrier hides the page from semantics, so the dialog
+    // replaces the page as the only layer.
     const RouteLayer page = RouteLayer(node: 4, name: 'Home');
     const RouteLayer dialog = RouteLayer(node: 9, name: 'Alert');
     final Observation prev = _obs(layers: const <RouteLayer>[page]);
-    final Observation curr = _obs(
-      layers: const <RouteLayer>[RouteLayer(node: 4), dialog],
-    );
+    final Observation curr = _obs(layers: const <RouteLayer>[dialog]);
     final ObservationDiff d = ObservationDiffer.diff(prev, curr);
     expect(d.core.routeLayerChanges, hasLength(1));
     expect(d.core.routeLayerChanges.single.previous, <RouteLayer>[page]);
-    expect(d.core.routeLayerChanges.single.current, <RouteLayer>[
-      const RouteLayer(node: 4),
-      dialog,
-    ]);
+    expect(d.core.routeLayerChanges.single.current, <RouteLayer>[dialog]);
     final Map<String, dynamic> core =
         jsonDecode(jsonEncode(d.toJson()))['core'] as Map<String, dynamic>;
     expect(core['routeLayerChanges'], <Object>[
@@ -150,7 +147,6 @@ void main() {
           <String, Object?>{'node': 4, 'name': 'Home'},
         ],
         'current': <Object>[
-          <String, Object?>{'node': 4, 'name': null},
           <String, Object?>{'node': 9, 'name': 'Alert'},
         ],
       },

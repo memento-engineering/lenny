@@ -39,8 +39,8 @@ import 'package:flutter/widgets.dart';
 /// produced by Flutter, including exclusions and blocking applied by widgets
 /// such as `ExcludeSemantics` and `BlockSemantics`.
 ///
-/// Route layers: the same walk records [lastRouteLayers], the routes on
-/// screen as accessibility services see them. See [lastRouteLayers].
+/// Route layers: [captureSnapshotAsync] also returns the routes on screen as
+/// accessibility services see them; see [SemanticsSnapshot.routeLayers].
 class SemanticsCapture {
   /// Creates a new capture instance. The stable-id map is per instance.
   SemanticsCapture();
@@ -66,35 +66,18 @@ class SemanticsCapture {
   int _stableIdFor(SemanticsNode n) =>
       _stableIds.putIfAbsent(n.id, () => _nextId++);
 
-  List<Map<String, Object?>> _routeLayers = const <Map<String, Object?>>[];
-
-  /// The route layers on screen at the last capture, top-most last.
-  ///
-  /// One entry per emitted node flagged [SemanticsFlag.scopesRoute], the flag
-  /// the framework sets on page routes, dialogs, popup menus, bottom sheets,
-  /// drawers, dropdowns and search, and that screen readers use to announce a
-  /// screen change. Each entry is `{node, name}`: `node` is the emitted `id`
-  /// of the scoping node, and `name` is the label of the first node flagged
-  /// [SemanticsFlag.namesRoute] with a non-empty label inside that scope (not
-  /// inside a nested scope), in depth-first paint order, or null when there
-  /// is none. That is the text a screen reader announces for the route.
-  ///
-  /// This is what is on screen, not the app's navigation: a page under a
-  /// modal barrier is blocked from semantics and absent, a route in a hidden
-  /// tab is absent, and a page with no app bar title (or on Android, where an
-  /// app bar title does not name the route) has a null name. Location, path,
-  /// arguments and history belong to a navigation extension.
-  ///
-  /// Read synchronously after [captureAsync] or [capture]; empty before the
-  /// first capture.
-  List<Map<String, Object?>> get lastRouteLayers => _routeLayers;
-
   /// Async-safe form of [capture]. Awaits [SchedulerBinding.instance.endOfFrame]
   /// (with a 250 ms timeout) when [_findRootSemanticsNode] returns null on the
   /// first call, so the semantics flush triggered by [ensureSemantics] can
   /// complete before the tree is walked. On timeout (occluded / non-pumping
   /// window) returns [].
-  Future<List<Map<String, Object>>> captureAsync() async {
+  Future<List<Map<String, Object>>> captureAsync() async =>
+      (await captureSnapshotAsync()).nodes;
+
+  /// [captureAsync], plus the route layers read in the same walk, so the two
+  /// always describe one capture. Both are empty on the paths where
+  /// [captureAsync] returns [].
+  Future<SemanticsSnapshot> captureSnapshotAsync() async {
     _semanticsHandle ??= SemanticsBinding.instance.ensureSemantics();
     SemanticsNode? root = _findRootSemanticsNode();
     if (root == null) {
@@ -103,19 +86,12 @@ class SemanticsCapture {
           const Duration(milliseconds: 250),
         );
       } on TimeoutException {
-        return const <Map<String, Object>>[];
+        return SemanticsSnapshot.empty;
       }
       root = _findRootSemanticsNode();
     }
-    if (root == null) return const <Map<String, Object>>[];
-    final ui.FlutterView v =
-        WidgetsBinding.instance.platformDispatcher.views.first;
-    final Rect viewport = Offset.zero & v.physicalSize;
-    final List<_Rec> recs = <_Rec>[];
-    final List<_Layer> layers = <_Layer>[];
-    _walk(root, recs, viewport, v.devicePixelRatio, layers);
-    _routeLayers = layers.map((_Layer l) => l.toJson()).toList(growable: false);
-    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
+    if (root == null) return SemanticsSnapshot.empty;
+    return _snapshot(root);
   }
 
   /// Retained for backward compat; races the initial semantics flush.
@@ -130,14 +106,22 @@ class SemanticsCapture {
     if (root == null) {
       return const <Map<String, Object>>[];
     }
+    return _snapshot(root).nodes;
+  }
+
+  SemanticsSnapshot _snapshot(SemanticsNode root) {
     final ui.FlutterView v =
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
     final List<_Layer> layers = <_Layer>[];
     _walk(root, recs, viewport, v.devicePixelRatio, layers);
-    _routeLayers = layers.map((_Layer l) => l.toJson()).toList(growable: false);
-    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
+    return SemanticsSnapshot._(
+      recs.map((_Rec r) => r.toJson()).toList(growable: false),
+      _foldRouteLayers(
+        layers,
+      ).map((_Layer l) => l.toJson()).toList(growable: false),
+    );
   }
 
   /// Walks the [PipelineOwner] tree rooted at
@@ -209,6 +193,51 @@ class SemanticsCapture {
   }
 }
 
+/// One semantics capture: the emitted node records and the route layers read
+/// in the same walk.
+class SemanticsSnapshot {
+  const SemanticsSnapshot._(this.nodes, this.routeLayers);
+
+  /// The snapshot of a capture that found no semantics tree.
+  static const SemanticsSnapshot empty = SemanticsSnapshot._(
+    <Map<String, Object>>[],
+    <Map<String, Object?>>[],
+  );
+
+  /// The node records, as [SemanticsCapture.captureAsync] returns them.
+  final List<Map<String, Object>> nodes;
+
+  /// The route layers on screen, top-most last: the routes the user can
+  /// reach, as accessibility services see them.
+  ///
+  /// A layer is an emitted node flagged [SemanticsFlag.scopesRoute], the flag
+  /// the framework sets on page routes, dialogs, popup menus, bottom sheets,
+  /// drawers, dropdowns and search, and that screen readers use to announce a
+  /// screen change. Each entry is `{node, name}`: `node` is the emitted `id`
+  /// of the scoping node, and `name` is the label of the first node flagged
+  /// [SemanticsFlag.namesRoute] with a non-empty label inside that scope, in
+  /// depth-first paint order, or null: the text a screen reader announces.
+  ///
+  /// One layer per route. A scope with no name and no labelled or actionable
+  /// node of its own whose only content is one nested scope is folded with
+  /// it into one layer, which keeps the outer `node` and takes the inner
+  /// name: `showDialog` scopes its route and the `AlertDialog` inside scopes
+  /// itself again, and that is one layer named "Alert". The same folding
+  /// applies to an unnamed, otherwise empty page around a nested navigator.
+  /// A page with its own title or content around a nested navigator stays
+  /// its own layer, with the nested route as a second layer above it.
+  ///
+  /// This is what the user can reach, not the route stack. A modal barrier
+  /// hides the routes beneath it from semantics, so under a dialog or a modal
+  /// sheet only that dialog or sheet is a layer. A route in a hidden tab is
+  /// absent. A page with no app bar title, or a Material page on iOS or macOS
+  /// (where an app bar title does not name the route), has a null name, and
+  /// so does a page whose non-pinned `SliverAppBar` title has scrolled out
+  /// of view, which shows as a layer change. Location, path, arguments and
+  /// history belong to a navigation extension.
+  final List<Map<String, Object?>> routeLayers;
+}
+
 /// Internal representation of an emitted semantics record.
 class _Rec {
   _Rec(
@@ -273,15 +302,46 @@ class _Rec {
 
 /// A route layer being collected by the walk.
 class _Layer {
-  _Layer(this.node);
+  _Layer(this.node, this.parent);
 
   final int node;
+  final _Layer? parent;
   String? name;
+
+  /// Whether a labelled or actionable node sits in this scope outside any
+  /// nested scope.
+  bool hasOwnContent = false;
+
+  /// Scopes nested directly in this one.
+  final List<_Layer> children = <_Layer>[];
 
   Map<String, Object?> toJson() => <String, Object?>{
     'node': node,
     'name': name,
   };
+}
+
+/// Folds every layer that has no name and no content of its own and holds
+/// exactly one nested layer into that layer: the same route scoped twice, as
+/// `showDialog`'s route around an `AlertDialog`. The outer node stays and
+/// takes the inner one's name. Returns the layers that remain, in order.
+List<_Layer> _foldRouteLayers(List<_Layer> preorder) {
+  final Set<_Layer> folded = <_Layer>{};
+  // Reverse preorder visits nested layers first, so a chain folds fully.
+  for (final _Layer l in preorder.reversed) {
+    if (l.name != null || l.hasOwnContent || l.children.length != 1) continue;
+    final _Layer inner = l.children.single;
+    l.name = inner.name;
+    l.hasOwnContent = inner.hasOwnContent;
+    l.children
+      ..clear()
+      ..addAll(inner.children);
+    folded.add(inner);
+  }
+  return <_Layer>[
+    for (final _Layer l in preorder)
+      if (!folded.contains(l)) l,
+  ];
 }
 
 extension _SemanticsCaptureWalk on SemanticsCapture {
@@ -316,7 +376,8 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     final int id = _stableIdFor(n);
     _Layer? inner = scope;
     if (d.flagsCollection.scopesRoute) {
-      inner = _Layer(id);
+      inner = _Layer(id, scope);
+      scope?.children.add(inner);
       layers.add(inner);
     }
     // The flags may sit on the same node, so a scope can name itself.
@@ -325,6 +386,11 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
         d.flagsCollection.namesRoute &&
         d.label.isNotEmpty) {
       inner.name = d.label;
+    }
+    if (inner != null &&
+        !d.flagsCollection.scopesRoute &&
+        (label.isNotEmpty || d.value.isNotEmpty || d.actions != 0)) {
+      inner.hasOwnContent = true;
     }
     out.add(
       _Rec(
