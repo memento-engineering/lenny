@@ -1,0 +1,28 @@
+name: panel-bundle
+# Fails a PR that changes the DevTools panel without committing its rebuilt
+# bundle in leonard_flutter (lenny-g7ie4: 0.4.0 through 0.4.1 shipped a panel
+# built before it learned the acp provider). Path-filtered rather than a step
+# in ci.yaml: the bundle compiles in freshly resolved dependency versions
+# (pubspec.lock is not committed) and its NOTICES list the whole workspace, so
+# an unrelated dependency release or addition would otherwise fail every PR.
+on:
+  pull_request:
+    paths:
+      - 'packages/leonard_devtools/lib/**'
+      - 'packages/leonard_devtools/web/**'
+      - 'packages/leonard_devtools/pubspec.yaml'
+      - 'packages/leonard_flutter/extension/devtools/**'
+      - 'tool/build_devtools_extension.sh'
+      - 'tool/check_devtools_bundle.sh'
+      - '.github/workflows/panel-bundle.yaml'
+jobs:
+  committed-bundle-is-current:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: 'stable'
+      - run: ./tool/build_devtools_extension.sh
+      - run: ./tool/check_devtools_bundle.sh

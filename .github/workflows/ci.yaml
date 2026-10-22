@@ -20,7 +20,6 @@ jobs:
       - run: dart run melos run format --no-select
       - run: dart pub global activate melos
       - run: ./tool/build_devtools_extension.sh
-      - run: ./tool/check_devtools_bundle.sh
       - run: dart analyze
       - run: ./tool/check_no_dart_io.sh
       - run: ./gc_pack/leonard/tests/leonard_drive_test.sh

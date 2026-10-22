@@ -6,7 +6,8 @@
 # cannot merge without its rebuilt bundle (lenny-g7ie4: 0.4.0 through 0.4.1
 # shipped a panel built before it learned the acp provider).
 #
-# Run after the build script. Two outputs change on every build and are
+# Run after the build script; .github/workflows/panel-bundle.yaml does, on PRs
+# that touch the panel. Two outputs change on every build and are
 # ignored: flutter_bootstrap.js's serviceWorkerVersion (random per build) and
 # .last_build_id.
 set -euo pipefail
@@ -15,7 +16,7 @@ BUNDLE="packages/leonard_flutter/extension/devtools/build"
 cd "$ROOT"
 
 stale=0
-git diff --exit-code -I 'serviceWorkerVersion' -- "$BUNDLE" \
+git diff --exit-code -I '^ *serviceWorkerVersion: "' -- "$BUNDLE" \
   ":(exclude)$BUNDLE/.last_build_id" || stale=1
 untracked="$(git ls-files --others --exclude-standard -- "$BUNDLE")"
 if [ -n "$untracked" ]; then
