@@ -219,10 +219,10 @@ class SemanticsSnapshot {
   /// depth-first paint order, or null: the text a screen reader announces.
   ///
   /// One layer per route. A scope with no name and no labelled or actionable
-  /// node of its own whose only content is one nested scope is folded with
-  /// it into one layer, which keeps the outer `node` and takes the inner
-  /// name: `showDialog` scopes its route and the `AlertDialog` inside scopes
-  /// itself again, and that is one layer named "Alert". The same folding
+  /// node of its own whose only content is one nested scope is folded away,
+  /// leaving the nested layer with its own `node` and name: `showDialog`
+  /// scopes its route and the `AlertDialog` inside scopes itself again, and
+  /// that is one layer, the `AlertDialog`'s, named "Alert". The same folding
   /// applies to an unnamed, otherwise empty page around a nested navigator.
   /// A page with its own title or content around a nested navigator stays
   /// its own layer, with the nested route as a second layer above it.
@@ -302,10 +302,9 @@ class _Rec {
 
 /// A route layer being collected by the walk.
 class _Layer {
-  _Layer(this.node, this.parent);
+  _Layer(this.node);
 
   final int node;
-  final _Layer? parent;
   String? name;
 
   /// Whether a labelled or actionable node sits in this scope outside any
@@ -321,22 +320,16 @@ class _Layer {
   };
 }
 
-/// Folds every layer that has no name and no content of its own and holds
-/// exactly one nested layer into that layer: the same route scoped twice, as
-/// `showDialog`'s route around an `AlertDialog`. The outer node stays and
-/// takes the inner one's name. Returns the layers that remain, in order.
+/// Folds away every layer that has no name and no content of its own and
+/// holds exactly one nested layer: the same route scoped twice, as
+/// `showDialog`'s route around an `AlertDialog`. The innermost layer stays,
+/// with its own node and name, so a push inside an otherwise empty shell
+/// still changes the layer's node. Returns the layers that remain, in order.
 List<_Layer> _foldRouteLayers(List<_Layer> preorder) {
   final Set<_Layer> folded = <_Layer>{};
-  // Reverse preorder visits nested layers first, so a chain folds fully.
-  for (final _Layer l in preorder.reversed) {
+  for (final _Layer l in preorder) {
     if (l.name != null || l.hasOwnContent || l.children.length != 1) continue;
-    final _Layer inner = l.children.single;
-    l.name = inner.name;
-    l.hasOwnContent = inner.hasOwnContent;
-    l.children
-      ..clear()
-      ..addAll(inner.children);
-    folded.add(inner);
+    folded.add(l);
   }
   return <_Layer>[
     for (final _Layer l in preorder)
@@ -376,7 +369,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     final int id = _stableIdFor(n);
     _Layer? inner = scope;
     if (d.flagsCollection.scopesRoute) {
-      inner = _Layer(id, scope);
+      inner = _Layer(id);
       scope?.children.add(inner);
       layers.add(inner);
     }

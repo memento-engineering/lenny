@@ -3,13 +3,17 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leonard_agent/leonard_agent.dart';
 import 'package:leonard_flutter/leonard_flutter.dart';
 
 void main() {
   // Captures once and returns the route layers, each checked to point at an
-  // emitted record.
-  Future<List<Map<String, Object?>>> captureLayers() async {
-    final SemanticsCapture cap = SemanticsCapture();
+  // emitted record. Pass [shared] to compare ids across captures: stable ids are
+  // numbered per SemanticsCapture, as the binding keeps one per session.
+  Future<List<Map<String, Object?>>> captureLayers([
+    SemanticsCapture? shared,
+  ]) async {
+    final SemanticsCapture cap = shared ?? SemanticsCapture();
     try {
       final SemanticsSnapshot snap = await cap.captureSnapshotAsync();
       final Set<Object> ids = snap.nodes
@@ -20,7 +24,7 @@ void main() {
       }
       return snap.routeLayers;
     } finally {
-      cap.dispose();
+      if (shared == null) cap.dispose();
     }
   }
 
@@ -157,6 +161,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(names(await captureLayers()), <Object?>['Home', 'inbox']);
     } finally {
+      h.dispose();
+    }
+  });
+
+  testWidgets('an unnamed push inside an empty shell changes the layer, and '
+      'the differ reports it', (WidgetTester tester) async {
+    final SemanticsHandle h = tester.ensureSemantics();
+    final GlobalKey<NavigatorState> inner = GlobalKey<NavigatorState>();
+    final SemanticsCapture cap = SemanticsCapture();
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Navigator(
+              key: inner,
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute<void>(builder: (_) => const Text('page1')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final List<Map<String, Object?>> before = await captureLayers(cap);
+
+      unawaited(
+        inner.currentState!.push(
+          MaterialPageRoute<void>(builder: (_) => const Text('page2')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final List<Map<String, Object?>> after = await captureLayers(cap);
+
+      // The shell folds away; the remaining layer is the nested route's own,
+      // so the push shows as a different node even with no names.
+      expect(names(before), <Object?>[null]);
+      expect(names(after), <Object?>[null]);
+      expect(after.single['node'], isNot(before.single['node']));
+
+      final ObservationDiff diff = ObservationDiffer.diff(
+        Observation.fromJson(<String, dynamic>{'route_layers': before}),
+        Observation.fromJson(<String, dynamic>{'route_layers': after}),
+      );
+      expect(diff.core.routeLayerChanges, hasLength(1));
+    } finally {
+      cap.dispose();
       h.dispose();
     }
   });

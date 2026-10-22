@@ -247,9 +247,9 @@ class CoreFragment {
 /// dialog, popup menu, sheet, drawer, dropdown or search) and its announced
 /// name.
 ///
-/// [node] is the scoping node's stable id in this observation. The framework
-/// can reuse it for the next route in the same place, so across turns compare
-/// [name] and the number of layers rather than [node] alone. [name] is null
+/// [node] is the scoping node's stable id, the same id the node has in
+/// `nodes`. A new route gets a new scoping node, so a push shows as a changed
+/// [node] even when neither route is named. [name] is null
 /// when nothing in the scope names the route, as with a page with no app bar
 /// title, or an iOS or macOS page whose Material app bar title does not name
 /// the route.

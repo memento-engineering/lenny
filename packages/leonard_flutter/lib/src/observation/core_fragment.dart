@@ -125,8 +125,8 @@ class CoreFragmentValues {
 /// `semantics`, `errors`, and `stability` are always present. `routes`
 /// is best-effort (see [bestEffortRouteStack]) and deprecated. `route_layers`
 /// is read from [routeLayersProvider] right after [captureSemantics], so it
-/// describes the same capture; it is empty when no provider is given. `screenshot_png_b64` is
-/// only included when [includeScreenshot] is `true` AND
+/// describes the same capture; it is empty when no provider is given.
+/// `screenshot_png_b64` is only included when [includeScreenshot] is `true` AND
 /// [captureScreenshot] returns successfully; failures are absorbed and
 /// the field is omitted (the screenshot capture path already throws
 /// `ScreenshotUnavailable` for known failure modes).

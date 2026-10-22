@@ -57,9 +57,11 @@ non-empty label inside that scope (not inside a nested scope), in depth-first
 paint order, which is the text a screen reader announces, or null.
 
 One layer per route: a scope with no name and no labelled or actionable node
-of its own whose only content is one nested scope folds with it, keeping the
-outer node and the inner name. `showDialog` scopes its route and the
-`AlertDialog` inside scopes itself again; that is one layer, "Alert".
+of its own whose only content is one nested scope is folded away, leaving
+the nested layer with its own node and name. `showDialog` scopes its route
+and the `AlertDialog` inside scopes itself again; that is one layer, the
+`AlertDialog`'s, "Alert". Keeping the innermost node means a push of an
+unnamed page inside an otherwise empty shell still changes the layer.
 
 Layers are what the user can reach, not the route stack. A modal barrier
 hides the routes beneath it from semantics, so while a dialog or modal sheet
@@ -98,9 +100,9 @@ the page; the page returns when it closes. Nested or tabbed navigators show
 only the route on screen. Names depend on the app and platform: a page with
 no app bar title and a Material page on iOS or macOS are unnamed layers, and
 a page whose non-pinned `SliverAppBar` title scrolls out of view loses its
-name, which shows as a layer change. The framework can reuse a scoping
-node's id for the next route in the same place, so consumers compare names
-and layer counts across turns rather than node ids alone. When the core
+name, which shows as a layer change. A new route gets a new scoping node, so
+an unnamed push still changes the layer's `node`; ids are stable for a
+binding's lifetime, not across sessions. When the core
 budget trims semantics, each layer's node record is kept but the contents of
 the top layer, at the tail, go first. Apps that relied on route names in
 `routeStack` get them from a navigation extension.
