@@ -1,4 +1,3 @@
-import 'package:leonard_flutter/leonard_flutter.dart' show LeonardBinding;
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -176,7 +175,7 @@ void main() {
 
   group('VM-extension string params', () {
     test('decode the settle budget like its sibling budgets', () {
-      final ObservationRequest r = LeonardBinding.decodeObservationRequest(
+      final ObservationRequest r = ObservationRequest.fromVmParams(
         <String, String>{
           'actionRelativeBudgetMs': '600',
           'actionRelativeSettleBudgetMs': '2000',

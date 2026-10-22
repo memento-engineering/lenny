@@ -466,7 +466,9 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         '$kLeonardExtensionPrefix.core.get_stable_observation',
         (String method, Map<String, String> parameters) async {
           try {
-            final ObservationRequest req = decodeObservationRequest(parameters);
+            final ObservationRequest req = ObservationRequest.fromVmParams(
+              parameters,
+            );
             final Map<String, Object?> obs = await getStableObservation(req);
             return developer.ServiceExtensionResponse.result(
               jsonEncode(<String, Object?>{
@@ -581,41 +583,6 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     return InteractiveSemanticsAuditor(
       extraInteractiveTypes: _extraInteractiveTypes,
     ).audit(root);
-  }
-
-  /// Decode the VM-extension parameter map into an [ObservationRequest].
-  ///
-  /// `developer.registerExtension` hands us a flat
-  /// `Map<String, String>`; nested JSON arrives as a JSON-encoded
-  /// string under known keys. We only round-trip `extensionBudgets` here
-  /// because every other field is a scalar.
-  @visibleForTesting
-  static ObservationRequest decodeObservationRequest(
-    Map<String, String> params,
-  ) {
-    final Map<String, dynamic> j = <String, dynamic>{};
-    for (final MapEntry<String, String> e in params.entries) {
-      switch (e.key) {
-        case 'extensionBudgets':
-          // extensionBudgets: '{"a":256,"b":512}' (JSON-encoded).
-          j[e.key] = jsonDecode(e.value);
-          break;
-        case 'includeScreenshot':
-          j[e.key] = e.value == 'true';
-          break;
-        case 'actionRelativeBudgetMs':
-        case 'actionRelativeSettleBudgetMs':
-        case 'quietFrameN':
-        case 'boundedStabilityBudgetMs':
-        case 'coreBudgetBytes':
-        case 'errorCursor':
-          j[e.key] = int.tryParse(e.value) ?? e.value;
-          break;
-        default:
-          j[e.key] = e.value;
-      }
-    }
-    return ObservationRequest.fromJson(j);
   }
 
   /// Hash of the live route stack (best-effort Navigator 1.0 names).

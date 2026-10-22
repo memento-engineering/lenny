@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'budgeted_json.dart' show kCoreBudgetBytes;
@@ -160,6 +161,38 @@ class ObservationRequest {
       extensionBudgets: extensionBudgets,
       errorCursor: errorCursor,
     );
+  }
+
+  /// Decode the VM-extension parameter map into an [ObservationRequest].
+  ///
+  /// `developer.registerExtension` hands us a flat `Map<String, String>`;
+  /// nested JSON arrives as a JSON-encoded string under known keys. Only
+  /// `extensionBudgets` is round-tripped that way because every other field
+  /// is a scalar.
+  factory ObservationRequest.fromVmParams(Map<String, String> params) {
+    final Map<String, dynamic> j = <String, dynamic>{};
+    for (final MapEntry<String, String> e in params.entries) {
+      switch (e.key) {
+        case 'extensionBudgets':
+          // extensionBudgets: '{"a":256,"b":512}' (JSON-encoded).
+          j[e.key] = jsonDecode(e.value);
+          break;
+        case 'includeScreenshot':
+          j[e.key] = e.value == 'true';
+          break;
+        case 'actionRelativeBudgetMs':
+        case 'actionRelativeSettleBudgetMs':
+        case 'quietFrameN':
+        case 'boundedStabilityBudgetMs':
+        case 'coreBudgetBytes':
+        case 'errorCursor':
+          j[e.key] = int.tryParse(e.value) ?? e.value;
+          break;
+        default:
+          j[e.key] = e.value;
+      }
+    }
+    return ObservationRequest.fromJson(j);
   }
 
   static StabilityPolicy _policyFromWire(dynamic raw) {

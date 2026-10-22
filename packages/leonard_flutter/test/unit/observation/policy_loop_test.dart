@@ -83,6 +83,20 @@ FrameworkBusySnapshot _busyFw() => const FrameworkBusySnapshot(
 
 const FrameworkBusySnapshot _idleFw = FrameworkBusySnapshot.zero;
 
+/// A [Timer] that never fires and records whether it was cancelled.
+class _RecordingTimer implements Timer {
+  bool cancelled = false;
+
+  @override
+  void cancel() => cancelled = true;
+
+  @override
+  bool get isActive => !cancelled;
+
+  @override
+  int get tick => 0;
+}
+
 /// A [Timer] that fires its callback on the next microtask, standing in for
 /// the budget deadline when frames have stopped arriving.
 class _ImmediateTimer implements Timer {
@@ -416,6 +430,34 @@ void main() {
         expect(two.durationMs, 40);
       },
     );
+
+    test('the deadline timer is cancelled when the frame wins', () async {
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[_busyFw(), _idleFw],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 40],
+        semanticsHashes: <int>[1],
+        routeHashes: <int>[1],
+      );
+      final List<_RecordingTimer> timers = <_RecordingTimer>[];
+      final PolicyLoop loop = PolicyLoop(
+        snapshot: s.snapshot,
+        pollBusyStates: s.pollBusy,
+        semanticsHash: s.semHash,
+        routeHash: s.routeHash,
+        waitForFrame: s.waitForFrame,
+        nowMs: s.now,
+        createTimer: (Duration _, void Function() _) {
+          final _RecordingTimer t = _RecordingTimer();
+          timers.add(t);
+          return t;
+        },
+      );
+      final PolicyTick tick = await loop.run(const ObservationRequest());
+      expect(tick.reason, TerminatedBy.idle);
+      expect(timers, hasLength(1));
+      expect(timers.single.cancelled, isTrue);
+    });
 
     test(
       'frames that stop arriving still end the loop at the budget, unsettled',
