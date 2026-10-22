@@ -9,14 +9,15 @@
 # Run after the build script; .github/workflows/panel-bundle.yaml does, on PRs
 # that touch the panel. Two outputs change on every build and are
 # ignored: flutter_bootstrap.js's serviceWorkerVersion (random per build) and
-# .last_build_id.
+# .last_build_id. File modes are ignored too: a macOS build marks the canvaskit
+# .wasm files executable and a Linux build does not, with identical contents.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE="packages/leonard_flutter/extension/devtools/build"
 cd "$ROOT"
 
 stale=0
-git diff --exit-code -I '^ *serviceWorkerVersion: "' -- "$BUNDLE" \
+git -c core.fileMode=false diff --exit-code -I '^ *serviceWorkerVersion: "' -- "$BUNDLE" \
   ":(exclude)$BUNDLE/.last_build_id" || stale=1
 untracked="$(git ls-files --others --exclude-standard -- "$BUNDLE")"
 if [ -n "$untracked" ]; then
