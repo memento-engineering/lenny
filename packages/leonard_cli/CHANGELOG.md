@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3
+
+Stable promotion of `0.4.3-dev.1` on Nico's promotion call (2026-10-22). One change on top: the `leonard_agent` constraint is `^0.3.4`, the stable release. Live-checked on 2026-10-22 against the sample app on a Pixel 7a (claude and qwen-mlx tiers) and an iPad mini (claude): typed login and the modal-trap scenario passed on both devices, and an open dialog reads as one route layer where `routeStack` was empty.
+
 ## 0.4.3-dev.1
 
 - The bundled leonard-drive agent, drive-with-leonard skill and AGENTS.md
