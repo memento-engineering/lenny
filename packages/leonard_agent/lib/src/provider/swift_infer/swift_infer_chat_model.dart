@@ -311,6 +311,17 @@ class _SseChatDecoder {
   /// split across the chunk boundary.
   String _pendingText = '';
 
+  /// Records `input_tokens` from a `message_start` or `message_delta` usage
+  /// map. A zero is treated as unreported: no request has an empty prompt, and
+  /// swift-infer's `/v1/messages` sends 0 in `message_start` as a placeholder
+  /// it never fills in (lenny-7vjdy). Anthropic's `message_delta` may repeat
+  /// the real count, so a later non-zero value wins.
+  void _readInputTokens(Object? usage) {
+    if (usage is! Map) return;
+    final tokens = usage['input_tokens'];
+    if (tokens is int && tokens > 0) _inputTokens = tokens;
+  }
+
   Stream<ChatResult<ChatMessage>> onEvent(Map<String, dynamic> evt) async* {
     switch (evt['type'] as String?) {
       case 'message_start':
@@ -318,10 +329,7 @@ class _SseChatDecoder {
         if (message is Map) {
           final id = message['id'];
           if (id is String && id.isNotEmpty) _messageId = id;
-          final usage = message['usage'];
-          if (usage is Map && usage['input_tokens'] is int) {
-            _inputTokens = usage['input_tokens'] as int;
-          }
+          _readInputTokens(message['usage']);
         }
       case 'content_block_start':
         final index = _indexOf(evt);
@@ -365,6 +373,7 @@ class _SseChatDecoder {
             ? delta['stop_reason'] as String?
             : null;
         final usage = evt['usage'];
+        _readInputTokens(usage);
         final outputTokens = usage is Map && usage['output_tokens'] is int
             ? usage['output_tokens'] as int
             : null;
