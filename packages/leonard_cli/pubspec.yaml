@@ -11,7 +11,7 @@ dependencies:
   args: ^2.6.0
   image: ^4.9.2
   leonard_acp: ^0.2.1
-  leonard_agent: ^0.3.4-dev.1
+  leonard_agent: ^0.3.4-dev.2
   # A runtime dependency, not a dev one: `leonard_drive up` finds the native
   # host script through the package config (lenny#160, #199).
   leonard_native: ^0.6.1

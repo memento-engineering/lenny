@@ -5,7 +5,7 @@
 - The bundled leonard-drive agent, drive-with-leonard skill and AGENTS.md
   template read `observation.core.routeLayers` (the routes on screen) in place
   of the deprecated `routeStack` (lenny-kyfdc). `leonard_agent` rises to
-  `^0.3.4-dev.1`, which carries the field.
+  `^0.3.4-dev.2`, which carries the field.
 
 ## 0.4.2
 
