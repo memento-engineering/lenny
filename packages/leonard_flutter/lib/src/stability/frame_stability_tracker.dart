@@ -35,12 +35,10 @@ mixin FrameStabilityTracker on SchedulerBinding {
   /// Returns a synchronous, immutable snapshot of the current
   /// framework-level busy signals.
   ///
-  /// The transient count is the scheduler's own [transientCallbackCount].
-  /// It used to be a counter incremented in `scheduleFrameCallback` and
-  /// decremented when a callback ran, which leaked on every
-  /// `cancelFrameCallbackWithId` (a [Ticker] stopping cancels its pending
-  /// tick), so the count only grew and the app never read as idle
-  /// (lenny-r1k2x, seen live 2026-10-22). In release mode returns
+  /// The transient count is the scheduler's own [transientCallbackCount], so a
+  /// cancelled callback (a [Ticker] stopping cancels its pending tick) drops
+  /// out of it. Read it between frames: the scheduler empties it at the start
+  /// of each frame, before running callbacks that reschedule themselves. In release mode returns
   /// `FrameworkBusySnapshot.zero`.
   ///
   /// The returned object's `recentFrameCommits` is a fresh unmodifiable

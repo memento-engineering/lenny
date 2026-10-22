@@ -8,7 +8,8 @@
   cancelled callback leaked: a `Ticker` that stops cancels its pending tick.
   Live on the sample app the count climbed 4, 7, 11 across sign-in and
   sign-out, the app never read as idle, and every stability wait ran to its
-  budget (`settled: false`, and up to 30 s under the `idle` policy). The count
+  budget (`settled: false`, and up to 30 s under the quiet-frame policy, the
+  CLI's `idle`). The count
   is now the scheduler's own `transientCallbackCount`.
 
 ## 0.4.5-dev.1

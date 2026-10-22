@@ -57,6 +57,18 @@ void main() {
     expect(binding.isAnyFrameworkSignalBusy, before > 0);
   });
 
+  test('a ticker still running after a frame is still counted', () {
+    final int before = binding.frameworkBusySnapshot().transientCallbacks;
+    final Ticker ticker = Ticker((_) {});
+    addTearDown(ticker.dispose);
+    ticker.start();
+    _runFrame(binding, const Duration(milliseconds: 200000));
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before + 1);
+    expect(binding.isAnyFrameworkSignalBusy, isTrue);
+    ticker.stop();
+    expect(binding.frameworkBusySnapshot().transientCallbacks, before);
+  });
+
   test('persistent callback count increments on add', () {
     final int start = binding.frameworkBusySnapshot().persistentCallbacks;
     binding.addPersistentFrameCallback((_) {});
