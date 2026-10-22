@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.5-dev.1
+
+- Fix: the default `action-relative` stability policy no longer returns
+  mid-transition (lenny-r1k2x). It ended on the first route or semantics
+  change, which a push produces on its first frame while the page still
+  animates; on an iPad the observation after a sign-in held two empty
+  containers. A change now starts a settle that ends after `quietFrameN` quiet
+  frames, or at `actionRelativeSettleBudgetMs` (default 1500 ms, a new request
+  field). `terminated_by` still names the change.
+- Add `settled` to the stability block: true when the app was quiet at the
+  end, false when a budget ran out first.
+  Decision: action-relative-stability-settles-after-a-change.
+
 ## 0.4.4
 
 Stable promotion of `0.4.4-dev.1` on Nico's promotion call (2026-10-22). No changes on top; the prerelease entry below carries the details. Live-checked on 2026-10-22 against the sample app on a Pixel 7a (claude and qwen-mlx tiers) and an iPad mini (claude): typed login and the modal-trap scenario passed on both devices, and an open dialog reads as one route layer where `routeStack` was empty.

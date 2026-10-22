@@ -13,10 +13,19 @@ class PolicyTick {
     required this.reason,
     required this.durationMs,
     required this.extensionsBusy,
+    required this.settled,
   });
 
-  /// Why the loop terminated.
+  /// Why the loop terminated. For an action-relative settle this is the
+  /// change that started it ([TerminatedBy.routeChange] or
+  /// [TerminatedBy.semanticsChange]), whether or not it settled.
   final TerminatedBy reason;
+
+  /// Whether the app was quiet when the loop ended: the framework and every
+  /// extension idle (for a settle or the quiet-frame policies, for the
+  /// required streak of frames). False when a budget ran out first, so the
+  /// observation may show a screen mid-animation.
+  final bool settled;
 
   /// Wall-clock duration the loop ran, in ms.
   final int durationMs;
@@ -79,6 +88,7 @@ class PolicyLoop {
     final int initSem = _semanticsHash();
     final int initRoute = _routeHash();
     int quiet = 0;
+    TerminatedBy? trigger;
 
     int elapsedMs() {
       if (_nowMs != null) return _nowMs();
@@ -86,7 +96,8 @@ class PolicyLoop {
     }
 
     // Each policy must terminate eventually:
-    // - actionRelative: budget bounds the loop.
+    // - actionRelative: budget bounds the loop, or the settle budget once
+    //   a change has started a settle.
     // - boundedStability: budget bounds the loop.
     // - quietFrame: bounded only by the idle streak; we still apply a
     //   defensive guard equal to kMaxBudgetMs so a permanently-busy app
@@ -112,25 +123,51 @@ class PolicyLoop {
 
       switch (req.policy) {
         case StabilityPolicy.actionRelative:
-          if (_routeHash() != initRoute) {
-            return PolicyTick(
-              reason: TerminatedBy.routeChange,
-              durationMs: ms,
-              extensionsBusy: pBusy,
-            );
+          // A route or semantics change is the first sign the action took
+          // effect, not a settled screen: a push flips the route on its
+          // first frame while the transition still animates (lenny-r1k2x).
+          // So a change starts a settle that ends on a quiet-frame streak,
+          // bounded by the longer settle budget.
+          final TerminatedBy? change = _routeHash() != initRoute
+              ? TerminatedBy.routeChange
+              : (_semanticsHash() != initSem
+                    ? TerminatedBy.semanticsChange
+                    : null);
+          if (change != null &&
+              (trigger == null || change == TerminatedBy.routeChange)) {
+            trigger = change;
           }
-          if (_semanticsHash() != initSem) {
-            return PolicyTick(
-              reason: TerminatedBy.semanticsChange,
-              durationMs: ms,
-              extensionsBusy: pBusy,
-            );
+          final TerminatedBy? settling = trigger;
+          if (settling != null) {
+            quiet = (fwIdle && extensionsIdle) ? quiet + 1 : 0;
+            if (quiet >= req.quietFrameN) {
+              return PolicyTick(
+                reason: settling,
+                durationMs: ms,
+                extensionsBusy: const <ExtensionBusy>[],
+                settled: true,
+              );
+            }
+            final int settleBudget =
+                req.actionRelativeSettleBudgetMs > req.actionRelativeBudgetMs
+                ? req.actionRelativeSettleBudgetMs
+                : req.actionRelativeBudgetMs;
+            if (ms >= settleBudget) {
+              return PolicyTick(
+                reason: settling,
+                durationMs: ms,
+                extensionsBusy: pBusy,
+                settled: false,
+              );
+            }
+            break;
           }
           if (fwIdle && extensionsIdle) {
             return PolicyTick(
               reason: TerminatedBy.idle,
               durationMs: ms,
               extensionsBusy: const <ExtensionBusy>[],
+              settled: true,
             );
           }
           if (ms >= req.actionRelativeBudgetMs) {
@@ -138,6 +175,7 @@ class PolicyLoop {
               reason: TerminatedBy.budget,
               durationMs: ms,
               extensionsBusy: pBusy,
+              settled: false,
             );
           }
           break;
@@ -149,6 +187,7 @@ class PolicyLoop {
               reason: TerminatedBy.quietFrame,
               durationMs: ms,
               extensionsBusy: const <ExtensionBusy>[],
+              settled: true,
             );
           }
           if (ms >= kMaxBudgetMs) {
@@ -156,6 +195,7 @@ class PolicyLoop {
               reason: TerminatedBy.budget,
               durationMs: ms,
               extensionsBusy: pBusy,
+              settled: false,
             );
           }
           break;
@@ -167,6 +207,7 @@ class PolicyLoop {
               reason: TerminatedBy.quietFrame,
               durationMs: ms,
               extensionsBusy: const <ExtensionBusy>[],
+              settled: true,
             );
           }
           if (ms >= req.boundedStabilityBudgetMs) {
@@ -174,6 +215,7 @@ class PolicyLoop {
               reason: TerminatedBy.budget,
               durationMs: ms,
               extensionsBusy: pBusy,
+              settled: false,
             );
           }
           break;

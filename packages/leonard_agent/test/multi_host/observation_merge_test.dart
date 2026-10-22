@@ -132,6 +132,33 @@ void main() {
       expect(merged.stability.policy, equals(''));
     });
 
+    test('settled: false if any host is unsettled, null if none reports '
+        '(lenny-r1k2x)', () {
+      Observation withSettled(Observation o, bool? settled) => Observation(
+        core: o.core,
+        extensions: o.extensions,
+        stability: StabilityMetadata(
+          policy: o.stability.policy,
+          terminatedBy: o.stability.terminatedBy,
+          durationMs: o.stability.durationMs,
+          frameworkBusy: o.stability.frameworkBusy,
+          extensionsBusy: o.stability.extensionsBusy,
+          settled: settled,
+        ),
+        screenshot: o.screenshot,
+      );
+      bool? merged(bool? a, bool? b) => mergeObservations(<Observation>[
+        withSettled(_flutterObs(), a),
+        withSettled(_nativeObs(), b),
+      ]).stability.settled;
+
+      expect(merged(true, null), isTrue);
+      expect(merged(true, true), isTrue);
+      expect(merged(true, false), isFalse);
+      expect(merged(null, false), isFalse);
+      expect(merged(null, null), isNull);
+    });
+
     test('throws on empty input', () {
       expect(
         () => mergeObservations(const <Observation>[]),

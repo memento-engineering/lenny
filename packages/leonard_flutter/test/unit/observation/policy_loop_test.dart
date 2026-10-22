@@ -129,6 +129,7 @@ void main() {
       );
       final PolicyTick tick = await loop.run(const ObservationRequest());
       expect(tick.reason, TerminatedBy.idle);
+      expect(tick.settled, isTrue);
       expect(tick.extensionsBusy, isEmpty);
     });
 
@@ -174,56 +175,118 @@ void main() {
       },
     );
 
-    test('routeChange: route hash flips before idle', () async {
+    // lenny-r1k2x: a route or semantics change is the first sign the action
+    // took effect, not a settled screen. On an iPad a push flipped the route
+    // hash on its first frame while the transition was still animating, and
+    // the observation captured two empty containers. A change now starts a
+    // settle that ends on a quiet-frame streak or the settle budget.
+    PolicyLoop loopFor(_Script s) => PolicyLoop(
+      snapshot: s.snapshot,
+      pollBusyStates: s.pollBusy,
+      semanticsHash: s.semHash,
+      routeHash: s.routeHash,
+      waitForFrame: s.waitForFrame,
+      nowMs: s.now,
+    );
+
+    List<MapEntry<String, BusyState>> idleExtension() =>
+        _busyExtensions(<({String ns, bool busy, String? reason, int? estMs})>[
+          (ns: 'p1', busy: false, reason: null, estMs: null),
+        ]);
+
+    test(
+      'routeChange: a route flip mid-transition settles on quiet frames',
+      () async {
+        final _Script s = _Script(
+          // The transition animates for three frames, then two quiet ones.
+          frameworks: <FrameworkBusySnapshot>[
+            _busyFw(),
+            _busyFw(),
+            _busyFw(),
+            _idleFw,
+            _idleFw,
+          ],
+          busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+          elapsedMs: <int>[20, 60, 120, 180, 240],
+          semanticsHashes: <int>[1],
+          routeHashes: <int>[1, 2], // initial, then changed for good
+        );
+        final PolicyTick tick = await loopFor(
+          s,
+        ).run(const ObservationRequest());
+        expect(tick.reason, TerminatedBy.routeChange);
+        expect(tick.settled, isTrue);
+        expect(tick.durationMs, 240);
+        expect(tick.extensionsBusy, isEmpty);
+      },
+    );
+
+    test('routeChange: a settle that never goes quiet ends unsettled at the '
+        'settle budget, not the 800 ms action budget', () async {
       final _Script s = _Script(
         frameworks: <FrameworkBusySnapshot>[_busyFw()],
-        busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(
-            <({String ns, bool busy, String? reason, int? estMs})>[
-              (ns: 'p1', busy: false, reason: null, estMs: null),
-            ],
-          ),
-        ],
-        elapsedMs: <int>[20],
-        semanticsHashes: <int>[1, 1],
-        routeHashes: <int>[1, 2], // initial then changed
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 700, 900, 1400, 1500],
+        semanticsHashes: <int>[1],
+        routeHashes: <int>[1, 2],
       );
-      final PolicyLoop loop = PolicyLoop(
-        snapshot: s.snapshot,
-        pollBusyStates: s.pollBusy,
-        semanticsHash: s.semHash,
-        routeHash: s.routeHash,
-        waitForFrame: s.waitForFrame,
-        nowMs: s.now,
-      );
-      final PolicyTick tick = await loop.run(const ObservationRequest());
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
       expect(tick.reason, TerminatedBy.routeChange);
+      expect(tick.settled, isFalse);
+      expect(tick.durationMs, kDefaultActionRelativeSettleBudgetMs);
     });
 
-    test('semanticsChange: semantics hash flips before idle', () async {
+    test('semanticsChange: a semantics flip settles on quiet frames', () async {
       final _Script s = _Script(
-        frameworks: <FrameworkBusySnapshot>[_busyFw()],
-        busy: <List<MapEntry<String, BusyState>>>[
-          _busyExtensions(
-            <({String ns, bool busy, String? reason, int? estMs})>[
-              (ns: 'p1', busy: false, reason: null, estMs: null),
-            ],
-          ),
-        ],
-        elapsedMs: <int>[20],
+        frameworks: <FrameworkBusySnapshot>[_busyFw(), _idleFw, _idleFw],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 40, 60],
         semanticsHashes: <int>[10, 11],
         routeHashes: <int>[1, 1],
       );
-      final PolicyLoop loop = PolicyLoop(
-        snapshot: s.snapshot,
-        pollBusyStates: s.pollBusy,
-        semanticsHash: s.semHash,
-        routeHash: s.routeHash,
-        waitForFrame: s.waitForFrame,
-        nowMs: s.now,
-      );
-      final PolicyTick tick = await loop.run(const ObservationRequest());
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
       expect(tick.reason, TerminatedBy.semanticsChange);
+      expect(tick.settled, isTrue);
+      expect(tick.durationMs, 60);
+    });
+
+    test(
+      'a route change during a semantics settle reports routeChange',
+      () async {
+        final _Script s = _Script(
+          frameworks: <FrameworkBusySnapshot>[
+            _busyFw(),
+            _busyFw(),
+            _idleFw,
+            _idleFw,
+          ],
+          busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+          elapsedMs: <int>[20, 40, 60, 80],
+          semanticsHashes: <int>[10, 11],
+          routeHashes: <int>[1, 1, 2],
+        );
+        final PolicyTick tick = await loopFor(
+          s,
+        ).run(const ObservationRequest());
+        expect(tick.reason, TerminatedBy.routeChange);
+        expect(tick.settled, isTrue);
+      },
+    );
+
+    test('a settle budget below the action budget is raised to it', () async {
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[_busyFw()],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 500, 800],
+        semanticsHashes: <int>[1],
+        routeHashes: <int>[1, 2],
+      );
+      final PolicyTick tick = await loopFor(
+        s,
+      ).run(const ObservationRequest(actionRelativeSettleBudgetMs: 100));
+      expect(tick.reason, TerminatedBy.routeChange);
+      expect(tick.settled, isFalse);
+      expect(tick.durationMs, 800);
     });
 
     test('budget: never idle, hits 800ms cap', () async {
@@ -262,6 +325,7 @@ void main() {
       final PolicyTick tick = await loop.run(const ObservationRequest());
       expect(tick.reason, TerminatedBy.budget);
       expect(tick.durationMs, 900);
+      expect(tick.settled, isFalse);
       expect(tick.extensionsBusy, hasLength(1));
       expect(tick.extensionsBusy.first.namespace, 'p1');
       expect(tick.extensionsBusy.first.reason, 'loading');

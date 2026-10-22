@@ -24,6 +24,7 @@ import '../observation/stability_metadata.dart';
 import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
+import '../stability/framework_busy_snapshot.dart';
 import 'leonard_app.dart';
 
 /// Reserved prefix. Format:
@@ -663,6 +664,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       durationMs: tick.durationMs,
       frameworkBusy: frameworkBusySnapshot().toJson(),
       extensionsBusy: tick.extensionsBusy,
+      settled: tick.settled,
     );
 
     Future<String?> screenshotCaptureOrNull() async {
@@ -786,12 +788,15 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// failure-isolation order.
   Future<genesis.TreeSnapshot> _buildDiagnosticsTree() async {
     final DateTime projectedAt = DateTime.now().toUtc();
+    final FrameworkBusySnapshot busyNow = frameworkBusySnapshot();
+    // No policy loop runs here, so settled reports the framework as it is.
     final StabilityMetadata stability = StabilityMetadata(
       policy: StabilityPolicy.actionRelative,
       terminatedBy: TerminatedBy.idle,
       durationMs: 0,
-      frameworkBusy: frameworkBusySnapshot().toJson(),
+      frameworkBusy: busyNow.toJson(),
       extensionsBusy: const <ExtensionBusy>[],
+      settled: !busyNow.isAnyBusy,
     );
     // Nodes and route layers come from one walk; the snapshot is local so
     // concurrent observations never read each other's layers.

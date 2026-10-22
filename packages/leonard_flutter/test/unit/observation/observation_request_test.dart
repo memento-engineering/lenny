@@ -9,6 +9,7 @@ void main() {
       );
       expect(r.policy, StabilityPolicy.actionRelative);
       expect(r.actionRelativeBudgetMs, 800);
+      expect(r.actionRelativeSettleBudgetMs, 1500);
       expect(r.quietFrameN, 2);
       expect(r.boundedStabilityBudgetMs, 1500);
       expect(r.includeScreenshot, isFalse);
@@ -82,6 +83,21 @@ void main() {
         <String, dynamic>{'actionRelativeBudgetMs': 60000},
       );
       expect(r.actionRelativeBudgetMs, 30000);
+    });
+
+    test('actionRelativeSettleBudgetMs parses and clamps to 30000', () {
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': 2000,
+        }).actionRelativeSettleBudgetMs,
+        2000,
+      );
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': 60000,
+        }).actionRelativeSettleBudgetMs,
+        30000,
+      );
     });
 
     test('boundedStabilityBudgetMs > 30000 clamps to 30000', () {

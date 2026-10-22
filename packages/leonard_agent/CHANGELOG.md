@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.5-dev.1
+
+- Parse the stability block's new `settled` flag into
+  `StabilityMetadata.settled` (null from hosts that do not send it), so it
+  reaches the model's observation and the trajectory (lenny-r1k2x). A
+  multi-host observation is unsettled if any host is.
+
 ## 0.3.4
 
 Stable promotion of `0.3.4-dev.2` on Nico's promotion call (2026-10-22). No changes on top; the two prerelease entries below carry the details (route layers, and swift-infer's placeholder `input_tokens: 0` recorded as unreported, which the qwen-mlx run confirmed). Live-checked on 2026-10-22 against the sample app on a Pixel 7a (claude and qwen-mlx tiers) and an iPad mini (claude): typed login and the modal-trap scenario passed on both devices, and an open dialog reads as one route layer where `routeStack` was empty.

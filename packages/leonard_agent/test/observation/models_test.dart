@@ -309,6 +309,30 @@ void main() {
     });
   });
 
+  group('StabilityMetadata settled (lenny-r1k2x)', () {
+    test('parses true and false, re-emits them, and joins equality', () {
+      for (final bool v in <bool>[true, false]) {
+        final StabilityMetadata m = StabilityMetadata.fromJson(
+          <String, dynamic>{'terminated_by': 'route_change', 'settled': v},
+        );
+        expect(m.settled, v);
+        expect(m.toJson()['settled'], v);
+      }
+      expect(
+        StabilityMetadata.fromJson(<String, dynamic>{'settled': true}),
+        isNot(StabilityMetadata.fromJson(<String, dynamic>{'settled': false})),
+      );
+    });
+
+    test('an older host without the key yields null and toJson omits it', () {
+      final StabilityMetadata m = StabilityMetadata.fromJson(<String, dynamic>{
+        'terminated_by': 'idle',
+      });
+      expect(m.settled, isNull);
+      expect(m.toJson().containsKey('settled'), isFalse);
+    });
+  });
+
   group('Observation toJson', () {
     test(
       'round-trips through jsonEncode/jsonDecode for non-trivial fixture',

@@ -615,6 +615,7 @@ class StabilityMetadata {
     required this.durationMs,
     required this.frameworkBusy,
     required this.extensionsBusy,
+    this.settled,
   });
 
   static const StabilityMetadata empty = StabilityMetadata(
@@ -647,6 +648,7 @@ class StabilityMetadata {
             )
           : const <String, dynamic>{},
       extensionsBusy: List<ExtensionBusy>.unmodifiable(busy),
+      settled: j['settled'] is bool ? j['settled'] as bool : null,
     );
   }
 
@@ -656,10 +658,16 @@ class StabilityMetadata {
   final Map<String, dynamic> frameworkBusy;
   final List<ExtensionBusy> extensionsBusy;
 
+  /// Whether the app was quiet when the host's settle loop ended. False
+  /// means a budget ran out first, so the observation may show a screen
+  /// mid-animation. Null from a host that does not report it.
+  final bool? settled;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'policy': policy,
     'terminated_by': terminatedBy,
     'duration_ms': durationMs,
+    if (settled != null) 'settled': settled,
     'framework_busy': Map<String, dynamic>.from(frameworkBusy),
     'extensions_busy': extensionsBusy
         .map((ExtensionBusy p) => p.toJson())
@@ -672,6 +680,7 @@ class StabilityMetadata {
       policy == other.policy &&
       terminatedBy == other.terminatedBy &&
       durationMs == other.durationMs &&
+      settled == other.settled &&
       jsonValuesEqual(frameworkBusy, other.frameworkBusy) &&
       _listEq(extensionsBusy, other.extensionsBusy);
 
@@ -680,6 +689,7 @@ class StabilityMetadata {
     policy,
     terminatedBy,
     durationMs,
+    settled,
     jsonValueHash(frameworkBusy),
     Object.hashAll(extensionsBusy),
   );
