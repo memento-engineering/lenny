@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.5-dev.2
+
+- Fix: the framework-busy signal no longer stays busy forever (lenny-r1k2x).
+  `FrameStabilityTracker` counted transient frame callbacks itself, adding one
+  on `scheduleFrameCallback` and removing one when the callback ran, so every
+  cancelled callback leaked: a `Ticker` that stops cancels its pending tick.
+  Live on the sample app the count climbed 4, 7, 11 across sign-in and
+  sign-out, the app never read as idle, and every stability wait ran to its
+  budget (`settled: false`, and up to 30 s under the `idle` policy). The count
+  is now the scheduler's own `transientCallbackCount`.
+
 ## 0.4.5-dev.1
 
 - Fix: the default `action-relative` stability policy no longer returns
