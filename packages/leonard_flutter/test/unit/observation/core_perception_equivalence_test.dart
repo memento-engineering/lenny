@@ -155,6 +155,7 @@ void main() {
         durationMs: 17,
         frameworkBusy: <String, Object?>{'transient': 0},
         extensionsBusy: <ExtensionBusy>[],
+        settled: true,
       );
       List<String> routeStackProvider() => <String>['home'];
       List<Map<String, Object?>> routeLayersProvider() =>
@@ -209,6 +210,7 @@ void main() {
         durationMs: 0,
         frameworkBusy: <String, Object?>{},
         extensionsBusy: <ExtensionBusy>[],
+        settled: true,
       );
 
       // With screenshot present.

@@ -9,6 +9,7 @@ void main() {
       );
       expect(r.policy, StabilityPolicy.actionRelative);
       expect(r.actionRelativeBudgetMs, 800);
+      expect(r.actionRelativeSettleBudgetMs, 1500);
       expect(r.quietFrameN, 2);
       expect(r.boundedStabilityBudgetMs, 1500);
       expect(r.includeScreenshot, isFalse);
@@ -84,6 +85,27 @@ void main() {
       expect(r.actionRelativeBudgetMs, 30000);
     });
 
+    test('actionRelativeSettleBudgetMs parses and clamps to 30000', () {
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': 2000,
+        }).actionRelativeSettleBudgetMs,
+        2000,
+      );
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': 60000,
+        }).actionRelativeSettleBudgetMs,
+        30000,
+      );
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': -5,
+        }).actionRelativeSettleBudgetMs,
+        0,
+      );
+    });
+
     test('boundedStabilityBudgetMs > 30000 clamps to 30000', () {
       final ObservationRequest r = ObservationRequest.fromJson(
         <String, dynamic>{'boundedStabilityBudgetMs': 99999},
@@ -148,6 +170,19 @@ void main() {
       );
       expect(r.extensionBudgets, hasLength(1));
       expect(r.extensionBudgets['good'], 100);
+    });
+  });
+
+  group('VM-extension string params', () {
+    test('decode the settle budget like its sibling budgets', () {
+      final ObservationRequest r = ObservationRequest.fromVmParams(
+        <String, String>{
+          'actionRelativeBudgetMs': '600',
+          'actionRelativeSettleBudgetMs': '2000',
+        },
+      );
+      expect(r.actionRelativeBudgetMs, 600);
+      expect(r.actionRelativeSettleBudgetMs, 2000);
     });
   });
 }

@@ -55,12 +55,14 @@ void main() {
           ExtensionBusy('a', reason: 'navigating', estMs: 100),
           ExtensionBusy('b'),
         ],
+        settled: false,
       );
 
       final Map<String, Object?> json = sm.toJson();
       expect(json['policy'], 'bounded-stability');
       expect(json['terminated_by'], 'budget');
       expect(json['duration_ms'], 1234);
+      expect(json['settled'], isFalse);
       expect(json['framework_busy'], <String, Object?>{
         'transient_callbacks': 1,
       });

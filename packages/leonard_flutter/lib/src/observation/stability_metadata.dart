@@ -44,6 +44,7 @@ class StabilityMetadata {
     required this.durationMs,
     required this.frameworkBusy,
     required this.extensionsBusy,
+    required this.settled,
   });
 
   /// Selected policy (echoes the request).
@@ -63,10 +64,16 @@ class StabilityMetadata {
   /// construction (the loop only stops once everyone is idle).
   final List<ExtensionBusy> extensionsBusy;
 
+  /// Whether the app was quiet when the loop ended (see
+  /// `PolicyTick.settled`). False means a budget ran out first and the
+  /// observation may show a screen mid-animation.
+  final bool settled;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'policy': kStabilityPolicyWireNames[policy],
     'terminated_by': kTerminatedByWireNames[terminatedBy],
     'duration_ms': durationMs,
+    'settled': settled,
     'framework_busy': frameworkBusy,
     'extensions_busy': extensionsBusy
         .map((ExtensionBusy p) => p.toJson())

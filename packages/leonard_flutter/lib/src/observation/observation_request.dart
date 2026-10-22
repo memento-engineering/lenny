@@ -1,12 +1,17 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'budgeted_json.dart' show kCoreBudgetBytes;
 
 /// Stability policy selector for [getStableObservation] (PRD §9.1).
 ///
-/// - [actionRelative] (default): terminate on the first of route change,
-///   semantics change, all-idle (framework + extensions), or
-///   `actionRelativeBudgetMs` elapsed.
+/// - [actionRelative] (default): terminate on all-idle (framework +
+///   extensions) or `actionRelativeBudgetMs` elapsed, unless a route or
+///   semantics change comes first. A change starts a settle that ends after
+///   `quietFrameN` consecutive idle frames (lenny-r1k2x), reported under the
+///   change that started it. A route change's settle is capped by
+///   `actionRelativeSettleBudgetMs`; a semantics-only change's by
+///   `actionRelativeBudgetMs`.
 /// - [quietFrame]: terminate after `quietFrameN` consecutive idle
 ///   frames. No wall-clock cap on this policy itself.
 /// - [boundedStability]: terminate on quiet-frame condition OR
@@ -40,11 +45,19 @@ const int kDefaultQuietFrameN = 2;
 /// Default `boundedStabilityBudgetMs` per PRD §9.1.
 const int kDefaultBoundedStabilityBudgetMs = 1500;
 
+/// Default `actionRelativeSettleBudgetMs`: the wall-clock cap, from the start
+/// of the observation, for an action-relative settle after a route change.
+/// Long enough for a page transition (about 300 to 500 ms) to finish after
+/// the action's own latency. A semantics-only change settles within
+/// `actionRelativeBudgetMs` instead.
+const int kDefaultActionRelativeSettleBudgetMs = 1500;
+
 /// Decoded request payload for `ext.leonard.core.get_stable_observation`.
 class ObservationRequest {
   const ObservationRequest({
     this.policy = StabilityPolicy.actionRelative,
     this.actionRelativeBudgetMs = kDefaultActionRelativeBudgetMs,
+    this.actionRelativeSettleBudgetMs = kDefaultActionRelativeSettleBudgetMs,
     this.quietFrameN = kDefaultQuietFrameN,
     this.boundedStabilityBudgetMs = kDefaultBoundedStabilityBudgetMs,
     this.includeScreenshot = false,
@@ -58,6 +71,11 @@ class ObservationRequest {
 
   /// Wall-clock cap for `action-relative` policy, in ms.
   final int actionRelativeBudgetMs;
+
+  /// Wall-clock cap for an `action-relative` settle after a route change, in
+  /// ms from the start of the observation. A value below
+  /// [actionRelativeBudgetMs] is raised to it.
+  final int actionRelativeSettleBudgetMs;
 
   /// Required idle-frame streak length for `quiet-frame` policy.
   final int quietFrameN;
@@ -101,6 +119,11 @@ class ObservationRequest {
       kDefaultActionRelativeBudgetMs,
       'actionRelativeBudgetMs',
     );
+    final int ars = _clampBudget(
+      j['actionRelativeSettleBudgetMs'],
+      kDefaultActionRelativeSettleBudgetMs,
+      'actionRelativeSettleBudgetMs',
+    );
     final int qn = _clampQuietFrameN(j['quietFrameN']);
     final int bs = _clampBudget(
       j['boundedStabilityBudgetMs'],
@@ -130,6 +153,7 @@ class ObservationRequest {
     return ObservationRequest(
       policy: policy,
       actionRelativeBudgetMs: ar,
+      actionRelativeSettleBudgetMs: ars,
       quietFrameN: qn,
       boundedStabilityBudgetMs: bs,
       includeScreenshot: includeScreenshot,
@@ -137,6 +161,38 @@ class ObservationRequest {
       extensionBudgets: extensionBudgets,
       errorCursor: errorCursor,
     );
+  }
+
+  /// Decode the VM-extension parameter map into an [ObservationRequest].
+  ///
+  /// `developer.registerExtension` hands us a flat `Map<String, String>`;
+  /// nested JSON arrives as a JSON-encoded string under known keys. Only
+  /// `extensionBudgets` is round-tripped that way because every other field
+  /// is a scalar.
+  factory ObservationRequest.fromVmParams(Map<String, String> params) {
+    final Map<String, dynamic> j = <String, dynamic>{};
+    for (final MapEntry<String, String> e in params.entries) {
+      switch (e.key) {
+        case 'extensionBudgets':
+          // extensionBudgets: '{"a":256,"b":512}' (JSON-encoded).
+          j[e.key] = jsonDecode(e.value);
+          break;
+        case 'includeScreenshot':
+          j[e.key] = e.value == 'true';
+          break;
+        case 'actionRelativeBudgetMs':
+        case 'actionRelativeSettleBudgetMs':
+        case 'quietFrameN':
+        case 'boundedStabilityBudgetMs':
+        case 'coreBudgetBytes':
+        case 'errorCursor':
+          j[e.key] = int.tryParse(e.value) ?? e.value;
+          break;
+        default:
+          j[e.key] = e.value;
+      }
+    }
+    return ObservationRequest.fromJson(j);
   }
 
   static StabilityPolicy _policyFromWire(dynamic raw) {

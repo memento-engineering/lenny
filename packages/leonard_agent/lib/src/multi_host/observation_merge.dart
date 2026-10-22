@@ -27,7 +27,9 @@ import '../observation/models.dart';
 ///   taken from the PRIMARY (first) host verbatim; `extensionsBusy`
 ///   CONCATENATED across all hosts (each entry is already namespaced via
 ///   [ExtensionBusy.namespace], so a native busy signal rides this list
-///   alongside Flutter's). There is no `frameworkBusy` union.
+///   alongside Flutter's). There is no `frameworkBusy` union. `settled` is
+///   false if any host reports false, true if every reporting host reports
+///   true, and null when no host reports it.
 /// * `screenshot` — the PRIMARY host's screenshot when present (the native
 ///   host exposes no screenshot in m3).
 ///
@@ -70,6 +72,7 @@ Observation mergeObservations(List<Observation> perHost) {
     durationMs: primary.stability.durationMs,
     frameworkBusy: primary.stability.frameworkBusy,
     extensionsBusy: List<ExtensionBusy>.unmodifiable(mergedBusy),
+    settled: _mergeSettled(perHost),
   );
 
   return Observation(
@@ -78,4 +81,15 @@ Observation mergeObservations(List<Observation> perHost) {
     stability: mergedStability,
     screenshot: primary.screenshot,
   );
+}
+
+bool? _mergeSettled(List<Observation> perHost) {
+  bool? merged;
+  for (final Observation o in perHost) {
+    final bool? s = o.stability.settled;
+    if (s == null) continue;
+    if (!s) return false;
+    merged = true;
+  }
+  return merged;
 }

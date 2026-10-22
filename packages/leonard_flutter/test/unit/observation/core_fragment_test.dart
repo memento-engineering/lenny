@@ -10,6 +10,7 @@ StabilityMetadata _stub() => const StabilityMetadata(
   durationMs: 16,
   frameworkBusy: <String, Object?>{},
   extensionsBusy: <ExtensionBusy>[],
+  settled: true,
 );
 
 /// Compute the core fragment values and project them to the legacy map.

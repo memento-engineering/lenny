@@ -24,6 +24,7 @@ import '../observation/stability_metadata.dart';
 import '../screenshot_extension.dart';
 import '../semantics/semantics_capture.dart';
 import '../stability/frame_stability_tracker.dart';
+import '../stability/framework_busy_snapshot.dart';
 import 'leonard_app.dart';
 
 /// Reserved prefix. Format:
@@ -465,7 +466,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         '$kLeonardExtensionPrefix.core.get_stable_observation',
         (String method, Map<String, String> parameters) async {
           try {
-            final ObservationRequest req = _decodeObservationRequest(
+            final ObservationRequest req = ObservationRequest.fromVmParams(
               parameters,
             );
             final Map<String, Object?> obs = await getStableObservation(req);
@@ -584,37 +585,6 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
     ).audit(root);
   }
 
-  /// Decode the VM-extension parameter map into an [ObservationRequest].
-  ///
-  /// `developer.registerExtension` hands us a flat
-  /// `Map<String, String>`; nested JSON arrives as a JSON-encoded
-  /// string under known keys. We only round-trip `extensionBudgets` here
-  /// because every other field is a scalar.
-  ObservationRequest _decodeObservationRequest(Map<String, String> params) {
-    final Map<String, dynamic> j = <String, dynamic>{};
-    for (final MapEntry<String, String> e in params.entries) {
-      switch (e.key) {
-        case 'extensionBudgets':
-          // extensionBudgets: '{"a":256,"b":512}' (JSON-encoded).
-          j[e.key] = jsonDecode(e.value);
-          break;
-        case 'includeScreenshot':
-          j[e.key] = e.value == 'true';
-          break;
-        case 'actionRelativeBudgetMs':
-        case 'quietFrameN':
-        case 'boundedStabilityBudgetMs':
-        case 'coreBudgetBytes':
-        case 'errorCursor':
-          j[e.key] = int.tryParse(e.value) ?? e.value;
-          break;
-        default:
-          j[e.key] = e.value;
-      }
-    }
-    return ObservationRequest.fromJson(j);
-  }
-
   /// Hash of the live route stack (best-effort Navigator 1.0 names).
   /// Used by [PolicyLoop] to detect route changes during the
   /// `action-relative` policy. Stable across invocations for the same
@@ -663,6 +633,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
       durationMs: tick.durationMs,
       frameworkBusy: frameworkBusySnapshot().toJson(),
       extensionsBusy: tick.extensionsBusy,
+      settled: tick.settled,
     );
 
     Future<String?> screenshotCaptureOrNull() async {
@@ -786,12 +757,15 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// failure-isolation order.
   Future<genesis.TreeSnapshot> _buildDiagnosticsTree() async {
     final DateTime projectedAt = DateTime.now().toUtc();
+    final FrameworkBusySnapshot busyNow = frameworkBusySnapshot();
+    // No policy loop runs here, so settled reports the framework as it is.
     final StabilityMetadata stability = StabilityMetadata(
       policy: StabilityPolicy.actionRelative,
       terminatedBy: TerminatedBy.idle,
       durationMs: 0,
-      frameworkBusy: frameworkBusySnapshot().toJson(),
+      frameworkBusy: busyNow.toJson(),
       extensionsBusy: const <ExtensionBusy>[],
+      settled: !busyNow.isAnyBusy,
     );
     // Nodes and route layers come from one walk; the snapshot is local so
     // concurrent observations never read each other's layers.
