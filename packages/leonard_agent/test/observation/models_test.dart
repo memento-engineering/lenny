@@ -435,4 +435,44 @@ void main() {
       expect(restored, equals(original));
     });
   });
+
+  group('route layers', () {
+    test('wire route_layers decode into RouteLayer, skipping malformed '
+        'entries', () {
+      final Observation o = Observation.fromJson(<String, dynamic>{
+        'route_layers': <Object?>[
+          <String, Object?>{'node': 4, 'name': null},
+          <String, Object?>{'node': 9, 'name': 'Alert'},
+          <String, Object?>{'name': 'no node'},
+          'not a map',
+        ],
+      });
+      expect(o.core.routeLayers, const <RouteLayer>[
+        RouteLayer(node: 4),
+        RouteLayer(node: 9, name: 'Alert'),
+      ]);
+    });
+
+    test('absent route_layers is empty', () {
+      expect(
+        Observation.fromJson(<String, dynamic>{}).core.routeLayers,
+        isEmpty,
+      );
+    });
+
+    test('route layers round-trip through the bundled shape and count in '
+        'equality', () {
+      final Observation a = Observation.fromJson(<String, dynamic>{
+        'route_layers': <Object?>[
+          <String, Object?>{'node': 9, 'name': 'Alert'},
+        ],
+      });
+      final Observation restored = Observation.fromJson(
+        jsonDecode(jsonEncode(a.toJson())) as Map<String, dynamic>,
+      );
+      expect(restored.core.routeLayers, a.core.routeLayers);
+      expect(restored, equals(a));
+      expect(a, isNot(equals(Observation.fromJson(<String, dynamic>{}))));
+    });
+  });
 }

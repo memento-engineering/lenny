@@ -48,12 +48,23 @@ class ObservationDiffer {
       (NodeChange a, NodeChange b) => a.curr.id.compareTo(b.curr.id),
     );
 
-    final List<RouteChange> routeChanges = _listEq(p.routeStack, c.routeStack)
+    // ignore: deprecated_member_use_from_same_package
+    final List<String> prevStack = p.routeStack, currStack = c.routeStack;
+    final List<RouteChange> routeChanges = _listEq(prevStack, currStack)
         ? const <RouteChange>[]
         : <RouteChange>[
             RouteChange(
-              previous: List<String>.from(p.routeStack),
-              current: List<String>.from(c.routeStack),
+              previous: List<String>.from(prevStack),
+              current: List<String>.from(currStack),
+            ),
+          ];
+    final List<RouteLayerChange> routeLayerChanges =
+        _listEq(p.routeLayers, c.routeLayers)
+        ? const <RouteLayerChange>[]
+        : <RouteLayerChange>[
+            RouteLayerChange(
+              previous: List<RouteLayer>.from(p.routeLayers),
+              current: List<RouteLayer>.from(c.routeLayers),
             ),
           ];
 
@@ -68,6 +79,7 @@ class ObservationDiffer {
 
     return CoreDiff(
       routeChanges: routeChanges,
+      routeLayerChanges: routeLayerChanges,
       nodesAdded: added,
       nodesRemoved: removed,
       nodesChanged: changed,

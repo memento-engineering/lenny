@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.4-dev.2
+
+- Add `CoreFragment.routeLayers` (`RouteLayer {node, name}`), parsed from the
+  binding's `route_layers` (lenny-kyfdc): the routes on screen, top-most last.
+  The observation the model reads carries it, the default operating guide
+  describes it, and the diff reports a change as
+  `CoreDiff.routeLayerChanges` (`RouteLayerChange`), serialized only when
+  non-empty so unchanged turns keep their exact shape.
+- Deprecate `CoreFragment.routeStack`; removed no earlier than 0.8.0.
+  Decision: core-reports-route-layers-from-semantics.
+
 ## 0.3.4-dev.1
 
 - Fix: a swift-infer run no longer reports `input_tokens: 0` for every call

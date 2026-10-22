@@ -40,7 +40,7 @@ $DRIVE tools   --vm-uri "$VM"
 
 # 2. Observe current state (every turn):
 $DRIVE observe --vm-uri "$VM"
-#   -> { observation: { core:{ routeStack, nodes:{…}, errors }, extensions, stability } }
+#   -> { observation: { core:{ routeLayers, nodes:{…}, errors }, extensions, stability } }
 
 # 3. Act (one tool per turn):
 $DRIVE invoke  --vm-uri "$VM" --tool core.tap --args '{"node_id":96}'
@@ -49,12 +49,12 @@ $DRIVE invoke  --vm-uri "$VM" --tool core.tap --args '{"node_id":96}'
 
 Pipe output through `jq` to keep your context small — e.g. list only
 actionable nodes:
-`... observe ... | jq -c '{route:.observation.core.routeStack, nodes:[.observation.core.nodes|to_entries[].value|select((.actions//[])|length>0)|{id,role,label,actions,state}]}'`
+`... observe ... | jq -c '{layers:.observation.core.routeLayers, nodes:[.observation.core.nodes|to_entries[].value|select((.actions//[])|length>0)|{id,role,label,actions,state}]}'`
 
 ## The loop
 
 1. `tools` once — note the available namespaces/tools.
-2. `observe` — read `routeStack`, the `nodes` (id, role, label, actions,
+2. `observe` — read `routeLayers`, the `nodes` (id, role, label, actions,
    state), and `errors`.
 3. Decide the single next action that advances the Goal.
 4. `invoke` it. Check `result.ok`.
@@ -93,5 +93,5 @@ actionable nodes:
 ## Reporting
 
 Return a concise summary: whether the Goal was reached, the final
-`routeStack`/key state, and any actions that failed with their errors.
+`routeLayers`/key state, and any actions that failed with their errors.
 Do not dump full observations into your final message.

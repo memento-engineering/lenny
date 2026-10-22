@@ -25,6 +25,7 @@ class CorePerception extends StatelessPerception {
     super.key,
     required this.semantics,
     required this.routes,
+    this.routeLayers = const <Map<String, Object?>>[],
     required this.errors,
     required this.stability,
     this.screenshot,
@@ -34,7 +35,11 @@ class CorePerception extends StatelessPerception {
   final List<Map<String, Object>> semantics;
 
   /// `routeStackProvider`/`bestEffortRouteStack` output, verbatim.
+  /// Deprecated on the wire in favor of [routeLayers].
   final List<String> routes;
+
+  /// The route layers on screen, top-most last, verbatim.
+  final List<Map<String, Object?>> routeLayers;
 
   /// `errors.map((e) => e.toJson()).toList()` output, verbatim.
   final List<Map<String, Object?>> errors;
@@ -51,6 +56,7 @@ class CorePerception extends StatelessPerception {
     children: <Component>[
       Field('semantics', semantics),
       Field('routes', routes),
+      Field('route_layers', routeLayers),
       Field('errors', errors),
       Field('stability', stability),
       if (screenshot != null) Field('screenshot_png_b64', screenshot),
@@ -61,7 +67,8 @@ class CorePerception extends StatelessPerception {
 /// Builds the core perception [Component] from already-computed primitives.
 ///
 /// The returned `Node('core', …)`'s child order is exactly the key order
-/// [CoreFragmentValues.toMap] emits (semantics, routes, errors, stability,
+/// [CoreFragmentValues.toMap] emits (semantics, routes, route_layers, errors,
+/// stability,
 /// then the optional screenshot), so the serialized fragment is byte-identical
 /// to that map. The `screenshot_png_b64` field is OMITTED (not present as a
 /// null) when [screenshot] is null, mirroring [CoreFragmentValues.toMap] which
@@ -69,12 +76,14 @@ class CorePerception extends StatelessPerception {
 Component buildCorePerceptionComponent({
   required List<Map<String, Object>> semantics,
   required List<String> routes,
+  List<Map<String, Object?>> routeLayers = const <Map<String, Object?>>[],
   required List<Map<String, Object?>> errors,
   required Map<String, Object?> stability,
   String? screenshot,
 }) => CorePerception(
   semantics: semantics,
   routes: routes,
+  routeLayers: routeLayers,
   errors: errors,
   stability: stability,
   screenshot: screenshot,

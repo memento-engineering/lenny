@@ -56,7 +56,7 @@ Report from the trajectory:
   `done` = goal reached; `budget_exhausted` = ran out of turns;
   `harness_error` = the run itself broke (read `harness_error` for the cause).
 - Scan `executed_action` + `result.ok:false` (with `result.error`) and the
-  final `observation.core.routeStack`.
+  final `observation.core.routeLayers`.
 
 ## Manual mode
 ```bash

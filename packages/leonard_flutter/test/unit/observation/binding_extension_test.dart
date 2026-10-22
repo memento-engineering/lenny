@@ -211,6 +211,7 @@ void main() {
         containsAll(<String>[
           'semantics',
           'routes',
+          'route_layers',
           'errors',
           'stability',
           'extensions',
@@ -239,6 +240,7 @@ void main() {
               as Map<String, Object?>;
 
       expect(obs['routes'], isList);
+      expect(obs['route_layers'], isList);
       expect(obs['errors'], isList);
       expect(obs['stability'], isMap);
       expect(obs['_truncated'], isTrue);

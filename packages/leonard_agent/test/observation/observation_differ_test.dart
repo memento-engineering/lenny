@@ -18,6 +18,7 @@ SemanticsNode _node(int id, {String role = 'button', String label = ''}) =>
 Observation _obs({
   Map<int, SemanticsNode> nodes = const <int, SemanticsNode>{},
   List<String> routes = const <String>[],
+  List<RouteLayer> layers = const <RouteLayer>[],
   List<RuntimeError> errors = const <RuntimeError>[],
   Map<String, ExtensionFragment> extensions =
       const <String, ExtensionFragment>{},
@@ -25,6 +26,7 @@ Observation _obs({
   return Observation(
     core: CoreFragment(
       routeStack: List<String>.unmodifiable(routes),
+      routeLayers: List<RouteLayer>.unmodifiable(layers),
       nodes: Map<int, SemanticsNode>.unmodifiable(nodes),
       errors: List<RuntimeError>.unmodifiable(errors),
     ),
@@ -124,6 +126,47 @@ void main() {
     final Observation curr = _obs(routes: <String>['/a']);
     final ObservationDiff d = ObservationDiffer.diff(prev, curr);
     expect(d.core.routeChanges, isEmpty);
+  });
+
+  test('a dialog opening emits one RouteLayerChange (lenny-kyfdc)', () {
+    const RouteLayer page = RouteLayer(node: 4, name: 'Home');
+    const RouteLayer dialog = RouteLayer(node: 9, name: 'Alert');
+    final Observation prev = _obs(layers: const <RouteLayer>[page]);
+    final Observation curr = _obs(
+      layers: const <RouteLayer>[RouteLayer(node: 4), dialog],
+    );
+    final ObservationDiff d = ObservationDiffer.diff(prev, curr);
+    expect(d.core.routeLayerChanges, hasLength(1));
+    expect(d.core.routeLayerChanges.single.previous, <RouteLayer>[page]);
+    expect(d.core.routeLayerChanges.single.current, <RouteLayer>[
+      const RouteLayer(node: 4),
+      dialog,
+    ]);
+    final Map<String, dynamic> core =
+        jsonDecode(jsonEncode(d.toJson()))['core'] as Map<String, dynamic>;
+    expect(core['routeLayerChanges'], <Object>[
+      <String, Object?>{
+        'previous': <Object>[
+          <String, Object?>{'node': 4, 'name': 'Home'},
+        ],
+        'current': <Object>[
+          <String, Object?>{'node': 4, 'name': null},
+          <String, Object?>{'node': 9, 'name': 'Alert'},
+        ],
+      },
+    ]);
+  });
+
+  test('unchanged route layers emit no change and no JSON key', () {
+    final Observation prev = _obs(
+      layers: const <RouteLayer>[RouteLayer(node: 4, name: 'Home')],
+    );
+    final Observation curr = _obs(
+      layers: const <RouteLayer>[RouteLayer(node: 4, name: 'Home')],
+    );
+    final ObservationDiff d = ObservationDiffer.diff(prev, curr);
+    expect(d.core.routeLayerChanges, isEmpty);
+    expect(d.core.toJson().containsKey('routeLayerChanges'), isFalse);
   });
 
   test('delta-friendly extension yields ExtensionDiffStructured', () {

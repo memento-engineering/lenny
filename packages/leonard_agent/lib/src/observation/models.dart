@@ -5,7 +5,8 @@
 /// ```json
 /// {
 ///   "semantics": [ {id, role, label?, state?, actions?, rect}, ... ],
-///   "routes":    [ "/some/route", ... ],
+///   "routes":    [ "/some/route", ... ],          // deprecated
+///   "route_layers": [ {node, name}, ... ],
 ///   "errors":    [ {seq, message, frames, wallClockOffsetMs}, ... ],
 ///   "stability": { policy, terminated_by, duration_ms,
 ///                  framework_busy, extensions_busy: [...] },
@@ -49,6 +50,7 @@ class Observation {
     final Map<dynamic, dynamic>? bundledCore = rawCore is Map ? rawCore : null;
     final Object? rawSemantics = bundledCore?['nodes'] ?? j['semantics'];
     final Object? rawRoutes = bundledCore?['routeStack'] ?? j['routes'];
+    final Object? rawLayers = bundledCore?['routeLayers'] ?? j['route_layers'];
     final Object? rawErrors = bundledCore?['errors'] ?? j['errors'];
     final Object? rawStability = j['stability'];
     final Object? rawExtensions = j['extensions'];
@@ -79,6 +81,17 @@ class Observation {
       }
     }
 
+    final List<RouteLayer> routeLayers = <RouteLayer>[];
+    if (rawLayers is List) {
+      for (final Object? l in rawLayers) {
+        if (l is! Map) continue;
+        final RouteLayer? layer = RouteLayer.tryFromJson(
+          l.cast<String, dynamic>(),
+        );
+        if (layer != null) routeLayers.add(layer);
+      }
+    }
+
     final List<RuntimeError> errors = <RuntimeError>[];
     if (rawErrors is List) {
       for (final Object? e in rawErrors) {
@@ -88,7 +101,9 @@ class Observation {
     }
 
     final CoreFragment core = CoreFragment(
+      // ignore: deprecated_member_use_from_same_package
       routeStack: List<String>.unmodifiable(routeStack),
+      routeLayers: List<RouteLayer>.unmodifiable(routeLayers),
       nodes: Map<int, SemanticsNode>.unmodifiable(nodes),
       errors: List<RuntimeError>.unmodifiable(errors),
     );
@@ -155,24 +170,41 @@ class Observation {
       Object.hash(core, jsonValueHash(extensions), stability, screenshot);
 }
 
-/// Core fragment: route stack + semantics nodes (id-keyed) + recent errors.
+/// Core fragment: route layers + semantics nodes (id-keyed) + recent errors,
+/// plus the deprecated route stack.
 @immutable
 class CoreFragment {
   const CoreFragment({
-    required this.routeStack,
+    @Deprecated(_routeStackDeprecation) required this.routeStack,
+    this.routeLayers = const <RouteLayer>[],
     required this.nodes,
     required this.errors,
   });
 
   static const CoreFragment empty = CoreFragment(
+    // ignore: deprecated_member_use_from_same_package
     routeStack: <String>[],
     nodes: <int, SemanticsNode>{},
     errors: <RuntimeError>[],
   );
 
+  static const String _routeStackDeprecation =
+      'Use routeLayers: routeStack is the root navigator\'s top route name '
+      'only, empty under a dialog and blind to nested navigators. '
+      'Removed no earlier than leonard_agent 0.8.0.';
+
   /// Best-effort Navigator 1.0 route stack (top route name first/only entry
   /// — see `bestEffortRouteStack` on the binding side).
+  @Deprecated(_routeStackDeprecation)
   final List<String> routeStack;
+
+  /// The route layers on screen, top-most last, as accessibility services
+  /// see them (the binding's `route_layers`). Each names the semantics node
+  /// that scopes the route and, when the app or framework gives one, the
+  /// route's announced name. This is what is on screen, not the app's
+  /// navigation: location, path and history come from a navigation
+  /// extension such as `router`.
+  final List<RouteLayer> routeLayers;
 
   /// Captured semantics nodes keyed by stable id.
   final Map<int, SemanticsNode> nodes;
@@ -183,7 +215,9 @@ class CoreFragment {
   Map<String, dynamic> toJson() {
     final List<int> sortedIds = nodes.keys.toList()..sort();
     return <String, dynamic>{
+      // ignore: deprecated_member_use_from_same_package
       'routeStack': List<String>.from(routeStack),
+      'routeLayers': routeLayers.map((RouteLayer l) => l.toJson()).toList(),
       'nodes': <String, dynamic>{
         for (final int id in sortedIds) id.toString(): nodes[id]!.toJson(),
       },
@@ -194,13 +228,17 @@ class CoreFragment {
   @override
   bool operator ==(Object other) =>
       other is CoreFragment &&
+      // ignore: deprecated_member_use_from_same_package
       _listEq(routeStack, other.routeStack) &&
+      _listEq(routeLayers, other.routeLayers) &&
       _mapEq(nodes, other.nodes) &&
       _listEq(errors, other.errors);
 
   @override
   int get hashCode => Object.hash(
+    // ignore: deprecated_member_use_from_same_package
     Object.hashAll(routeStack),
+    Object.hashAll(routeLayers),
     Object.hashAllUnordered(
       nodes.entries.map(
         (MapEntry<int, SemanticsNode> e) => Object.hash(e.key, e.value),
@@ -208,6 +246,47 @@ class CoreFragment {
     ),
     Object.hashAll(errors),
   );
+}
+
+/// One route layer on screen: the semantics node that scopes a route (a page,
+/// dialog, popup menu, sheet, drawer, dropdown or search) and its announced
+/// name.
+///
+/// [node] is the scoping node's stable id in this observation. The framework
+/// can reuse it for the next route in the same place, so across turns compare
+/// [name] and the number of layers rather than [node] alone. [name] is null
+/// when nothing in the scope names the route, as with a page with no app bar
+/// title, a page whose title is blocked by a modal barrier, or an iOS page
+/// whose Material app bar title does not name the route.
+@immutable
+class RouteLayer {
+  const RouteLayer({required this.node, this.name});
+
+  /// Decodes `{node, name?}`; null when `node` is not an integer.
+  static RouteLayer? tryFromJson(Map<String, dynamic> j) {
+    final Object? node = j['node'];
+    if (node is! num) return null;
+    final Object? name = j['name'];
+    return RouteLayer(node: node.toInt(), name: name is String ? name : null);
+  }
+
+  /// Stable id of the semantics node that scopes the route.
+  final int node;
+
+  /// The route's announced name, or null.
+  final String? name;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'node': node,
+    'name': name,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is RouteLayer && node == other.node && name == other.name;
+
+  @override
+  int get hashCode => Object.hash(node, name);
 }
 
 /// One semantics node from the captured tree.

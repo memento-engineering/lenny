@@ -38,6 +38,9 @@ import 'package:flutter/widgets.dart';
 /// flagged `isHidden` are omitted. Leonard otherwise follows the semantics tree
 /// produced by Flutter, including exclusions and blocking applied by widgets
 /// such as `ExcludeSemantics` and `BlockSemantics`.
+///
+/// Route layers: the same walk records [lastRouteLayers], the routes on
+/// screen as accessibility services see them. See [lastRouteLayers].
 class SemanticsCapture {
   /// Creates a new capture instance. The stable-id map is per instance.
   SemanticsCapture();
@@ -63,6 +66,29 @@ class SemanticsCapture {
   int _stableIdFor(SemanticsNode n) =>
       _stableIds.putIfAbsent(n.id, () => _nextId++);
 
+  List<Map<String, Object?>> _routeLayers = const <Map<String, Object?>>[];
+
+  /// The route layers on screen at the last capture, top-most last.
+  ///
+  /// One entry per emitted node flagged [SemanticsFlag.scopesRoute], the flag
+  /// the framework sets on page routes, dialogs, popup menus, bottom sheets,
+  /// drawers, dropdowns and search, and that screen readers use to announce a
+  /// screen change. Each entry is `{node, name}`: `node` is the emitted `id`
+  /// of the scoping node, and `name` is the label of the first node flagged
+  /// [SemanticsFlag.namesRoute] with a non-empty label inside that scope (not
+  /// inside a nested scope), in depth-first paint order, or null when there
+  /// is none. That is the text a screen reader announces for the route.
+  ///
+  /// This is what is on screen, not the app's navigation: a page under a
+  /// modal barrier is blocked from semantics and absent, a route in a hidden
+  /// tab is absent, and a page with no app bar title (or on Android, where an
+  /// app bar title does not name the route) has a null name. Location, path,
+  /// arguments and history belong to a navigation extension.
+  ///
+  /// Read synchronously after [captureAsync] or [capture]; empty before the
+  /// first capture.
+  List<Map<String, Object?>> get lastRouteLayers => _routeLayers;
+
   /// Async-safe form of [capture]. Awaits [SchedulerBinding.instance.endOfFrame]
   /// (with a 250 ms timeout) when [_findRootSemanticsNode] returns null on the
   /// first call, so the semantics flush triggered by [ensureSemantics] can
@@ -86,7 +112,9 @@ class SemanticsCapture {
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport, v.devicePixelRatio);
+    final List<_Layer> layers = <_Layer>[];
+    _walk(root, recs, viewport, v.devicePixelRatio, layers);
+    _routeLayers = layers.map((_Layer l) => l.toJson()).toList(growable: false);
     return recs.map((_Rec r) => r.toJson()).toList(growable: false);
   }
 
@@ -106,7 +134,9 @@ class SemanticsCapture {
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport, v.devicePixelRatio);
+    final List<_Layer> layers = <_Layer>[];
+    _walk(root, recs, viewport, v.devicePixelRatio, layers);
+    _routeLayers = layers.map((_Layer l) => l.toJson()).toList(growable: false);
     return recs.map((_Rec r) => r.toJson()).toList(growable: false);
   }
 
@@ -241,13 +271,28 @@ class _Rec {
   }
 }
 
+/// A route layer being collected by the walk.
+class _Layer {
+  _Layer(this.node);
+
+  final int node;
+  String? name;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'node': node,
+    'name': name,
+  };
+}
+
 extension _SemanticsCaptureWalk on SemanticsCapture {
   void _walk(
     SemanticsNode n,
     List<_Rec> out,
     Rect viewport,
-    double dpr, [
+    double dpr,
+    List<_Layer> layers, [
     Matrix4? parentTransform,
+    _Layer? scope,
   ]) {
     final SemanticsData d = n.getSemanticsData();
     if (d.flagsCollection.isHidden) return;
@@ -268,9 +313,22 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     final String tooltip = d.tooltip;
     final String label = d.label.isEmpty ? tooltip : d.label;
     final String hint = d.label.isEmpty ? '' : tooltip;
+    final int id = _stableIdFor(n);
+    _Layer? inner = scope;
+    if (d.flagsCollection.scopesRoute) {
+      inner = _Layer(id);
+      layers.add(inner);
+    }
+    // The flags may sit on the same node, so a scope can name itself.
+    if (inner != null &&
+        inner.name == null &&
+        d.flagsCollection.namesRoute &&
+        d.label.isNotEmpty) {
+      inner.name = d.label;
+    }
     out.add(
       _Rec(
-        _stableIdFor(n),
+        id,
         _role(d),
         label,
         d.identifier,
@@ -283,7 +341,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
       ),
     );
     n.visitChildren((SemanticsNode c) {
-      _walk(c, out, viewport, dpr, global);
+      _walk(c, out, viewport, dpr, layers, global, inner);
       return true;
     });
   }
