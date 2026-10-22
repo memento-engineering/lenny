@@ -6,7 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'framework_busy_snapshot.dart';
 
 /// Mixin layered onto `SchedulerBinding` (via `LeonardBinding`) that
-/// observes framework-level "busy" signals: in-flight transient callbacks,
+/// observes framework-level "busy" signals: scheduled transient callbacks,
 /// registered persistent callbacks, pending microtasks (best effort), and
 /// frame-commit / skipped-frame timestamps.
 ///

@@ -62,7 +62,7 @@ void main() {
     final Ticker ticker = Ticker((_) {});
     addTearDown(ticker.dispose);
     ticker.start();
-    _runFrame(binding, const Duration(milliseconds: 200000));
+    _runFrame(binding, const Duration(milliseconds: 150));
     expect(binding.frameworkBusySnapshot().transientCallbacks, before + 1);
     expect(binding.isAnyFrameworkSignalBusy, isTrue);
     ticker.stop();
