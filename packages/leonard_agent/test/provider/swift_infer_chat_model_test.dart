@@ -550,6 +550,88 @@ void main() {
       expect(usage.totalTokens, 46);
     });
 
+    test('treats input_tokens 0 in message_start as unreported (lenny-7vjdy: '
+        'swift-infer sends a placeholder 0 it never fills in)', () async {
+      final rs = await _run(
+        _FakeClient([
+          {
+            'type': 'message_start',
+            'message': {
+              'id': 'm',
+              'usage': {'input_tokens': 0},
+            },
+          },
+          _textDelta('x'),
+          {
+            'type': 'message_delta',
+            'delta': {'stop_reason': 'end_turn'},
+            'usage': {'output_tokens': 34},
+          },
+        ]),
+      );
+      final usage = rs.map((r) => r.usage).whereType<LanguageModelUsage>().last;
+      expect(usage.promptTokens, isNull);
+      expect(usage.responseTokens, 34);
+      expect(usage.totalTokens, isNull);
+    });
+
+    test(
+      'takes input_tokens from message_delta when it reports them',
+      () async {
+        final rs = await _run(
+          _FakeClient([
+            {
+              'type': 'message_start',
+              'message': {
+                'id': 'm',
+                'usage': {'input_tokens': 0},
+              },
+            },
+            _textDelta('x'),
+            {
+              'type': 'message_delta',
+              'delta': {'stop_reason': 'end_turn'},
+              'usage': {'input_tokens': 20, 'output_tokens': 34},
+            },
+          ]),
+        );
+        final usage = rs
+            .map((r) => r.usage)
+            .whereType<LanguageModelUsage>()
+            .last;
+        expect(usage.promptTokens, 20);
+        expect(usage.totalTokens, 54);
+      },
+    );
+
+    test(
+      'a zero input_tokens in message_delta keeps the start count',
+      () async {
+        final rs = await _run(
+          _FakeClient([
+            {
+              'type': 'message_start',
+              'message': {
+                'id': 'm',
+                'usage': {'input_tokens': 12},
+              },
+            },
+            _textDelta('x'),
+            {
+              'type': 'message_delta',
+              'delta': {'stop_reason': 'end_turn'},
+              'usage': {'input_tokens': 0, 'output_tokens': 34},
+            },
+          ]),
+        );
+        final usage = rs
+            .map((r) => r.usage)
+            .whereType<LanguageModelUsage>()
+            .last;
+        expect(usage.promptTokens, 12);
+      },
+    );
+
     test(
       'merges tool_result with accompanying text in one user turn',
       () async {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.4-dev.1
+
+- Fix: a swift-infer run no longer reports `input_tokens: 0` for every call
+  (lenny-7vjdy). swift-infer's Anthropic-compatible `/v1/messages` stream sends
+  0 in `message_start` as a placeholder and never sends the real count, so
+  local runs undercounted input. A zero is now recorded as unreported (no
+  request has an empty prompt), and a non-zero `input_tokens` in
+  `message_delta` is taken when a server sends one. The real fix belongs in
+  swift-infer.
+
 ## 0.3.3
 
 Stable promotion of `0.3.3-dev.2` on Nico's promotion call (2026-10-20), after the claude (Sonnet 4.6 and 5.5) and qwen-mlx tiers drove the sample app live. The prerelease entries below carry the full list. One change on top:
