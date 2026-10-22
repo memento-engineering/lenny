@@ -23,7 +23,6 @@ mixin FrameStabilityTracker on SchedulerBinding {
   /// inter-frame interval per PRD §6.1.
   static const Duration _skipThreshold = Duration(milliseconds: 33);
 
-  int _transientInFlight = 0;
   int _persistentRegistered = 0;
   bool _microtaskPending = false;
   Duration? _lastCommit;
@@ -34,7 +33,14 @@ mixin FrameStabilityTracker on SchedulerBinding {
   bool get _enabled => kDebugMode || kProfileMode;
 
   /// Returns a synchronous, immutable snapshot of the current
-  /// framework-level busy signals. In release mode returns
+  /// framework-level busy signals.
+  ///
+  /// The transient count is the scheduler's own [transientCallbackCount].
+  /// It used to be a counter incremented in `scheduleFrameCallback` and
+  /// decremented when a callback ran, which leaked on every
+  /// `cancelFrameCallbackWithId` (a [Ticker] stopping cancels its pending
+  /// tick), so the count only grew and the app never read as idle
+  /// (lenny-r1k2x, seen live 2026-10-22). In release mode returns
   /// `FrameworkBusySnapshot.zero`.
   ///
   /// The returned object's `recentFrameCommits` is a fresh unmodifiable
@@ -43,7 +49,7 @@ mixin FrameStabilityTracker on SchedulerBinding {
   FrameworkBusySnapshot frameworkBusySnapshot() {
     if (!_enabled) return FrameworkBusySnapshot.zero;
     return FrameworkBusySnapshot(
-      transientCallbacks: _transientInFlight,
+      transientCallbacks: transientCallbackCount,
       persistentCallbacks: _persistentRegistered,
       pendingMicrotasks: _microtaskPending,
       lastFrameCommitTimestamp: _lastCommit,
@@ -57,34 +63,7 @@ mixin FrameStabilityTracker on SchedulerBinding {
   /// excludes the persistent-callback baseline (registered once, fires every
   /// frame as steady-state — never a settling signal; see lenny-ndnp).
   bool get isAnyFrameworkSignalBusy =>
-      _enabled && (_transientInFlight > 0 || _microtaskPending);
-
-  @override
-  int scheduleFrameCallback(
-    FrameCallback callback, {
-    bool rescheduling = false,
-    bool scheduleNewFrame = true,
-  }) {
-    if (!_enabled) {
-      return super.scheduleFrameCallback(
-        callback,
-        rescheduling: rescheduling,
-        scheduleNewFrame: scheduleNewFrame,
-      );
-    }
-    _transientInFlight++;
-    return super.scheduleFrameCallback(
-      (Duration ts) {
-        try {
-          callback(ts);
-        } finally {
-          if (_transientInFlight > 0) _transientInFlight--;
-        }
-      },
-      rescheduling: rescheduling,
-      scheduleNewFrame: scheduleNewFrame,
-    );
-  }
+      _enabled && (transientCallbackCount > 0 || _microtaskPending);
 
   @override
   void addPersistentFrameCallback(FrameCallback callback) {
