@@ -38,8 +38,16 @@ adapt the bundled copy to your app as needed.
   developer string, not a description. Scrollable nodes also carry `scroll` —
   `{pos, min?, max?}` in the same pixel units as `rect`: the current offset and
   how far it can travel.
-  The observation also carries `routeStack` (navigation) and extension
-  fragments (`router`, `riverpod`, `dio`).
+  The observation also carries `routeLayers`: the routes on screen, top-most
+  last, each `{node, name}` — a page, dialog, sheet or menu, the `id` of the
+  node that scopes it, and its announced name when it has one. Layers are
+  what you can reach, not the navigation history: a dialog or modal sheet
+  hides the routes beneath it, so while one is open it is the only layer. A
+  new or replaced top layer means a dialog, sheet or page opened; read its
+  nodes before acting.
+  `routeStack` is deprecated. Extension fragments (`router`, `riverpod`,
+  `dio`) carry what the app chooses to expose, such as its navigation
+  location.
 - **Diff** — what changed since your last action.
 - **Recent actions** — your last several tool calls and their results.
 

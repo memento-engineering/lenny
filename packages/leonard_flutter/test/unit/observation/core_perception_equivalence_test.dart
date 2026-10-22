@@ -157,6 +157,11 @@ void main() {
         extensionsBusy: <ExtensionBusy>[],
       );
       List<String> routeStackProvider() => <String>['home'];
+      List<Map<String, Object?>> routeLayersProvider() =>
+          <Map<String, Object?>>[
+            <String, Object?>{'node': 1, 'name': null},
+            <String, Object?>{'node': 2, 'name': 'Alert'},
+          ];
 
       // Same computed values feed both the legacy map and the perception path.
       final CoreFragmentValues values = await computeCoreFragmentValues(
@@ -167,12 +172,15 @@ void main() {
         captureScreenshot: null,
         errorCursor: 0,
         routeStackProvider: routeStackProvider,
+        routeLayersProvider: routeLayersProvider,
       );
       final Map<String, Object?> legacy = values.toMap();
+      expect(legacy['route_layers'], routeLayersProvider());
       final Map<String, Object?> perception = _harvestCoreFragment(
         buildCorePerceptionComponent(
           semantics: values.semantics,
           routes: values.routes,
+          routeLayers: values.routeLayers,
           errors: values.errors,
           stability: values.stability,
           screenshot: values.screenshot,

@@ -21,6 +21,7 @@ Future<Map<String, Object?>> _coreMap({
   required Future<String?> Function()? captureScreenshot,
   required int? errorCursor,
   List<String> Function()? routeStackProvider,
+  List<Map<String, Object?>> Function()? routeLayersProvider,
 }) async {
   final CoreFragmentValues values = await computeCoreFragmentValues(
     captureSemantics: captureSemantics,
@@ -30,6 +31,7 @@ Future<Map<String, Object?>> _coreMap({
     captureScreenshot: captureScreenshot,
     errorCursor: errorCursor,
     routeStackProvider: routeStackProvider,
+    routeLayersProvider: routeLayersProvider,
   );
   return values.toMap();
 }
@@ -58,6 +60,50 @@ void main() {
         'role': 'button',
       });
       expect(core.containsKey('screenshot_png_b64'), isFalse);
+    });
+
+    test('route_layers carries the provider output, after routes, read after '
+        'the semantics capture', () async {
+      final List<String> order = <String>[];
+      final Map<String, Object?> core = await _coreMap(
+        captureSemantics: () async {
+          order.add('semantics');
+          return const <Map<String, Object>>[];
+        },
+        errorsSince: (int? c) => const <ErrorEntry>[],
+        stability: _stub(),
+        includeScreenshot: false,
+        captureScreenshot: null,
+        errorCursor: null,
+        routeStackProvider: () => const <String>[],
+        routeLayersProvider: () {
+          order.add('layers');
+          return <Map<String, Object?>>[
+            <String, Object?>{'node': 3, 'name': 'Home'},
+          ];
+        },
+      );
+      expect(order, <String>['semantics', 'layers']);
+      expect(core['route_layers'], <Map<String, Object?>>[
+        <String, Object?>{'node': 3, 'name': 'Home'},
+      ]);
+      expect(
+        core.keys.toList().indexOf('route_layers'),
+        core.keys.toList().indexOf('routes') + 1,
+      );
+    });
+
+    test('route_layers is empty without a provider', () async {
+      final Map<String, Object?> core = await _coreMap(
+        captureSemantics: () async => const <Map<String, Object>>[],
+        errorsSince: (int? c) => const <ErrorEntry>[],
+        stability: _stub(),
+        includeScreenshot: false,
+        captureScreenshot: null,
+        errorCursor: null,
+        routeStackProvider: () => const <String>[],
+      );
+      expect(core['route_layers'], isEmpty);
     });
 
     test('omits screenshot_png_b64 when includeScreenshot is false', () async {

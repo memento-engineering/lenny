@@ -56,6 +56,15 @@ class ObservationDiffer {
               current: List<String>.from(c.routeStack),
             ),
           ];
+    final List<RouteLayerChange> routeLayerChanges =
+        _listEq(p.routeLayers, c.routeLayers)
+        ? const <RouteLayerChange>[]
+        : <RouteLayerChange>[
+            RouteLayerChange(
+              previous: List<RouteLayer>.from(p.routeLayers),
+              current: List<RouteLayer>.from(c.routeLayers),
+            ),
+          ];
 
     final List<RuntimeError> errorsAdded = <RuntimeError>[];
     final Set<int> prevSeqs = p.errors.map((RuntimeError e) => e.seq).toSet();
@@ -68,6 +77,7 @@ class ObservationDiffer {
 
     return CoreDiff(
       routeChanges: routeChanges,
+      routeLayerChanges: routeLayerChanges,
       nodesAdded: added,
       nodesRemoved: removed,
       nodesChanged: changed,

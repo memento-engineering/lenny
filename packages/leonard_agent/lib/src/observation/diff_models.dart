@@ -71,6 +71,7 @@ class ObservationDiff {
 class CoreDiff {
   const CoreDiff({
     required this.routeChanges,
+    this.routeLayerChanges = const <RouteLayerChange>[],
     required this.nodesAdded,
     required this.nodesRemoved,
     required this.nodesChanged,
@@ -78,7 +79,13 @@ class CoreDiff {
   });
 
   /// At most one [RouteChange] (or empty when the route stack is unchanged).
+  /// Follows the deprecated `routeStack`; see [routeLayerChanges].
   final List<RouteChange> routeChanges;
+
+  /// At most one [RouteLayerChange] (or empty when the route layers are
+  /// unchanged): a route was pushed or popped, a dialog or sheet opened or
+  /// closed, or a route's announced name changed.
+  final List<RouteLayerChange> routeLayerChanges;
 
   /// Nodes appearing in `curr` but absent from `prev`, sorted by id.
   final List<SemanticsNode> nodesAdded;
@@ -92,8 +99,14 @@ class CoreDiff {
   /// Runtime errors seen in `curr` that were not in `prev`.
   final List<RuntimeError> errorsAdded;
 
+  /// `routeLayerChanges` is emitted only when non-empty, so a turn with no
+  /// layer change serializes exactly as before the field existed.
   Map<String, dynamic> toJson() => <String, dynamic>{
     'routeChanges': routeChanges.map((RouteChange r) => r.toJson()).toList(),
+    if (routeLayerChanges.isNotEmpty)
+      'routeLayerChanges': routeLayerChanges
+          .map((RouteLayerChange c) => c.toJson())
+          .toList(),
     'nodesAdded': nodesAdded.map((SemanticsNode n) => n.toJson()).toList(),
     'nodesRemoved': List<int>.from(nodesRemoved),
     'nodesChanged': nodesChanged.map((NodeChange c) => c.toJson()).toList(),
@@ -197,6 +210,20 @@ class RouteChange {
   };
 }
 
+/// One route-layer change: previous layers -> current layers, top-most last.
+@immutable
+class RouteLayerChange {
+  const RouteLayerChange({required this.previous, required this.current});
+
+  final List<RouteLayer> previous;
+  final List<RouteLayer> current;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'previous': previous.map((RouteLayer l) => l.toJson()).toList(),
+    'current': current.map((RouteLayer l) => l.toJson()).toList(),
+  };
+}
+
 /// One semantics node whose content differs between `prev` and `curr`.
 @immutable
 class NodeChange {
@@ -230,6 +257,14 @@ CoreDiff _coreDiffFromJson(Map<String, dynamic> json) => CoreDiff(
     for (final Object? value in json['routeChanges'] as List? ?? const [])
       if (value is Map) _routeChangeFromJson(Map<String, dynamic>.from(value)),
   ],
+  routeLayerChanges: <RouteLayerChange>[
+    for (final Object? value in json['routeLayerChanges'] as List? ?? const [])
+      if (value is Map)
+        RouteLayerChange(
+          previous: _routeLayersFromJson(value['previous']),
+          current: _routeLayersFromJson(value['current']),
+        ),
+  ],
   nodesAdded: <SemanticsNode>[
     for (final Object? value in json['nodesAdded'] as List? ?? const [])
       if (value is Map) _semanticsNodeFromJson(value),
@@ -258,6 +293,11 @@ RouteChange _routeChangeFromJson(Map<String, dynamic> json) => RouteChange(
       if (value is String) value,
   ],
 );
+
+List<RouteLayer> _routeLayersFromJson(Object? value) => <RouteLayer>[
+  for (final Object? l in value is List ? value : const <Object?>[])
+    if (l is Map) ?RouteLayer.tryFromJson(Map<String, dynamic>.from(l)),
+];
 
 NodeChange _nodeChangeFromJson(Map<dynamic, dynamic> json) => NodeChange(
   prev: _semanticsNodeFromJson(json['prev']),

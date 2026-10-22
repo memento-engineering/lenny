@@ -15,6 +15,12 @@ import 'stability_metadata.dart';
 /// Returns `[]` when no rootElement, no NavigatorState, or no
 /// name-bearing entries are present (Navigator 2.0 apps fall through
 /// here — by design per PRD §9.2 "best-effort").
+///
+/// Deprecated as the `routes` field: it reports only the root navigator's
+/// top route name, so it is empty under a dialog and blind to nested
+/// navigators. `route_layers` ([SemanticsSnapshot.routeLayers]) replaces
+/// it; `routes` stays on the wire until leonard_flutter 0.9.0 (decision
+/// core-reports-route-layers-from-semantics).
 List<String> bestEffortRouteStack() {
   final Element? root = WidgetsBinding.instance.rootElement;
   if (root == null) return const <String>[];
@@ -65,12 +71,14 @@ List<String> bestEffortRouteStack() {
 /// values.
 ///
 /// Field order here mirrors the legacy map's key order
-/// (semantics, routes, errors, stability, then the optional screenshot),
-/// which is the contract the perception path must reproduce byte-for-byte.
+/// (semantics, routes, route_layers, errors, stability, then the optional
+/// screenshot), which is the contract the perception path must reproduce
+/// byte-for-byte.
 class CoreFragmentValues {
   const CoreFragmentValues({
     required this.semantics,
     required this.routes,
+    this.routeLayers = const <Map<String, Object?>>[],
     required this.errors,
     required this.stability,
     this.screenshot,
@@ -80,7 +88,12 @@ class CoreFragmentValues {
   final List<Map<String, Object>> semantics;
 
   /// `routeStackProvider`/`bestEffortRouteStack` output, verbatim.
+  /// Deprecated on the wire in favor of [routeLayers].
   final List<String> routes;
+
+  /// The route layers on screen, top-most last: `routeLayersProvider`
+  /// output, verbatim (see [SemanticsSnapshot.routeLayers]).
+  final List<Map<String, Object?>> routeLayers;
 
   /// `errors.map((e) => e.toJson()).toList()` output, verbatim.
   final List<Map<String, Object?>> errors;
@@ -92,11 +105,13 @@ class CoreFragmentValues {
   final String? screenshot;
 
   /// The legacy core fragment map. Key insertion order is
-  /// semantics, routes, errors, stability, [screenshot_png_b64].
+  /// semantics, routes, route_layers, errors, stability,
+  /// [screenshot_png_b64].
   Map<String, Object?> toMap() {
     final Map<String, Object?> out = <String, Object?>{
       'semantics': semantics,
       'routes': routes,
+      'route_layers': routeLayers,
       'errors': errors,
       'stability': stability,
     };
@@ -108,8 +123,10 @@ class CoreFragmentValues {
 /// Compute the core fragment primitives from the binding seams (PRD §9.2).
 ///
 /// `semantics`, `errors`, and `stability` are always present. `routes`
-/// is best-effort (see [bestEffortRouteStack]). `screenshot_png_b64` is
-/// only included when [includeScreenshot] is `true` AND
+/// is best-effort (see [bestEffortRouteStack]) and deprecated. `route_layers`
+/// is read from [routeLayersProvider] right after [captureSemantics], so it
+/// describes the same capture; it is empty when no provider is given.
+/// `screenshot_png_b64` is only included when [includeScreenshot] is `true` AND
 /// [captureScreenshot] returns successfully; failures are absorbed and
 /// the field is omitted (the screenshot capture path already throws
 /// `ScreenshotUnavailable` for known failure modes).
@@ -125,8 +142,11 @@ Future<CoreFragmentValues> computeCoreFragmentValues({
   required Future<String?> Function()? captureScreenshot,
   required int? errorCursor,
   List<String> Function()? routeStackProvider,
+  List<Map<String, Object?>> Function()? routeLayersProvider,
 }) async {
   final List<Map<String, Object>> semantics = await captureSemantics();
+  final List<Map<String, Object?>> routeLayers =
+      routeLayersProvider?.call() ?? const <Map<String, Object?>>[];
   final List<ErrorEntry> errors = errorsSince(errorCursor);
   final List<String> routes = (routeStackProvider ?? bestEffortRouteStack)();
   String? screenshot;
@@ -136,6 +156,7 @@ Future<CoreFragmentValues> computeCoreFragmentValues({
   return CoreFragmentValues(
     semantics: semantics,
     routes: routes,
+    routeLayers: routeLayers,
     errors: errors.map((ErrorEntry e) => e.toJson()).toList(growable: false),
     stability: stability.toJson(),
     screenshot: screenshot,

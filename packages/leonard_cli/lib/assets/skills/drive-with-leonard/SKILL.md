@@ -117,7 +117,7 @@ For manual driving (via `leonard_drive`) or scripting a device:
   between actions.
 - Trim observe output with jq to keep context small, e.g. only actionable
   nodes:
-  `... observe ... | jq -c '{route:.observation.core.routeStack, nodes:[.observation.core.nodes|to_entries[].value|select((.actions//[])|length>0)|{id,role,label,actions,state,scroll}]}'`
+  `... observe ... | jq -c '{layers:.observation.core.routeLayers, nodes:[.observation.core.nodes|to_entries[].value|select((.actions//[])|length>0)|{id,role,label,actions,state,scroll}]}'`
 
 ## Verify
 

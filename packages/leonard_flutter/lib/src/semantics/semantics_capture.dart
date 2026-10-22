@@ -38,6 +38,9 @@ import 'package:flutter/widgets.dart';
 /// flagged `isHidden` are omitted. Leonard otherwise follows the semantics tree
 /// produced by Flutter, including exclusions and blocking applied by widgets
 /// such as `ExcludeSemantics` and `BlockSemantics`.
+///
+/// Route layers: [captureSnapshotAsync] also returns the routes on screen as
+/// accessibility services see them; see [SemanticsSnapshot.routeLayers].
 class SemanticsCapture {
   /// Creates a new capture instance. The stable-id map is per instance.
   SemanticsCapture();
@@ -68,7 +71,13 @@ class SemanticsCapture {
   /// first call, so the semantics flush triggered by [ensureSemantics] can
   /// complete before the tree is walked. On timeout (occluded / non-pumping
   /// window) returns [].
-  Future<List<Map<String, Object>>> captureAsync() async {
+  Future<List<Map<String, Object>>> captureAsync() async =>
+      (await captureSnapshotAsync()).nodes;
+
+  /// [captureAsync], plus the route layers read in the same walk, so the two
+  /// always describe one capture. Both are empty on the paths where
+  /// [captureAsync] returns [].
+  Future<SemanticsSnapshot> captureSnapshotAsync() async {
     _semanticsHandle ??= SemanticsBinding.instance.ensureSemantics();
     SemanticsNode? root = _findRootSemanticsNode();
     if (root == null) {
@@ -77,17 +86,12 @@ class SemanticsCapture {
           const Duration(milliseconds: 250),
         );
       } on TimeoutException {
-        return const <Map<String, Object>>[];
+        return SemanticsSnapshot.empty;
       }
       root = _findRootSemanticsNode();
     }
-    if (root == null) return const <Map<String, Object>>[];
-    final ui.FlutterView v =
-        WidgetsBinding.instance.platformDispatcher.views.first;
-    final Rect viewport = Offset.zero & v.physicalSize;
-    final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport, v.devicePixelRatio);
-    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
+    if (root == null) return SemanticsSnapshot.empty;
+    return _snapshot(root);
   }
 
   /// Retained for backward compat; races the initial semantics flush.
@@ -102,12 +106,22 @@ class SemanticsCapture {
     if (root == null) {
       return const <Map<String, Object>>[];
     }
+    return _snapshot(root).nodes;
+  }
+
+  SemanticsSnapshot _snapshot(SemanticsNode root) {
     final ui.FlutterView v =
         WidgetsBinding.instance.platformDispatcher.views.first;
     final Rect viewport = Offset.zero & v.physicalSize;
     final List<_Rec> recs = <_Rec>[];
-    _walk(root, recs, viewport, v.devicePixelRatio);
-    return recs.map((_Rec r) => r.toJson()).toList(growable: false);
+    final List<_Layer> layers = <_Layer>[];
+    _walk(root, recs, viewport, v.devicePixelRatio, layers);
+    return SemanticsSnapshot._(
+      recs.map((_Rec r) => r.toJson()).toList(growable: false),
+      _foldRouteLayers(
+        layers,
+      ).map((_Layer l) => l.toJson()).toList(growable: false),
+    );
   }
 
   /// Walks the [PipelineOwner] tree rooted at
@@ -179,6 +193,51 @@ class SemanticsCapture {
   }
 }
 
+/// One semantics capture: the emitted node records and the route layers read
+/// in the same walk.
+class SemanticsSnapshot {
+  const SemanticsSnapshot._(this.nodes, this.routeLayers);
+
+  /// The snapshot of a capture that found no semantics tree.
+  static const SemanticsSnapshot empty = SemanticsSnapshot._(
+    <Map<String, Object>>[],
+    <Map<String, Object?>>[],
+  );
+
+  /// The node records, as [SemanticsCapture.captureAsync] returns them.
+  final List<Map<String, Object>> nodes;
+
+  /// The route layers on screen, top-most last: the routes the user can
+  /// reach, as accessibility services see them.
+  ///
+  /// A layer is an emitted node flagged [SemanticsFlag.scopesRoute], the flag
+  /// the framework sets on page routes, dialogs, popup menus, bottom sheets,
+  /// drawers, dropdowns and search, and that screen readers use to announce a
+  /// screen change. Each entry is `{node, name}`: `node` is the emitted `id`
+  /// of the scoping node, and `name` is the label of the first node flagged
+  /// [SemanticsFlag.namesRoute] with a non-empty label inside that scope, in
+  /// depth-first paint order, or null: the text a screen reader announces.
+  ///
+  /// One layer per route. A scope with no name and no labelled or actionable
+  /// node of its own whose only content is one nested scope is folded away,
+  /// leaving the nested layer with its own `node` and name: `showDialog`
+  /// scopes its route and the `AlertDialog` inside scopes itself again, and
+  /// that is one layer, the `AlertDialog`'s, named "Alert". The same folding
+  /// applies to an unnamed, otherwise empty page around a nested navigator.
+  /// A page with its own title or content around a nested navigator stays
+  /// its own layer, with the nested route as a second layer above it.
+  ///
+  /// This is what the user can reach, not the route stack. A modal barrier
+  /// hides the routes beneath it from semantics, so under a dialog or a modal
+  /// sheet only that dialog or sheet is a layer. A route in a hidden tab is
+  /// absent. A page with no app bar title, or a Material page on iOS or macOS
+  /// (where an app bar title does not name the route), has a null name, and
+  /// so does a page whose non-pinned `SliverAppBar` title has scrolled out
+  /// of view, which shows as a layer change. Location, path, arguments and
+  /// history belong to a navigation extension.
+  final List<Map<String, Object?>> routeLayers;
+}
+
 /// Internal representation of an emitted semantics record.
 class _Rec {
   _Rec(
@@ -241,13 +300,52 @@ class _Rec {
   }
 }
 
+/// A route layer being collected by the walk.
+class _Layer {
+  _Layer(this.node);
+
+  final int node;
+  String? name;
+
+  /// Whether a labelled or actionable node sits in this scope outside any
+  /// nested scope.
+  bool hasOwnContent = false;
+
+  /// Scopes nested directly in this one.
+  final List<_Layer> children = <_Layer>[];
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'node': node,
+    'name': name,
+  };
+}
+
+/// Folds away every layer that has no name and no content of its own and
+/// holds exactly one nested layer: the same route scoped twice, as
+/// `showDialog`'s route around an `AlertDialog`. The innermost layer stays,
+/// with its own node and name, so a push inside an otherwise empty shell
+/// still changes the layer's node. Returns the layers that remain, in order.
+List<_Layer> _foldRouteLayers(List<_Layer> preorder) {
+  final Set<_Layer> folded = <_Layer>{};
+  for (final _Layer l in preorder) {
+    if (l.name != null || l.hasOwnContent || l.children.length != 1) continue;
+    folded.add(l);
+  }
+  return <_Layer>[
+    for (final _Layer l in preorder)
+      if (!folded.contains(l)) l,
+  ];
+}
+
 extension _SemanticsCaptureWalk on SemanticsCapture {
   void _walk(
     SemanticsNode n,
     List<_Rec> out,
     Rect viewport,
-    double dpr, [
+    double dpr,
+    List<_Layer> layers, [
     Matrix4? parentTransform,
+    _Layer? scope,
   ]) {
     final SemanticsData d = n.getSemanticsData();
     if (d.flagsCollection.isHidden) return;
@@ -268,9 +366,28 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
     final String tooltip = d.tooltip;
     final String label = d.label.isEmpty ? tooltip : d.label;
     final String hint = d.label.isEmpty ? '' : tooltip;
+    final int id = _stableIdFor(n);
+    _Layer? inner = scope;
+    if (d.flagsCollection.scopesRoute) {
+      inner = _Layer(id);
+      scope?.children.add(inner);
+      layers.add(inner);
+    }
+    // The flags may sit on the same node, so a scope can name itself.
+    if (inner != null &&
+        inner.name == null &&
+        d.flagsCollection.namesRoute &&
+        d.label.isNotEmpty) {
+      inner.name = d.label;
+    }
+    if (inner != null &&
+        !d.flagsCollection.scopesRoute &&
+        (label.isNotEmpty || d.value.isNotEmpty || d.actions != 0)) {
+      inner.hasOwnContent = true;
+    }
     out.add(
       _Rec(
-        _stableIdFor(n),
+        id,
         _role(d),
         label,
         d.identifier,
@@ -283,7 +400,7 @@ extension _SemanticsCaptureWalk on SemanticsCapture {
       ),
     );
     n.visitChildren((SemanticsNode c) {
-      _walk(c, out, viewport, dpr, global);
+      _walk(c, out, viewport, dpr, layers, global, inner);
       return true;
     });
   }

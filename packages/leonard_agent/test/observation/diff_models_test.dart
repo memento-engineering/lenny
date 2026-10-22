@@ -175,4 +175,33 @@ void main() {
       expect(cv.toJson(), equals(<String, dynamic>{'prev': 1, 'curr': 2}));
     });
   });
+
+  group('RouteLayerChange', () {
+    test('round-trips through ObservationDiff.fromJson', () {
+      const ObservationDiff diff = ObservationDiff(
+        core: CoreDiff(
+          routeChanges: <RouteChange>[],
+          routeLayerChanges: <RouteLayerChange>[
+            RouteLayerChange(
+              previous: <RouteLayer>[RouteLayer(node: 4, name: 'Home')],
+              current: <RouteLayer>[RouteLayer(node: 9, name: 'Alert')],
+            ),
+          ],
+          nodesAdded: <SemanticsNode>[],
+          nodesRemoved: <int>[],
+          nodesChanged: <NodeChange>[],
+          errorsAdded: <RuntimeError>[],
+        ),
+        extensions: <String, ExtensionDiff>{},
+      );
+      final String encoded = jsonEncode(diff.toJson());
+      final ObservationDiff restored = ObservationDiff.fromJson(
+        jsonDecode(encoded) as Map<String, dynamic>,
+      );
+      expect(restored.core.routeLayerChanges.single.current, <RouteLayer>[
+        const RouteLayer(node: 9, name: 'Alert'),
+      ]);
+      expect(jsonEncode(restored.toJson()), encoded);
+    });
+  });
 }

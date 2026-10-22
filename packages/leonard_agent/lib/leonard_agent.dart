@@ -53,7 +53,8 @@ export 'src/observation/diff_models.dart'
         ExtensionDiffOpaque,
         ExtensionDiffRemoved,
         ExtensionDiffStructured,
-        RouteChange;
+        RouteChange,
+        RouteLayerChange;
 export 'src/observation/observation_differ.dart' show ObservationDiffer;
 export 'src/multi_host/multi_host_session.dart'
     show HostAttachment, MultiHostSession;
@@ -66,6 +67,7 @@ export 'src/observation/models.dart'
         Observation,
         ExtensionBusy,
         ExtensionFragment,
+        RouteLayer,
         RuntimeError,
         SemanticsNode,
         StabilityMetadata;

@@ -63,6 +63,6 @@ From the trajectory file:
 
 ## Report
 
-Summarize: outcome, turn count, the final `routeStack`/state, and any
+Summarize: outcome, turn count, the final `routeLayers`/state, and any
 goal-critical actions that failed (with their `error`). Point at the
 trajectory path for detail; don't paste the whole file.

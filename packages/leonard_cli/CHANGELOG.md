@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3-dev.1
+
+- The bundled leonard-drive agent, drive-with-leonard skill and AGENTS.md
+  template read `observation.core.routeLayers` (the routes on screen) in place
+  of the deprecated `routeStack` (lenny-kyfdc). `leonard_agent` rises to
+  `^0.3.4-dev.2`, which carries the field.
+
 ## 0.4.2
 
 Stable promotion of `0.4.2-dev.1` on Nico's promotion call (2026-10-21). One change on top: the runtime `leonard_native` constraint rises from `^0.6.0` to `^0.6.1`, so depending on `leonard_cli` brings in the lenny#198 and lenny#200 backend fixes without a separate pin. The prerelease entry below carries the details.

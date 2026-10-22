@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.4-dev.1
+
+- Add `route_layers` to the core observation (lenny-kyfdc): the routes on
+  screen, top-most last, each `{node, name}`. A layer is a semantics node the
+  framework flags `scopesRoute` (page routes, dialogs, popup menus, sheets,
+  drawers, dropdowns, search); `name` is the label a screen reader announces
+  for it (the first `namesRoute` label in the scope), or null. One layer per
+  route: `showDialog`'s route and the `AlertDialog` inside it fold into one
+  layer, "Alert". Layers are what the user can reach, not the route stack: a
+  modal barrier hides the routes beneath it, so an open dialog is the only
+  layer (where `routes` went empty), and a navigator in a hidden tab is
+  absent. Location, path and history belong to an extension such as
+  `leonard_router`.
+- Add `SemanticsCapture.captureSnapshotAsync` and `SemanticsSnapshot`: the
+  node records and route layers from one walk. `captureAsync` returns its
+  nodes.
+- When the core budget trims semantics, each route layer's node record is
+  kept.
+- Deprecate `routes`: it stays unchanged on the wire until leonard_flutter
+  0.9.0. Decision: core-reports-route-layers-from-semantics.
+
 ## 0.4.3
 
 Stable promotion of `0.4.3-dev.2` on Nico's promotion call (2026-10-21). No changes on top; the two prerelease entries below carry the details. Together they make `core.enter_text` type only into a text field that is on screen: it no longer fails on a covered route that was never laid out (PR 208, contributed by @OleksandrKriatovResideo), and no longer writes into a field under a pushed route, on an unselected `IndexedStack` tab, or beneath a non-opaque route.

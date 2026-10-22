@@ -56,9 +56,14 @@ const int kCoreBudgetBytes = 32768;
 /// JSON-encode a core observation [fragment] under [budget], degrading rather
 /// than vanishing when the encoded form is too large.
 ///
-/// `routes`, `errors`, `stability`, and `screenshot_png_b64` (when present)
-/// are retained. Only `semantics` is pruned, from the tail. Semantics capture
-/// serializes depth-first preorder, so tail removal cannot orphan an ancestor.
+/// `routes`, `route_layers`, `errors`, `stability`, and `screenshot_png_b64`
+/// (when present) are retained. Only `semantics` is pruned, from the tail.
+/// Semantics capture serializes depth-first preorder, so tail removal drops
+/// descendants before their ancestors. The one exception: the record of each
+/// route layer's scoping `node` is kept, so every layer still names a record
+/// (records are flat, keyed by id, so a kept record needs no ancestors). The
+/// nodes inside a layer are not kept, and the top layer (a dialog or sheet)
+/// sits at the tail, so its contents are the first to go.
 /// Truncation metadata rides alongside the surviving fragment. If the required
 /// metadata alone exceeds an unrealistically small budget, it is still
 /// returned so consumers never lose the core observation entirely.
@@ -73,6 +78,11 @@ BudgetedJson encodeCoreWithBudget(Map<String, Object?> fragment, int budget) {
   final List<Object?> semantics = rawSemantics is List
       ? List<Object?>.from(rawSemantics)
       : <Object?>[];
+  final Set<Object?> layerNodes = <Object?>{
+    for (final Object? l
+        in fragment['route_layers'] as List<Object?>? ?? const <Object?>[])
+      if (l is Map) l['node'],
+  };
   int droppedNodes = 0;
   final Map<String, Object?> degraded = <String, Object?>{
     ...fragment,
@@ -83,8 +93,12 @@ BudgetedJson encodeCoreWithBudget(Map<String, Object?> fragment, int budget) {
     'droppedNodes': droppedNodes,
   };
   String encoded = jsonEncode(degraded);
-  while (utf8.encode(encoded).length > budget && semantics.isNotEmpty) {
-    semantics.removeLast();
+  while (utf8.encode(encoded).length > budget) {
+    final int drop = semantics.lastIndexWhere(
+      (Object? r) => !(r is Map && layerNodes.contains(r['id'])),
+    );
+    if (drop < 0) break;
+    semantics.removeAt(drop);
     droppedNodes++;
     degraded['droppedNodes'] = droppedNodes;
     encoded = jsonEncode(degraded);

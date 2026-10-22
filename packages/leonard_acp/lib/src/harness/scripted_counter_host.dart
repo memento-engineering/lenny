@@ -43,6 +43,9 @@ class ScriptedCounterHost implements LoopHost {
   @override
   Future<Observation> observe() async => Observation(
     core: CoreFragment(
+      // Kept so this scripted observation stays unchanged while routeStack
+      // is deprecated.
+      // ignore: deprecated_member_use
       routeStack: const <String>['/'],
       nodes: <int, SemanticsNode>{
         kCounterNodeId: SemanticsNode(
