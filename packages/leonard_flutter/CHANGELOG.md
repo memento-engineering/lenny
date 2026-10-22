@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3
+
+Stable promotion of `0.4.3-dev.2` on Nico's promotion call (2026-10-21). No changes on top; the two prerelease entries below carry the details. Together they make `core.enter_text` type only into a text field that is on screen: it no longer fails on a covered route that was never laid out (PR 208, contributed by @OleksandrKriatovResideo), and no longer writes into a field under a pushed route, on an unselected `IndexedStack` tab, or beneath a non-opaque route.
+
 ## 0.4.3-dev.2
 
 - Fix: `core.enter_text` no longer types into a field that is not on screen.
