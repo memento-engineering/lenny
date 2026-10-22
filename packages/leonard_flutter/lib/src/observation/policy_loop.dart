@@ -59,13 +59,15 @@ class PolicyLoop {
     Stopwatch Function()? stopwatchFactory,
     Future<void> Function()? waitForFrame,
     int Function()? nowMs,
+    Timer Function(Duration, void Function())? createTimer,
   }) : _snapshot = snapshot,
        _pollBusyStates = pollBusyStates,
        _semanticsHash = semanticsHash,
        _routeHash = routeHash,
        _stopwatchFactory = stopwatchFactory ?? (() => Stopwatch()..start()),
        _waitForFrame = waitForFrame ?? _defaultWaitForFrame,
-       _nowMs = nowMs;
+       _nowMs = nowMs,
+       _createTimer = createTimer ?? Timer.new;
 
   final FrameworkBusySnapshot Function() _snapshot;
   final BusyStatesPoller _pollBusyStates;
@@ -74,21 +76,44 @@ class PolicyLoop {
   final Stopwatch Function() _stopwatchFactory;
   final Future<void> Function() _waitForFrame;
   final int Function()? _nowMs;
+  final Timer Function(Duration, void Function()) _createTimer;
 
   static Future<void> _defaultWaitForFrame() {
     return SchedulerBinding.instance.endOfFrame;
   }
 
+  /// Waits for the next frame, or until [remainingMs] have passed if that
+  /// comes first. `endOfFrame` never completes while frames are off (the app
+  /// hidden, paused or detached, as when an action opens an external URL or a
+  /// native sheet), so without the deadline the loop could outlast any
+  /// budget.
+  Future<void> _waitForFrameOrDeadline(int remainingMs) {
+    final Completer<void> next = Completer<void>();
+    final Timer deadline = _createTimer(
+      Duration(milliseconds: remainingMs < 0 ? 0 : remainingMs),
+      () {
+        if (!next.isCompleted) next.complete();
+      },
+    );
+    _waitForFrame().then((_) {
+      deadline.cancel();
+      if (!next.isCompleted) next.complete();
+    });
+    return next.future;
+  }
+
   /// Run the loop until the policy terminates and return the resulting
   /// [PolicyTick]. The loop yields between iterations via [_waitForFrame]
   /// (defaults to `SchedulerBinding.instance.endOfFrame`) so it never
-  /// busy-waits.
+  /// busy-waits, racing each wait with the active budget so a stalled frame
+  /// stream still ends the loop on time.
   Future<PolicyTick> run(ObservationRequest req) async {
     final Stopwatch sw = _stopwatchFactory();
     final int initSem = _semanticsHash();
     final int initRoute = _routeHash();
     int quiet = 0;
     TerminatedBy? trigger;
+    int deadlineMs = 0;
 
     int elapsedMs() {
       if (_nowMs != null) return _nowMs();
@@ -96,8 +121,8 @@ class PolicyLoop {
     }
 
     // Each policy must terminate eventually:
-    // - actionRelative: budget bounds the loop, or the settle budget once
-    //   a change has started a settle.
+    // - actionRelative: the action budget bounds the loop, or the settle
+    //   budget once a route change has started a settle.
     // - boundedStability: budget bounds the loop.
     // - quietFrame: bounded only by the idle streak; we still apply a
     //   defensive guard equal to kMaxBudgetMs so a permanently-busy app
@@ -126,8 +151,10 @@ class PolicyLoop {
           // A route or semantics change is the first sign the action took
           // effect, not a settled screen: a push flips the route on its
           // first frame while the transition still animates (lenny-r1k2x).
-          // So a change starts a settle that ends on a quiet-frame streak,
-          // bounded by the longer settle budget.
+          // So a change starts a settle that ends on a quiet-frame streak.
+          // The frame that shows the change counts toward the streak. Once
+          // started, a settle runs to its end even if the change reverts,
+          // and reports the change that started it.
           final TerminatedBy? change = _routeHash() != initRoute
               ? TerminatedBy.routeChange
               : (_semanticsHash() != initSem
@@ -137,6 +164,14 @@ class PolicyLoop {
               (trigger == null || change == TerminatedBy.routeChange)) {
             trigger = change;
           }
+          // A semantics-only change settles within the action budget: the
+          // semantics hash covers node rects, so an app that animates
+          // forever (a carousel, a shimmer) changes it every frame, and
+          // must cost no more than a no-change wait. Only a route change
+          // extends to the settle budget, long enough for a transition.
+          deadlineMs = trigger == TerminatedBy.routeChange
+              ? _routeSettleBudgetMs(req)
+              : req.actionRelativeBudgetMs;
           final TerminatedBy? settling = trigger;
           if (settling != null) {
             quiet = (fwIdle && extensionsIdle) ? quiet + 1 : 0;
@@ -148,11 +183,7 @@ class PolicyLoop {
                 settled: true,
               );
             }
-            final int settleBudget =
-                req.actionRelativeSettleBudgetMs > req.actionRelativeBudgetMs
-                ? req.actionRelativeSettleBudgetMs
-                : req.actionRelativeBudgetMs;
-            if (ms >= settleBudget) {
+            if (ms >= deadlineMs) {
               return PolicyTick(
                 reason: settling,
                 durationMs: ms,
@@ -170,7 +201,7 @@ class PolicyLoop {
               settled: true,
             );
           }
-          if (ms >= req.actionRelativeBudgetMs) {
+          if (ms >= deadlineMs) {
             return PolicyTick(
               reason: TerminatedBy.budget,
               durationMs: ms,
@@ -181,6 +212,7 @@ class PolicyLoop {
           break;
 
         case StabilityPolicy.quietFrame:
+          deadlineMs = kMaxBudgetMs;
           quiet = (fwIdle && extensionsIdle) ? quiet + 1 : 0;
           if (quiet >= req.quietFrameN) {
             return PolicyTick(
@@ -201,6 +233,7 @@ class PolicyLoop {
           break;
 
         case StabilityPolicy.boundedStability:
+          deadlineMs = req.boundedStabilityBudgetMs;
           quiet = (fwIdle && extensionsIdle) ? quiet + 1 : 0;
           if (quiet >= req.quietFrameN) {
             return PolicyTick(
@@ -221,7 +254,15 @@ class PolicyLoop {
           break;
       }
 
-      await _waitForFrame();
+      await _waitForFrameOrDeadline(deadlineMs - ms);
     }
   }
+
+  /// The wall-clock cap for an action-relative settle a route change
+  /// started: [ObservationRequest.actionRelativeSettleBudgetMs], never below
+  /// [ObservationRequest.actionRelativeBudgetMs].
+  static int _routeSettleBudgetMs(ObservationRequest req) =>
+      req.actionRelativeSettleBudgetMs > req.actionRelativeBudgetMs
+      ? req.actionRelativeSettleBudgetMs
+      : req.actionRelativeBudgetMs;
 }

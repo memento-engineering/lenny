@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:leonard_flutter/src/contract/types.dart';
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:leonard_flutter/src/observation/policy_loop.dart';
@@ -80,6 +82,28 @@ FrameworkBusySnapshot _busyFw() => const FrameworkBusySnapshot(
 );
 
 const FrameworkBusySnapshot _idleFw = FrameworkBusySnapshot.zero;
+
+/// A [Timer] that fires its callback on the next microtask, standing in for
+/// the budget deadline when frames have stopped arriving.
+class _ImmediateTimer implements Timer {
+  _ImmediateTimer(void Function() callback) {
+    scheduleMicrotask(() {
+      if (_active) callback();
+      _active = false;
+    });
+  }
+
+  bool _active = true;
+
+  @override
+  void cancel() => _active = false;
+
+  @override
+  bool get isActive => _active;
+
+  @override
+  int get tick => 0;
+}
 
 List<MapEntry<String, BusyState>> _busyExtensions(
   List<({String ns, bool busy, String? reason, int? estMs})> spec,
@@ -270,6 +294,162 @@ void main() {
         ).run(const ObservationRequest());
         expect(tick.reason, TerminatedBy.routeChange);
         expect(tick.settled, isTrue);
+      },
+    );
+
+    test('a semantics-only change that never goes quiet ends unsettled at the '
+        'action budget, not the settle budget', () async {
+      // A carousel or shimmer moves node rects every frame, so the
+      // semantics hash changes every frame; that must cost no more than a
+      // no-change wait.
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[_busyFw()],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 400, 800, 1500],
+        semanticsHashes: <int>[10, 11, 12, 13, 14],
+        routeHashes: <int>[1],
+      );
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
+      expect(tick.reason, TerminatedBy.semanticsChange);
+      expect(tick.settled, isFalse);
+      expect(tick.durationMs, kDefaultActionRelativeBudgetMs);
+    });
+
+    test('a route change during a semantics settle extends it to the settle '
+        'budget', () async {
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[_busyFw()],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 300, 700, 900, 1500],
+        semanticsHashes: <int>[10, 11],
+        routeHashes: <int>[1, 1, 1, 2],
+      );
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
+      expect(tick.reason, TerminatedBy.routeChange);
+      expect(tick.settled, isFalse);
+      expect(tick.durationMs, kDefaultActionRelativeSettleBudgetMs);
+    });
+
+    test('a busy frame inside a settle resets the quiet streak', () async {
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[
+          _idleFw,
+          _busyFw(),
+          _idleFw,
+          _idleFw,
+        ],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 40, 60, 80],
+        semanticsHashes: <int>[1],
+        routeHashes: <int>[1, 2],
+      );
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
+      expect(tick.settled, isTrue);
+      expect(tick.durationMs, 80);
+    });
+
+    test(
+      'an extension busy while the framework is idle keeps the settle going',
+      () async {
+        List<MapEntry<String, BusyState>> busyExtension() => _busyExtensions(
+          <({String ns, bool busy, String? reason, int? estMs})>[
+            (ns: 'p1', busy: true, reason: 'navigating', estMs: null),
+          ],
+        );
+        final _Script s = _Script(
+          frameworks: <FrameworkBusySnapshot>[_idleFw],
+          busy: <List<MapEntry<String, BusyState>>>[
+            busyExtension(),
+            busyExtension(),
+            idleExtension(),
+            idleExtension(),
+          ],
+          elapsedMs: <int>[20, 40, 60, 80],
+          semanticsHashes: <int>[1],
+          routeHashes: <int>[1, 2],
+        );
+        final PolicyTick tick = await loopFor(
+          s,
+        ).run(const ObservationRequest());
+        expect(tick.reason, TerminatedBy.routeChange);
+        expect(tick.settled, isTrue);
+        expect(tick.durationMs, 80);
+      },
+    );
+
+    test('a change that reverts during the settle still settles and reports '
+        'the change that started it', () async {
+      final _Script s = _Script(
+        frameworks: <FrameworkBusySnapshot>[_busyFw(), _idleFw, _idleFw],
+        busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+        elapsedMs: <int>[20, 40, 60],
+        semanticsHashes: <int>[1],
+        routeHashes: <int>[1, 2, 1], // changed, then back
+      );
+      final PolicyTick tick = await loopFor(s).run(const ObservationRequest());
+      expect(tick.reason, TerminatedBy.routeChange);
+      expect(tick.settled, isTrue);
+      expect(tick.durationMs, 60);
+    });
+
+    test(
+      'the frame that shows the change counts as the first quiet frame',
+      () async {
+        _Script quietChange() => _Script(
+          frameworks: <FrameworkBusySnapshot>[_idleFw],
+          busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+          elapsedMs: <int>[20, 40],
+          semanticsHashes: <int>[1],
+          routeHashes: <int>[1, 2],
+        );
+        final PolicyTick one = await loopFor(
+          quietChange(),
+        ).run(const ObservationRequest(quietFrameN: 1));
+        expect(one.reason, TerminatedBy.routeChange);
+        expect(one.settled, isTrue);
+        expect(one.durationMs, 20);
+
+        final PolicyTick two = await loopFor(
+          quietChange(),
+        ).run(const ObservationRequest());
+        expect(two.settled, isTrue);
+        expect(two.durationMs, 40);
+      },
+    );
+
+    test(
+      'frames that stop arriving still end the loop at the budget, unsettled',
+      () async {
+        // endOfFrame never completes while frames are off (the app hidden,
+        // paused or detached, e.g. after opening an external URL); the
+        // budget deadline must end the wait instead.
+        final _Script s = _Script(
+          frameworks: <FrameworkBusySnapshot>[_busyFw()],
+          busy: <List<MapEntry<String, BusyState>>>[idleExtension()],
+          elapsedMs: <int>[20, 400, 800],
+          semanticsHashes: <int>[1],
+          routeHashes: <int>[1],
+        );
+        int timers = 0;
+        final PolicyLoop loop = PolicyLoop(
+          snapshot: s.snapshot,
+          pollBusyStates: s.pollBusy,
+          semanticsHash: s.semHash,
+          routeHash: s.routeHash,
+          waitForFrame: () => Completer<void>().future,
+          nowMs: s.now,
+          createTimer: (Duration _, void Function() callback) {
+            timers++;
+            return _ImmediateTimer(callback);
+          },
+        );
+        final PolicyTick tick = await loop
+            .run(const ObservationRequest())
+            .timeout(const Duration(seconds: 5));
+        expect(tick.reason, TerminatedBy.budget);
+        expect(tick.settled, isFalse);
+        expect(tick.durationMs, 800);
+        expect(timers, 2);
       },
     );
 

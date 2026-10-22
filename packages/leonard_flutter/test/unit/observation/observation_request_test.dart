@@ -1,3 +1,4 @@
+import 'package:leonard_flutter/leonard_flutter.dart' show LeonardBinding;
 import 'package:leonard_flutter/src/observation/observation_request.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -98,6 +99,12 @@ void main() {
         }).actionRelativeSettleBudgetMs,
         30000,
       );
+      expect(
+        ObservationRequest.fromJson(<String, dynamic>{
+          'actionRelativeSettleBudgetMs': -5,
+        }).actionRelativeSettleBudgetMs,
+        0,
+      );
     });
 
     test('boundedStabilityBudgetMs > 30000 clamps to 30000', () {
@@ -164,6 +171,19 @@ void main() {
       );
       expect(r.extensionBudgets, hasLength(1));
       expect(r.extensionBudgets['good'], 100);
+    });
+  });
+
+  group('VM-extension string params', () {
+    test('decode the settle budget like its sibling budgets', () {
+      final ObservationRequest r = LeonardBinding.decodeObservationRequest(
+        <String, String>{
+          'actionRelativeBudgetMs': '600',
+          'actionRelativeSettleBudgetMs': '2000',
+        },
+      );
+      expect(r.actionRelativeBudgetMs, 600);
+      expect(r.actionRelativeSettleBudgetMs, 2000);
     });
   });
 }

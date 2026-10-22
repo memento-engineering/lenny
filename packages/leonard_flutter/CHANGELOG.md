@@ -7,10 +7,17 @@
   change, which a push produces on its first frame while the page still
   animates; on an iPad the observation after a sign-in held two empty
   containers. A change now starts a settle that ends after `quietFrameN` quiet
-  frames, or at `actionRelativeSettleBudgetMs` (default 1500 ms, a new request
-  field). `terminated_by` still names the change.
+  frames. A route change's settle is capped by `actionRelativeSettleBudgetMs`
+  (default 1500 ms, a new request field), a semantics-only change's by the
+  800 ms action budget. `terminated_by` still names the change.
+- Cost: an app that never stops animating used to return within a frame of a
+  change; it now waits up to 800 ms after a semantics change, or 1.5 s after a
+  route change, and reports `settled: false`.
 - Add `settled` to the stability block: true when the app was quiet at the
   end, false when a budget ran out first.
+- Fix: an observation no longer waits past its budget while frames are off
+  (the app hidden or paused, as when an action opens an external URL or a
+  native sheet): each frame wait is raced with the budget.
   Decision: action-relative-stability-settles-after-a-change.
 
 ## 0.4.4

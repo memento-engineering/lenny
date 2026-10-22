@@ -46,10 +46,19 @@ policy that did not.
 
 Under `action-relative`, a route or semantics change starts a settle instead
 of ending the wait. The settle ends after `quietFrameN` consecutive frames in
-which the framework and every extension are idle, or when
-`actionRelativeSettleBudgetMs` has elapsed since the start of the observation.
-The budget defaults to 1500 ms, is clamped like the other budgets, and is never
-below `actionRelativeBudgetMs`.
+which the framework and every extension are idle; the frame that shows the
+change counts as the first. Once started, a settle runs to its end even if the
+change reverts.
+
+Its cap depends on the change. A route change may settle until
+`actionRelativeSettleBudgetMs` has elapsed since the observation started: a new
+request field, default 1500 ms, clamped like the other budgets and never below
+`actionRelativeBudgetMs`. A semantics-only change settles within
+`actionRelativeBudgetMs` (800 ms), because the semantics hash covers node
+rects: an app that animates forever (a carousel, a marquee, a shimmer, a
+fling) changes it every frame, and must cost no more than a wait in which
+nothing changed. A route change during a semantics settle extends it to the
+route cap.
 
 `terminated_by` keeps naming the change that started the settle
 (`route_change`, or `semantics_change` unless a route change follows), so the
@@ -58,6 +67,11 @@ whether the app was quiet at the end: true for a completed settle, `idle` and
 `quiet_frame`; false when a budget ran out first. The agent model carries it as
 nullable (older hosts do not send it), trajectories record it, and the
 multi-host merge reports false if any host is unsettled.
+
+The loop races every frame wait with the active budget. `endOfFrame` never
+completes while frames are off (the app hidden, paused or detached, as when an
+action opens an external URL or a native sign-in sheet), so before this the
+observation could outlast any budget.
 
 With no change during the wait, `action-relative` behaves as before: it ends on
 idle or at 800 ms.
@@ -76,9 +90,13 @@ idle or at 800 ms.
 
 ## Consequences
 
-An action that changes the route or the semantics tree now returns once the
-screen has stopped animating, typically one transition (about 300 to 500 ms)
-later than before, and at most 1.5 s after the observation started. An app that
-never goes quiet, with a spinner or a looping animation, returns at the settle
-budget with `settled: false`, which is no worse than before and is now
-visible to the model and in trajectories.
+An action that changes the route now returns once the screen has stopped
+animating, typically one transition (about 300 to 500 ms) later than before,
+and at most 1.5 s after the observation started.
+
+The cost falls on apps that never go quiet. Before, any change ended the wait
+within about a frame. Now a semantics change in such an app waits up to the
+800 ms action budget, and a route change up to 1.5 s, before returning with
+`settled: false`. That is the price of not acting on a half-built screen, and
+the flag makes it visible to the model and in trajectories. The 800 ms bound
+for semantics-only changes keeps it at the cost of a no-change wait.

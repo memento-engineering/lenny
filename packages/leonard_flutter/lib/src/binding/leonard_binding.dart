@@ -466,9 +466,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
         '$kLeonardExtensionPrefix.core.get_stable_observation',
         (String method, Map<String, String> parameters) async {
           try {
-            final ObservationRequest req = _decodeObservationRequest(
-              parameters,
-            );
+            final ObservationRequest req = decodeObservationRequest(parameters);
             final Map<String, Object?> obs = await getStableObservation(req);
             return developer.ServiceExtensionResponse.result(
               jsonEncode(<String, Object?>{
@@ -591,7 +589,10 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
   /// `Map<String, String>`; nested JSON arrives as a JSON-encoded
   /// string under known keys. We only round-trip `extensionBudgets` here
   /// because every other field is a scalar.
-  ObservationRequest _decodeObservationRequest(Map<String, String> params) {
+  @visibleForTesting
+  static ObservationRequest decodeObservationRequest(
+    Map<String, String> params,
+  ) {
     final Map<String, dynamic> j = <String, dynamic>{};
     for (final MapEntry<String, String> e in params.entries) {
       switch (e.key) {
@@ -603,6 +604,7 @@ class LeonardBinding extends WidgetsFlutterBinding with FrameStabilityTracker {
           j[e.key] = e.value == 'true';
           break;
         case 'actionRelativeBudgetMs':
+        case 'actionRelativeSettleBudgetMs':
         case 'quietFrameN':
         case 'boundedStabilityBudgetMs':
         case 'coreBudgetBytes':

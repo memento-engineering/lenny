@@ -23,8 +23,10 @@ const String _kExtGetStableObservation =
 /// `kStabilityPolicyWireNames` on the binding side
 /// (`packages/leonard_flutter/.../observation_request.dart`).
 enum StabilityPolicy {
-  /// Default policy: end after route/semantics change, all-idle, or the
-  /// per-action budget.
+  /// Default policy: end when all-idle or at the per-action budget; a
+  /// route or semantics change first starts a settle that ends on quiet
+  /// frames or its budget (the binding's settle budget for a route change,
+  /// the per-action budget for a semantics-only change).
   actionRelative('action-relative'),
 
   /// Stop after N consecutive idle frames.

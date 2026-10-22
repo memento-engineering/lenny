@@ -7,9 +7,10 @@ import 'budgeted_json.dart' show kCoreBudgetBytes;
 /// - [actionRelative] (default): terminate on all-idle (framework +
 ///   extensions) or `actionRelativeBudgetMs` elapsed, unless a route or
 ///   semantics change comes first. A change starts a settle that ends after
-///   `quietFrameN` consecutive idle frames or once
-///   `actionRelativeSettleBudgetMs` has elapsed (lenny-r1k2x), reported
-///   under the change that started it.
+///   `quietFrameN` consecutive idle frames (lenny-r1k2x), reported under the
+///   change that started it. A route change's settle is capped by
+///   `actionRelativeSettleBudgetMs`; a semantics-only change's by
+///   `actionRelativeBudgetMs`.
 /// - [quietFrame]: terminate after `quietFrameN` consecutive idle
 ///   frames. No wall-clock cap on this policy itself.
 /// - [boundedStability]: terminate on quiet-frame condition OR
@@ -44,9 +45,10 @@ const int kDefaultQuietFrameN = 2;
 const int kDefaultBoundedStabilityBudgetMs = 1500;
 
 /// Default `actionRelativeSettleBudgetMs`: the wall-clock cap, from the start
-/// of the observation, for an action-relative settle after a route or
-/// semantics change. Long enough for a page transition (about 300 to 500 ms)
-/// to finish after the action's own latency.
+/// of the observation, for an action-relative settle after a route change.
+/// Long enough for a page transition (about 300 to 500 ms) to finish after
+/// the action's own latency. A semantics-only change settles within
+/// `actionRelativeBudgetMs` instead.
 const int kDefaultActionRelativeSettleBudgetMs = 1500;
 
 /// Decoded request payload for `ext.leonard.core.get_stable_observation`.
@@ -69,9 +71,9 @@ class ObservationRequest {
   /// Wall-clock cap for `action-relative` policy, in ms.
   final int actionRelativeBudgetMs;
 
-  /// Wall-clock cap for an `action-relative` settle after a route or
-  /// semantics change, in ms from the start of the observation. A value
-  /// below [actionRelativeBudgetMs] is raised to it.
+  /// Wall-clock cap for an `action-relative` settle after a route change, in
+  /// ms from the start of the observation. A value below
+  /// [actionRelativeBudgetMs] is raised to it.
   final int actionRelativeSettleBudgetMs;
 
   /// Required idle-frame streak length for `quiet-frame` policy.
