@@ -139,7 +139,7 @@ says it instead, in three more fields:
 {
   "verdict": "fail",
   "reason": "budget exhausted after 50 turns without reaching the goal",
-  "digest": ["… 38 earlier turns omitted", "#38 core.tap node_id=\"12\" → ok", "..."]
+  "digest": ["… 38 earlier turns omitted", "#38 core.tap node_id=12 (Settings) → ok", "..."]
 }
 ```
 
@@ -150,7 +150,9 @@ says it instead, in three more fields:
 | `infra` | Leonard could not judge the app: no launch or attach, the provider was misconfigured, unreachable or too slow, the model could not produce a valid action, or the observation envelope was rejected, or the goldens could not be read or written. |
 
 `digest` is the run's last turns, one line each, newest last, under 3000
-UTF-8 bytes: enough to tell a coding agent where the drive got stuck.
+UTF-8 bytes: enough to tell a coding agent where the drive got stuck. An
+action on a core semantics node names the node's label, or its value when it
+has no label, in parentheses after the id.
 
 For a deterministic gate, `--gate-exit-codes` makes the process exit with the
 verdict: **0 pass, 75 infra, 1 fail**. 75 is `EX_TEMPFAIL`, the code Gas City
