@@ -1,4 +1,4 @@
-import 'dart:convert' show utf8;
+import 'dart:convert' show jsonDecode, jsonEncode, utf8;
 
 import 'package:leonard_agent/leonard_agent.dart'
     show SessionFooter, SessionOutcome, TurnRecord;
@@ -162,8 +162,169 @@ void main() {
       expect(digest.single.length, kDigestLineLimit);
       expect(digest.single, endsWith('…'));
     });
+
+    test('names a core action\'s node by its label after the id', () {
+      final List<String> digest = digestTurns(<TurnRecord>[
+        _turn(
+          0,
+          'core.tap',
+          <String, dynamic>{'node_id': 26},
+          observation: _observed(<int, Map<String, dynamic>>{
+            26: <String, dynamic>{'label': 'Settings'},
+          }),
+        ),
+      ]);
+      expect(digest, <String>['#0 core.tap node_id=26 (Settings) → ok']);
+
+      final List<String> quoted = digestTurns(<TurnRecord>[
+        _turn(
+          0,
+          'core.tap',
+          <String, dynamic>{'node_id': '4'},
+          observation: _observed(<int, Map<String, dynamic>>{
+            4: <String, dynamic>{'label': 'Sign in'},
+          }),
+        ),
+      ]);
+      expect(quoted, <String>['#0 core.tap node_id="4" (Sign in) → ok']);
+    });
+
+    test(
+      'falls back to the value, prefers the label, collapses whitespace',
+      () {
+        String line(Map<String, dynamic> node) => digestTurns(<TurnRecord>[
+          _turn(
+            0,
+            'core.enter_text',
+            <String, dynamic>{'node_id': 5, 'text': 'x'},
+            observation: _observed(<int, Map<String, dynamic>>{5: node}),
+          ),
+        ]).single;
+
+        expect(
+          line(<String, dynamic>{'value': 'a@b.co'}),
+          '#0 core.enter_text node_id=5 (a@b.co) text="x" → ok',
+        );
+        expect(
+          line(<String, dynamic>{'label': 'Email', 'value': 'a@b.co'}),
+          '#0 core.enter_text node_id=5 (Email) text="x" → ok',
+        );
+        expect(
+          line(<String, dynamic>{'label': ' \n ', 'value': '42'}),
+          '#0 core.enter_text node_id=5 (42) text="x" → ok',
+        );
+        expect(
+          line(<String, dynamic>{'label': 'Email\naddress'}),
+          '#0 core.enter_text node_id=5 (Email address) text="x" → ok',
+        );
+      },
+    );
+
+    test('prints as before when the node cannot be named', () {
+      final Map<String, dynamic> settings = _observed(
+        <int, Map<String, dynamic>>{
+          26: <String, dynamic>{'label': 'Settings'},
+        },
+      );
+      final List<String> digest = digestTurns(<TurnRecord>[
+        _turn(0, 'core.tap', <String, dynamic>{'node_id': 26}),
+        _turn(1, 'core.tap', <String, dynamic>{
+          'node_id': 27,
+        }, observation: settings),
+        _turn(
+          2,
+          'core.tap',
+          <String, dynamic>{'node_id': 26},
+          observation: _observed(<int, Map<String, dynamic>>{
+            26: <String, dynamic>{},
+          }),
+        ),
+        _turn(3, 'native.tap', <String, dynamic>{
+          'node_id': 26,
+        }, observation: settings),
+        _failedTurn(4, 'schema_exhausted'),
+      ]);
+      expect(digest, <String>[
+        '#0 core.tap node_id=26 → ok',
+        '#1 core.tap node_id=27 → ok',
+        '#2 core.tap node_id=26 → ok',
+        '#3 native.tap node_id=26 → ok',
+        '#4 no action (schema_exhausted)',
+      ]);
+    });
+
+    test('names the node on a turn read back from JSON', () {
+      final TurnRecord turn = _turn(
+        0,
+        'core.tap',
+        <String, dynamic>{'node_id': 26},
+        observation: _observed(<int, Map<String, dynamic>>{
+          26: <String, dynamic>{'label': 'Settings'},
+        }),
+      );
+      final TurnRecord readBack = TurnRecord.fromJson(
+        jsonDecode(jsonEncode(turn.toJson())) as Map<String, dynamic>,
+      );
+      expect(digestTurns(<TurnRecord>[readBack]), <String>[
+        '#0 core.tap node_id=26 (Settings) → ok',
+      ]);
+    });
+
+    test('named nodes still drop the oldest turns to fit the budget', () {
+      final List<TurnRecord> turns = <TurnRecord>[
+        for (var i = 0; i < 40; i++)
+          _turn(
+            i,
+            'core.tap',
+            <String, dynamic>{'node_id': i},
+            observation: _observed(<int, Map<String, dynamic>>{
+              i: <String, dynamic>{'label': 'Item $i'},
+            }),
+          ),
+      ];
+      final List<String> digest = digestTurns(turns, byteBudget: 200);
+      final int kept = digest.length - 1;
+      expect(digest.first, '… ${40 - kept} earlier turns omitted');
+      expect(digest.last, startsWith('#39 '));
+      expect(digest.last, contains('(Item 39)'));
+      expect(utf8.encode(digest.join('\n')).length, lessThan(200));
+    });
+
+    test('clips a line whose node name is long', () {
+      final List<String> digest = digestTurns(<TurnRecord>[
+        _turn(
+          0,
+          'core.tap',
+          <String, dynamic>{'node_id': 1},
+          observation: _observed(<int, Map<String, dynamic>>{
+            1: <String, dynamic>{'label': 'x' * 500},
+          }),
+        ),
+      ]);
+      expect(digest.single.length, kDigestLineLimit);
+      expect(digest.single, startsWith('#0 core.tap node_id=1 (xxx'));
+      expect(digest.single, endsWith('…'));
+    });
   });
 }
+
+/// An observation whose `core.nodes` holds [nodes], shaped the way
+/// `Observation.toJson` records them: keyed by the decimal id, each node
+/// carrying its int `id`, a `role` and a `rect`.
+Map<String, dynamic> _observed(Map<int, Map<String, dynamic>> nodes) =>
+    <String, dynamic>{
+      'core': <String, dynamic>{
+        'nodes': <String, dynamic>{
+          for (final MapEntry<int, Map<String, dynamic>> e in nodes.entries)
+            '${e.key}': <String, dynamic>{
+              'id': e.key,
+              'role': 'button',
+              'rect': <int>[0, 0, 100, 40],
+              ...e.value,
+            },
+        },
+      },
+    };
 
 SessionFooter _footer(
   SessionOutcome outcome, {
@@ -184,9 +345,10 @@ TurnRecord _turn(
   Map<String, dynamic> args, {
   String? error,
   String? rationale,
+  Map<String, dynamic> observation = const <String, dynamic>{},
 }) => TurnRecord(
   index: index,
-  observation: const <String, dynamic>{},
+  observation: observation,
   stability: const <String, dynamic>{},
   proposedAction: <String, dynamic>{'tool': tool, 'args': args},
   validation: const <String, dynamic>{'ok': true, 'retries': 0},

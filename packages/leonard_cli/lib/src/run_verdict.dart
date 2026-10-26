@@ -190,11 +190,22 @@ String _digestLine(TurnRecord turn, {required bool isLast}) {
   line.write(tool);
   final Object? args = action['args'];
   if (args is Map && args.isNotEmpty) {
+    // Only core tools target `core.nodes` ids; another namespace's node_id
+    // would name the wrong node.
+    final bool namesNodes = tool.startsWith('core.');
+    String argument(Object? key, Object? value) {
+      final String text = '$key=${_compact(value)}';
+      final String? name = namesNodes && key == 'node_id'
+          ? _nodeName(turn.observation, value)
+          : null;
+      return name == null ? text : '$text ($name)';
+    }
+
     line.write(' ');
     line.write(
       <String>[
         for (final MapEntry<Object?, Object?> e in args.entries)
-          '${e.key}=${_compact(e.value)}',
+          argument(e.key, e.value),
       ].join(' '),
     );
   }
@@ -211,6 +222,26 @@ String _digestLine(TurnRecord turn, {required bool isLast}) {
     line.write(' — ${rationale.trim()}');
   }
   return line.toString();
+}
+
+/// The label of the node [nodeId] names in [observation]'s `core.nodes`, or
+/// its value when it has no label; null when the observation does not hold
+/// the node or the node has neither. Whitespace runs collapse to one space.
+String? _nodeName(Map<String, dynamic> observation, Object? nodeId) {
+  if (nodeId is! int && nodeId is! String) return null;
+  final Object? core = observation['core'];
+  if (core is! Map) return null;
+  final Object? nodes = core['nodes'];
+  if (nodes is! Map) return null;
+  final Object? node = nodes['$nodeId'];
+  if (node is! Map) return null;
+  String? named(Object? text) {
+    if (text is! String) return null;
+    final String collapsed = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return collapsed.isEmpty ? null : collapsed;
+  }
+
+  return named(node['label']) ?? named(node['value']);
 }
 
 String _compact(Object? value) {
