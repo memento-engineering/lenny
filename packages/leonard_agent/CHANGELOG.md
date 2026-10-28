@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.5-dev.2
+
+- Cache the claude tier's prompt (lenny-0bcv). Anthropic requests now mark the
+  system prompt and the conversation the model has already answered as
+  `cache_control: ephemeral` breakpoints, so each turn after the first can read
+  that prefix from Anthropic's prompt cache instead of paying full input price
+  for it. dartantic exposes no cache control, so a client the provider owns
+  adds the marks on the wire. With no client supplied, an Anthropic provider
+  opens one on its first turn and closes it in `dispose()`, and a supplied
+  client is still never closed. swift-infer and OpenAI requests are unchanged.
+  Cache-read tokens are not yet in run usage (lenny-ktyl), so a run's reported
+  cost still prices cached input at the full rate. Decision:
+  anthropic-prompt-caching-is-set-on-the-wire-by-a-leonard-client.
+
 ## 0.3.5-dev.1
 
 - Parse the stability block's new `settled` flag into
