@@ -12,7 +12,8 @@ register:
   obsoletes: []
   updates: []
   obsoleted-by: null
-  updated-by: []
+  updated-by:
+    - anthropic-prompt-caching-is-set-on-the-wire-by-a-leonard-client
   bead: null
   legacy-id: "ADR-0003"
 ---
