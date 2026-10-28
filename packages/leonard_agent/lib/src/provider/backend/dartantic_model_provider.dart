@@ -10,6 +10,7 @@ import '../frontier/tool_helpers.dart';
 import '../model_provider.dart';
 import '../model_usage.dart';
 import '../types.dart';
+import 'anthropic_prompt_cache_client.dart';
 import 'model_backend.dart';
 
 /// A [ModelProvider] that drives ANY dartantic `ChatModel` built from a
@@ -31,7 +32,10 @@ import 'model_backend.dart';
 ///    per-turn [ActionSchema] (the `{action:{tool,args}}` envelope);
 ///  * **providerRequestId** — captured from the stream's message id;
 ///  * **usage** — the provider's token counts and the time to first streamed
-///    content, attached to the decision or to the [SchemaRejection].
+///    content, attached to the decision or to the [SchemaRejection];
+///  * **prompt caching** — Anthropic turns mark the system prompt and the
+///    conversation prefix as cache breakpoints (decision
+///    `anthropic-prompt-caching-is-set-on-the-wire-by-a-leonard-client`).
 ///
 /// A fresh `ChatModel` is built per [decide] call because lenny's tool list
 /// changes every turn (extensions activate/deactivate) and dartantic binds
@@ -40,9 +44,12 @@ class DartanticModelProvider implements ModelProvider {
   /// Creates a seam over [backend] driving model id [model].
   ///
   /// [capabilities] is supplied by the host (per backend+model). An optional
-  /// [client] is forwarded to every per-turn `ChatModel` (used directly on the
-  /// swift-infer/Anthropic paths so the driver keeps retry ownership); when
-  /// null, each `ChatModel` manages its own. The seam never closes [client].
+  /// [client] is forwarded to every per-turn `ChatModel`: used directly on the
+  /// swift-infer path and wrapped for prompt caching on the Anthropic path,
+  /// neither of which retries, so the driver keeps retry ownership. The seam
+  /// never closes [client]. With no [client], an Anthropic provider opens one
+  /// on its first turn and closes it in [dispose]; other backends' `ChatModel`s
+  /// manage their own.
   DartanticModelProvider({
     required this.backend,
     required this.model,
@@ -59,7 +66,8 @@ class DartanticModelProvider implements ModelProvider {
   /// The model id (e.g. `qwen3.6-35b-a3b-8bit`, `claude-sonnet-4-0`).
   final String model;
 
-  /// Optional HTTP client forwarded to each per-turn `ChatModel`.
+  /// Optional HTTP client for each per-turn `ChatModel`, wrapped for prompt
+  /// caching on Anthropic and never closed by the seam.
   final http.Client? client;
 
   /// Abort a turn once this many chars of reasoning/prose stream with no tool
@@ -71,8 +79,25 @@ class DartanticModelProvider implements ModelProvider {
   final StreamController<ThinkingDelta> _thinking =
       StreamController<ThinkingDelta>.broadcast();
 
+  /// The client this provider opened because none was supplied; closed in
+  /// [dispose].
+  http.Client? _ownedClient;
+
+  /// The one prompt-cache wrapper every Anthropic turn is sent through.
+  http.Client? _anthropicClient;
+
   @override
   ModelCapabilities get capabilities => _capabilities;
+
+  /// The client for this turn's `ChatModel`: [client] unchanged for a
+  /// non-Anthropic backend; for Anthropic, one [AnthropicPromptCacheClient]
+  /// built on the first turn over [client], or over a client opened then.
+  http.Client? _turnClient() {
+    if (backend is! AnthropicBackend) return client;
+    return _anthropicClient ??= AnthropicPromptCacheClient(
+      client ?? (_ownedClient = http.Client()),
+    );
+  }
 
   @override
   Stream<ThinkingDelta> thinking() => _thinking.stream;
@@ -96,7 +121,7 @@ class DartanticModelProvider implements ModelProvider {
       backend,
       model: model,
       tools: tools,
-      client: client,
+      client: _turnClient(),
     );
 
     final rawText = StringBuffer();
@@ -244,8 +269,12 @@ class DartanticModelProvider implements ModelProvider {
     return current;
   }
 
-  /// Closes the thinking stream. Does not close a caller-supplied [client].
-  void dispose() => _thinking.close();
+  /// Closes the thinking stream and the client this provider opened, if any.
+  /// Never closes a caller-supplied [client].
+  void dispose() {
+    _ownedClient?.close();
+    _thinking.close();
+  }
 
   /// Renders a [ConversationSnapshot] into dartantic [ChatMessage]s. Mirrors the
   /// hand-rolled providers: a system message, then per turn a user message

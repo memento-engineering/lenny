@@ -1,10 +1,17 @@
 // Pins the Anthropic prompt-cache rewrite (lenny-0bcv): which blocks of a
 // messages request carry a `cache_control` breakpoint, what passes through
-// untouched, and that the client retries and closes nothing.
+// untouched, that the client retries and closes nothing, and that the
+// dartantic provider sends every Anthropic turn through it.
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:leonard_agent/src/observation/diff_models.dart';
+import 'package:leonard_agent/src/observation/models.dart';
+import 'package:leonard_agent/src/provider/action_schema.dart';
 import 'package:leonard_agent/src/provider/backend/anthropic_prompt_cache_client.dart';
+import 'package:leonard_agent/src/provider/backend/dartantic_model_provider.dart';
+import 'package:leonard_agent/src/provider/backend/model_backend.dart';
+import 'package:leonard_agent/src/provider/types.dart';
 import 'package:test/test.dart';
 
 const _ephemeral = {'type': 'ephemeral'};
@@ -133,6 +140,123 @@ List<dynamic> _messages(Map<String, dynamic> body) =>
 List<dynamic> _content(Map<String, dynamic> body, int index) =>
     (_messages(body)[index] as Map<String, dynamic>)['content']
         as List<dynamic>;
+
+/// Captures every request body a provider sends and answers a benign SSE
+/// stream, so decide() can finish (or throw: only the request is asserted).
+class _CapturingClient extends http.BaseClient {
+  final bodies = <String>[];
+  var closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request is http.Request) bodies.add(request.body);
+    return http.StreamedResponse(
+      Stream.value(utf8.encode('data: [DONE]\n\n')),
+      200,
+    );
+  }
+
+  @override
+  void close() => closed = true;
+}
+
+Observation _observation(int id) => Observation.fromJson(<String, dynamic>{
+  'semantics': <Map<String, dynamic>>[
+    {
+      'id': id,
+      'role': 'button',
+      'label': 'node $id',
+      'actions': <String>['tap'],
+      'rect': <int>[0, 0, 100, 40],
+    },
+  ],
+  'routes': <String>['home'],
+});
+
+const _tapTool = ToolDescriptor(
+  name: 'core.tap',
+  description: 'tap a node',
+  inputSchema: {
+    'type': 'object',
+    'properties': {
+      'node_id': {'type': 'integer'},
+    },
+    'required': ['node_id'],
+    'additionalProperties': false,
+  },
+);
+
+ConversationSnapshot _oneTurnSnapshot() => ConversationSnapshot(
+  systemMessage: 'you are an agent driving an app',
+  turns: <ConversationTurn>[
+    UserTurn(observation: _observation(8), diff: ObservationDiff.empty()),
+  ],
+  tools: const <ToolDescriptor>[_tapTool],
+);
+
+ConversationSnapshot _threeTurnSnapshot() => ConversationSnapshot(
+  systemMessage: 'you are an agent driving an app',
+  turns: <ConversationTurn>[
+    UserTurn(observation: _observation(8), diff: ObservationDiff.empty()),
+    const AssistantTurn(
+      thinking: 'tapping settings',
+      action: (tool: 'core.tap', args: {'node_id': 8}),
+    ),
+    UserTurn(
+      observation: _observation(9),
+      diff: ObservationDiff.empty(),
+      toolResult: const {'ok': true},
+    ),
+  ],
+  tools: const <ToolDescriptor>[_tapTool],
+);
+
+const _caps = ModelCapabilities(
+  vision: false,
+  preserveThinking: true,
+  maxContext: 128000,
+  supportsToolUse: true,
+);
+
+const _anthropic = AnthropicBackend(apiKey: 'k');
+final _swiftInfer = SwiftInferBackend(
+  baseUrl: Uri.parse('http://localhost:8080'),
+);
+
+DartanticModelProvider _provider(
+  ModelBackendSpec backend, {
+  http.Client? client,
+}) => DartanticModelProvider(
+  backend: backend,
+  model: backend is AnthropicBackend ? 'claude-sonnet-4-6' : 'qwen',
+  capabilities: _caps,
+  client: client,
+);
+
+Future<void> _decide(
+  DartanticModelProvider provider,
+  ConversationSnapshot snapshot,
+) async {
+  try {
+    await provider.decide(snapshot, ActionSchema.fromToolList(snapshot.tools));
+  } on Object {
+    // decide() may throw on the canned response; only the request matters.
+  }
+}
+
+/// Asserts [raw] carries a marked list system and, when [prefix], a mark on
+/// the last block of `messages[1]` and none elsewhere in `messages`.
+void _expectBreakpoints(String raw, {required bool prefix}) {
+  final body = jsonDecode(raw) as Map<String, dynamic>;
+  final system = body['system'] as List<dynamic>;
+  expect((system.last as Map)['cache_control'], _ephemeral);
+  if (prefix) {
+    expect((_content(body, 1).last as Map)['cache_control'], _ephemeral);
+    expect(_marks(_messages(body)), 1);
+  } else {
+    expect(_marks(_messages(body)), 0);
+  }
+}
 
 void main() {
   group('AnthropicPromptCacheClient', () {
@@ -340,6 +464,71 @@ void main() {
       final inner = _RecordingClient();
       AnthropicPromptCacheClient(inner).close();
       expect(inner.closed, isFalse);
+    });
+  });
+
+  group('DartanticModelProvider prompt caching', () {
+    test('an Anthropic turn marks the system and the prefix', () async {
+      final fake = _CapturingClient();
+      final provider = _provider(_anthropic, client: fake);
+      await _decide(provider, _threeTurnSnapshot());
+      _expectBreakpoints(fake.bodies.single, prefix: true);
+      provider.dispose();
+    });
+
+    test('a one-turn Anthropic conversation marks only the system', () async {
+      final fake = _CapturingClient();
+      final provider = _provider(_anthropic, client: fake);
+      await _decide(provider, _oneTurnSnapshot());
+      _expectBreakpoints(fake.bodies.single, prefix: false);
+      provider.dispose();
+    });
+
+    test('a swift-infer turn is sent without breakpoints', () async {
+      final fake = _CapturingClient();
+      final provider = _provider(_swiftInfer, client: fake);
+      await _decide(provider, _threeTurnSnapshot());
+      final raw = fake.bodies.single;
+      expect(
+        (jsonDecode(raw) as Map<String, dynamic>)['system'],
+        isA<String>(),
+      );
+      expect(raw, isNot(contains('cache_control')));
+      provider.dispose();
+    });
+
+    test('with no client, an Anthropic provider opens one, caches every turn '
+        'through it and closes it on dispose', () async {
+      final fake = _CapturingClient();
+      var factoryCalls = 0;
+      final provider = _provider(_anthropic);
+      await http.runWithClient(
+        () async {
+          await _decide(provider, _oneTurnSnapshot());
+          await _decide(provider, _threeTurnSnapshot());
+        },
+        () {
+          factoryCalls++;
+          return fake;
+        },
+      );
+      expect(factoryCalls, 1);
+      expect(fake.bodies, hasLength(2));
+      _expectBreakpoints(fake.bodies[0], prefix: false);
+      _expectBreakpoints(fake.bodies[1], prefix: true);
+      expect(fake.closed, isFalse);
+      provider.dispose();
+      expect(fake.closed, isTrue);
+    });
+
+    test('a supplied client is never closed by dispose', () async {
+      for (final backend in <ModelBackendSpec>[_anthropic, _swiftInfer]) {
+        final fake = _CapturingClient();
+        final provider = _provider(backend, client: fake);
+        await _decide(provider, _threeTurnSnapshot());
+        provider.dispose();
+        expect(fake.closed, isFalse, reason: '$backend');
+      }
     });
   });
 }
