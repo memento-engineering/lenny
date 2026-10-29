@@ -5,6 +5,7 @@ import 'package:leonard_flutter/contract.dart';
 import 'package:flutter/widgets.dart';
 import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
+import 'leonard_navigator_observer.dart';
 import 'router_perception.dart';
 
 class RouterExtension extends LeonardExtension with PerceptionExtension {
@@ -12,6 +13,7 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
     required this.navigatorKey,
     this.routerDelegate,
     this.navigate,
+    this.navigatorObservers = const <LeonardNavigatorObserver>[],
   });
 
   final GlobalKey<NavigatorState> navigatorKey;
@@ -28,6 +30,11 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
     Map<String, Object?>? arguments,
   )?
   navigate;
+
+  /// The observers the app installed on its navigators, in the order the app
+  /// lists them. The first is the primary navigator's, and its route names
+  /// fill the fragment's `stack`. With none, only the current route is known.
+  final List<LeonardNavigatorObserver> navigatorObservers;
 
   @override
   String get namespace => 'router';
@@ -48,65 +55,69 @@ class RouterExtension extends LeonardExtension with PerceptionExtension {
   Future<void> dispose() async {}
 
   /// Reproduces the retired `observe() == null` suppression: when the route
-  /// walk yields no snapshot, the binding emits no `extensions.router`
+  /// read yields no snapshot, the binding emits no `extensions.router`
   /// fragment.
   @override
   bool isPerceptionIdle() => readSnapshot() == null;
 
-  /// Single source of truth for the route walk shared by [isPerceptionIdle]
+  /// Single source of truth for the route read shared by [isPerceptionIdle]
   /// and the perception path's [RouteSnapshotAnchor]. Returns null when
-  /// neither the Navigator nor the RouterDelegate yields a route — so the
-  /// idle gate and the anchor can never drift. Public to the package so the
-  /// anchor can read it.
+  /// neither the Navigator nor the RouterDelegate yields a current route — so
+  /// the idle gate and the anchor can never drift. The snapshot's stack is the
+  /// first of [navigatorObservers]' route names, and empty without one. Public
+  /// to the package so the anchor can read it.
   RouteSnapshot? readSnapshot() => _snapshot();
 
   RouteSnapshot? _snapshot() {
-    final imp = _readNavigator();
-    if (imp != null) return imp;
-    return _readRouterDelegate();
-  }
-
-  RouteSnapshot? _readNavigator() {
-    final state = navigatorKey.currentState;
-    if (state == null) return null;
-    final stack = <String>[];
-    String? top;
-    Map<String, Object?>? topArgs;
-    state.popUntil((route) {
-      final n = route.settings.name;
-      if (n != null) {
-        stack.add(n);
-        top = n;
-        final a = route.settings.arguments;
-        topArgs = a is Map<String, Object?> ? a : null;
-      }
-      return true; // walk only; never pop
-    });
-    if (top == null) return null;
+    final _CurrentRoute? current = _readCurrentRoute() ?? _readRouterDelegate();
+    // An observer alone never makes a snapshot: whether the router reports a
+    // route is decided by the current route only.
+    if (current == null) return null;
     return RouteSnapshot(
-      currentRouteName: top,
-      stack: stack,
-      arguments: topArgs,
+      currentRouteName: current.name,
+      stack: navigatorObservers.isEmpty
+          ? const <String>[]
+          : <String>[
+              for (final ObservedRoute r in navigatorObservers.first.stack)
+                r.name,
+            ],
+      arguments: current.arguments,
     );
   }
 
-  RouteSnapshot? _readRouterDelegate() {
+  _CurrentRoute? _readCurrentRoute() {
+    final state = navigatorKey.currentState;
+    if (state == null) return null;
+    Route<dynamic>? top;
+    // Accepting the first route handed in visits only the top route and pops
+    // nothing: this reads the current route, never a stack.
+    state.popUntil((route) {
+      top = route;
+      return true;
+    });
+    final String? n = top?.settings.name;
+    if (n == null) return null;
+    final a = top!.settings.arguments;
+    return (name: n, arguments: a is Map<String, Object?> ? a : null);
+  }
+
+  _CurrentRoute? _readRouterDelegate() {
     final d = routerDelegate;
     if (d == null) return null;
     final c = d.currentConfiguration;
     if (c == null) return null;
-    final n = c.toString();
-    return RouteSnapshot(
-      currentRouteName: n,
-      stack: <String>[n],
-      arguments: null,
-    );
+    return (name: c.toString(), arguments: null);
   }
 
   @override
-  genesis.Component buildPerception() =>
-      RouterPerception(RouteSnapshotAnchor(this));
+  genesis.Component buildPerception() => RouterPerception(
+    RouteSnapshotAnchor(this),
+    navigatorObservers: navigatorObservers,
+  );
 }
+
+/// The current route's name and its map arguments, as the extension reads it.
+typedef _CurrentRoute = ({String name, Map<String, Object?>? arguments});
 
 const Duration _frameObservationBudget = Duration(milliseconds: 250);
 

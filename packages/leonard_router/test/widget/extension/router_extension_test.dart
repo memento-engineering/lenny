@@ -77,17 +77,18 @@ void main() {
     expect((await p.busyState()).isBusy, isFalse);
   });
 
-  testWidgets('observation has Navigator fragment with route name and stack', (
-    t,
-  ) async {
-    final k = GlobalKey<NavigatorState>();
-    await t.pumpWidget(_app(k));
-    final p = RouterExtension(navigatorKey: k);
-    expect(p.isPerceptionIdle(), isFalse);
-    final f = _harvest(p);
-    expect(f['current_route_name'], '/');
-    expect(f['stack'], ['/']);
-  });
+  testWidgets(
+    'observation has Navigator fragment with route name and no stack',
+    (t) async {
+      final k = GlobalKey<NavigatorState>();
+      await t.pumpWidget(_app(k));
+      final p = RouterExtension(navigatorKey: k);
+      expect(p.isPerceptionIdle(), isFalse);
+      final f = _harvest(p);
+      expect(f['current_route_name'], '/');
+      expect(f.containsKey('stack'), isFalse);
+    },
+  );
 
   testWidgets('isPerceptionIdle is true when NavigatorState not mounted', (
     t,
@@ -289,7 +290,7 @@ void main() {
     expect(p.isPerceptionIdle(), isFalse);
     final f = _harvest(p);
     expect(f['current_route_name'], '/checkout/payment');
-    expect(f['stack'], ['/checkout/payment']);
+    expect(f.containsKey('stack'), isFalse);
     expect(f['arguments'], isNull);
   });
 

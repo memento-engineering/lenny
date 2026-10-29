@@ -94,7 +94,6 @@ void main() {
 
     final Map<String, Object?> perceptionFrag = _harvestExtension(extension);
     expect(perceptionFrag['current_route_name'], '/');
-    expect(perceptionFrag['stack'], <String>['/']);
   });
 
   testWidgets('arguments-present path: perception carries the arguments', (
@@ -125,7 +124,6 @@ void main() {
       expect(extension.isPerceptionIdle(), isFalse);
       final Map<String, Object?> perceptionFrag = _harvestExtension(extension);
       expect(perceptionFrag['current_route_name'], '/checkout/payment');
-      expect(perceptionFrag['stack'], ['/checkout/payment']);
       expect(perceptionFrag['arguments'], isNull);
     },
   );

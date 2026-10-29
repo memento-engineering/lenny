@@ -3,6 +3,7 @@ library;
 import 'package:leonard_flutter/contract.dart';
 import 'package:genesis_perception/genesis_perception.dart' as genesis;
 
+import 'leonard_navigator_observer.dart';
 import 'router_extension.dart';
 
 /// Perception-native build for the router fragment.
@@ -11,24 +12,42 @@ import 'router_extension.dart';
 /// `Node('router', …)`. Unlike dio (which reads a plain interceptor model), the
 /// router's state lives in Flutter's Navigator/RouterDelegate, so this reads a
 /// synchronous [RouteSnapshot] through a [PerceptionAnchor] at observation time.
+///
+/// The route stack is the installed [LeonardNavigatorObserver]'s, top last:
+/// `stack` holds the first observer's route names, and `navigators` lists every
+/// installed observer under its label with each route's name and arguments'
+/// type. Without an observer only the current route is known, and the fragment
+/// carries no `stack` member; a missing snapshot carries none either.
 class RouterPerception extends genesis.StatelessPerception {
-  /// Creates a router perception backed by [_anchor].
-  const RouterPerception(this._anchor);
+  /// Creates a router perception backed by [_anchor], listing
+  /// [navigatorObservers] under `navigators`.
+  const RouterPerception(
+    this._anchor, {
+    this.navigatorObservers = const <LeonardNavigatorObserver>[],
+  });
 
   final PerceptionAnchor<RouteSnapshot?> _anchor;
+
+  /// The observers the app installed on its navigators, in its order.
+  final List<LeonardNavigatorObserver> navigatorObservers;
 
   @override
   genesis.Component build(genesis.PerceptionContext ctx) {
     final RouteSnapshot? snap = _anchor.read();
-    // The extension's isPerceptionIdle() (readSnapshot()==null) suppresses this
-    // fragment when there is no route, so build() is only reached with a
-    // non-null snapshot; fall back to an empty triple defensively.
+    // The stack is reported only when an observer kept one; an absent stack
+    // says it is unknown, where an empty one would claim a fact.
     return genesis.Node(
       'router',
       children: <genesis.Component>[
         genesis.Field('current_route_name', snap?.currentRouteName),
-        genesis.Field('stack', snap?.stack ?? const <String>[]),
+        if (snap != null && snap.stack.isNotEmpty)
+          genesis.Field('stack', snap.stack),
         genesis.Field('arguments', snap?.arguments),
+        if (snap != null && navigatorObservers.isNotEmpty)
+          genesis.Field('navigators', <Object?>[
+            for (final LeonardNavigatorObserver o in navigatorObservers)
+              o.toJson(),
+          ]),
       ],
     );
   }
@@ -37,7 +56,7 @@ class RouterPerception extends genesis.StatelessPerception {
 /// Concrete [PerceptionAnchor] that reads the router's shared route snapshot.
 ///
 /// Wraps the [RouterExtension] and delegates to its single source of truth for the
-/// Navigator/RouterDelegate walk, so the perception path and legacy `observe()`
+/// Navigator/RouterDelegate read, so the perception path and legacy `observe()`
 /// can never drift.
 class RouteSnapshotAnchor implements PerceptionAnchor<RouteSnapshot?> {
   /// Creates an anchor over [_extension].

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0-dev.1
+
+- **Breaking (fragment):** the router fragment's `stack` comes only from an
+  installed `LeonardNavigatorObserver`. Without one, and for a missing route
+  snapshot, the fragment carries no `stack` member, where it used to carry the
+  top route alone, the router delegate's configuration as a one-entry list, or
+  `[]`. `current_route_name` and `arguments` are unchanged (lenny-7j5wr).
+  Migration: install a `LeonardNavigatorObserver` on the app's navigator and
+  pass it to `RouterExtension(navigatorObservers: [...])`.
+- **Added:** `LeonardNavigatorObserver`, a `NavigatorObserver` that keeps a
+  navigator's route stack from its push, pop, replace and remove
+  notifications, and `ObservedRoute`, one entry of that stack.
+- **Added:** the optional `RouterExtension(navigatorObservers:)` and
+  `RouterPerception(navigatorObservers:)` parameters.
+- **Added:** the fragment's `navigators` member, listing each installed
+  observer under its label with each route's name and its arguments' type.
+
 ## 0.5.0
 
 Stable promotion of `0.5.0-dev.1`: the same content, published on the stable rung on Nico's promotion call (2026-10-15), after the Android (Pixel 7a), iOS 26.5 simulator and macOS live suites passed. The prerelease entries below carry the full list.
