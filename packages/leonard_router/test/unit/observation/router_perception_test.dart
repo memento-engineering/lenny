@@ -46,7 +46,6 @@ void main() {
   test('missing snapshot becomes the defensive empty router shape', () {
     expect(_harvest(null), <String, Object?>{
       'current_route_name': null,
-      'stack': <String>[],
       'arguments': null,
     });
   });
