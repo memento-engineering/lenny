@@ -59,7 +59,7 @@
 # sync.remote: "git+ssh://git@github.com/memento-engineering/lenny.git"
 issue_prefix: lenny
 issue-prefix: lenny
-dolt.auto-start: false
+dolt.auto-start: true
 export.auto: false
 dolt:
     disable-event-flush: true
