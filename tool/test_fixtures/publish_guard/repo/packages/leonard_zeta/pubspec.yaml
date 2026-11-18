@@ -1,0 +1,7 @@
+name: leonard_zeta
+description: publish_guard fixture; a sibling whose listing cannot be read.
+version: 0.1.0
+environment:
+  sdk: ^3.11.0
+dependencies:
+  leonard_eta: ^0.1.0

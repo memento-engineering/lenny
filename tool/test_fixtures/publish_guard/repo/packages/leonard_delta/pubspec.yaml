@@ -1,0 +1,7 @@
+name: leonard_delta
+description: publish_guard fixture; a sibling whose version is not published.
+version: 0.2.0
+environment:
+  sdk: ^3.11.0
+dependencies:
+  leonard_epsilon: ^0.5.0-dev.1
