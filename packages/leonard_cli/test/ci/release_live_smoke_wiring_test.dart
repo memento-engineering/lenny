@@ -43,10 +43,11 @@ void main() {
       );
 
       final String gate = _jobBlock(publishWorkflow, 'release-gate');
-      expect(gate, contains('needs: [parse, live-flutter-macos]'));
+      expect(gate, contains('needs: [parse, guard, live-flutter-macos]'));
       expect(gate, contains('if: always()'));
       expect(gate, contains('runs-on: ubuntu-latest'));
       expect(gate, contains(r'test "$PARSE_RESULT" = success'));
+      expect(gate, contains(r'test "$GUARD_RESULT" = success'));
       expect(gate, contains(r'if [ "$PACKAGE" = leonard_flutter ]; then'));
       expect(gate, contains(r'test "$LIVE_RESULT" = success'));
       expect(gate, contains(r'test "$LIVE_RESULT" = skipped'));
@@ -144,6 +145,7 @@ void main() {
           environment: <String, String>{
             'PACKAGE': row.package,
             'PARSE_RESULT': 'success',
+            'GUARD_RESULT': 'success',
             'LIVE_RESULT': row.liveResult,
           },
         );
@@ -162,6 +164,7 @@ void main() {
           environment: <String, String>{
             'PACKAGE': row.package,
             'PARSE_RESULT': 'success',
+            'GUARD_RESULT': 'success',
             'LIVE_RESULT': oppositeLiveResult,
           },
         );
@@ -173,6 +176,74 @@ void main() {
       }
 
       expect(prWorkflow, isNot(contains('test:live:macos')));
+    },
+  );
+
+  test(
+    'every release tag passes the publish guard before release-gate opens',
+    () async {
+      final String guard = _jobBlock(publishWorkflow, 'guard');
+      expect(guard, contains('needs: parse'));
+      expect(guard, contains('runs-on: ubuntu-latest'));
+      expect(guard, contains('- uses: actions/checkout@v4'));
+      expect(
+        guard,
+        contains(r'DIRECTORY: ${{ needs.parse.outputs.directory }}'),
+      );
+      expect(
+        guard,
+        contains(
+          r'run: ./tool/publish_guard.sh "$GITHUB_REF_NAME" "$DIRECTORY"',
+        ),
+      );
+      // No job-level condition: the guard runs for every package.
+      expect(guard, isNot(matches(RegExp(r'^    if: ', multiLine: true))));
+      expect(
+        File(p.join(workspace.path, 'tool', 'publish_guard.sh')).existsSync(),
+        isTrue,
+        reason: 'the guard job runs tool/publish_guard.sh',
+      );
+
+      final String gateScript = _jobRunScript(
+        _jobBlock(publishWorkflow, 'release-gate'),
+      );
+      const List<({String package, String liveResult})> rows =
+          <({String package, String liveResult})>[
+            (package: 'leonard_flutter', liveResult: 'success'),
+            (package: 'leonard_agent', liveResult: 'skipped'),
+          ];
+      for (final row in rows) {
+        for (final String guardResult in <String>[
+          'success',
+          'failure',
+          'skipped',
+          'cancelled',
+        ]) {
+          final ProcessResult gate = await Process.run(
+            'bash',
+            <String>['-ceu', gateScript],
+            environment: <String, String>{
+              'PACKAGE': row.package,
+              'PARSE_RESULT': 'success',
+              'GUARD_RESULT': guardResult,
+              'LIVE_RESULT': row.liveResult,
+            },
+          );
+          if (guardResult == 'success') {
+            expect(
+              gate.exitCode,
+              0,
+              reason: '${row.package} with a passing guard: ${gate.stderr}',
+            );
+          } else {
+            expect(
+              gate.exitCode,
+              isNot(0),
+              reason: '${row.package} opened the gate on guard $guardResult',
+            );
+          }
+        }
+      }
     },
   );
 }
