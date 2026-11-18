@@ -1,0 +1,7 @@
+name: leonard_gamma
+description: publish_guard fixture; a version without a CHANGELOG heading.
+version: 0.1.0
+environment:
+  sdk: ^3.11.0
+dependencies:
+  meta: ^1.18.0

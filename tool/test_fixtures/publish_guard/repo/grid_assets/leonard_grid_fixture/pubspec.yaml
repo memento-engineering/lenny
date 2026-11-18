@@ -1,0 +1,9 @@
+name: leonard_grid_fixture
+description: publish_guard fixture; a grid_assets package with map-form siblings.
+version: 0.1.0-rc.2
+environment:
+  sdk: ^3.11.0
+dependencies:
+  leonard_alpha:
+    version: ^1.2.0
+  leonard_beta: ^0.3.0

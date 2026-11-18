@@ -44,6 +44,20 @@ jobs:
           echo "directory=$dir" >> "$GITHUB_OUTPUT"
           echo "Publishing package: $pkg from $dir (tag $GITHUB_REF_NAME)"
 
+  # memento-engineering#a-release-is-a-bump-pr-then-a-guarded-tag-push, checked
+  # at publish time so a tag pushed by any route is held to it: the guard
+  # refuses a tag whose pubspec, CHANGELOG or published sibling dependencies do
+  # not match it. It runs for every package; release-gate requires it.
+  guard:
+    needs: parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag against its pubspec, changelog and siblings
+        env:
+          DIRECTORY: ${{ needs.parse.outputs.directory }}
+        run: ./tool/publish_guard.sh "$GITHUB_REF_NAME" "$DIRECTORY"
+
   live-flutter-macos:
     needs: parse
     if: needs.parse.outputs.package == 'leonard_flutter'
@@ -61,18 +75,22 @@ jobs:
   # GitHub Actions cannot conditionally declare `needs`, so every publish job
   # must need this shared gate. It requires `success` for leonard_flutter and
   # converts the live job's intentional `skipped` result into success otherwise.
+  # The publish guard must succeed for every package: a guard that failed, was
+  # skipped or was cancelled closes the gate.
   release-gate:
-    needs: [parse, live-flutter-macos]
+    needs: [parse, guard, live-flutter-macos]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require live capability evidence for leonard_flutter
+      - name: Require the publish guard and live capability evidence
         env:
           PACKAGE: ${{ needs.parse.outputs.package }}
           PARSE_RESULT: ${{ needs.parse.result }}
+          GUARD_RESULT: ${{ needs.guard.result }}
           LIVE_RESULT: ${{ needs.live-flutter-macos.result }}
         run: |
           test "$PARSE_RESULT" = success
+          test "$GUARD_RESULT" = success
           if [ "$PACKAGE" = leonard_flutter ]; then
             test "$LIVE_RESULT" = success
           else

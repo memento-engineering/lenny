@@ -1,0 +1,5 @@
+name: leonard_eta
+description: publish_guard fixture; a sibling pub.dev has no listing for.
+version: 0.1.0
+environment:
+  sdk: ^3.11.0

@@ -1,0 +1,7 @@
+name: leonard_alpha
+description: publish_guard fixture; a sibling published on pub.dev.
+version: 1.2.0
+environment:
+  sdk: ^3.11.0
+dependencies:
+  meta: ^1.18.0

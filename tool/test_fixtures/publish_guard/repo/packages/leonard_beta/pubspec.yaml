@@ -1,0 +1,13 @@
+name: leonard_beta
+description: publish_guard fixture; a release whose checks all pass.
+version: 0.3.0
+environment:
+  sdk: ^3.11.0
+dependencies:
+  flutter:
+    sdk: flutter
+  # runtime siblings
+  leonard_alpha: ^1.2.0
+  meta: ^1.18.0
+dev_dependencies:
+  leonard_epsilon: ^0.5.0-dev.1
